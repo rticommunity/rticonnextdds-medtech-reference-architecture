@@ -1,0 +1,9 @@
+prompt              = no
+distinguished_name  = req_distinguished_name
+
+[ req_distinguished_name ]
+countryName          = US
+stateOrProvinceName  = CA
+organizationName     = Company Name
+emailAddress         = support@company_name.com
+commonName           = Orchestrator Application

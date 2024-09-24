@@ -1,0 +1,54 @@
+{
+  "ui_projectName": "RefArch",
+  "ui_settings": {
+    "confirmDelete": true,
+    "showEZSecure": false,
+    "enableValuetypes": false,
+    "autosave": 1,
+    "enforceSnippetSeparation": true,
+    "useAsSnippetIfName": false,
+    "enableValidation": true
+  },
+  "ui_lastSaveTime": "6/9/2024 @ 15:03:22",
+  "ui_creationDate": "6/9/2024 @ 15:02:39",
+  "ui_creationSysDVersion": "7.3.0",
+  "ui_projectNotes": "",
+  "ui_include": [
+    {
+      "path": "BaselineRoot.documentationONLY.xml",
+      "readonly": true,
+      "builtin": true
+    },
+    {
+      "path": "BuiltinProfiles.documentationONLY.xml",
+      "readonly": true,
+      "builtin": true
+    },
+    {
+      "path": "qos\\NonSecureAppsQos.xml",
+      "readonly": false,
+      "builtin": false
+    },
+    {
+      "path": "qos\\Qos.xml",
+      "readonly": false,
+      "builtin": false
+    },
+    {
+      "path": "xml_app_creation\\DomainLibrary.xml",
+      "readonly": false,
+      "builtin": false
+    },
+    {
+      "path": "xml_app_creation\\ParticipantLibrary.xml",
+      "readonly": false,
+      "builtin": false
+    },
+    {
+      "path": "Types.xml",
+      "readonly": false,
+      "builtin": false
+    }
+  ],
+  "ui_projectGUID": "b08d0cc5-4bf0-05d7-52a3-36c9b23b3856"
+}

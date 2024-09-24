@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+
+RTI grants Licensee a license to use, modify, compile, and create derivative
+works of the software solely for use with RTI Connext DDS.  Licensee may
+redistribute copies of the software provided that all such copies are
+subject to this license. The software is provided "as is", with no warranty
+of any type, including any warranty for fitness for any purpose. RTI is
+under no obligation to maintain or support the software.  RTI shall not be
+liable for any incidental or consequential damages arising out of the use or
+inability to use the software. -->
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_recording_service.xsd">
+
+    <recording_service name="RecServCfg">
+
+        <!-- Join domain 99 on Admin Console for more introspection on Recording Service -->
+        <administration>
+            <enabled>true</enabled>
+            <domain_id>99</domain_id>
+        </administration>
+
+        <!--  Storage settings -->
+        <storage>
+            <sqlite>
+                <!-- XCDR_AUTO = serialized format, which is more performant, but not human-readable -->
+                <!-- JSON_SQLITE = deserialized format, which is less performant, but human readable -->
+                <storage_format>XCDR_AUTO</storage_format>
+                <!-- This will record data to a directory called 'demo2_recording' -->
+                <fileset>
+                    <!-- Run Recording Service on the current directory -->
+                    <workspace_dir></workspace_dir>
+                    <!-- Create a directory called cdr_recording with the database -->
+                    <execution_dir_expression>demo2_recording</execution_dir_expression>
+                    <!-- Name of the database(s) containing the recorded data -->
+                    <filename_expression>demo2_recording_database.dat</filename_expression>
+                </fileset>
+            </sqlite>
+        </storage>
+
+        <!--  Recording Service DomainParticipant settings -->
+        <domain_participant name="recs/dp/OperationalData">
+            <domain_id>0</domain_id>
+            <domain_participant_qos base_name="RtiServicesLib::RecordingService"/>
+        </domain_participant>
+
+        <!-- <session> = subscriber -->
+        <session name="session">
+            <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
+
+            <!-- <topic> = DataReader -->
+            <topic name="t/MotorControl" participant_ref="recs/dp/OperationalData">
+                <topic_name>t/MotorControl</topic_name>
+                <registered_type_name>SurgicalRobot::MotorControl</registered_type_name>
+                <!-- Using the same QoS profile we use in our applications -->
+                <datareader_qos base_name="DataFlowLibrary::Command"/>
+            </topic>
+            
+            <topic name="t/Vitals" participant_ref="recs/dp/OperationalData">
+                <topic_name>t/Vitals</topic_name>
+                <registered_type_name>PatientMonitor::Vitals</registered_type_name>
+                <!-- Using the same QoS profile we use in our applications -->
+                <datareader_qos base_name="DataFlowLibrary::Streaming"/>
+            </topic>
+
+            <!-- This topic group would record all the topics but the rti/* topics -->
+            <!-- <topic_group> = group of DataReaders -->
+            <!-- <topic_group name="RecordAll" participant_ref="recs/dp/OperationalData">
+                <allow_topic_name_filter>*</allow_topic_name_filter>
+                <deny_topic_name_filter>rti/*</deny_topic_name_filter>
+                <datareader_qos base_name="BuiltinQosLib::Generic.Common"/>
+            </topic_group> -->
+        </session>
+    </recording_service>
+</dds>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+
+RTI grants Licensee a license to use, modify, compile, and create derivative
+works of the software solely for use with RTI Connext DDS.  Licensee may
+redistribute copies of the software provided that all such copies are
+subject to this license. The software is provided "as is", with no warranty
+of any type, including any warranty for fitness for any purpose. RTI is
+under no obligation to maintain or support the software.  RTI shall not be
+liable for any incidental or consequential damages arising out of the use or
+inability to use the software. -->
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_dds_profiles.xsd"
+  version="7.3.0">
+  <domain_library name="ConnextDomainLib">
+    <domain name="OperationalDataDomain" domain_id="0">
+      <!-- Types need to be registered once. 2 different topics can use the same type -->
+      <register_type name="SurgicalRobot::MotorControl"   type_ref="SurgicalRobot::MotorControl"/>
+      <register_type name="Common::DeviceStatus"          type_ref="Common::DeviceStatus"/>
+      <register_type name="Common::DeviceHeartbeat"       type_ref="Common::DeviceHeartbeat"/>
+      <register_type name="PatientMonitor::Vitals"        type_ref="PatientMonitor::Vitals"/>
+      <register_type name="Orchestrator::DeviceCommand"   type_ref="Orchestrator::DeviceCommand"/>
+
+      <!-- t/ stands for topic. This is just some nomenclature,
+           the DDS standard does not make this mandatory. -->
+      <topic name="t/MotorControl"    register_type_ref="SurgicalRobot::MotorControl"/>
+      <topic name="t/DeviceStatus"    register_type_ref="Common::DeviceStatus"/>
+      <topic name="t/DeviceHeartbeat" register_type_ref="Common::DeviceHeartbeat"/>
+      <topic name="t/DeviceCommand"   register_type_ref="Orchestrator::DeviceCommand"/>
+      <topic name="t/Vitals"          register_type_ref="PatientMonitor::Vitals"/>
+    </domain>
+  </domain_library>
+</dds>

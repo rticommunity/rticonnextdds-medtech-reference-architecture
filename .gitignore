@@ -1,0 +1,9 @@
+.vscode/
+build/
+Types.py
+*.pyc
+*.pem
+*.p7s
+*.csr
+*.glade~
+demo2_recording/

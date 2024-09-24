@@ -1,0 +1,71 @@
+#
+# OpenSSL Certificate Authority configuration file.
+
+####################################################################
+[ ca ]
+default_ca = CA_default
+
+# Variables defining this CA
+name = pmiCa
+
+####################################################################
+[ CA_default ]
+dir				= .
+certificate     = $dir/CaCert.pem
+private_key     = $dir/CaKey.pem
+crl_dir			= $dir/crl
+
+new_certs_dir   = ./temporary_files
+database        = $dir/database/CaIndex
+crlnumber       = $dir/crl/crlNumber
+
+# Due to cmake code, we need to use certs/serial
+# serial          = cert/temporary_files/serial
+serial          = $dir/database/CaSerial
+
+default_days     = 7300                    # how long to certify for
+default_crl_days = 30                      # how long before next CRL
+default_md       = sha256                  # which md to use.
+preserve         = no                      # keep passed DN ordering
+
+# A few difference way of specifying how similar the request should look
+# For type CA, the listed attributes must be the same, and the optional
+# and supplied fields are just that :-)
+policy          = policy_match
+
+# For the CA policy
+[ policy_match ]
+countryName             = match
+stateOrProvinceName     = match
+localityName			= optional
+organizationName        = match
+emailAddress            = optional
+commonName              = optional
+
+# For the 'anything' policy
+# At this point in time, you must list all acceptable 'object'
+# types.
+[ policy_anything ]
+countryName             = optional
+stateOrProvinceName     = optional
+localityName            = optional
+organizationName        = optional
+organizationalUnitName  = optional
+emailAddress            = optional
+commonName              = supplied
+
+[ req ]
+prompt                  = no
+
+distinguished_name      = req_distinguished_name
+
+[ req_distinguished_name ]
+countryName                     = US
+stateOrProvinceName             = CA
+0.organizationName              = Company Name
+commonName                      = Company Name CA
+emailAddress                    = support@company_name.com
+
+[ v3_ca ]
+# Extensions for a typical CA (`man x509v3_config`).
+basicConstraints = CA:true

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_dds_profiles.xsd">
+  <types>
+    <module name="DdsEntities">
+      <module name="Constants">
+        <const name="DP_LIBRARY_NAME" type="string" value="&quot;MedicalDemoParticipantLibrary&quot;"/>
+        <const name="DP_ARM_CONTROLLER_NAME" type="string" value="&quot;dp/ArmController&quot;"/>
+        <const name="DP_ARM_NAME" type="string" value="&quot;dp/Arm&quot;"/>
+        <const name="DP_ORCHESTRATOR_NAME" type="string" value="&quot;dp/Orchestrator&quot;"/>
+        <const name="DP_PATIENT_MONITOR_NAME" type="string" value="&quot;dp/PatientMonitor&quot;"/>
+        <const name="DP_PATIENT_SENSOR_NAME" type="string" value="&quot;dp/PatientSensor&quot;"/>
+        <const name="SEPARATOR" type="string" value="&quot;::&quot;"/>
+        <const name="PUBLISHER_NAME" type="string" value="&quot;p/publisher&quot;"/>
+        <const name="SUBSCRIBER_NAME" type="string" value="&quot;s/subscriber&quot;"/>
+        <const name="DW_PREFIX" type="string" value="&quot;dw/&quot;"/>
+        <const name="DR_PREFIX" type="string" value="&quot;dr/&quot;"/>
+        <const name="ENDPOINT_MOTOR_CONTROL_NAME" type="string" value="&quot;MotorControl&quot;"/>
+        <const name="ENDPOINT_DEVICE_STATUS_NAME" type="string" value="&quot;DeviceStatus&quot;"/>
+        <const name="ENDPOINT_DEVICE_HEARTBEAT_NAME" type="string" value="&quot;DeviceHeartbeat&quot;"/>
+        <const name="ENDPOINT_DEVICE_COMMAND_NAME" type="string" value="&quot;DeviceCommand&quot;"/>
+        <const name="ENDPOINT_VITALS_NAME" type="string" value="&quot;Vitals&quot;"/>
+      </module>
+    </module>
+    <module name="Common">
+      <enum name="DeviceStatuses">
+        <enumerator name="ON"/>
+        <enumerator name="OFF"/>
+        <enumerator name="PAUSED"/>
+        <enumerator name="ERROR"/>
+      </enum>
+      <enum name="DeviceType">
+        <enumerator name="ARM_CONTROLLER"/>
+        <enumerator name="ARM"/>
+        <enumerator name="VIDEO_PUB"/>
+        <enumerator name="VIDEO_SUB"/>
+        <enumerator name="PATIENT_MONITOR"/>
+        <enumerator name="PATIENT_SENSOR"/>
+      </enum>
+      <struct name= "DeviceStatus">
+        <member name="device" type="nonBasic"  nonBasicTypeName= "Common::DeviceType" key="true"/>
+        <member name="status" type="nonBasic"  nonBasicTypeName= "Common::DeviceStatuses"/>
+      </struct>
+      <struct name= "DeviceHeartbeat">
+        <member name="device" type="nonBasic"  nonBasicTypeName= "Common::DeviceType" key="true"/>
+      </struct>
+    </module>
+    <module name="SurgicalRobot">
+      <enum name="Motors">
+        <enumerator name="BASE"/>
+        <enumerator name="SHOULDER"/>
+        <enumerator name="ELBOW"/>
+        <enumerator name="WRIST"/>
+        <enumerator name="HAND"/>
+      </enum>
+      <enum name="MotorDirections">
+        <enumerator name="STATIONARY"/>
+        <enumerator name="INCREMENT"/>
+        <enumerator name="DECREMENT"/>
+      </enum>
+      <struct name= "MotorControl">
+        <member name="id" type="nonBasic"  nonBasicTypeName= "SurgicalRobot::Motors" key="true"/>
+        <member name="direction" type="nonBasic"  nonBasicTypeName= "SurgicalRobot::MotorDirections"/>
+      </struct>
+    </module>
+    <module name="Orchestrator">
+      <enum name="DeviceCommands">
+        <enumerator name="START"/>
+        <enumerator name="SHUTDOWN"/>
+        <enumerator name="PAUSE"/>
+      </enum>
+      <struct name= "DeviceCommand">
+        <member name="device" type="nonBasic"  nonBasicTypeName= "Common::DeviceType" key="true"/>
+        <member name="command" type="nonBasic"  nonBasicTypeName= "Orchestrator::DeviceCommands"/>
+      </struct>
+    </module>
+    <module name="PatientMonitor">
+      <struct name= "Vitals">
+        <member name="patient_name" stringMaxLength="20" type="string" key="true"/>
+        <member name="hr" type="int32"/>
+        <member name="spo2" type="int32"/>
+        <member name="etco2" type="int32"/>
+        <member name="nibp_s" type="int32"/>
+        <member name="nibp_d" type="int32"/>
+      </struct>
+    </module>
+  </types>
+</dds>

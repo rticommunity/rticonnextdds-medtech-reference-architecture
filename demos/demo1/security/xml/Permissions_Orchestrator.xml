@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+
+RTI grants Licensee a license to use, modify, compile, and create derivative
+works of the software solely for use with RTI Connext DDS.  Licensee may
+redistribute copies of the software provided that all such copies are
+subject to this license. The software is provided "as is", with no warranty
+of any type, including any warranty for fitness for any purpose. RTI is
+under no obligation to maintain or support the software.  RTI shall not be
+liable for any incidental or consequential damages arising out of the use or
+inability to use the software. -->
+
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/dds_security_permissions.xsd">
+    <permissions>
+        <grant name="OrchestratorParticipant">
+            <subject_name>/C=US/ST=CA/O=Company Name/emailAddress=support@company_name.com/CN=Orchestrator Application</subject_name>
+            <validity>
+                <!-- Format is CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm] in GMT -->
+                <not_before>2024-06-01T13:00:00</not_before>
+                <not_after>2037-06-01T13:00:00</not_after>
+            </validity>
+            <allow_rule>
+                <domains>
+                    <id>0</id>
+                </domains>
+                <publish>
+                    <topics>
+                        <topic>t/DeviceCommand</topic>
+                    </topics>
+                </publish>
+                <subscribe>
+                    <topics>
+                        <topic>t/DeviceStatus</topic>
+                        <topic>t/DeviceHeartbeat</topic>
+                    </topics>
+                </subscribe>
+            </allow_rule>
+            <default>DENY</default>
+        </grant>
+    </permissions>
+</dds>

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+
+RTI grants Licensee a license to use, modify, compile, and create derivative
+works of the software solely for use with RTI Connext DDS.  Licensee may
+redistribute copies of the software provided that all such copies are
+subject to this license. The software is provided "as is", with no warranty
+of any type, including any warranty for fitness for any purpose. RTI is
+under no obligation to maintain or support the software.  RTI shall not be
+liable for any incidental or consequential damages arising out of the use or
+inability to use the software. -->
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_dds_profiles.xsd" version="7.3.0">
+
+    <qos_library name="SystemLibrary">
+      <!-- All DomainParticipants should typically use this profile, unless they have differen requirements -->
+      <qos_profile name="DefaultParticipant" base_name="BuiltinQosLib::Generic.Common">
+        <domain_participant_qos>
+          <!-- Discovery-related optimizations -->
+          <base_name>
+            <element>BuiltinQosSnippetLib::Optimization.Discovery.Common</element>
+            <element>BuiltinQosSnippetLib::Optimization.Discovery.Endpoint.Fast</element>
+            <element>BuiltinQosSnippetLib::Optimization.ReliabilityProtocol.Common</element>
+          </base_name>
+          <transport_builtin>
+            <shmem>
+              <!-- message_size_max should be >= largest message over SHMEM -->
+              <!-- receive_buffer_size and received_message_count_max should be modified accordingly -->
+              <!-- As a general rule: receive_buffer_size = message_size_max * received_message_count_max -->
+              
+              <!-- <message_size_max>262144</message_size_max>
+              <receive_buffer_size>8388608</receive_buffer_size>
+              <received_message_count_max>32</received_message_count_max> -->
+            </shmem>
+            <udpv4>
+              <message_size_max>65530</message_size_max>
+              <!-- These settings help when throughput is high. -->
+              <!-- You need to manually modify these in your kernel. -->
+              <!-- You should add the sysctl commands to your startup script. -->
+              <!--    Linux: https://community.rti.com/howto/improve-rti-connext-dds-network-performance-linux -->
+              <!--    QNX: https://community.rti.com/kb/how-increase-socket-buffer-sizes-qnx -->
+              <!--    Windows: no need to do anything at the OS level -->
+              <send_socket_buffer_size>10485760</send_socket_buffer_size>
+              <recv_socket_buffer_size>10485760</recv_socket_buffer_size>
+              <!-- You should set the ALLOW_INTERFACES_LIST environment variable
+                  to the IP address you'd like to use. This helps avoid potential
+                  duplicate traffic because Connext will use all the available
+                  interfaces to receive data, causing remote DPs to send the same
+                  data to multiple destinations. -->
+              <!-- This is commented out for easier out-of-the-box behavior -->
+              <!-- <allow_interfaces_list>
+                <element>$(ALLOW_INTERFACES_LIST)</element>
+              </allow_interfaces_list> -->
+            </udpv4>
+          </transport_builtin>
+        </domain_participant_qos>
+      </qos_profile>
+    </qos_library>
+  
+    <qos_library name="DataFlowLibrary">
+      <!-- For topics that are published at a high rate -->
+      <qos_profile name="Streaming" base_name="BuiltinQosLib::Generic.Common">
+        <base_name>
+          <element>BuiltinQosSnippetLib::QosPolicy.Reliability.BestEffort</element>
+          <element>BuiltinQosSnippetLib::QosPolicy.History.KeepLast_1</element>
+        </base_name>
+      </qos_profile>
+
+      <!-- For topics that are published once and on change -->
+      <qos_profile name="Status" base_name="BuiltinQosLib::Pattern.Status"/>
+
+      <!-- For command topics that don't need to be delivered to late-joiners -->
+      <qos_profile name="Command" base_name="BuiltinQosLib::Generic.Common">
+        <base_name>
+          <!-- Using builtin snippets to improve readability -->
+          <element>BuiltinQosSnippetLib::QosPolicy.Reliability.Reliable</element>
+          <element>BuiltinQosSnippetLib::QosPolicy.History.KeepLast_1</element>
+          <!-- Optimization for faster repairs -->
+          <element>BuiltinQosSnippetLib::Optimization.ReliabilityProtocol.KeepLast</element>
+        </base_name>
+      </qos_profile>
+
+      <!-- For the t/DeviceHeartbeat topic, which is sent at 20 Hz -->
+      <qos_profile name="Heartbeat" base_name="Streaming">
+        <datawriter_qos>
+          <!-- Since the HB topic is sent at 20 Hz (50 ms), we'll use a deadline of 200 ms -->
+          <deadline>
+            <period>
+              <sec>0</sec>
+              <nanosec>200000000</nanosec>
+            </period>
+          </deadline>
+        </datawriter_qos>
+        <datareader_qos>
+          <!-- Since the HB topic is sent at 20 Hz (50 ms), we'll use a deadline of 200 ms -->
+          <deadline>
+            <period>
+              <sec>0</sec>
+              <nanosec>200000000</nanosec>
+            </period>
+          </deadline>
+        </datareader_qos>
+      </qos_profile>
+    </qos_library>
+     
+</dds>
