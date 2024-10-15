@@ -223,17 +223,19 @@ class ArmApp:
             self.cmd_waitset.dispatch(dds.Duration(1))
 
     def connext_setup(self):
-        # Register DDS types
+        # Register DDS types, using a function from DdsUtils.py
         DdsUtils.register_type(Common.DeviceStatus)
         DdsUtils.register_type(Common.DeviceHeartbeat)
         DdsUtils.register_type(Orchestrator.DeviceCommand)
         DdsUtils.register_type(SurgicalRobot.MotorControl)
 
-        # Create QoS provider and participant
+        # Connext will load XML files through the default provider from the
+        # NDDS_QOS_PROFILES environment variable
         qos_provider = dds.QosProvider.default
+
         participant = qos_provider.create_participant_from_config(DdsUtils.arm_dp_fqn)
 
-        # Create DataWriters
+        # Initialize DataWriters
         self.status_writer = dds.DataWriter(
             participant.find_datawriter(DdsUtils.status_dw_fqn)
         )
@@ -245,7 +247,7 @@ class ArmApp:
         )
         self.status_writer.write(self.arm_status)
 
-        # Create DataReaders
+        # Initialize DataReaders
         self.motor_control_reader = dds.DataReader(
             participant.find_datareader(DdsUtils.motor_control_dr_fqn)
         )

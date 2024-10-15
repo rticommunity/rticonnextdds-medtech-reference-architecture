@@ -29,24 +29,21 @@ class PatientSensor {
 public:
     void run()
     {
-        // Using a function defined in DdsUtils to register the types
-        DdsUtils::register_type<Orchestrator::DeviceCommand>();
-        DdsUtils::register_type<Common::DeviceStatus>();
-        DdsUtils::register_type<Common::DeviceHeartbeat>();
-        DdsUtils::register_type<PatientMonitor::Vitals>();
+        // We need to register the types before we start creating DDS entities
+        rti::domain::register_type<Orchestrator::DeviceCommand>();
+        rti::domain::register_type<Common::DeviceStatus>();
+        rti::domain::register_type<Common::DeviceHeartbeat>();
+        rti::domain::register_type<PatientMonitor::Vitals>();
 
         // Connext will load XML files through the default provider from the
         // NDDS_QOS_PROFILES environment variable
-        rti::domain::DomainParticipantConfigParams params;
         auto default_provider = dds::core::QosProvider::Default();
 
-        // Create DomainParticipant using configuration
         dds::domain::DomainParticipant participant =
                 default_provider.extensions().create_participant_from_config(
-                        DdsUtils::patient_sensor_dp_fqn,
-                        params);
+                        DdsUtils::patient_sensor_dp_fqn);
 
-        // DataWriters
+        // Initialize DataWriters
         dds::pub::DataWriter<PatientMonitor::Vitals> vitals_writer =
                 rti::pub::find_datawriter_by_name<
                         dds::pub::DataWriter<PatientMonitor::Vitals>>(
@@ -65,7 +62,7 @@ public:
                         participant,
                         DdsUtils::hb_dw_fqn);
 
-        // DataReader
+        // Initialize DataReader
         dds::sub::DataReader<Orchestrator::DeviceCommand> cmd_reader =
                 rti::sub::find_datareader_by_name<
                         dds::sub::DataReader<Orchestrator::DeviceCommand>>(

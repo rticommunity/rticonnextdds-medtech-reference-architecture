@@ -77,11 +77,11 @@ private:
     // Initialize Connext participants, readers, and writers
     void initialize_connext()
     {
-        // Using a function defined in DdsUtils to register the types
-        DdsUtils::register_type<Orchestrator::DeviceCommand>();
-        DdsUtils::register_type<Common::DeviceStatus>();
-        DdsUtils::register_type<SurgicalRobot::MotorControl>();
-        DdsUtils::register_type<Common::DeviceHeartbeat>();
+        // We need to register the types before we start creating DDS entities
+        rti::domain::register_type<Orchestrator::DeviceCommand>();
+        rti::domain::register_type<Common::DeviceStatus>();
+        rti::domain::register_type<SurgicalRobot::MotorControl>();
+        rti::domain::register_type<Common::DeviceHeartbeat>();
 
         // Connext will load XML files through the default provider from the
         // NDDS_QOS_PROFILES environment variable

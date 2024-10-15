@@ -46,12 +46,6 @@ inline const std::string device_command_dr_fqn =
         dr_prefix + ENDPOINT_DEVICE_COMMAND_NAME;
 inline const std::string vitals_dw_fqn = dw_prefix + ENDPOINT_VITALS_NAME;
 
-// Simplifying how to register a type since we're using the same name
-template <typename T>
-void register_type()
-{
-    rti::domain::register_type<T>(dds::topic::topic_type_name<T>::value());
-}
 }  // namespace DdsUtils
 
 #endif  // DDS_UTILS_H

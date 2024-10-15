@@ -64,24 +64,26 @@ class OrchestratorApp {
 public:
     OrchestratorApp(int argc, char const *argv[]) : running(true)
     {
-        // Register types
-        DdsUtils::register_type<Orchestrator::DeviceCommand>();
-        DdsUtils::register_type<Common::DeviceStatus>();
-        DdsUtils::register_type<Common::DeviceHeartbeat>();
+        // We need to register the types before we start creating DDS entities
+        rti::domain::register_type<Orchestrator::DeviceCommand>();
+        rti::domain::register_type<Common::DeviceStatus>();
+        rti::domain::register_type<Common::DeviceHeartbeat>();
 
-        // Create DomainParticipant
-        rti::domain::DomainParticipantConfigParams params;
+        // Connext will load XML files through the default provider from the
+        // NDDS_QOS_PROFILES environment variable
         auto default_provider = dds::core::QosProvider::Default();
+
         participant =
                 default_provider.extensions().create_participant_from_config(
-                        DdsUtils::orchestrator_dp_fqn,
-                        params);
+                        DdsUtils::orchestrator_dp_fqn);
 
-        // Create DataWriters and DataReaders
+        // Initialize DataWriter
         command_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<Orchestrator::DeviceCommand>>(
                 participant,
                 DdsUtils::device_command_dw_fqn);
+
+        // Initialize DataReaders
         status_reader = rti::sub::find_datareader_by_name<
                 dds::sub::DataReader<Common::DeviceStatus>>(
                 participant,

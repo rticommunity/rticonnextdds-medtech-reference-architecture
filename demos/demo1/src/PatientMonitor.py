@@ -187,23 +187,29 @@ class PatientMonitorApp:
             cmd_waitset.dispatch(dds.Duration(1))
 
     def connext_setup(self):
+        # Register DDS types, using a function from DdsUtils.py
         DdsUtils.register_type(Common.DeviceStatus)
         DdsUtils.register_type(Common.DeviceHeartbeat)
         DdsUtils.register_type(Orchestrator.DeviceCommand)
         DdsUtils.register_type(PatientMonitor.Vitals)
 
+        # Connext will load XML files through the default provider from the
+        # NDDS_QOS_PROFILES environment variable
         qos_provider = dds.QosProvider.default
 
         participant = qos_provider.create_participant_from_config(
             DdsUtils.patient_monitor_dp_fqn
         )
 
+        # Initialize DataWriters
         self.status_writer = dds.DataWriter(
             participant.find_datawriter(DdsUtils.status_dw_fqn)
         )
         self.hb_writer = dds.DataWriter(
             participant.find_datawriter(DdsUtils.device_hb_dw_fqn)
         )
+
+        # Initialize DataReaders
         self.vitals_reader = dds.DataReader(
             participant.find_datareader(DdsUtils.vitals_dr_fqn)
         )
