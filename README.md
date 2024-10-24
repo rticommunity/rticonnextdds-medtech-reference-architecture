@@ -28,6 +28,12 @@ RTI Connext is a leading connectivity framework designed to facilitate real-time
 
 By following the examples and best practices outlined in this documentation, architects and developers can find inspiration to create medical applications.
 
+Here are some links that compliment this repository:
+
+- [MedTech Reference Architecture Overview on Youtube](https://www.youtube.com/watch?v=RiFxmO6RAEw).
+- [Capability Brief PDF](https://www.rti.com/hubfs/_Collateral/capability-briefs/rti-capability-brief-MedTech-Reference-Architecture.pdf)
+- [Case+Code page on rti.com](https://www.rti.com/developers/case-code/medtech-reference-architecture)
+
 ## Getting Started
 
 *RTI strongly recommends proceeding in the following order:*
