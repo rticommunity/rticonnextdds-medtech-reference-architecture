@@ -106,13 +106,13 @@ cd security
 Run demo applications:
 
 ```bash
-./launch_all.sh
+./scripts/launch_all.sh
 ```
 
 To run with security enabled, use the `-s` option:
 
 ```bash
-./launch_all.sh -s
+./scripts/launch_all.sh -s
 ```
 
 *This script does the following:*
@@ -121,7 +121,7 @@ To run with security enabled, use the `-s` option:
 
 2. Launch the application executables.
 
-*Note, applications can be launched individually from a terminal instead of all at once via the **launch_all.sh** script. Please refer how `NDDS_QOS_PROFILES` is set in [launch_all.sh](./launch_all.sh), so your terminal environment can be configured similarly without errors.*
+*Note, applications can be launched individually from a terminal instead of all at once via the **launch_all.sh** script. Please refer how `NDDS_QOS_PROFILES` is set in [launch_all.sh](./scripts/launch_all.sh), so your terminal environment can be configured similarly without errors.*
 
 ### 3. Observe the demo applications
 
@@ -137,7 +137,7 @@ Observe and play around with the interactive demo applications. The following ar
 To ensure application processes are killed when finished, run:
 
 ```bash
-./kill_all.sh
+./scripts/kill_all.sh
 ```
 
 ## Hands-On: Going Further

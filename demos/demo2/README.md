@@ -58,7 +58,7 @@ In its own terminal, [launch the Demo 1 applications](../demo1/README.md#run-the
 
 ```bash
 cd demo1
-./launch_all.sh [-s]
+./scripts/launch_all.sh [-s]
 ```
 
 ### 2. Run RTI Recording Service
@@ -98,7 +98,7 @@ Inspect [RecordingServiceConfiguration.xml](RecordingServiceConfiguration.xml) t
 Kill all running Demo 1 application processes:
 
 ```bash
-../demo1/kill_all.sh
+../demo1/scripts/kill_all.sh
 ```
 
 Relaunch the Demo 1 Arm and Patient Monitor GUI applications only (use `-s` option for security):
@@ -127,7 +127,7 @@ The Replay Service configuration has `<enable_looping>` set to `true`, so the re
 Kill all running Demo 1 applications:
 
 ```bash
-../demo1/kill_all.sh
+../demo1/scripts/kill_all.sh
 ```
 
 #### Further Learning: Replay Service
