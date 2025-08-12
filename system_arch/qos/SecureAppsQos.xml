@@ -12,7 +12,7 @@ inability to use the software. -->
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_dds_profiles.xsd" version="7.3.0">
 
   <qos_library name="CommonLibrary">
-    <qos_profile name="CommonSecuritySettings">
+    <qos_profile name="Demo1and2CommonSecuritySettings">
       <?rti-qos_snippet?>
       <domain_participant_qos>
         <base_name>
@@ -39,6 +39,34 @@ inability to use the software. -->
         </property>
       </domain_participant_qos>
     </qos_profile>
+
+    <qos_profile name="Demo3CommonSecurityConfig">
+      <domain_participant_qos>
+        <base_name>
+          <element>BuiltinQosSnippetLib::Feature.Security.Enable</element>
+        </base_name>
+        <property>
+          <value>
+            <element>
+              <name>com.rti.serv.secure.logging.verbosity</name>
+              <value>CRITICAL</value>
+            </element>
+            <element>
+              <name>dds.sec.auth.identity_ca</name>
+              <value>file:../security/ca/CaIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.access.permissions_ca</name>
+              <value>file:../security/ca/CaIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.access.governance</name>
+              <value>file:../security/xml/signed/signed_Governance.p7s</value>
+            </element>
+          </value>
+        </property>
+      </domain_participant_qos>
+    </qos_profile>
   </qos_library>
 
   <qos_library name="DpQosLib">
@@ -46,7 +74,7 @@ inability to use the software. -->
     <qos_profile name="Arm" base_name="SystemLibrary::DefaultParticipant">
       <domain_participant_qos>
         <base_name>
-          <element>CommonLibrary::CommonSecuritySettings</element>
+          <element>CommonLibrary::Demo1and2CommonSecuritySettings</element>
         </base_name>
         <property>
           <value>
@@ -70,7 +98,7 @@ inability to use the software. -->
     <qos_profile name="ArmController" base_name="SystemLibrary::DefaultParticipant">
       <domain_participant_qos>
         <base_name>
-          <element>CommonLibrary::CommonSecuritySettings</element>
+          <element>CommonLibrary::Demo1and2CommonSecuritySettings</element>
         </base_name>
         <property>
           <value>
@@ -94,7 +122,7 @@ inability to use the software. -->
     <qos_profile name="Orchestrator" base_name="SystemLibrary::DefaultParticipant">
       <domain_participant_qos>
         <base_name>
-          <element>CommonLibrary::CommonSecuritySettings</element>
+          <element>CommonLibrary::Demo1and2CommonSecuritySettings</element>
         </base_name>
         <property>
           <value>
@@ -118,7 +146,7 @@ inability to use the software. -->
     <qos_profile name="PatientSensor" base_name="SystemLibrary::DefaultParticipant">
       <domain_participant_qos>
         <base_name>
-          <element>CommonLibrary::CommonSecuritySettings</element>
+          <element>CommonLibrary::Demo1and2CommonSecuritySettings</element>
         </base_name>
         <property>
           <value>
@@ -141,7 +169,7 @@ inability to use the software. -->
     <qos_profile name="PatientMonitor" base_name="SystemLibrary::DefaultParticipant">
       <domain_participant_qos>
         <base_name>
-          <element>CommonLibrary::CommonSecuritySettings</element>
+          <element>CommonLibrary::Demo1and2CommonSecuritySettings</element>
         </base_name>
         <property>
           <value>
@@ -167,7 +195,7 @@ inability to use the software. -->
     <qos_profile name="RecordingService" base_name="SystemLibrary::DefaultParticipant">
       <domain_participant_qos>
         <base_name>
-          <element>CommonLibrary::CommonSecuritySettings</element>
+          <element>CommonLibrary::Demo1and2CommonSecuritySettings</element>
         </base_name>
         <property>
           <value>
@@ -190,7 +218,7 @@ inability to use the software. -->
     <qos_profile name="ReplayService" base_name="SystemLibrary::DefaultParticipant">
       <domain_participant_qos>
         <base_name>
-          <element>CommonLibrary::CommonSecuritySettings</element>
+          <element>CommonLibrary::Demo1and2CommonSecuritySettings</element>
         </base_name>
         <property>
           <value>
@@ -205,6 +233,56 @@ inability to use the software. -->
             <element>
               <name>dds.sec.access.permissions</name>
               <value>file:security/xml/signed/signed_Permissions_ReplayService.p7s</value>
+            </element>
+          </value>
+        </property>
+      </domain_participant_qos>
+    </qos_profile>
+
+    <qos_profile name="RsPassive" base_name="BuiltinQosLib::Generic.Common">
+      <domain_participant_qos>
+        <base_name>
+          <element>MyQosLib::WanConfig</element>
+          <element>MyQosLib::Demo3CommonSecurityConfig</element>
+        </base_name>
+        <property>
+          <value>
+            <element>
+              <name>dds.sec.auth.identity_certificate</name>
+              <value>file:../security/identities/RsPassive/RsPassiveIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.auth.private_key</name>
+              <value>file:../security/identities/RsPassive/RsPassivePrivateKey.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.access.permissions</name>
+              <value>file:../security/xml/signed/signed_Permissions_RsPassive.p7s</value>
+            </element>
+          </value>
+        </property>
+      </domain_participant_qos>
+    </qos_profile>
+
+    <qos_profile name="RsActive" base_name="BuiltinQosLib::Generic.Common">
+      <domain_participant_qos>
+        <base_name>
+          <element>MyQosLib::WanConfig</element>
+          <element>MyQosLib::Demo3CommonSecurityConfig</element>
+        </base_name>
+        <property>
+          <value>
+            <element>
+              <name>dds.sec.auth.identity_certificate</name>
+              <value>file:../security/identities/RsActive/RsActiveIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.auth.private_key</name>
+              <value>file:../security/identities/RsActive/RsActivePrivateKey.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.access.permissions</name>
+              <value>file:../security/xml/signed/signed_Permissions_RsActive.p7s</value>
             </element>
           </value>
         </property>

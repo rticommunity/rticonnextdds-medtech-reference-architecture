@@ -20,7 +20,7 @@
     xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_routing_service.xsd">
 
     <!-- RS that is behind a well-known public IP address -->
-    <routing_service name="RsConfig_Cloud">
+    <routing_service name="RsConfigCloud">
 
         <!-- The administration tag enables remote administration, and is 
             required when using Admin Console. -->
@@ -53,7 +53,7 @@
 
             <participant name="WAN_domain">
                 <domain_id>2</domain_id>
-                <domain_participant_qos base_name="MyQosLib::CommonWanConfig">
+                <domain_participant_qos base_name="RtiServicesLib::RsPassive">
                     <transport_builtin>
                         <udpv4_wan>
                             <public_address>$(PUBLIC_ADDRESS)</public_address>

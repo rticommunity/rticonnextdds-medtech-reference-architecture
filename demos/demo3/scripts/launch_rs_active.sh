@@ -5,11 +5,8 @@
 SEC_FLAG=${1:-}
 
 # Set up XML-related variables (QoS, XML App Creation, etc.)
+source ./scripts/variables.sh
 source ./scripts/common.sh $SEC_FLAG
 
 # Start the processes
-build/ArmController &
-build/Orchestrator &
-build/PatientSensor &
-python3 src/Arm.py &
-python3 src/PatientMonitor.py &
+$NDDSHOME/bin/rtiroutingservice -cfgFile ./RsConfigActive.xml -cfgName RsConfigActive

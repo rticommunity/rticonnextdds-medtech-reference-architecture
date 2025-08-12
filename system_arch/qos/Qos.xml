@@ -54,10 +54,26 @@ inability to use the software. -->
           </transport_builtin>
         </domain_participant_qos>
       </qos_profile>
+
+    <!-- This profile is used in Demo 3 -->
+    <qos_profile name="WanConfig" base_name="BuiltinQosLib::Generic.Common">
+      <domain_participant_qos>
+        <transport_builtin>
+          <mask>UDPv4_WAN</mask>
+        </transport_builtin>
+        <discovery_config>
+          <!-- This helps speed UDP WAN discovery -->
+          <participant_liveliness_assert_period>
+            <sec>1</sec>
+            <nanosec>0</nanosec>
+          </participant_liveliness_assert_period>
+        </discovery_config>
+      </domain_participant_qos>
+        </qos_profile>
     </qos_library>
   
     <qos_library name="DataFlowLibrary">
-      <!-- For topics that are published at a high rate -->
+    <!-- For topics that are published at a high rate -->
       <qos_profile name="Streaming" base_name="BuiltinQosLib::Generic.Common">
         <base_name>
           <element>BuiltinQosSnippetLib::QosPolicy.Reliability.BestEffort</element>
@@ -65,24 +81,24 @@ inability to use the software. -->
         </base_name>
       </qos_profile>
 
-      <!-- For topics that are published once and on change -->
+    <!-- For topics that are published once and on change -->
       <qos_profile name="Status" base_name="BuiltinQosLib::Pattern.Status"/>
 
-      <!-- For command topics that don't need to be delivered to late-joiners -->
+    <!-- For command topics that don't need to be delivered to late-joiners -->
       <qos_profile name="Command" base_name="BuiltinQosLib::Generic.Common">
         <base_name>
-          <!-- Using builtin snippets to improve readability -->
+        <!-- Using builtin snippets to improve readability -->
           <element>BuiltinQosSnippetLib::QosPolicy.Reliability.Reliable</element>
           <element>BuiltinQosSnippetLib::QosPolicy.History.KeepLast_1</element>
-          <!-- Optimization for faster repairs -->
+        <!-- Optimization for faster repairs -->
           <element>BuiltinQosSnippetLib::Optimization.ReliabilityProtocol.KeepLast</element>
         </base_name>
       </qos_profile>
 
-      <!-- For the t/DeviceHeartbeat topic, which is sent at 20 Hz -->
+    <!-- For the t/DeviceHeartbeat topic, which is sent at 20 Hz -->
       <qos_profile name="Heartbeat" base_name="Streaming">
         <datawriter_qos>
-          <!-- Since the HB topic is sent at 20 Hz (50 ms), we'll use a deadline of 200 ms -->
+        <!-- Since the HB topic is sent at 20 Hz (50 ms), we'll use a deadline of 200 ms -->
           <deadline>
             <period>
               <sec>0</sec>
@@ -91,7 +107,7 @@ inability to use the software. -->
           </deadline>
         </datawriter_qos>
         <datareader_qos>
-          <!-- Since the HB topic is sent at 20 Hz (50 ms), we'll use a deadline of 200 ms -->
+        <!-- Since the HB topic is sent at 20 Hz (50 ms), we'll use a deadline of 200 ms -->
           <deadline>
             <period>
               <sec>0</sec>

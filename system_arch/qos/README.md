@@ -156,7 +156,7 @@ Both files contain only 1 QoS library: ***DpQosLib***. This QoS library contains
 
 [SecureAppsQos.xml](./SecureAppsQos.xml) also defines one profile for each DomainParticipant in a similar way to that of **NonSecureAppsQos.xml**, but with security configuration added.
 
-[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *CommonSecuritySettings* defines common configuration to enable security and point to the common permissions CA, identity CA, and governance files.
+[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *Demo1and2CommonSecuritySettings* defines common configuration to enable security and point to the common permissions CA, identity CA, and governance files.
 
 ## XML QoS Best Practices
 

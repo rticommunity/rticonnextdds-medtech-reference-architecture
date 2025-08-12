@@ -16,7 +16,5 @@ else
 fi
 
 QOS_FILE="../../system_arch/qos/Qos.xml"
-DOMAIN_LIBRARY_FILE="../../system_arch/xml_app_creation/DomainLibrary.xml"
-PARTICIPANT_LIBRARY_FILE="../../system_arch/xml_app_creation/ParticipantLibrary.xml"
 
-export NDDS_QOS_PROFILES=$QOS_FILE";"$APPS_QOS_FILE";"$DOMAIN_LIBRARY_FILE";"$PARTICIPANT_LIBRARY_FILE
+export NDDS_QOS_PROFILES=$QOS_FILE";"$APPS_QOS_FILE

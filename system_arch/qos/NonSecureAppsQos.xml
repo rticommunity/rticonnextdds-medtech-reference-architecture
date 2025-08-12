@@ -22,6 +22,9 @@ inability to use the software. -->
   <qos_library name="RtiServicesLib">
     <qos_profile name="RecordingService" base_name="SystemLibrary::DefaultParticipant"/>
     <qos_profile name="ReplayService" base_name="SystemLibrary::DefaultParticipant"/>
+
+    <qos_profile name="RsPassive" base_name="MyQosLib::WanConfig"/>
+    <qos_profile name="RsActive" base_name="MyQosLib::WanConfig"/>
   </qos_library>
 
 </dds>

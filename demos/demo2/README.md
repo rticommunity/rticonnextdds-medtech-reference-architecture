@@ -104,8 +104,8 @@ Kill all running Demo 1 application processes:
 Relaunch the Demo 1 Arm and Patient Monitor GUI applications only (use `-s` option for security):
 
 ```bash
-cd demo2
-./launch_arm_and_patient_monitor.sh [-s]
+cd demo1
+./scripts/launch_arm_and_patient_monitor.sh [-s]
 ```
 
 >**Observe:** You should see the GUI applications are not receiving data.
