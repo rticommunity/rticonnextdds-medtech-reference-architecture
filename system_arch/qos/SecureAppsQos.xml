@@ -242,8 +242,8 @@ inability to use the software. -->
     <qos_profile name="RsPassive" base_name="BuiltinQosLib::Generic.Common">
       <domain_participant_qos>
         <base_name>
-          <element>MyQosLib::WanConfig</element>
-          <element>MyQosLib::Demo3CommonSecurityConfig</element>
+          <element>SystemLibrary::WanConfig</element>
+          <element>CommonLibrary::Demo3CommonSecurityConfig</element>
         </base_name>
         <property>
           <value>
@@ -267,8 +267,8 @@ inability to use the software. -->
     <qos_profile name="RsActive" base_name="BuiltinQosLib::Generic.Common">
       <domain_participant_qos>
         <base_name>
-          <element>MyQosLib::WanConfig</element>
-          <element>MyQosLib::Demo3CommonSecurityConfig</element>
+          <element>SystemLibrary::WanConfig</element>
+          <element>CommonLibrary::Demo3CommonSecurityConfig</element>
         </base_name>
         <property>
           <value>

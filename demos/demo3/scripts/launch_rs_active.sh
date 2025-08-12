@@ -9,4 +9,4 @@ source ./scripts/variables.sh
 source ./scripts/common.sh $SEC_FLAG
 
 # Start the processes
-$NDDSHOME/bin/rtiroutingservice -cfgFile ./RsConfigActive.xml -cfgName RsConfigActive
+$NDDSHOME/bin/rtiroutingservice -cfgFile ./xml_config/RsConfigActive.xml -cfgName RsConfigActive
