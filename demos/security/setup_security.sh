@@ -46,6 +46,6 @@ openssl smime -sign -in xml/demo3/PermissionsRsCloud.xml -text -out xml/signed/S
 openssl smime -sign -in xml/demo3/PermissionsRsPassive.xml -text -out xml/signed/SignedPermissionsRsPassive.p7s -signer ca/CaIdentity.pem -inkey ca/private/CaPrivateKey.pem
 
 # Deleting unnecessary files
-rm -f identities/*/*.csr
+rm -f identities/*/*/*.csr
 
 

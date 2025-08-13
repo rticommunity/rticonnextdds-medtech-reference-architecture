@@ -250,7 +250,7 @@ inability to use the software. -->
             </element>
             <element>
               <name>dds.sec.auth.private_key</name>
-              <value>file:../security/identities/demo3/RsActive/RsActivePrivatePrivateKey.pem</value>
+              <value>file:../security/identities/demo3/RsActive/RsActivePrivateKey.pem</value>
             </element>
             <element>
               <name>dds.sec.access.permissions</name>
@@ -274,7 +274,7 @@ inability to use the software. -->
             </element>
             <element>
               <name>dds.sec.auth.private_key</name>
-              <value>file:../security/identities/demo3/RsPassive/RsPassivePrivatePrivateKey.pem</value>
+              <value>file:../security/identities/demo3/RsPassive/RsPassivePrivateKey.pem</value>
             </element>
             <element>
               <name>dds.sec.access.permissions</name>
@@ -298,7 +298,7 @@ inability to use the software. -->
             </element>
             <element>
               <name>dds.sec.auth.private_key</name>
-              <value>file:../security/identities/demo3/RsCloud/RsCloudPrivatePrivateKey.pem</value>
+              <value>file:../security/identities/demo3/RsCloud/RsCloudPrivateKey.pem</value>
             </element>
             <element>
               <name>dds.sec.access.permissions</name>
