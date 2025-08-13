@@ -52,8 +52,8 @@
         <domain_route name="TwoWayDomainRoute">
 
             <participant name="WAN_domain">
-                <domain_id>2</domain_id>
-                <domain_participant_qos base_name="RtiServicesLib::RsPassive">
+                <domain_id>1</domain_id>
+                <domain_participant_qos base_name="RtiServicesLib::RsCloud">
                     <transport_builtin>
                         <udpv4_wan>
                             <public_address>$(PUBLIC_ADDRESS)</public_address>

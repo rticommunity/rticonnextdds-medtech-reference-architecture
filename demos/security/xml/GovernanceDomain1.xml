@@ -15,7 +15,7 @@ inability to use the software. -->
         <domain_rule>
             <domains>
                 <id_range>
-                    <min>2</min>
+                    <min>1</min>
                 </id_range>
             </domains>
             <allow_unauthenticated_participants>false</allow_unauthenticated_participants>
