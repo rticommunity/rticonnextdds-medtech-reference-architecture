@@ -11,7 +11,7 @@
                                             :: by the Passive Routing Service
 
 set NDDSHOME="C:\Program Files\rti_connext_dds-7.3.0"
-set PUBLIC_ADDRESS=10.10.10.10
+set PUBLIC_ADDRESS=52.53.235.113
 set PUBLIC_PORT=10777
 
 :: Scenario 1 & 3 variables

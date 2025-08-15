@@ -79,14 +79,18 @@ the `scripts/variables.sh` file:
     - `PUBLIC_PORT`. Public port of your cloud instance (based on your security
     rule).
 
-5. In a terminal on your cloud instance, run Cloud Discovery Service:
+5. **If using Security**, on the _Active_ sides, uncomment lines 67-74 of
+[`RsConfigActive.xml`](xml_config/RsConfigActive.xml). This is necessary to
+allow communication with CDS.
+
+6. In a terminal on your cloud instance, run Cloud Discovery Service:
 
     ```bash
     cd demo3
     ./scripts/launch_cds_cloud.sh [-s]
     ```
 
-6. Open a terminal on the two _Active_ sides and run the following on both:
+7. Open a terminal on the two _Active_ sides and run the following on both:
 
     ```bash
     cd demo3

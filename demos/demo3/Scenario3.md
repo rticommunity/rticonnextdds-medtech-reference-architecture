@@ -81,14 +81,17 @@ started yet.
     mapping). Could be the same as `PUBLIC_PORT`. This variable is only used
     by the _Cloud_ Routing Service.
 
-5. In a terminal on your cloud instance, run Routing Service:
+5. On the _Active_ sides, make sure that lines 67-74 of
+[`RsConfigActive.xml`](xml_config/RsConfigActive.xml) are commented out.
+
+6. In a terminal on your cloud instance, run Routing Service:
 
     ```bash
     cd demo3
     ./scripts/launch_rs_cloud.sh [-s]
     ```
 
-6. Open a terminal on the two _Active_ sides and run the following on both:
+7. Open a terminal on the two _Active_ sides and run the following on both:
 
     ```bash
     cd demo3
