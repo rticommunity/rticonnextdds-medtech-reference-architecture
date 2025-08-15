@@ -19,4 +19,4 @@ if "%SEC_FLAG%"=="-s" (
 )
 
 REM Start the process
-"%NDDSHOME%\bin\rticlouddiscoveryservice" -cfgFile ".\xml_config\CdsConfigCloud.xml" -cfgName %CFG_NAME%
+%NDDSHOME%\bin\rticlouddiscoveryservice -cfgFile ".\xml_config\CdsConfigCloud.xml" -cfgName %CFG_NAME%

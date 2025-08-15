@@ -7,4 +7,4 @@ call ".\scripts\variables.bat"
 call ".\scripts\common.bat" %SEC_FLAG%
 
 REM Start the process
-"%NDDSHOME%\bin\rtiroutingservice" -cfgFile ".\xml_config\RsConfigActive.xml" -cfgName RsConfigActive
+%NDDSHOME%\bin\rtiroutingservice -cfgFile ".\xml_config\RsConfigActive.xml" -cfgName RsConfigActive

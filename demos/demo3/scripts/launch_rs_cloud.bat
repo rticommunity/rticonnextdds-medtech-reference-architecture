@@ -7,4 +7,4 @@ call ".\scripts\variables.bat"
 call ".\scripts\common.bat" %SEC_FLAG%
 
 REM Start the process
-"%NDDSHOME%\bin\rtiroutingservice" -cfgFile ".\xml_config\RsConfigCloud.xml" -cfgName RsConfigCloud
+%NDDSHOME%\bin\rtiroutingservice -cfgFile ".\xml_config\RsConfigCloud.xml" -cfgName RsConfigCloud
