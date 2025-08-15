@@ -1,5 +1,4 @@
 ##### Mofidy these variables for your use case
-##### Run with $ source variables.sh
 
 # Variables for all scenarios
 # export NDDSHOME=<Connext installation path>
@@ -17,5 +16,3 @@ export PUBLIC_PORT=10777
 
 # Scenario 1 & 3 variables
 export INTERNAL_PORT=10777
-
-
