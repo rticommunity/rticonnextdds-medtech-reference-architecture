@@ -17,10 +17,10 @@ openssl-3.0.12-7.3.0-host-<architecture>.rtipkg
 ```
 
 With regards to network configuration, you'll need to set up a static mapping
-of your OR's router (could be a home office) between a `PUBLIC_PORT` and an
+of your _OR's_ router (could be a home office) between a `PUBLIC_PORT` and an
 `INTERNAL_PORT`, for the UDP protocol. For instance:
 
-![Home office router configuration](../../resource//images/configuration_home_office_router.png)
+![Home office router configuration](../../resource/images/configuration_home_office_router.png)
 
 ## Diagram
 
@@ -37,6 +37,16 @@ a real-world scenario, you may opt to secure the entire system, or just the WAN
 part like in this demo.
 
 ## How to run this scenario
+
+0. If you'd like to secure the WAN communication, run the following script.
+Then, make sure both the _Passive_ and _Active_ sides are using the same set of
+certificates. This demo won't work if the set of certificates are different on
+each side:
+
+    ```bash
+    cd demos/security
+    ./setup_security.sh
+    ```
 
 1. Start the Surgeon Console / Arm Controller on the _Active_ side:
 
@@ -56,20 +66,28 @@ part like in this demo.
 of the applications since the Routing Service infrastructure hasn't been started
 yet.
 
-4. In a terminal on the _Passive_ side, set up `NDDSHOME` pointing at the
-Connext installation, set these variables and run Routing Service:
+4. On the _Passive_ and _Active_ side, set up these variables on the
+`scripts/variables.sh` file:
+    - `NDDSHOME`. Connext installation path.
+    - `PUBLIC_ADDRESS`. Public IP address of the _Passive_ side.
+    - `PUBLIC_PORT`. Public port on the _Passive_ side (based on your static
+    mapping).
+    - `INTERNAL_PORT`. Public port on the _Passive_ side (based on your static
+    mapping). Could be the same as `PUBLIC_PORT`. This variable is only used
+    by the _Passive_ Routing Service.
+
+5. In a terminal on the _Passive_ side, run Routing Service:
 
     ```bash
     cd demo3
-    ./scripts/launch_rs_passive.sh
+    ./scripts/launch_rs_passive.sh [-s]
     ```
 
-5. In a terminal on the _Active_ side, set up `NDDSHOME` pointing at the Connext
-installation, set these variables and run Routing Service:
+6. In a terminal on the _Active_ side, run Routing Service:
 
     ```bash
     cd demo3
-    ./scripts/launch_rs_active.sh
+    ./scripts/launch_rs_active.sh [-s]
     ```
 
 ## Expected output

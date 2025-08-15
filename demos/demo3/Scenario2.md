@@ -1,4 +1,4 @@
-# Non-security scenario 2: Peer-to-peer communication with DomainParticipants behind cone NATs using Cloud Discovery Service
+# Scenario 2: Peer-to-peer communication with DomainParticipants behind cone-NATs using Cloud Discovery Service
 
 ## Requirements
 
@@ -10,82 +10,94 @@ rti_cloud_discovery_service-7.3.0-host-<architecture>.rtipkg (only on the Cloud)
 rti_real_time_wan_transport-7.3.0-host-<architecture>.rtipkg
 ```
 
-This scenario requires Home Office 1 and Home Office 2 NATs to be cone NATs.
-You can use the NAT type checker script in [resources/nat_type_checker](../../resources/nat_type_checker)
-to make sure you have cone NATs.
+If using RTI Security Plugins, you'll also need these packages:
+
+```plaintext
+rti_security_plugins-7.3.0-host-openssl-3.0-<architecture>.rtipkg
+openssl-3.0.12-7.3.0-host-<architecture>.rtipkg
+```
+
+This scenario requires the _OR's_ and the _Arm Controller's_ NATs to be cone
+NATs. You can use the NAT type checker script in
+[resource/nat_type_checker](../../resource/nat_type_checker) to make sure you
+have cone NATs.
 
 With regards to network configuration, you'll need to add a security rule on
-your AWS instance to allow incoming / outgoing traffic on `PUBLIC_PORT` for the
-UDP protocol. For instance:
+your cloud instance to allow incoming / outgoing traffic on `PUBLIC_PORT` for
+the UDP protocol. For instance:
 
-![AWS Configuration](../../resources/images/configuration_aws.png)
+![Configuration cloud instance](../../resource/images/configuration_cloud_instance.png)
 
 ## Diagram
 
-![Non-security scenario 2 diagram](../../resources/images/non_security_scenario_2.png)
+![Scenario 2 diagram](../../resource//images/scenario2_diagram.gif)
 
-Cloud Discovery Service will put the Active Routing Services in contact when
-they reach out to it. The Active Routing Services will point their their
-initial peers at AWS. In the diagram above, AWS's address needs to be known by
-the remote Active Routing Services.
+Cloud Discovery Service will allow the _Active_ Routing Services to discover
+each other. The _Active_ Routing Services will point their initial peers at the
+_Cloud_ instance. In the diagram above, the _Cloud's_ address needs to be known
+by the _Active_ Routing Services.
+
+As you can see, only domain 1 is secured. That means that for this demo, you
+will run the different applications from demo 1 in their not-secured version. In
+a real-world scenario, you may opt to secure the entire system, or just the WAN
+part like in this demo.
 
 ## How to run this scenario
 
-On AWS:
-
-1. In a terminal, set up `NDDSHOME` pointing at the Connext installation and set these variables:
+0. If you'd like to secure the WAN communication, run the following script,
+unless you've already run it for a different scenario. Then, make sure both
+_Active_ sides are using the same set of certificates. This demo won't work if
+the set of certificates are different on each side:
 
     ```bash
-    export PUBLIC_ADDRESS=<public_IP_address>
-    export PUBLIC_PORT=<PUBLIC_PORT>
+    cd demos/security
+    ./setup_security.sh
     ```
 
-2. Run Cloud Discovery Service:
+1. Start the Surgeon Console / Arm Controller on one side:
 
     ```bash
-    cd non_security_scenarios/scenario_2/
-    $NDDSHOME/bin/rticlouddiscoveryservice -cfgFile CdsConfig_Cloud.xml -cfgName CdsConfig_Cloud
+    cd demo1
+    ./scripts/launch_arm_controller.sh
     ```
 
-On Home Office 1:
-
-1. Start a Shapes Demo publisher on **domain 1**. Publish some shapes.
-2. In a terminal, set up `NDDSHOME` pointing at the Connext installation and set these variables:
+2. Start the rest of the applications of the OR on the other side:
 
     ```bash
-    export PUBLIC_ADDRESS=<public_IP_address>
-    export PUBLIC_PORT=<PUBLIC_PORT>
+    cd demo1
+    ./scripts/launch_OR_apps.sh
     ```
 
-3. Run Routing Service:
+3. You should see **no communication** between the Arm Controller and the rest
+of the applications since the Routing Service and CDS infrastructures haven't
+been started yet.
+
+4. On the _Active_ sides and on your cloud instance, set up these variables on
+the `scripts/variables.sh` file:
+    - `NDDSHOME`. Connext installation path.
+    - `PUBLIC_ADDRESS`. Public IP address of your cloud instance.
+    - `PUBLIC_PORT`. Public port of your cloud instance (based on your security
+    rule).
+
+5. In a terminal on your cloud instance, run Cloud Discovery Service:
 
     ```bash
-    cd non_security_scenarios/scenario_2/
-    $NDDSHOME/bin/rtiroutingservice -cfgFile "../../Qos.xml;RsConfig_Active.xml" -cfgName RsConfig_Active
+    cd demo3
+    ./scripts/launch_cds_cloud.sh [-s]
     ```
 
-On Home Office 2:
-
-1. Start a Shapes Demo subscriber on **domain 1**. Subscribe to some shapes.
-2. In a terminal, set up `NDDSHOME` pointing at the Connext installation and set these variables:
+6. Open a terminal on the two _Active_ sides and run the following on both:
 
     ```bash
-    export PUBLIC_ADDRESS=<public_IP_address>
-    export PUBLIC_PORT=<PUBLIC_PORT>
-    ```
-
-3. Run Routing Service:
-
-    ```bash
-    cd non_security_scenarios/scenario_2/
-    $NDDSHOME/bin/rtiroutingservice -cfgFile "../../Qos.xml;RsConfig_Active.xml" -cfgName RsConfig_Active
+    cd demo3
+    ./scripts/launch_rs_active.sh [-s]
     ```
 
 ## Expected output
 
-After a few seconds, once discovery is completed, Home Office 2 should start
-receiving the shapes that Home Office 1 publishes. Actually, you could start
-any number of Shapes Demo publishers on either side and the other one should
-receive those as well. Routing Service helps with scalability because you do
-not need to initiate new WAN connections per application, Routing Service will
-simply take care of that for you.
+After a few seconds, once discovery is completed, you should see communication
+between the OR applications and the Arm Controller. Actually, you could start
+the applications on either side and the communication should keep flowing.
+Routing Service helps with scalability because you do not need to initiate new
+WAN connections per application, Routing Service will simply take care of that
+for you.

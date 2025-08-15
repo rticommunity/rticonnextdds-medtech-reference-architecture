@@ -20,7 +20,6 @@
       xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_cloud_discovery_service.xsd">
 
     <cloud_discovery_service name="CdsConfigCloud">
-
         <transport>
             <element>
                 <alias>builtin.udpv4_wan</alias>
@@ -33,9 +32,24 @@
                 </property>
             </element>
         </transport>
-        <!-- <security>
+    </cloud_discovery_service>
+
+    <cloud_discovery_service name="CdsConfigCloudSecurity">
+        <transport>
+            <element>
+                <alias>builtin.udpv4_wan</alias>
+                <receive_port>$(PUBLIC_PORT)</receive_port>
+                <property>
+                    <element>
+                        <name>dds.transport.UDPv4_WAN.builtin.public_address</name>
+                        <value>$(PUBLIC_ADDRESS)</value>
+                    </element>
+                </property>
+            </element>
+        </transport>
+        <security>
             <property>
-                CDS security config
+                <!-- CDS security config -->
                 <element>
                     <name>com.rti.serv.secure.cryptography.rtps_protection_key</name>
                     <value>str:key0</value>
@@ -45,8 +59,6 @@
                     <value>str:key1</value>
                 </element>
             </property>
-        </security> -->
-
-
+        </security>
     </cloud_discovery_service>
 </dds>

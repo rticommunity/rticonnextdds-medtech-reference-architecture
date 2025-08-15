@@ -92,10 +92,10 @@ This demo also shows how [RTI Security Plugins](https://community.rti.com/static
 
 To run the secure version of the demo, you need the Security Plugins installed (see the [RTI Security Plugins Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/installation_guide/security_plugins/installation_guide/SecurityPluginsInstallationTitle.htm)).
 
-Generate the security artifacts using OpenSSL. This includes identity certificates, private keys, and the signing of DDS Security XML permissions & governance files located in [./security](./security).
+Generate the security artifacts using OpenSSL. This includes identity certificates, private keys, and the signing of DDS Security XML permissions & governance files located in [demos/security](../security).
 
 ```bash
-cd security
+cd demos/security
 ./setup_security.sh
 ```
 
