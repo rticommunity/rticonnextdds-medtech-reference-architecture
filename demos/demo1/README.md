@@ -63,6 +63,8 @@ Dependencies used for GUI applications:
 - `PyGObject`
 - `GTK`
 
+Install (Debian) system-provided packages with *apt*:
+
 ```bash
 sudo apt install \
     build-essential \
@@ -74,6 +76,22 @@ sudo apt install \
     python3-cairo \
     gir1.2-gtk-4.0 \
     libgtksourceviewmm-3.0-dev
+```
+
+Alternatively, install PyPI-provided packages with *pip* (for virtual environments):
+
+```bash
+sudo apt install \
+    build-essential \
+    python3-dev \
+    libcairo2-dev \
+    libgirepository-2.0-dev \
+    gir1.2-gtk-4.0
+
+pip install \
+    pygobject \
+    numpy \
+    matplotlib
 ```
 
 ### 2. Build the Project using CMake
