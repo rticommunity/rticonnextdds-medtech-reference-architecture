@@ -95,7 +95,7 @@ started yet.
 
     ```bash
     cd demo3
-    ./scripts/launch_rs_active
+    ./scripts/launch_rs_active [-s]
     ```
 
 ## Expected output
