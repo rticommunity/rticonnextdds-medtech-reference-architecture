@@ -79,7 +79,7 @@ the `scripts/variables.sh` file:
     - `PUBLIC_PORT`. Public port of your cloud instance (based on your security
     rule).
 
-5. **If using Security**, on the _Active_ sides, uncomment lines 67-74 of
+5. **If using Security**, on the _Active_ sides, uncomment lines 68-79 of
 [`RsConfigActive.xml`](xml_config/RsConfigActive.xml). This is necessary to
 allow communication with CDS.
 

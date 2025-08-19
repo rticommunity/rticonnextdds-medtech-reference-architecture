@@ -63,8 +63,8 @@
                         <initial_peers>
                             <element>0@udpv4_wan://$(PUBLIC_ADDRESS):$(PUBLIC_PORT)</element>
                         </initial_peers>
-                        <!-- CDS security config -->
                     </discovery>
+                    <!-- CDS security config -->
                     <!-- <property>
                         <value>
                             <element>
