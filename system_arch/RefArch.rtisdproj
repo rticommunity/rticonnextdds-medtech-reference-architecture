@@ -25,22 +25,22 @@
       "builtin": true
     },
     {
-      "path": "qos\\NonSecureAppsQos.xml",
+      "path": "qos/NonSecureAppsQos.xml",
       "readonly": false,
       "builtin": false
     },
     {
-      "path": "qos\\Qos.xml",
+      "path": "qos/Qos.xml",
       "readonly": false,
       "builtin": false
     },
     {
-      "path": "xml_app_creation\\DomainLibrary.xml",
+      "path": "xml_app_creation/DomainLibrary.xml",
       "readonly": false,
       "builtin": false
     },
     {
-      "path": "xml_app_creation\\ParticipantLibrary.xml",
+      "path": "xml_app_creation/ParticipantLibrary.xml",
       "readonly": false,
       "builtin": false
     },
