@@ -106,7 +106,7 @@ private:
             dds::pub::DataWriter<PatientMonitor::Vitals> vitals_writer)
     {
         PatientMonitor::Vitals sample;
-        sample.patient_name("Anonymous Patient");
+        sample.patient_id("ab1234");
         sample.hr(55 + rand() % 11);
         sample.spo2(90 + rand() % 11);
         sample.etco2(35 + rand() % 11);

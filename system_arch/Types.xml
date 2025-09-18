@@ -75,7 +75,7 @@
     </module>
     <module name="PatientMonitor">
       <struct name= "Vitals">
-        <member name="patient_name" stringMaxLength="20" type="string" key="true"/>
+        <member name="patient_id" stringMaxLength="8" type="string" key="true"/>
         <member name="hr" type="int32"/>
         <member name="spo2" type="int32"/>
         <member name="etco2" type="int32"/>
