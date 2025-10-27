@@ -11,8 +11,8 @@ name = pmiCa
 ####################################################################
 [ CA_default ]
 dir				= .
-certificate     = $dir/CaCert.pem
-private_key     = $dir/CaKey.pem
+certificate     = $dir/CaIdentity.pem
+private_key     = $dir/CaPrivateKey.pem
 crl_dir			= $dir/crl
 
 new_certs_dir   = ./temporary_files

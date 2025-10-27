@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+<!--
+ (c) 2021 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+
+ RTI grants Licensee a license to use, modify, compile, and create derivative
+ works of the Software solely in combination with RTI Connext DDS. Licensee
+ may redistribute copies of the Software provided that all such copies are
+ subject to this License. The Software is provided "as is", with no warranty
+ of any type, including any warranty for fitness for any purpose. RTI is
+ under no obligation to maintain or support the Software. RTI shall not be
+ liable for any incidental or consequential damages arising out of the use or
+ inability to use the Software. For purposes of clarity, nothing in this
+ License prevents Licensee from using alternate versions of DDS, provided
+ that Licensee may not combine or link such alternate versions of DDS with
+ the Software.
+
+-->
+
+<dds  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_cloud_discovery_service.xsd">
+
+    <cloud_discovery_service name="CdsConfigCloud">
+        <transport>
+            <element>
+                <alias>builtin.udpv4_wan</alias>
+                <receive_port>$(PUBLIC_PORT)</receive_port>
+                <property>
+                    <element>
+                        <name>dds.transport.UDPv4_WAN.builtin.public_address</name>
+                        <value>$(PUBLIC_ADDRESS)</value>
+                    </element>
+                </property>
+            </element>
+        </transport>
+    </cloud_discovery_service>
+
+    <cloud_discovery_service name="CdsConfigCloudSecurity">
+        <transport>
+            <element>
+                <alias>builtin.udpv4_wan</alias>
+                <receive_port>$(PUBLIC_PORT)</receive_port>
+                <property>
+                    <element>
+                        <name>dds.transport.UDPv4_WAN.builtin.public_address</name>
+                        <value>$(PUBLIC_ADDRESS)</value>
+                    </element>
+                </property>
+            </element>
+        </transport>
+        <security>
+            <property>
+                <!-- CDS security config -->
+                <element>
+                    <name>com.rti.serv.secure.cryptography.rtps_protection_key</name>
+                    <value>str:key0</value>
+                </element>
+                <element>
+                    <name>com.rti.serv.secure.authentication.participant_discovery_protection_key</name>
+                    <value>str:key1</value>
+                </element>
+            </property>
+        </security>
+    </cloud_discovery_service>
+</dds>

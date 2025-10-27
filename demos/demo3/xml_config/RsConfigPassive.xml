@@ -1,0 +1,195 @@
+<?xml version="1.0"?>
+<!--
+ (c) 2021 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+
+ RTI grants Licensee a license to use, modify, compile, and create derivative
+ works of the Software solely in combination with RTI Connext DDS. Licensee
+ may redistribute copies of the Software provided that all such copies are
+ subject to this License. The Software is provided "as is", with no warranty
+ of any type, including any warranty for fitness for any purpose. RTI is
+ under no obligation to maintain or support the Software. RTI shall not be
+ liable for any incidental or consequential damages arising out of the use or
+ inability to use the Software. For purposes of clarity, nothing in this
+ License prevents Licensee from using alternate versions of DDS, provided
+ that Licensee may not combine or link such alternate versions of DDS with
+ the Software.
+
+-->
+
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_routing_service.xsd">
+
+    <!-- RS that is not behind a well-known public IP address -->
+    <routing_service name="RsConfigPassive">
+
+        <!-- The administration tag enables remote administration, and is 
+            required when using Admin Console. -->
+        <administration>
+            <domain_id>99</domain_id>
+            <distributed_logger>
+                <enabled>true</enabled>
+                <filter_level>WARNING</filter_level>
+            </distributed_logger>
+        </administration>
+
+        <!-- This is the Monitoring configuration for all the entities in 
+            this routing service, and is required when using Admin Console. -->
+        <monitoring>
+            <!-- The domain id where to publish the monitoring information -->
+            <domain_id>99</domain_id>
+            <!-- How often to publish it -->
+            <status_publication_period>
+                <sec>5</sec>
+                <nanosec>0</nanosec>
+            </status_publication_period>
+            <!-- How often to compute statistics -->
+            <statistics_sampling_period>
+                <sec>1</sec>
+                <nanosec>0</nanosec>
+            </statistics_sampling_period>
+        </monitoring>
+
+        <domain_route name="TwoWayDomainRoute">
+
+            <participant name="Local_domain">
+                <domain_id>0</domain_id>
+                <domain_participant_qos base_name="BuiltinQosLib::Generic.Common"/>
+            </participant>
+
+            <participant name="WAN_domain">
+                <domain_id>1</domain_id>
+                <domain_participant_qos base_name="RtiServicesLib::RsPassive">
+                    <transport_builtin>
+                        <udpv4_wan>
+                            <public_address>$(PUBLIC_ADDRESS)</public_address>
+                            <comm_ports>
+                                <default>
+                                    <public>$(PUBLIC_PORT)</public>
+                                    <host>$(INTERNAL_PORT)</host>
+                                </default>
+                            </comm_ports>
+                        </udpv4_wan>
+                    </transport_builtin>
+                </domain_participant_qos>
+            </participant>
+
+            <session name="Local_to_WAN_session">
+                <auto_topic_route name="Local_to_WAN_Status_route">
+                    <publish_with_original_info>true</publish_with_original_info>
+                    <input participant="Local_domain">
+                        <allow_topic_name_filter>t/DeviceStatus</allow_topic_name_filter>
+                        <creation_mode>ON_DOMAIN_MATCH</creation_mode>
+                        <datareader_qos base_name="DataFlowLibrary::Status"/>
+                    </input>
+                    <output participant="WAN_domain">
+                        <allow_topic_name_filter>t/DeviceStatus</allow_topic_name_filter>
+                        <creation_mode>ON_ROUTE_MATCH</creation_mode>
+                        <datawriter_qos base_name="DataFlowLibrary::Status"/>
+                    </output>
+                </auto_topic_route>
+                
+                <auto_topic_route name="Local_to_WAN_Heartbeat_route">
+                    <publish_with_original_info>true</publish_with_original_info>
+                    <input participant="Local_domain">
+                        <allow_topic_name_filter>t/DeviceHeartbeat</allow_topic_name_filter>
+                        <creation_mode>ON_DOMAIN_MATCH</creation_mode>
+                        <datareader_qos base_name="DataFlowLibrary::Heartbeat"/>
+                    </input>
+                    <output participant="WAN_domain">
+                        <allow_topic_name_filter>t/DeviceHeartbeat</allow_topic_name_filter>
+                        <creation_mode>ON_ROUTE_MATCH</creation_mode>
+                        <datawriter_qos base_name="DataFlowLibrary::Heartbeat"/>
+                    </output>
+                </auto_topic_route>
+                
+                <auto_topic_route name="Local_to_WAN_Command_route">
+                    <publish_with_original_info>true</publish_with_original_info>
+                    <input participant="Local_domain">
+                        <allow_topic_name_filter>t/MotorControl,t/DeviceCommand</allow_topic_name_filter>
+                        <creation_mode>ON_DOMAIN_MATCH</creation_mode>
+                        <datareader_qos base_name="DataFlowLibrary::Command"/>
+                    </input>
+                    <output participant="WAN_domain">
+                        <allow_topic_name_filter>t/MotorControl,t/DeviceCommand</allow_topic_name_filter>
+                        <creation_mode>ON_ROUTE_MATCH</creation_mode>
+                        <datawriter_qos base_name="DataFlowLibrary::Command"/>
+                    </output>
+                </auto_topic_route>
+                
+                <auto_topic_route name="Local_to_WAN_Streaming_route">
+                    <publish_with_original_info>true</publish_with_original_info>
+                    <input participant="Local_domain">
+                        <allow_topic_name_filter>t/Vitals</allow_topic_name_filter>
+                        <creation_mode>ON_DOMAIN_MATCH</creation_mode>
+                        <datareader_qos base_name="DataFlowLibrary::Streaming"/>
+                    </input>
+                    <output participant="WAN_domain">
+                        <allow_topic_name_filter>t/Vitals</allow_topic_name_filter>
+                        <creation_mode>ON_ROUTE_MATCH</creation_mode>
+                        <datawriter_qos base_name="DataFlowLibrary::Streaming"/>
+                    </output>
+                </auto_topic_route>
+            </session>
+
+            <session name="WAN_to_Local_session">
+                <auto_topic_route name="WAN_to_Local_Status_route">
+                    <publish_with_original_info>true</publish_with_original_info>
+                    <input participant="WAN_domain">
+                        <allow_topic_name_filter>t/DeviceStatus</allow_topic_name_filter>
+                        <creation_mode>ON_ROUTE_MATCH</creation_mode>
+                        <datareader_qos base_name="DataFlowLibrary::Status"/>
+                    </input>
+                    <output participant="Local_domain">
+                        <allow_topic_name_filter>t/DeviceStatus</allow_topic_name_filter>
+                        <creation_mode>ON_DOMAIN_MATCH</creation_mode>
+                        <datawriter_qos base_name="DataFlowLibrary::Status"/>
+                    </output>
+                </auto_topic_route>
+                
+                <auto_topic_route name="WAN_to_Local_Heartbeat_route">
+                    <publish_with_original_info>true</publish_with_original_info>
+                    <input participant="WAN_domain">
+                        <allow_topic_name_filter>t/DeviceHeartbeat</allow_topic_name_filter>
+                        <creation_mode>ON_ROUTE_MATCH</creation_mode>
+                        <datareader_qos base_name="DataFlowLibrary::Heartbeat"/>
+                    </input>
+                    <output participant="Local_domain">
+                        <allow_topic_name_filter>t/DeviceHeartbeat</allow_topic_name_filter>
+                        <creation_mode>ON_DOMAIN_MATCH</creation_mode>
+                        <datawriter_qos base_name="DataFlowLibrary::Heartbeat"/>
+                    </output>
+                </auto_topic_route>
+                
+                <auto_topic_route name="WAN_to_Local_Command_route">
+                    <publish_with_original_info>true</publish_with_original_info>
+                    <input participant="WAN_domain">
+                        <allow_topic_name_filter>t/MotorControl,t/DeviceCommand</allow_topic_name_filter>
+                        <creation_mode>ON_ROUTE_MATCH</creation_mode>
+                        <datareader_qos base_name="DataFlowLibrary::Command"/>
+                    </input>
+                    <output participant="Local_domain">
+                        <allow_topic_name_filter>t/MotorControl,t/DeviceCommand</allow_topic_name_filter>
+                        <creation_mode>ON_DOMAIN_MATCH</creation_mode>
+                        <datawriter_qos base_name="DataFlowLibrary::Command"/>
+                    </output>
+                </auto_topic_route>
+                
+                <auto_topic_route name="WAN_to_Local_Streaming_route">
+                    <publish_with_original_info>true</publish_with_original_info>
+                    <input participant="WAN_domain">
+                        <allow_topic_name_filter>t/Vitals</allow_topic_name_filter>
+                        <creation_mode>ON_ROUTE_MATCH</creation_mode>
+                        <datareader_qos base_name="DataFlowLibrary::Streaming"/>
+                    </input>
+                    <output participant="Local_domain">
+                        <allow_topic_name_filter>t/Vitals</allow_topic_name_filter>
+                        <creation_mode>ON_DOMAIN_MATCH</creation_mode>
+                        <datawriter_qos base_name="DataFlowLibrary::Streaming"/>
+                    </output>
+                </auto_topic_route>
+            </session>
+
+        </domain_route>
+    </routing_service>
+
+</dds>

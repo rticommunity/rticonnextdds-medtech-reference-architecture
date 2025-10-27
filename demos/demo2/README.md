@@ -43,10 +43,11 @@ RTI Recording Service is used in this demo to replay recorded data from the `t/M
 
 ### 2. Security (optional)
 
-Generate the security artifacts for RTI Recording Service and RTI Replay Service using OpenSSL. This includes identity certificates, private keys, and the signing of DDS Security XML permissions & governance files located in [./security](./security).
+Generate the security artifacts for RTI Recording Service and RTI Replay Service using OpenSSL.
+This includes identity certificates, private keys, and the signing of DDS Security XML permissions & governance files located in [demos/security](../security).
 
 ```bash
-cd demo2/security
+cd demos/security
 ./setup_security.sh
 ```
 
@@ -58,7 +59,7 @@ In its own terminal, [launch the Demo 1 applications](../demo1/README.md#run-the
 
 ```bash
 cd demo1
-./launch_all.sh [-s]
+./scripts/launch_all.sh [-s]
 ```
 
 ### 2. Run RTI Recording Service
@@ -98,14 +99,14 @@ Inspect [RecordingServiceConfiguration.xml](RecordingServiceConfiguration.xml) t
 Kill all running Demo 1 application processes:
 
 ```bash
-../demo1/kill_all.sh
+../demo1/scripts/kill_all.sh
 ```
 
 Relaunch the Demo 1 Arm and Patient Monitor GUI applications only (use `-s` option for security):
 
 ```bash
-cd demo2
-./launch_arm_and_patient_monitor.sh [-s]
+cd demo1
+./scripts/launch_arm_and_patient_monitor.sh [-s]
 ```
 
 >**Observe:** You should see the GUI applications are not receiving data.
@@ -127,7 +128,7 @@ The Replay Service configuration has `<enable_looping>` set to `true`, so the re
 Kill all running Demo 1 applications:
 
 ```bash
-../demo1/kill_all.sh
+../demo1/scripts/kill_all.sh
 ```
 
 #### Further Learning: Replay Service
@@ -203,5 +204,7 @@ Let's try using RTI Admin Console to administer RTI Recording Service.
     >**Observe:** You should see the RTI Recording Service process has been stopped gracefully in the terminal which you launched it.
 
 ## Next Steps
+
+Check out [Demo 3 - Teleoperation with RTI Real-Time WAN Transport](../demo2/), which builds upon the applications from this demo to show how applications can be deployed remotely and integrate seamlessly over the Wide Area Network (WAN).
 
 Head back to the [main README](../../README.md) and pick up with the [Hands-On: Architecture](../../README.md#hands-on-architecture) section to learn more about the system architecture.

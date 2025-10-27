@@ -12,6 +12,7 @@ This repository contains documentation and demo applications showcasing differen
 - [Hands-On: Demos](#hands-on-demos)
   - [Demo 1: Digital Operating Room](#demo-1--digital-operating-room)
   - [Demo 2: RTI Recording Service & RTI Replay Service](#demo-2--rti-recording-service--rti-replay-service)
+  - [Demo 3: Teleoperation with RTI Real-Time WAN Transport](#demo-3--teleoperation-with-rti-real-time-wan-transport)
 - [Hands-On: Architecture](#hands-on-architecture)
 - [Architecture Overview](#architecture-overview)
   - [Data Types](#data-types)
@@ -68,6 +69,8 @@ The RTI MedTech Reference Architecture demos showcase usage and capabilities of 
 - ### [Demo 1](./demos/demo1/) : Digital Operating Room
 
 - ### [Demo 2](./demos/demo2/) : RTI Recording Service & RTI Replay Service
+
+- ### [Demo 3](./demos/demo3/) : Teleoperation with RTI Real-Time WAN Transport
 
 ## Hands-On: Architecture
 

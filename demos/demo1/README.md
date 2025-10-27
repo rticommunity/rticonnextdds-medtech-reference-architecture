@@ -63,6 +63,8 @@ Dependencies used for GUI applications:
 - `PyGObject`
 - `GTK`
 
+Install (Debian) system-provided packages with *apt*:
+
 ```bash
 sudo apt install \
     build-essential \
@@ -74,6 +76,22 @@ sudo apt install \
     python3-cairo \
     gir1.2-gtk-4.0 \
     libgtksourceviewmm-3.0-dev
+```
+
+Alternatively, install PyPI-provided packages with *pip* (for virtual environments):
+
+```bash
+sudo apt install \
+    build-essential \
+    python3-dev \
+    libcairo2-dev \
+    libgirepository-2.0-dev \
+    gir1.2-gtk-4.0
+
+pip install \
+    pygobject \
+    numpy \
+    matplotlib
 ```
 
 ### 2. Build the Project using CMake
@@ -92,10 +110,11 @@ This demo also shows how [RTI Security Plugins](https://community.rti.com/static
 
 To run the secure version of the demo, you need the Security Plugins installed (see the [RTI Security Plugins Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/installation_guide/security_plugins/installation_guide/SecurityPluginsInstallationTitle.htm)).
 
-Generate the security artifacts using OpenSSL. This includes identity certificates, private keys, and the signing of DDS Security XML permissions & governance files located in [./security](./security).
+Generate the security artifacts using OpenSSL.
+This includes identity certificates, private keys, and the signing of DDS Security XML permissions & governance files located in [demos/security](../security).
 
 ```bash
-cd security
+cd demos/security
 ./setup_security.sh
 ```
 
@@ -106,13 +125,13 @@ cd security
 Run demo applications:
 
 ```bash
-./launch_all.sh
+./scripts/launch_all.sh
 ```
 
 To run with security enabled, use the `-s` option:
 
 ```bash
-./launch_all.sh -s
+./scripts/launch_all.sh -s
 ```
 
 *This script does the following:*
@@ -121,7 +140,7 @@ To run with security enabled, use the `-s` option:
 
 2. Launch the application executables.
 
-*Note, applications can be launched individually from a terminal instead of all at once via the **launch_all.sh** script. Please refer how `NDDS_QOS_PROFILES` is set in [launch_all.sh](./launch_all.sh), so your terminal environment can be configured similarly without errors.*
+*Note, applications can be launched individually from a terminal instead of all at once via the **launch_all.sh** script. Please refer how `NDDS_QOS_PROFILES` is set in [launch_all.sh](./scripts/launch_all.sh), so your terminal environment can be configured similarly without errors.*
 
 ### 3. Observe the demo applications
 
@@ -137,7 +156,7 @@ Observe and play around with the interactive demo applications. The following ar
 To ensure application processes are killed when finished, run:
 
 ```bash
-./kill_all.sh
+./scripts/kill_all.sh
 ```
 
 ## Hands-On: Going Further
@@ -202,3 +221,7 @@ Let's try testing how removing a content filter can adjust system behavior witho
 ## Next Steps
 
 Check out [Demo 2: RTI Recording Service & RTI Replay Service](../demo2/), which builds upon the applications from this demo to show how data can be recorded from and replayed to the same applications.
+
+Check out [Demo 3 - Teleoperation with RTI Real-Time WAN Transport](../demo2/), which builds upon the applications from this demo to show how applications can be deployed remotely and integrate seamlessly over the Wide Area Network (WAN).
+
+Head back to the [main README](../../README.md) and pick up with the [Hands-On: Architecture](../../README.md#hands-on-architecture) section to learn more about the system architecture.
