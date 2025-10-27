@@ -15,6 +15,8 @@ This demo shows how the Surgeon Console from [Demo 1 - Digital Operating Room](.
 
 This demo extends the Digital Operating Room from Demo 1 to demonstrate WAN communication capabilities. The RTI Real-Time WAN Transport enables secure, reliable communication across geographical distances, allowing medical professionals to operate remotely while maintaining real-time control and monitoring.
 
+![diagram](../../resource/images/demo3_diagram.svg)
+
 WAN communication can be deployed in 3 different scenarios:
 
 1. [Scenario 1](Scenario1.md): Direct Peer-to-Peer Communication with Public IP Address.
