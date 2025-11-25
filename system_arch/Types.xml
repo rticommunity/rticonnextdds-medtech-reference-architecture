@@ -76,11 +76,11 @@
     <module name="PatientMonitor">
       <struct name= "Vitals">
         <member name="patient_id" stringMaxLength="8" type="string" key="true"/>
-        <member name="hr" type="int32"/>
-        <member name="spo2" type="int32"/>
-        <member name="etco2" type="int32"/>
-        <member name="nibp_s" type="int32"/>
-        <member name="nibp_d" type="int32"/>
+        <member name="hr" type="uint32"/>
+        <member name="spo2" type="uint32"/>
+        <member name="etco2" type="uint32"/>
+        <member name="nibp_s" type="uint32"/>
+        <member name="nibp_d" type="uint32"/>
       </struct>
     </module>
   </types>
