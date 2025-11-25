@@ -26,14 +26,14 @@ inability to use the software. -->
                 <!-- XCDR_AUTO = serialized format, which is more performant, but not human-readable -->
                 <!-- JSON_SQLITE = deserialized format, which is less performant, but human readable -->
                 <storage_format>XCDR_AUTO</storage_format>
-                <!-- This will record data to a directory called 'demo2_recording' -->
+                <!-- This will record data to a directory called 'or_recording' -->
                 <fileset>
                     <!-- Run Recording Service on the current directory -->
                     <workspace_dir></workspace_dir>
-                    <!-- Create a directory called cdr_recording with the database -->
-                    <execution_dir_expression>demo2_recording</execution_dir_expression>
+                    <!-- Create a directory called or_recording with the database -->
+                    <execution_dir_expression>or_recording</execution_dir_expression>
                     <!-- Name of the database(s) containing the recorded data -->
-                    <filename_expression>demo2_recording_database.dat</filename_expression>
+                    <filename_expression>or_recording_database.dat</filename_expression>
                 </fileset>
             </sqlite>
         </storage>

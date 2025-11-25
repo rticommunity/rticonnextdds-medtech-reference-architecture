@@ -1,21 +1,23 @@
-# Demo 3 - Teleoperation with RTI Real-Time WAN Transport
+# Module 03: Remote Teleoperation with RTI Real-Time WAN Transport
 
-Demo 3 demonstrates teleoperation across the Wide Area Network (WAN) using the RTI Real-Time WAN Transport. This transport plugin enables DDS communication across the WAN using UDP as the underlying transport-layer protocol.
+Module 03 demonstrates remote teleoperation across the Wide Area Network (WAN) using the RTI Real-Time WAN Transport. This transport plugin enables DDS communication across the WAN using UDP as the underlying transport-layer protocol.
 
-This demo shows how the Surgeon Console from [Demo 1 - Digital Operating Room](../demo1/) can be located anywhere in the world and continue to communicate with the rest of the system. Be sure you are able to run Demo 1 before trying out this demo.
+This module shows how the Surgeon Console from [Module 01: Digital Operating Room](../01-operating-room/) can be located anywhere in the world and continue to communicate with the rest of the system. Be sure you are able to run the operating room application from Module 01 before trying out this module's demo.
 
 ## Contents
 
-- [Demo Description](#demo-description)
+- [Module Description](#module-description)
 - [Run the Demo](#run-the-demo)
 - [Hands-On: Going Further](#hands-on-going-further)
 - [Next Steps](#next-steps)
 
-## Demo Description
+## Module Description
 
-This demo extends the Digital Operating Room from Demo 1 to demonstrate WAN communication capabilities. The RTI Real-Time WAN Transport enables secure, reliable communication across geographical distances, allowing medical professionals to operate remotely while maintaining real-time control and monitoring.
+This module extends the Digital Operating Room from Module 01 to demonstrate WAN communication capabilities. The RTI Real-Time WAN Transport enables secure, reliable communication across geographical distances, allowing medical professionals to operate remotely while maintaining real-time control and monitoring.
 
-![diagram](../../resource/images/demo3_diagram.svg)
+RTI Connext abstracts the underlying transport, such that the api usage and much of the configuration can remain consistent regardless of which transport is used. This is true for the Real-Time WAN Transport, and this module shows that the same applications communicating locally can be extended to work over a remote connection without modification to code, QoS, or security configuration.
+
+![diagram](../../resource/images/module-03-diagram-teleoperation.svg)
 
 WAN communication can be deployed in 3 different scenarios:
 
@@ -38,16 +40,16 @@ Together, the RTI Real-Time WAN Transport, RTI Security Plugins, and RTI Cloud D
 
 ## Run the Demo
 
-For this demo, you will need the following:
+For this module, you will need the following:
 
-1. Two machines connected to the WAN (not on the same LAN) that can run the Demo 1 applications.
+1. Two machines connected to the WAN (not on the same LAN) that can run the operating room applications from Module 01.
 2. Conditionally, a cloud instance that is publically reachable by both machines noted above. *This is required for Scenarios 2 and 3 described below.*
 
 ### 1. Determine Your Scenario
 
 Refer to the following decision tree to understand which scenario best suits your environment:
 
-![Scenario decision tree](../../resource/images/scenario_decision_tree.png)
+![Scenario decision tree](../../resource/images/module-03-diagram-scenario-decision-tree.png)
 
 To determine your NAT type, use the [NAT type checker](../../resource/nat_type_checker/) script on *each* remote machine:
 

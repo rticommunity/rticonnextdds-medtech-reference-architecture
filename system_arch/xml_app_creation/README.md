@@ -16,7 +16,7 @@
 
 ## RTI XML-Based Application Creation
 
-This reference architecture uses [RTI XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/Introduction/XMLAppCreation_Intro.htm#Chapter_1_Introduction) to define all DDS entities that the demos will use. This mechanism simplifies and streamlines the development of Connext applications. An alternative approach is to define the entities programatically, which is more cumbersome, error-prone, and more difficult to coordinate across distributed developer groups.
+This reference architecture uses [RTI XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/Introduction/XMLAppCreation_Intro.htm#Chapter_1_Introduction) to define all DDS entities that the modules will use. This mechanism simplifies and streamlines the development of Connext applications. An alternative approach is to define the entities programatically, which is more cumbersome, error-prone, and more difficult to coordinate across distributed developer groups.
 
 RTI XML-Based Application Creation allows for the extraction of a Connext system definition from the implemented application logic and behavior.
 
@@ -314,7 +314,7 @@ This reference architecture defines the following DomainParticipant library in [
 
 | DomainParticipant Library | Intended Use
 | --------------            | ------------
-| [*MedicalDemoParticipantLibrary*](#medicaldemoparticipantlibrary) | Contains all defined demo DomainParticipants
+| [*MedicalDemoParticipantLibrary*](#medicaldemoparticipantlibrary) | Contains all defined module DomainParticipants
 
 #### ***MedicalDemoParticipantLibrary***
 

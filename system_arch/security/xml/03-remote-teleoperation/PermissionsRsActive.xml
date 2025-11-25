@@ -14,7 +14,7 @@ inability to use the software. -->
     xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/dds_security_permissions.xsd">
     <permissions>
         <grant name="ArmParticipant">
-            <subject_name>/C=US/ST=CA/O=Company Name/emailAddress=support@company_name.com/CN=RsPassive</subject_name>
+            <subject_name>/C=US/ST=CA/O=Company Name/emailAddress=support@company_name.com/CN=RsActive</subject_name>
             <validity>
                 <!-- Format is CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm] in GMT -->
                 <not_before>2024-06-01T13:00:00</not_before>
@@ -25,7 +25,7 @@ inability to use the software. -->
                     <id>1</id>
                 </domains>
                 <!-- Best practice: use the right topics your DomainParticipant publishes and subscribes to -->
-                <!-- This is not a best practice, but for this demo, we'll use (*) for simplicity -->
+                <!-- This is not a best practice, but for this reference architecture, we'll use (*) for simplicity -->
                 <publish>
                     <topics>
                         <topic>*</topic>

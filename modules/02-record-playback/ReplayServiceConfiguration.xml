@@ -29,7 +29,7 @@ inability to use the software. -->
                 <!-- JSON_SQLITE = deserialized format, which is less performant, but human readable -->
                 <storage_format>XCDR_AUTO</storage_format>
                 <!-- Look for files in this folder in the current working directory -->
-                <database_dir>demo2_recording</database_dir>
+                <database_dir>or_recording</database_dir>
             </sqlite>
         </storage>
 

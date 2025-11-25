@@ -25,7 +25,7 @@ inability to use the software. -->
                     <id>1</id>
                 </domains>
                 <!-- Best practice: use the right topics your DomainParticipant publishes and subscribes to -->
-                <!-- This is not a best practice, but for this demo, we'll use (*) for simplicity -->
+                <!-- This is not a best practice, but for this reference architecture, we'll use (*) for simplicity -->
                 <publish>
                     <topics>
                         <topic>*</topic>

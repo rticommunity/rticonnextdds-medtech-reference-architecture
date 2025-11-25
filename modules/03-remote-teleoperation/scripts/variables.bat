@@ -1,4 +1,4 @@
-:: Modify these variables for your use case
+:: Modify these variables for your environment
 
 :: Variables for all scenarios
 :: set NDDSHOME=<Connext installation path>

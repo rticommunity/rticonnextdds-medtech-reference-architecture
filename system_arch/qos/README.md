@@ -121,7 +121,7 @@ This QoS profile is used for command and event-related Topics. These are Topics 
 It inherits from the *BuiltinQosLib::Generic.Common* profile in addition to builtin QoS snippets. As a result, this QoS profile applies the following:
 
 - *RELIABLE* Reliability QoS. Samples should be repaired if lost because the frequency of commands is unkown and irregular.
-- *KEEP_LAST, depth=1* History QoS. In this simplified use case, only the last command for a system component should be processed by subscribing applications, or cached by DataWriters to repair as needed.
+- *KEEP_LAST, depth=1* History QoS. In this simplified demonstration, only the last command for a system component should be processed by subscribing applications, or cached by DataWriters to repair as needed.
 - *VOLATILE* Durability QoS. Late-joining DataReaders should **not** receive historical commands that were published before they joined.  
 - Some optimizations to make repairs faster.
 
@@ -150,13 +150,15 @@ In addition to the [Qos.xml](#qosxml) file, this reference architecture describe
 
 The contents of these files determine whether the Connext applications are secure or not. When launching the applications, the `NDDS_QOS_PROFILES` environment variable must reference one, but not both, of these files to dictate that decision and apply the resulting configuration.
 
-Both files contain only 1 QoS library: ***DpQosLib***. This QoS library contains 1 QoS profile per DomainParticipant. The rationale behind this library is that DomainParticipants in each application may have different needs. For instance, in the demos, the security certificates of each application will be different from each other.
+Both files contain only 1 QoS library: ***DpQosLib***. This QoS library contains 1 QoS profile per DomainParticipant. The rationale behind this library is that DomainParticipants in each application may have different needs. For instance, in the provided modules, the security certificates of each application will be different from each other.
 
-[NonSecureAppsQos.xml](./NonSecureAppsQos.xml) contains one profile for each DomainParticipant. For the simplified use case, each profile inherits from *SystemLibrary::DefaultParticipant* in [Qos.xml](./Qos.xml). No additional configuration is applied for any given DomainParticipant.
+[NonSecureAppsQos.xml](./NonSecureAppsQos.xml) contains one profile for each DomainParticipant. For the simplified demonstration, each profile inherits from *SystemLibrary::DefaultParticipant* in [Qos.xml](./Qos.xml). No additional configuration is applied for any given DomainParticipant.
 
 [SecureAppsQos.xml](./SecureAppsQos.xml) also defines one profile for each DomainParticipant in a similar way to that of **NonSecureAppsQos.xml**, but with security configuration added.
 
-[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *Demo1and2CommonSecuritySettings* defines common configuration to enable security and point to the common permissions CA, identity CA, and governance files.
+[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *LanCommonSecurityConfig* defines common configuration to enable security for local domains (LAN connections). It references common permissions CA, identity CA, and governance files.
+
+[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *WanCommonSecurityConfig* defines common configuration to enable security for remote domains (WAN connections). It references common permissions CA, identity CA, and governance files.
 
 ## XML QoS Best Practices
 

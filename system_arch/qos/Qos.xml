@@ -55,7 +55,7 @@ inability to use the software. -->
         </domain_participant_qos>
       </qos_profile>
 
-    <!-- This profile is used in Demo 3 -->
+    <!-- This profile is used in Module 03 - Remote Teleoperation -->
     <qos_profile name="WanConfig" base_name="BuiltinQosLib::Generic.Common">
       <domain_participant_qos>
         <transport_builtin>

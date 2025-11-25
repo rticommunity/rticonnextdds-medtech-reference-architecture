@@ -2,23 +2,24 @@
 
 The Medical Reference Architecture demonstrates RTI's best practices for building medical devices using RTI Connext®.
 
-This repository contains documentation and demo applications showcasing different capabilities of Connext in a Medical context. The goal is to provide a comprehensive guide to help developers leverage Connext for building robust, scalable, and interoperable medical systems.
+This repository contains documentation and module demo applications showcasing different capabilities of Connext in a Medical context. The goal is to provide a comprehensive guide to help developers leverage Connext for building robust, scalable, and interoperable medical systems.
 
 ## Contents
 
 - [Introduction](#introduction)
 - [Getting Started](#getting-started)
 - [Cloning the Repository](#cloning-the-repository)
-- [Hands-On: Demos](#hands-on-demos)
-  - [Demo 1: Digital Operating Room](#demo-1--digital-operating-room)
-  - [Demo 2: RTI Recording Service & RTI Replay Service](#demo-2--rti-recording-service--rti-replay-service)
-  - [Demo 3: Teleoperation with RTI Real-Time WAN Transport](#demo-3--teleoperation-with-rti-real-time-wan-transport)
+- [Hands-On: Modules](#hands-on-modules)
+  - [Module 01: Digital Operating Room](#module-01--digital-operating-room)
+  - [Module 02: RTI Recording Service & RTI Replay Service](#module-02--rti-recording-service--rti-replay-service)
+  - [Module 03: Remote Teleoperation with RTI Real-Time WAN Transport](#module-03--remote-teleoperation-with-rti-real-time-wan-transport)
 - [Hands-On: Architecture](#hands-on-architecture)
 - [Architecture Overview](#architecture-overview)
   - [Data Types](#data-types)
   - [Quality of Service (QoS)](#quality-of-service-qos)
   - [Domains & Topics](#domains--topics)
   - [DomainParticipants & DDS Entities](#domainparticipants--dds-entities)
+  - [DDS Security](#dds-security)
 - [Going Further](#going-further)
   - [Want to dig deeper?](#want-to-dig-deeper)
 - [Additional references](#additional-references)
@@ -40,7 +41,7 @@ Here are some links that compliment this repository:
 *RTI strongly recommends proceeding in the following order:*
 
 1. Setup: [Clone the repository.](#cloning-the-repository)
-2. Run: [Run the demos.](#hands-on-demos)
+2. Run: [Run the modules.](#hands-on-modules)
 3. Learn: [Understand the architecture.](#hands-on-architecture)
 
 ## Cloning the Repository
@@ -58,19 +59,19 @@ the following command to pull all the dependencies:
 git submodule update --init --recursive
 ```
 
-For the specific demos and their prerequisites, refer to the README.md located in each demo folder.
+For the demonstrated modules and their prerequisites, refer to the README.md located in their respective folder.
 
-## Hands-On: Demos
+## Hands-On: Modules
 
-The RTI MedTech Reference Architecture demos showcase usage and capabilities of the provided system architecture.
+The RTI MedTech Reference Architecture demonstrates use cases and capabilities of the provided system architecture.
 
-*RTI recommends following along the demo-specific READMEs before returning here and learning more about the designed system architecture.*
+*RTI recommends following along the module-specific READMEs before returning here and learning more about the designed system architecture.*
 
-- ### [Demo 1](./demos/demo1/) : Digital Operating Room
+- ### [Module 01](./modules/01-operating-room/) : Digital Operating Room
 
-- ### [Demo 2](./demos/demo2/) : RTI Recording Service & RTI Replay Service
+- ### [Module 02](./modules/02-record-playback/) : RTI Recording Service & RTI Replay Service
 
-- ### [Demo 3](./demos/demo3/) : Teleoperation with RTI Real-Time WAN Transport
+- ### [Module 03](./modules/03-remote-teleoperation/) : Remote Teleoperation with RTI Real-Time WAN Transport
 
 ## Hands-On: Architecture
 
@@ -102,12 +103,13 @@ The RTI MedTech Reference Architecture consists of the following key components:
 - [Quality of Service (QoS)](#quality-of-service-qos)
 - [Domains & Topics](#domains--topics)
 - [DomainParticipants & DDS Entities](#domainparticipants--dds-entities)
+- [DDS Security](#dds-security)
 
 Through *RTI XML-Based Application Creation*, aspects of all 4 components are expressed in XML statically, separate from application code and choice of language. This allows for the extraction of a common system definition from the application logic and behavior - a must-have for designing integrated systems with multiple development teams.
 
-Please find a diagram of the Digital OR demo below:
+Please find a diagram of the Digital OR module module below:
 
-![diagram](./resource/images/digital_OR_diagram.svg)
+![diagram](./resource/images/module-01-diagram-digital-OR.svg)
 
 ### Data Types
 
@@ -228,6 +230,26 @@ This reference architecture defines the following DomainParticipants in [Partici
 | OperationalDataDomain | PatientMonitor    | `t/DeviceCommand`, `t/Vitals`        | `t/DeviceStatus`, `t/DeviceHeartbeat`            | Process and display patient vitals.
 
 *Note, this reference architecture utilizes one DomainParticipant for each device application. It is a **best practice** to define one DomainParticipant per application. However, in more complex systems, an application may be required to operate on multiple Domains. This requires defining multiple DomainParticipants for those applications that run in parallel.*
+
+### DDS Security
+
+DDS Security defines authentication, access control, and encryption capabilities essential for medical device communications. Security is critical in medical systems to protect patient data, ensure device integrity, and maintain regulatory compliance.
+
+DDS Security is meant to be a pluggable component to the system architecture. This reference architecture demonstrates the flexibility of the RTI Security Plugins, and how a system can be secured purely through configuration. It should be noted that enabling security does have an effect on performance - both at initialization due to authentication and in steady-state operation due to encryption. It is because of this, that a system's architecture should be designed with security in mind, even if application code has no dependency on the use of security.
+
+The reference architecture configures security in [SecureAppsQos.xml](./system_arch/qos/SecureAppsQos.xml) with:
+
+| Component | Security Features
+|-----------|-------------------
+| **LAN Communications** | Domain 0 governance, participant-specific certificates and permissions
+| **WAN Communications** | Domain 1 governance for WAN connections
+| **RTI Services** | Dedicated security profiles for Recording/Replay Services and Routing Services
+
+Security Artifacts Structure in [security](./system_arch/security/):
+
+- `ca/` - Certificate Authority files and configuration
+- `identities/` - Individual participant certificates and private keys organized by module
+- `xml/` - DDS Governance and Permissions XML documents with signed versions
 
 ## Going Further
 
