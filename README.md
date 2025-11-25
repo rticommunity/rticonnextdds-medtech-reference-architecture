@@ -1,6 +1,6 @@
 # RTI MedTech Reference Architecture
 
-The Medical Reference Architecture demonstrates RTI's best practices for building medical devices using RTI Connext.
+The Medical Reference Architecture demonstrates RTI's best practices for building medical devices using RTI Connext®.
 
 This repository contains documentation and demo applications showcasing different capabilities of Connext in a Medical context. The goal is to provide a comprehensive guide to help developers leverage Connext for building robust, scalable, and interoperable medical systems.
 
@@ -240,6 +240,11 @@ Check out the the [system_arch](./system_arch/) folder, where the system archite
 - [RTI XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/XMLAppCreationGSG_title.htm#)
 - [RTI System Designer](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/tools/system_designer/index.html)
 - [RTI Core Libraries Users Manual](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/title.htm#)
-- [RTI Connext Modern C++ API](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/api/connext_dds/api_cpp2/index.html) *, used by demo applications*
-- [RTI Connext Python API](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/api/connext_dds/api_python/index.html) *, used by demo applications*
-- [RTI Recording Service & Replay Service](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/services/recording_service/introduction.html) *, used in demo*
+- [RTI Security Plugins](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/index.html)
+- [RTI Connext Modern C++ API](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/api/connext_dds/api_cpp2/index.html) *, used in Module 01: Digital Operating Room*
+- [RTI Connext Python API](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/api/connext_dds/api_python/index.html) *, used in Module 01: Digital Operating Room*
+- [RTI Recording Service & Replay Service](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/services/recording_service/introduction.html) *, used in Module 02: RTI Recording Service & RTI Replay Service*
+- [Connext Real-Time WAN Transport](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/PartRealtimeWAN.htm) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
+- [RTI Routing Service](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/services/routing_service/index.html) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
+- [RTI Cloud Discovery Service](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/addon_products/cloud_discovery_service/index.html) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
+- [RTI Connext Third-Party Software](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/release_notes_3rdparty/index.html)
