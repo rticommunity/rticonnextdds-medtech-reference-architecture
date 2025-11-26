@@ -98,6 +98,7 @@ pip install \
 
 ```bash
 source <connext installation directory>/resource/scripts/rtisetenv_x64Linux4gcc7.3.0.bash
+cd modules/01-operating-room
 mkdir build
 cd build
 cmake ..
@@ -125,6 +126,7 @@ cd system_arch/security
 Run operating room applications:
 
 ```bash
+cd modules/01-operating-room
 ./scripts/launch_all.sh
 ```
 
