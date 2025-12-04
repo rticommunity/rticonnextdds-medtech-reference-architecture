@@ -27,6 +27,9 @@ inability to use the software. -->
             <!-- If we needed to apply different rules for different topics, we would -->
             <!-- do that in <topic_access_rules>. To keep things simple, all the topics -->
             <!-- will use the same settings -->
+            <!-- rtps_psk_protection_kind is necessary for communication with CDS,
+                and it makes communication more secure (even if CDS is not involved) -->
+            <rtps_psk_protection_kind>ENCRYPT</rtps_psk_protection_kind>
             <topic_access_rules>
                 <topic_rule>
                     <topic_expression>*</topic_expression>

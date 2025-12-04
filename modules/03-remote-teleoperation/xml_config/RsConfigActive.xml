@@ -64,19 +64,6 @@
                             <element>0@udpv4_wan://$(PUBLIC_ADDRESS):$(PUBLIC_PORT)</element>
                         </initial_peers>
                     </discovery>
-                    <!-- CDS security config -->
-                    <!-- <property>
-                        <value>
-                            <element>
-                                <name>com.rti.serv.secure.cryptography.rtps_protection_key</name>
-                                <value>str:key0</value>
-                            </element>
-                            <element>
-                                <name>com.rti.serv.secure.authentication.participant_discovery_protection_key</name>
-                                <value>str:key1</value>
-                            </element>
-                        </value>
-                    </property> -->
                 </domain_participant_qos>
             </participant>
 

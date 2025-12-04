@@ -77,6 +77,13 @@ inability to use the software. -->
               <name>dds.sec.access.governance</name>
               <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/xml/signed/SignedGovernanceDomain1.p7s</value>
             </element>
+            <!-- This is mandatory for Scenario2 (CDS) and optional for the rest -->
+            <!-- In general, it makes communication more secure. Feel free to set -->
+            <!-- your own passphrase, but make sure all applications use the same one -->
+            <element>
+                <name>dds.sec.crypto.rtps_psk_secret_passphrase</name>
+                <value>data:,0:my_secret_passphrase</value>
+            </element>
           </value>
         </property>
       </domain_participant_qos>

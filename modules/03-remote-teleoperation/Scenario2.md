@@ -74,11 +74,7 @@ cd 01-operating-room
 
 >**Observe:** You should see **no communication** between applications since the Routing Service and Cloud Discovery Service infrastructure has not been started yet.
 
-### 3. Security Configuration (if using Security)
-
-If using Security, on the *Active* sides, uncomment lines 68-79 of [`RsConfigActive.xml`](xml_config/RsConfigActive.xml). This is necessary to allow secure communication with Cloud Discovery Service.
-
-### 4. Launch Cloud Discovery Service
+### 3. Launch Cloud Discovery Service
 
 In a terminal on your cloud instance, run Cloud Discovery Service:
 
@@ -87,7 +83,7 @@ cd 03-remote-teleoperation
 ./scripts/launch_cds_cloud.sh [-s]
 ```
 
-### 5. Launch Active Routing Services
+### 4. Launch Active Routing Services
 
 Open a new terminal on both *Active* sides and run the following in each:
 
@@ -96,13 +92,13 @@ cd 03-remote-teleoperation
 ./scripts/launch_rs_active.sh [-s]
 ```
 
-### 6. Observe Communication
+### 5. Observe Communication
 
 [Observe the operating room applications](../01-operating-room/README.md#3-observe-the-demo-applications) to verify that all *Module 01: Digital Operating Room* functionality works across the WAN.
 
 >**Observe:** Once discovery completes, you should see data flow between the Operating Room applications and the Arm Controller. RTI Cloud Discovery Service facilitates discovery between the *Active* Routing Services, allowing them to establish peer-to-peer communication. RTI Routing Service provides scalability by bridging between the local networks over the WAN and avoids managing a separate WAN connection for each set of remote applications that communicate.
 
-### 7. Kill the applications
+### 6. Kill the applications
 
 Kill all running applications:
 
