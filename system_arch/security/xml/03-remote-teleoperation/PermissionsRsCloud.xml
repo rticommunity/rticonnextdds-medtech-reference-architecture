@@ -13,7 +13,7 @@ inability to use the software. -->
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/dds_security_permissions.xsd">
     <permissions>
-        <grant name="ArmParticipant">
+        <grant name="RsCloudParticipant">
             <subject_name>/C=US/ST=CA/O=Company Name/emailAddress=support@company_name.com/CN=RsCloud</subject_name>
             <validity>
                 <!-- Format is CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm] in GMT -->
