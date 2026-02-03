@@ -1,6 +1,6 @@
 [submodule "resource/cmake/rticonnextdds-cmake-utils"]
 	path = resource/cmake/rticonnextdds-cmake-utils
 	url = https://github.com/rticommunity/rticonnextdds-cmake-utils
-[submodule "tools/third_party/LSS_Library_Python"]
-	path = tools/third_party/LSS_Library_Python
+[submodule "examples/lss_robot/LSS_Library_Python"]
+	path = examples/lss_robot/LSS_Library_Python
 	url = https://github.com/Lynxmotion/LSS_Library_Python.git

@@ -27,6 +27,9 @@ constants = DdsEntities.Constants
 arm_dp_fqn = (
     constants.DP_LIBRARY_NAME + constants.SEPARATOR + constants.DP_ARM_NAME
 )
+arm_controller_dp_fqn = (
+    constants.DP_LIBRARY_NAME + constants.SEPARATOR + constants.DP_ARM_CONTROLLER_NAME
+)
 patient_monitor_dp_fqn = (
     constants.DP_LIBRARY_NAME
     + constants.SEPARATOR
@@ -44,6 +47,7 @@ dr_prefix = (
 # DWs / DRs names
 status_dw_fqn = dw_prefix + constants.ENDPOINT_DEVICE_STATUS_NAME
 device_hb_dw_fqn = dw_prefix + constants.ENDPOINT_DEVICE_HEARTBEAT_NAME
+motor_control_dw_fqn = dw_prefix + constants.ENDPOINT_MOTOR_CONTROL_NAME
 
 motor_control_dr_fqn = dr_prefix + constants.ENDPOINT_MOTOR_CONTROL_NAME
 device_command_dr_fqn = dr_prefix + constants.ENDPOINT_DEVICE_COMMAND_NAME
