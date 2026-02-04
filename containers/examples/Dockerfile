@@ -20,7 +20,7 @@
 #   The --network host option is used to share the host's network stack with the container
 #   The -e DISPLAY option is used to set the DISPLAY environment variable in the container to the host's DISPLAY variable.
 #   The -e SDL_AUDIODRIVER=dummy option is used to set the SDL_AUDIODRIVER environment variable to dummy to avoid audio issues.
-#   The --device=/dev/ttyUSB0 option is used to give the container access to the USB device (e.g., joystick or robot controller).
+#   The --device=/dev/ttyUSB0 option is used to give the container access to the USB device (e.g., joystick or xbox controller).
 #   The --privileged option is used to give the container additional privileges.
 #   The --hostname option is used to set the hostname of the container to rtimedtech.
 #   The -v $XAUTHORITY:/root/.Xauthority option is used to mount the X11 authentication file from the host to the container.

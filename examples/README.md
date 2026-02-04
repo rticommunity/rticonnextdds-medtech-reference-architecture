@@ -22,6 +22,10 @@ Contents
 - `WIS/` — Web Integration Service example that hosts a web UI which publishes
   `MotorControl` commands via WebSockets. See `WIS/readme.md` for WIS
   configuration and UI behavior.
+- `CANoe/` — Vector CANoe Integration example that leverages CANoe's native Python
+   scripting capabilities to create a bidirectional bridge between multiple DDS
+   domains, enabling both topic translation and domain bridging while providing
+   real-time monitoring and control capabilities.
 
 Running
 1. Read the README in the example you intend to run for per-example prerequisites
