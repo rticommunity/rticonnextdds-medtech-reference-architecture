@@ -113,48 +113,44 @@ class JoystickApp:
                         pygame.quit()
                         return
                 
-                    # Poll joystick for button states
-                    button_states = [joystick.get_button(i) for i in range(num_buttons)]
-                    # Poll joystick for axis states
-                    axis_states = [joystick.get_axis(i) for i in range(num_axes)]
+                # Poll joystick for button states
+                button_states = [joystick.get_button(i) for i in range(num_buttons)]
+                # Poll joystick for axis states
+                axis_states = [joystick.get_axis(i) for i in range(num_axes)]
 
-                    target = SurgicalRobot.Motors.BASE
+                target = SurgicalRobot.Motors.BASE
 
-                    if button_states[Buttons.PRIMARY_LEFT]:
-                        target = SurgicalRobot.Motors.SHOULDER
-                    elif button_states[Buttons.PRIMARY_RIGHT]:
-                        target = SurgicalRobot.Motors.ELBOW
-                    elif button_states[Buttons.SECONDARY_LEFT]:
-                        target = SurgicalRobot.Motors.WRIST
-                    elif button_states[Buttons.SECONDARY_RIGHT]:
-                        target = SurgicalRobot.Motors.HAND
+                if button_states[Buttons.PRIMARY_LEFT]:
+                    target = SurgicalRobot.Motors.SHOULDER
+                elif button_states[Buttons.PRIMARY_RIGHT]:
+                    target = SurgicalRobot.Motors.ELBOW
+                elif button_states[Buttons.SECONDARY_LEFT]:
+                    target = SurgicalRobot.Motors.WRIST
+                elif button_states[Buttons.SECONDARY_RIGHT]:
+                    target = SurgicalRobot.Motors.HAND
 
-                    # Left/right
-                    if target in self.left_right:
-                        if int(axis_states[0]) < 0: # left
-                            sample.id = target
-                            sample.direction = SurgicalRobot.MotorDirections.DECREMENT
-                            self.motor_control_writer.write(sample)
-                        elif round(axis_states[0]) > 0: # right
-                            sample.id = target
-                            sample.direction = SurgicalRobot.MotorDirections.INCREMENT
-                            self.motor_control_writer.write(sample)
-                    elif target in self.up_down:
-                        if int(axis_states[1]) < 0: # up
-                            sample.id = target
-                            sample.direction = SurgicalRobot.MotorDirections.DECREMENT
-                            if (sample.id == SurgicalRobot.Motors.SHOULDER):
-                                sample.direction = SurgicalRobot.MotorDirections.INCREMENT
-                            self.motor_control_writer.write(sample)
-                        elif round(axis_states[1]) > 0: # down
-                            sample.id = target
-                            sample.direction = SurgicalRobot.MotorDirections.INCREMENT
-                            if (sample.id == SurgicalRobot.Motors.SHOULDER):
-                                sample.direction = SurgicalRobot.MotorDirections.DECREMENT
-                            self.motor_control_writer.write(sample)                        
+                # Left/right
+                if target in self.left_right:
+                    if int(axis_states[0]) < 0: # left
+                        sample.id = target
+                        sample.direction = SurgicalRobot.MotorDirections.DECREMENT
+                        self.motor_control_writer.write(sample)
+                    elif round(axis_states[0]) > 0: # right
+                        sample.id = target
+                        sample.direction = SurgicalRobot.MotorDirections.INCREMENT
+                        self.motor_control_writer.write(sample)
+                elif target in self.up_down:
+                    if int(axis_states[1]) < 0: # up
+                        sample.id = target
+                        sample.direction = SurgicalRobot.MotorDirections.INCREMENT
+                        self.motor_control_writer.write(sample)
+                    elif round(axis_states[1]) > 0: # down
+                        sample.id = target
+                        sample.direction = SurgicalRobot.MotorDirections.DECREMENT
+                        self.motor_control_writer.write(sample)                        
 
-                    # Adjust the clock speed as needed
-                    clock.tick(60)
+                # Adjust the clock speed as needed
+                clock.tick(60)
 
         except KeyboardInterrupt:
             pygame.quit()
@@ -175,6 +171,18 @@ class JoystickApp:
         joystick.init()
 
         print(f"Starting Joystick Controller, using joystick: {joystick.get_name()}")
+
+        # Print detected joystick mapping for debugging
+        num_axes = joystick.get_numaxes()
+        num_buttons = joystick.get_numbuttons()
+        num_hats = joystick.get_numhats()
+        print(f"Joystick detected: axes={num_axes}, buttons={num_buttons}, hats={num_hats}")
+        print("Control Mapping:")
+        print("  BASE <- X (L = CCW, R = CW)")
+        print("  SHOULDER <- Y + Left Primary Button")
+        print("  ELBOW <- Y + Right Primary Button")
+        print("  WRIST <- Y + Left Secondary Button")
+        print("  HAND <- X + Right Secondary Button (L = Open, R = Close)")
 
         # setup Connext
         self.connext_setup()

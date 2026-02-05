@@ -12,7 +12,7 @@
 
 import pygame
 from enum import IntEnum
-import time, threading
+import time, threading, os
 import rti.connextdds as dds
 import DdsUtils
 from Types import Common, SurgicalRobot, Orchestrator
@@ -29,6 +29,8 @@ class JoystickApp:
         self.up_down = [SurgicalRobot.Motors.SHOULDER, SurgicalRobot.Motors.ELBOW, SurgicalRobot.Motors.WRIST]
         self.left_right = [SurgicalRobot.Motors.BASE, SurgicalRobot.Motors.HAND]
         self.stop_event = threading.Event()
+        # Enable debug printing when XBOX_DEBUG=1 or XBOX_DEBUG=true in environment
+        self.debug = os.getenv('XBOX_DEBUG', '0') in ('1', 'true', 'True')
 
     def connext_setup(self):
         # Register DDS types, using a function from DdsUtils.py
@@ -97,98 +99,127 @@ class JoystickApp:
 
             self.status_writer.write(self.arm_status)
 
-
+    def apply_deadzone(self, value, deadzone=0.1):
+        """Return 0 if value is within deadzone, otherwise return value"""
+        if abs(value) < deadzone:
+            return 0.0
+        return value
+    
     def poll_joystick(self, joystick):
         clock = pygame.time.Clock()
         sample = SurgicalRobot.MotorControl
+        deadzone = 0.2  # Adjust this threshold as needed
 
         try:
             num_buttons = joystick.get_numbuttons()
             num_axes = joystick.get_numaxes()
+            debug_counter = 0
+            debug_print_every = 6  # print ~10 times/sec at 60Hz if debug enabled
 
             while not self.stop_event.is_set():
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         pygame.quit()
                         return
-                
-                    # Poll joystick for button states
-                    button_states = [joystick.get_button(i) for i in range(num_buttons)]
-                    # Poll joystick for axis states
-                    axis_states = [joystick.get_axis(i) for i in range(num_axes)]
 
-                    # Xbox control layout mapping:
-                    # - D-pad X -> BASE
-                    # - D-pad Y -> SHOULDER
-                    # - Left stick Y -> ELBOW
-                    # - Left stick X -> WRIST
-                    # - Right stick Y -> HAND
+                # Poll joystick for button states
+                button_states = [joystick.get_button(i) for i in range(num_buttons)]
+                # Poll joystick for axis states
+                axis_states = [self.apply_deadzone(joystick.get_axis(i), deadzone) for i in range(num_axes)]
 
-                    # Read D-pad (hat) if available
-                    num_hats = joystick.get_numhats()
-                    if num_hats > 0:
-                        dpad_x, dpad_y = joystick.get_hat(0)
-                    else:
-                        dpad_x = 0
-                        dpad_y = 0
+                # Xbox control layout mapping:
+                # - D-pad X -> BASE 
+                # - D-pad Y -> SHOULDER
+                # - Left stick X -> SHOULDER
+                # - Left stick Y -> ELBOW
+                # - Right stick Y -> WRIST
+                # - Right stick X -> HAND
+                # - BASE also controlled by left/right bumpers (buttons)
+                # - HAND also controlled by triggers (axes with threshold)
 
-                    # Left stick axes
-                    left_x = round(axis_states[0]) if num_axes > 0 else 0
-                    left_y = round(axis_states[1]) if num_axes > 1 else 0
+                # Read D-pad (hat) if available
+                num_hats = joystick.get_numhats()
+                if num_hats > 0:
+                    dpad_x, dpad_y = joystick.get_hat(0)
+                else:
+                    dpad_x = 0
+                    dpad_y = 0
 
-                    # BASE controlled by D-pad X
-                    if dpad_x < 0:  # left
-                        sample.id = SurgicalRobot.Motors.BASE
-                        sample.direction = SurgicalRobot.MotorDirections.DECREMENT
-                        self.motor_control_writer.write(sample)
-                    elif dpad_x > 0:  # right
-                        sample.id = SurgicalRobot.Motors.BASE
-                        sample.direction = SurgicalRobot.MotorDirections.INCREMENT
-                        self.motor_control_writer.write(sample)
+                # Left stick axes
+                left_x = round(axis_states[0]) if num_axes > 0 else 0
+                left_y = round(axis_states[1]) if num_axes > 1 else 0
 
-                    # SHOULDER controlled by D-pad Y
-                    if dpad_y < 0:  # down on some controllers
-                        sample.id = SurgicalRobot.Motors.SHOULDER
-                        sample.direction = SurgicalRobot.MotorDirections.DECREMENT
-                        self.motor_control_writer.write(sample)
-                    elif dpad_y > 0:  # up
-                        sample.id = SurgicalRobot.Motors.SHOULDER
-                        sample.direction = SurgicalRobot.MotorDirections.INCREMENT
-                        self.motor_control_writer.write(sample)
+                # Right stick axes
+                right_x = round(axis_states[3]) if num_axes > 2 else 0
+                right_y = round(axis_states[4]) if num_axes > 3 else 0
 
-                    # WRIST controlled by left stick X
-                    if left_x < 0:
-                        sample.id = SurgicalRobot.Motors.WRIST
-                        sample.direction = SurgicalRobot.MotorDirections.DECREMENT
-                        self.motor_control_writer.write(sample)
-                    elif left_x > 0:
-                        sample.id = SurgicalRobot.Motors.WRIST
-                        sample.direction = SurgicalRobot.MotorDirections.INCREMENT
-                        self.motor_control_writer.write(sample)
+                # Triggers
+                left_trigger = round(axis_states[2]) if num_axes > 4 else 0
+                right_trigger = round(axis_states[5]) if num_axes > 5 else 0
+                trigger_threshold = 0.2  # lower threshold for higher sensitivity
 
-                    # ELBOW controlled by left stick Y
-                    if left_y < 0:
-                        sample.id = SurgicalRobot.Motors.ELBOW
-                        sample.direction = SurgicalRobot.MotorDirections.INCREMENT
-                        self.motor_control_writer.write(sample)
-                    elif left_y > 0:
-                        sample.id = SurgicalRobot.Motors.ELBOW
-                        sample.direction = SurgicalRobot.MotorDirections.DECREMENT
-                        self.motor_control_writer.write(sample)
+                # Bumpers (if present) — commonly buttons 4/5
+                left_bumper = button_states[4] if num_buttons > 4 else 0
+                right_bumper = button_states[5] if num_buttons > 5 else 0
 
-                    # HAND controlled by right stick Y axis
-                    right_y = round(axis_states[3]) if num_axes > 3 else 0
-                    if right_y < 0:
-                        sample.id = SurgicalRobot.Motors.HAND
-                        sample.direction = SurgicalRobot.MotorDirections.DECREMENT
-                        self.motor_control_writer.write(sample)
-                    elif right_y > 0:
-                        sample.id = SurgicalRobot.Motors.HAND
-                        sample.direction = SurgicalRobot.MotorDirections.INCREMENT
-                        self.motor_control_writer.write(sample)
+                # Debug print button/axis states (throttled)
+                if self.debug:
+                    if debug_counter % debug_print_every == 0:
+                        print(f"buttons={button_states} axes={axis_states} dpad=({dpad_x},{dpad_y}) left_x={left_x} left_y={left_y} right_x={right_x} right_y={right_y} lt={left_trigger:.2f} rt={right_trigger:.2f}")
+                debug_counter += 1
 
-                    # Adjust the clock speed as needed
-                    clock.tick(60)
+                # BASE controlled by D-pad X OR bumpers
+                if dpad_x < 0 or left_bumper:
+                    sample.id = SurgicalRobot.Motors.BASE
+                    sample.direction = SurgicalRobot.MotorDirections.DECREMENT
+                    self.motor_control_writer.write(sample)
+                elif dpad_x > 0 or right_bumper:
+                    sample.id = SurgicalRobot.Motors.BASE
+                    sample.direction = SurgicalRobot.MotorDirections.INCREMENT
+                    self.motor_control_writer.write(sample)
+
+                # SHOULDER controlled by left stick X or D-pad Y
+                if left_x < 0 or dpad_y < 0:  # left or dpad down maps to DECREMENT
+                    sample.id = SurgicalRobot.Motors.SHOULDER
+                    sample.direction = SurgicalRobot.MotorDirections.DECREMENT
+                    self.motor_control_writer.write(sample)
+                elif left_x > 0 or dpad_y > 0:
+                    sample.id = SurgicalRobot.Motors.SHOULDER
+                    sample.direction = SurgicalRobot.MotorDirections.INCREMENT
+                    self.motor_control_writer.write(sample)
+
+                # ELBOW controlled by left stick Y
+                if left_y < 0:
+                    sample.id = SurgicalRobot.Motors.ELBOW
+                    sample.direction = SurgicalRobot.MotorDirections.INCREMENT
+                    self.motor_control_writer.write(sample)
+                elif left_y > 0:
+                    sample.id = SurgicalRobot.Motors.ELBOW
+                    sample.direction = SurgicalRobot.MotorDirections.DECREMENT
+                    self.motor_control_writer.write(sample)
+
+                # WRIST controlled by right stick Y
+                if right_y < 0:
+                    sample.id = SurgicalRobot.Motors.WRIST
+                    sample.direction = SurgicalRobot.MotorDirections.INCREMENT
+                    self.motor_control_writer.write(sample)
+                elif right_y > 0:
+                    sample.id = SurgicalRobot.Motors.WRIST
+                    sample.direction = SurgicalRobot.MotorDirections.DECREMENT
+                    self.motor_control_writer.write(sample)
+
+                # HAND controlled by right stick X or triggers
+                if right_x < 0 or left_trigger > trigger_threshold:
+                    sample.id = SurgicalRobot.Motors.HAND
+                    sample.direction = SurgicalRobot.MotorDirections.DECREMENT
+                    self.motor_control_writer.write(sample)
+                elif right_x > 0 or right_trigger > trigger_threshold:
+                    sample.id = SurgicalRobot.Motors.HAND
+                    sample.direction = SurgicalRobot.MotorDirections.INCREMENT
+                    self.motor_control_writer.write(sample)
+
+                # Adjust the clock speed as needed
+                clock.tick(60)
 
         except KeyboardInterrupt:
             pygame.quit()
@@ -209,6 +240,18 @@ class JoystickApp:
         joystick.init()
 
         print(f"Starting XBox Controller, using joystick: {joystick.get_name()}")
+
+        # Print detected joystick mapping for debugging
+        num_axes = joystick.get_numaxes()
+        num_buttons = joystick.get_numbuttons()
+        num_hats = joystick.get_numhats()
+        print(f"Joystick detected: axes={num_axes}, buttons={num_buttons}, hats={num_hats}")
+        print("Controls:")
+        print("  BASE <- D-pad X OR bumpers (L = CCW, R = CW)")
+        print("  SHOULDER <- D-Pad Y or left stick X ")
+        print("  ELBOW <- left stick Y ")
+        print("  WRIST <- right stick Y ")
+        print("  HAND <- right stick X or triggers (L = Open, R = Close)")
 
         # setup Connext
         self.connext_setup()
