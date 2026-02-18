@@ -257,8 +257,7 @@ Security Artifacts Structure in [security](./system_arch/security/):
 
 Check out the the [system_arch](./system_arch/) folder, where the system architecture artifacts live and are covered in more depth!
 
-Also see the [examples](./examples/README.md) folder for runnable, hands-on examples (Joystick, XBox, LSS Robot, Telemetry Bridge, and WIS) that demonstrate devices and services acting as first-class citizens in the reference architecture.
-
+Also see the [examples](./examples/README.md) folder for runnable, hands-on examples (Joystick, Xbox, LSS Robot, Telemetry Bridge, and WIS) that demonstrate devices and services acting as first-class citizens in the reference architecture.
 
 ## Additional References
 
