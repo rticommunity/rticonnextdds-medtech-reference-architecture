@@ -57,7 +57,8 @@
         <application name="MotorControlApp">
             <domain_participant name="MotorControlParticipant" domain_id="0">
                 <register_type name="SurgicalRobot::MotorControl" type_ref="SurgicalRobot::MotorControl"/>
-                <topic name="t/MotorControl" register_type_ref="SurgicalRobot::MotorControl"/>
+            <domain_participant name="MotorControlParticipant" domain_ref="ConnextDomainLib::OperationalDataDomain">
+                <domain_participant_qos base_name="RtiServicesLib::WebIntegrationService"/>
                 <publisher name="MotorControlPublisher">
                     <data_writer name="MotorControlWriter" topic_ref="t/MotorControl">
                         <datawriter_qos base_name="DataFlowLibrary::Command"/>
