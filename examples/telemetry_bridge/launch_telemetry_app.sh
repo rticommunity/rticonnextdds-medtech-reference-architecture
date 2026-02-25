@@ -8,4 +8,4 @@ SEC_FLAG=${1:-}
 source ./scripts/common.sh $SEC_FLAG
 
 # Start the processes
-python3 src/digitaltwin_app.py &
+python3 src/telemetry_app.py &
