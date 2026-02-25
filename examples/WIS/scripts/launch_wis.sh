@@ -11,7 +11,15 @@ else
 fi
 
 # Set up XML-related variables (QoS, XML App Creation, etc.)
-source ./scripts/variables.sh
+export NDDS_QOS_PROFILES="../../system_arch/Types.xml;$NDDS_QOS_PROFILES"
+
+TYPES_FILE="../../system_arch/Types.xml"
+QOS_FILE="../../system_arch/qos/Qos.xml"
+APPS_QOS_FILE="../../system_arch/qos/NonSecureAppsQos.xml"
+DOMAIN_LIBRARY_FILE="../../system_arch/xml_app_creation/DomainLibrary.xml"
+PARTICIPANT_LIBRARY_FILE="../../system_arch/xml_app_creation/ParticipantLibrary.xml"
+
+export NDDS_QOS_PROFILES=$TYPES_FILE";"$QOS_FILE";"$APPS_QOS_FILE";"$DOMAIN_LIBRARY_FILE";"$PARTICIPANT_LIBRARY_FILE
 
 # Start the process
 $NDDSHOME/bin/rtiwebintegrationservice -listeningPorts $PUBLIC_PORT -cfgFile ./xml_config/wis_service.xml -cfgName MotorControlWebApp -documentRoot $DOC_ROOT -enableKeepAlive yes -enableWebSockets
