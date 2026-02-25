@@ -277,7 +277,8 @@
 
     <script>
         const WIS_HOST = '45.147.251.81';
-        const WIS_PORT = 80;
+        const WIS_HOST = window.location.hostname || '127.0.0.1';
+        const WIS_PORT = window.location.port || 80;
         
         const writerBindId = "motor_control_writer";
         const writerUri = "/dds/rest1/applications/MotorControlApp/domain_participants/MotorControlParticipant/publishers/MotorControlPublisher/data_writers/MotorControlWriter";
