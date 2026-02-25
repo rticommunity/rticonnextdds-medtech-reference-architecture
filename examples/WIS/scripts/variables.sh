@@ -7,4 +7,4 @@
 
 export NDDSHOME=~/rti_connext_dds-7.3.0
 export PUBLIC_PORT=80
-export DOC_ROOT=./wis_root
+export PUBLIC_PORT=8080
