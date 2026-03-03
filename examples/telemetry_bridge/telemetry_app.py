@@ -1,6 +1,6 @@
-# 
+#
 # (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
-# 
+#
 # RTI grants Licensee a license to use, modify, compile, and create derivative
 # works of the software solely for use with RTI Connext DDS.  Licensee may
 # redistribute copies of the software provided that all such copies are
@@ -13,7 +13,7 @@
 # Simple bridge application to publish telemetry data to the MedTech Reference Architecture from the MotorControl topic
 import sys
 
-import time, threading, random
+import threading, random, asyncio
 import rti.connextdds as dds
 import DdsUtils
 from Types import Common, SurgicalRobot, Orchestrator
@@ -39,13 +39,13 @@ SurgicalRobot.MotorTelemetry = SurgicalRobot_MotorTelemetry
 
 class DigitalTwinApp:
     def __init__(self):
-        self.angles = {SurgicalRobot.Motors.BASE : 180.0, 
-          SurgicalRobot.Motors.SHOULDER : 180.0, 
-          SurgicalRobot.Motors.ELBOW : 180.0, 
-          SurgicalRobot.Motors.WRIST : 180.0, 
+        self.angles = {SurgicalRobot.Motors.BASE : 180.0,
+          SurgicalRobot.Motors.SHOULDER : 180.0,
+          SurgicalRobot.Motors.ELBOW : 180.0,
+          SurgicalRobot.Motors.WRIST : 180.0,
           SurgicalRobot.Motors.HAND : 180.0}
-        self.lock = threading.Lock()
-        self.stop_event = threading.Event()
+        self.stop_event = asyncio.Event()
+        self.event_loop = asyncio.new_event_loop()
 
     def connext_setup(self):
         # Register DDS types, using a function from DdsUtils.py
@@ -66,6 +66,9 @@ class DigitalTwinApp:
         self.telemetry_topic = dds.Topic(self.participant_6, "topic/MotorTelemetry", SurgicalRobot.MotorTelemetry)
 
         # Initialize DataWriters
+        self.telemetry_writer = dds.DataWriter(
+            self.participant_6.implicit_publisher, self.telemetry_topic
+        )
         self.status_writer = dds.DataWriter(
             participant.find_datawriter(DdsUtils.status_dw_fqn)
         )
@@ -100,27 +103,30 @@ class DigitalTwinApp:
         self.general_waitset += motor_status_condition
 
 
-    def write_hb(self, hb_writer):
+    async def write_hb(self, hb_writer):
         while not self.stop_event.is_set():
             hb = Common.DeviceHeartbeat()
             hb.device = Common.DeviceType.ARM
             hb_writer.write(hb)
-            time.sleep(0.05)
+            await asyncio.sleep(0.05)  # 20Hz heartbeat
 
+    async def write_telemetry(self, motor_id, position):
+        try:
+            sample = SurgicalRobot.MotorTelemetry()
+            sample.id = motor_id
+            sample.position_deg = int(position)
+            # Invert position for SHOULDER and ELBOW to match physical movement shown in digital twin
+            #if motor_id == SurgicalRobot.Motors.SHOULDER or motor_id == SurgicalRobot.Motors.ELBOW:
+            #    sample.position_deg = -sample.position_deg
 
-    def write_telemetry(self):
-        writer = dds.DataWriter(self.participant_6.implicit_publisher, self.telemetry_topic)
-        while not self.stop_event.is_set():
-            with self.lock:
-                for motor in self.angles:
-                    sample = SurgicalRobot.MotorTelemetry
-                    sample.id = motor
-                    sample.position_deg = self.angles[motor]
-                    sample.current_mA = round(random.uniform(1,1.5),2)
-                    sample.voltage_V = round(random.uniform(12,12.1),2)
-                    sample.temp_c = round(random.uniform(26,27.0),2)
-                    writer.write(sample)
-            time.sleep(0.5) # Change this delay to adjust telemetry update frequency
+            sample.speed_rpm = round(random.uniform(-10,10),2)
+            sample.current_mA = round(random.uniform(1,1.5),2)
+            sample.voltage_V = round(random.uniform(12,12.1),2)
+            sample.temp_c = round(random.uniform(26,27.0),2)
+
+            self.telemetry_writer.write(sample)
+        except Exception as e:
+            print(f"Error writing telemetry for motor {motor_id}: {e}")
 
 
     def cmd_handler(self, _):
@@ -142,32 +148,31 @@ class DigitalTwinApp:
 
     def motor_handler(self, _):
         samples = self.motor_control_reader.take_data()
-        with self.lock:
-            for sample in samples:
-                if(sample.direction == SurgicalRobot.MotorDirections.INCREMENT): 
-                    self.angles[sample.id] = (self.angles[sample.id] + 1) % 360.0
-                elif(sample.direction == SurgicalRobot.MotorDirections.DECREMENT): 
-                    self.angles[sample.id] = (self.angles[sample.id] - 1) % 360.0        
+        for sample in samples:
+            if(sample.direction == SurgicalRobot.MotorDirections.INCREMENT):
+                self.angles[sample.id] = (self.angles[sample.id] + 1) % 360.0
+            elif(sample.direction == SurgicalRobot.MotorDirections.DECREMENT):
+                self.angles[sample.id] = (self.angles[sample.id] - 1) % 360.0
 
-            
+            asyncio.run_coroutine_threadsafe(self.write_telemetry(sample.id, self.angles[sample.id]), self.event_loop)
+
+
     # Main function
-    def run(self):
+    async def run(self):
 
         print("Starting DigitalTwin Controller")
+
+        threading.Thread(target=self.event_loop.run_forever, daemon=True).start()
 
         # setup Connext
         self.connext_setup()
 
-        # Start threads
-        hb_thread = threading.Thread(target=self.write_hb, args=[self.hb_writer])
-        telemetry_thread = threading.Thread(target=self.write_telemetry)
-
-        hb_thread.start()
-        telemetry_thread.start()        
+        # Start tasks
+        hb_task = asyncio.create_task(self.write_hb(self.hb_writer))
 
         try:
             while not self.stop_event.is_set():
-                self.general_waitset.dispatch(dds.Duration(1))
+                await self.general_waitset.dispatch_async(dds.Duration(1))
         except KeyboardInterrupt:
             self.stop_event.set()
 
@@ -176,12 +181,11 @@ class DigitalTwinApp:
         # Set status to off
         self.arm_status.status = Common.DeviceStatuses.OFF
 
-        # Rejoin all threads
-        telemetry_thread.join()
-        hb_thread.join()
+        # Wait for all async tasks to finish
+        await hb_task
 
         print("DigitalTwin Controller shutdown complete.")
 
 if __name__ == "__main__":
     thisapp = DigitalTwinApp()
-    thisapp.run()
+    asyncio.run(thisapp.run())

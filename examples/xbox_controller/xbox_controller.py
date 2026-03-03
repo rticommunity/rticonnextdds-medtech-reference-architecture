@@ -1,6 +1,6 @@
-# 
+#
 # (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
-# 
+#
 # RTI grants Licensee a license to use, modify, compile, and create derivative
 # works of the software solely for use with RTI Connext DDS.  Licensee may
 # redistribute copies of the software provided that all such copies are
@@ -12,7 +12,7 @@
 
 import pygame
 from enum import IntEnum
-import time, threading, os
+import asyncio, os, threading
 import rti.connextdds as dds
 import DdsUtils
 from Types import Common, SurgicalRobot, Orchestrator
@@ -26,13 +26,49 @@ class Buttons(IntEnum):
 class JoystickApp:
     def __init__(self):
         self.arm_status = None
+        self.joystick = None
         self.up_down = [SurgicalRobot.Motors.SHOULDER, SurgicalRobot.Motors.ELBOW, SurgicalRobot.Motors.WRIST]
         self.left_right = [SurgicalRobot.Motors.BASE, SurgicalRobot.Motors.HAND]
-        self.stop_event = threading.Event()
+        self.stop_event = asyncio.Event()
+        self.event_loop = asyncio.new_event_loop()
         # Enable debug printing when XBOX_DEBUG=1 or XBOX_DEBUG=true in environment
         self.debug = os.getenv('XBOX_DEBUG', '0') in ('1', 'true', 'True')
 
-    def connext_setup(self):
+    def __del__(self):
+        self.event_loop.close()  # Final cleanup
+
+
+    async def joystick_setup(self):
+        pygame.init()
+        pygame.joystick.init()
+
+        # Check if joystick is available
+        if pygame.joystick.get_count() < 1:
+            print("No joystick detected.")
+            pygame.quit()
+            return False
+
+        # Initialize joystick
+        self.joystick = pygame.joystick.Joystick(0)
+        self.joystick.init()
+
+        print(f"Starting XBox Controller, using joystick: {self.joystick.get_name()}")
+
+        # Print detected joystick mapping for debugging
+        num_axes = self.joystick.get_numaxes()
+        num_buttons = self.joystick.get_numbuttons()
+        num_hats = self.joystick.get_numhats()
+        print(f"Joystick detected: axes={num_axes}, buttons={num_buttons}, hats={num_hats}")
+        print("Controls:")
+        print("  BASE <- D-pad X OR bumpers (L = CCW, R = CW)")
+        print("  SHOULDER <- D-Pad Y or left stick X ")
+        print("  ELBOW <- left stick Y ")
+        print("  WRIST <- right stick Y ")
+        print("  HAND <- right stick X or triggers (L = Open, R = Close)")
+        return True
+
+
+    async def connext_setup(self):
         # Register DDS types, using a function from DdsUtils.py
         DdsUtils.register_type(Common.DeviceStatus)
         DdsUtils.register_type(Common.DeviceHeartbeat)
@@ -72,16 +108,21 @@ class JoystickApp:
         self.cmd_waitset = dds.WaitSet()
         self.cmd_waitset += cmd_status_condition
 
-    def write_hb(self, hb_writer):
+        print("Connext DDS setup complete.")
+
+
+    async def write_hb(self, hb_writer):
         while not self.stop_event.is_set():
             hb = Common.DeviceHeartbeat()
             hb.device = Common.DeviceType.ARM
             hb_writer.write(hb)
-            time.sleep(0.05)
+            await asyncio.sleep(0.05)  # 20Hz heartbeat
 
-    def waitsets(self):
+
+    async def waitsets(self):
         while not self.stop_event.is_set():
-            self.cmd_waitset.dispatch(dds.Duration(1))
+            await self.cmd_waitset.dispatch_async(dds.Duration(1))
+
 
     def cmd_handler(self, _):
         samples = self.cmd_reader.take_data()
@@ -99,12 +140,14 @@ class JoystickApp:
 
             self.status_writer.write(self.arm_status)
 
+
     def apply_deadzone(self, value, deadzone=0.1):
         """Return 0 if value is within deadzone, otherwise return value"""
         if abs(value) < deadzone:
             return 0.0
         return value
-    
+
+
     def poll_joystick(self, joystick):
         clock = pygame.time.Clock()
         sample = SurgicalRobot.MotorControl
@@ -128,7 +171,7 @@ class JoystickApp:
                 axis_states = [self.apply_deadzone(joystick.get_axis(i), deadzone) for i in range(num_axes)]
 
                 # Xbox control layout mapping:
-                # - D-pad X -> BASE 
+                # - D-pad X -> BASE
                 # - D-pad Y -> SHOULDER
                 # - Left stick X -> SHOULDER
                 # - Left stick Y -> ELBOW
@@ -225,62 +268,37 @@ class JoystickApp:
             pygame.quit()
 
     # Main function
-    def run(self):
-        pygame.init()
-        pygame.joystick.init()
+    async def run(self):
 
-        # Check if joystick is available
-        if pygame.joystick.get_count() < 1:
-            print("No joystick detected.")
-            pygame.quit()
+        print("Starting XBox Controller")
+
+        threading.Thread(target=self.event_loop.run_forever, daemon=True).start()
+
+        joystick_ok, _ = await asyncio.gather( self.joystick_setup(), self.connext_setup(), return_exceptions=True )
+        if not joystick_ok:
+            print("Joystick setup failed, exiting.")
             return
 
-        # Initialize joystick
-        joystick = pygame.joystick.Joystick(0)
-        joystick.init()
-
-        print(f"Starting XBox Controller, using joystick: {joystick.get_name()}")
-
-        # Print detected joystick mapping for debugging
-        num_axes = joystick.get_numaxes()
-        num_buttons = joystick.get_numbuttons()
-        num_hats = joystick.get_numhats()
-        print(f"Joystick detected: axes={num_axes}, buttons={num_buttons}, hats={num_hats}")
-        print("Controls:")
-        print("  BASE <- D-pad X OR bumpers (L = CCW, R = CW)")
-        print("  SHOULDER <- D-Pad Y or left stick X ")
-        print("  ELBOW <- left stick Y ")
-        print("  WRIST <- right stick Y ")
-        print("  HAND <- right stick X or triggers (L = Open, R = Close)")
-
-        # setup Connext
-        self.connext_setup()
-
-        # Start threads
-        hb_thread = threading.Thread(target=self.write_hb, args=[self.hb_writer])
-        sub_thread = threading.Thread(target=self.waitsets)
-
-        hb_thread.start()
-        sub_thread.start()
+        # Start tasks
+        hb_task = asyncio.create_task(self.write_hb(self.hb_writer))
+        sub_task = asyncio.create_task(self.waitsets())
 
         # Poll joystick for button and axis states
-        self.poll_joystick(joystick)
+        self.poll_joystick(self.joystick)
 
         print("Shutting down XBox Controller")
 
         # Set status to off
         self.arm_status.status = Common.DeviceStatuses.OFF
 
-        # Wait for all threads to finish
-        hb_thread.join()
-        sub_thread.join()
-
+        # Wait for all async tasks to finish
+        await asyncio.gather(hb_task, sub_task)
 
         pygame.quit()
 
         print("XBox Controller shutdown complete.")
-        
+
 
 if __name__ == "__main__":
     thisapp = JoystickApp()
-    thisapp.run()
+    asyncio.run(thisapp.run())

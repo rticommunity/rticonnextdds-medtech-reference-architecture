@@ -1,6 +1,6 @@
-# 
+#
 # (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
-# 
+#
 # RTI grants Licensee a license to use, modify, compile, and create derivative
 # works of the software solely for use with RTI Connext DDS.  Licensee may
 # redistribute copies of the software provided that all such copies are
@@ -10,9 +10,9 @@
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
 
-# Robot Arm application which controls the LynxMotion arm, and publishes telemetry data 
+# Robot Arm application which controls the LynxMotion arm, and publishes telemetry data
 
-import time, threading
+import asyncio, threading
 import rti.connextdds as dds
 import DdsUtils
 from Types import Common, SurgicalRobot, Orchestrator
@@ -41,7 +41,7 @@ SurgicalRobot.MotorTelemetry = SurgicalRobot_MotorTelemetry
 
 class RobotApp:
     def __init__(self):
-        self.stop_event = threading.Event()
+        self.stop_event = asyncio.Event()
 
         self.lss_port = "/dev/ttyUSB0" # For Linux/Unix platforms
         # self.lss_port = "COM230" # For windows platforms
@@ -52,12 +52,14 @@ class RobotApp:
         self.limits = [(-90,180),(-30,75),(-90,15),(-85,65),(-90,-2)] # Movement limits for each servo
         self.servolist = []
 
-
-    def get_motor_pos(self, motor_id):
-        return int(self.servolist[motor_id].getPosition()) / 10.0
+        self.event_loop = asyncio.new_event_loop()
 
 
-    def robot_setup(self):
+    def __del__(self):
+        self.event_loop.close()  # Final cleanup
+
+
+    async def robot_setup(self):
         # Create and open a serial port
         lss.initBus(self.lss_port, self.lss_baud)
 
@@ -68,15 +70,18 @@ class RobotApp:
             print(f"Resetting axis: {i}")
             servo = self.servolist[i]
             servo.reset()
-            time.sleep(1)
+            await asyncio.sleep(1)
             servo.move(0) # go to initial position
 
-        time.sleep(2)
+        await asyncio.sleep(2)
 
         for i in [0, 1, 2, 3, 4]:
             self.servolist[i].move(0) # go to initial position
 
-    def connext_setup(self):
+        print("Robot hardware setup complete.")
+
+
+    async def connext_setup(self):
         # Register DDS types, using a function from DdsUtils.py
         DdsUtils.register_type(Common.DeviceStatus)
         DdsUtils.register_type(Common.DeviceHeartbeat)
@@ -95,6 +100,9 @@ class RobotApp:
         self.telemetry_topic = dds.Topic(self.participant_6, "topic/MotorTelemetry", SurgicalRobot.MotorTelemetry)
 
         # Initialize DataWriters
+        self.telemetry_writer = dds.DataWriter(
+            self.participant_6.implicit_publisher, self.telemetry_topic
+        )
         self.status_writer = dds.DataWriter(
             participant.find_datawriter(DdsUtils.status_dw_fqn)
         )
@@ -128,36 +136,34 @@ class RobotApp:
         self.general_waitset += cmd_status_condition
         self.general_waitset += motor_status_condition
 
+        print("Connext DDS setup complete.")
 
-    def write_hb(self, hb_writer):
-        while self.arm_status.status != Common.DeviceStatuses.OFF:
+
+    async def write_hb(self, hb_writer):
+        while not self.stop_event.is_set():
             hb = Common.DeviceHeartbeat()
             hb.device = Common.DeviceType.ARM
             hb_writer.write(hb)
-            time.sleep(0.05)
+            await asyncio.sleep(0.05)  # 20Hz heartbeat
 
 
-    def write_telemetry(self):
-        writer = dds.DataWriter(self.participant_6.implicit_publisher, self.telemetry_topic)
-        while not self.stop_event.is_set():
-            for i in range(5):
-                servo = self.servolist[i]
-                try:  # Sometimes get NoneType from lss.get...
-                    sample = SurgicalRobot.MotorTelemetry
-                    sample.id = i
-                    sample.position_deg = int(servo.getPosition()) / 10.0
-                    if sample.id == SurgicalRobot.Motors.SHOULDER or sample.id == SurgicalRobot.Motors.ELBOW:
-                        # Invert the position for the SHOULDER and ELBOW servos (Digital twin uses opposite convention)
-                        sample.position_deg = -sample.position_deg
-                    sample.speed_rpm = int(servo.getSpeedRPM())
-                    sample.current_mA = int(servo.getCurrent())
-                    sample.voltage_V = int(servo.getVoltage()) / 1000.0
-                    sample.temp_c = int(servo.getTemperature()) / 10.0
-                    writer.write(sample)
-                except:
-                    pass
+    async def write_telemetry(self, motor_id, position, speed, current, voltage, temp):
+        try:
+            sample = SurgicalRobot.MotorTelemetry()
+            sample.id = motor_id
+            sample.position_deg = int(position)
+            # Invert position for SHOULDER and ELBOW to match physical movement shown in digital twin
+            if motor_id == SurgicalRobot.Motors.SHOULDER or motor_id == SurgicalRobot.Motors.ELBOW:
+                sample.position_deg = -sample.position_deg
 
-            time.sleep(0.5) # Change this delay to adjust telemetry update frequency
+            sample.speed_rpm = speed
+            sample.current_mA = current
+            sample.voltage_V = voltage
+            sample.temp_c = temp
+
+            self.telemetry_writer.write(sample)
+        except Exception as e:
+            print(f"Error writing telemetry for motor {motor_id}: {e}")
 
 
     def cmd_handler(self, _):
@@ -190,11 +196,16 @@ class RobotApp:
                 if direction == SurgicalRobot.MotorDirections.INCREMENT:
                     direction = SurgicalRobot.MotorDirections.DECREMENT
                 elif direction == SurgicalRobot.MotorDirections.DECREMENT:
-                    direction = SurgicalRobot.MotorDirections.INCREMENT               
-                
+                    direction = SurgicalRobot.MotorDirections.INCREMENT
+
             try: # Sometimes get NoneType from lss.get...
-                pos = self.get_motor_pos(motor_id)
-            except:
+                pos = float(self.servolist[motor_id].getPosition()) / 10.0
+                speed = float(self.servolist[motor_id].getSpeedRPM())
+                current = float(self.servolist[motor_id].getCurrent())
+                voltage = float(self.servolist[motor_id].getVoltage()) / 1000.0
+                temp = float(self.servolist[motor_id].getTemperature()) / 10.0
+            except Exception as e:
+                print(f"Error getting servo data for motor {motor_id}: {e}")
                 continue
 
             if direction == SurgicalRobot.MotorDirections.INCREMENT:
@@ -208,36 +219,34 @@ class RobotApp:
 
             #print(f"Delta is {delta}, new position is {pos+delta}")
 
-            if delta != 0: 
+            if delta != 0:
                 rpm = self.maxrpm[motor_id]
-                if direction == SurgicalRobot.MotorDirections.DECREMENT and SurgicalRobot.Motors.ELBOW == 2:
+                if direction == SurgicalRobot.MotorDirections.DECREMENT and motor_id == SurgicalRobot.Motors.ELBOW:
                     rpm = rpm / 1.5
+
+                # write current position before moving, as the move command will take some time to execute and we want to publish the telemetry as close to the command as possible
+                asyncio.run_coroutine_threadsafe(self.write_telemetry(motor_id, pos+delta, speed, current, voltage, temp), self.event_loop)
 
                 self.servolist[motor_id].setMaxSpeedRPM(rpm)
                 self.servolist[motor_id].move((pos+delta) * 10)
 
 
     # Main function
-    def run(self):
+    async def run(self):
 
         print("Starting Robot Controller")
 
-        # setup robot hardware
-        self.robot_setup()
+        threading.Thread(target=self.event_loop.run_forever, daemon=True).start()
 
-        # setup Connext
-        self.connext_setup()
+        # setup robot hardware and connext in parallel, as they are independent and can save time - the robot setup can take a while as it resets and initializes the servos, so doing this in parallel with the connext setup allows us to be ready to receive commands as soon as possible. The connext setup is mostly just creating entities and doesn't involve any waiting, so it will be ready very quickly.
+        await asyncio.gather( self.robot_setup(), self.connext_setup() )
 
-        # Start threads
-        hb_thread = threading.Thread(target=self.write_hb, args=[self.hb_writer])
-        telemetry_thread = threading.Thread(target=self.write_telemetry)
-
-        hb_thread.start()
-        telemetry_thread.start()        
+        # Start heartbeat task - this will run until the application is shutdown, at which point the stop_event will be set and the task will exit its loop and complete
+        hb_task = asyncio.create_task(self.write_hb(self.hb_writer))
 
         try:
-            while self.arm_status.status != Common.DeviceStatuses.OFF:
-                self.general_waitset.dispatch(dds.Duration(1))
+            while not self.stop_event.is_set():
+                await self.general_waitset.dispatch_async(dds.Duration(1))
         except KeyboardInterrupt:
             self.stop_event.set()
 
@@ -246,12 +255,11 @@ class RobotApp:
         # Set status to off
         self.arm_status.status = Common.DeviceStatuses.OFF
 
-        # Rejoin all threads
-        telemetry_thread.join()
-        hb_thread.join()
+        # Rejoin all asyncio tasks - in this case just the heartbeat task, as telemetry tasks are fire-and-forget
+        await hb_task
 
         print("Robot Controller shutdown complete.")
 
 if __name__ == "__main__":
     thisapp = RobotApp()
-    thisapp.run()
+    asyncio.run(thisapp.run())
