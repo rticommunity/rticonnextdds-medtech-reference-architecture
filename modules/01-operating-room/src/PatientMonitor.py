@@ -426,6 +426,8 @@ class PatientMonitorWindow(QMainWindow):
         self.hr_panel.advance_waveform(self._ecg_tpl,   self._new_per_tick)
         self.spo2_panel.advance_waveform(self._pleth_tpl, self._new_per_tick)
         self.etco2_panel.advance_waveform(self._capno_tpl, self._new_per_tick)
+        # EtCO2 - capnogram height, capped to 60 mmHg for stability in the UI
+        self.etco2_panel.amplitude = max(0.0, min(60.0, self._etco2)) / 60.0
 
         self.hr_panel.update_curve()
         self.spo2_panel.update_curve()
