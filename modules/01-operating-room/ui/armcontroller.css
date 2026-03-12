@@ -59,7 +59,7 @@
 .motor-name {
     font-size: 26px;
     font-weight: bold;
-    min-width: 220px;
+    min-width: 130px;
 }
 
 .motor-name-base     { color: #004C97; }
@@ -102,7 +102,7 @@ button.btn-inc,
     color: #4D99FF;
     border: 1px solid #4D99FF;
     border-radius: 4px;
-    padding: 8px 0;
+    padding: 3px 0;
     font-size: 26px;
     font-weight: bold;
 }
@@ -126,7 +126,7 @@ button.btn-dec,
     color: #FF6666;
     border: 1px solid #BB3333;
     border-radius: 4px;
-    padding: 8px 0;
+    padding: 3px 0;
     font-size: 26px;
     font-weight: bold;
 }
@@ -151,7 +151,7 @@ button.btn-play,
     color: #886633;
     border: 1px solid #554422;
     border-radius: 4px;
-    padding: 8px 0;
+    padding: 3px 0;
     font-size: 20px;
     font-weight: bold;
 }
@@ -185,7 +185,7 @@ button.btn-play-all,
     color: #000000;
     border: 1px solid #FFB84D;
     border-radius: 6px;
-    padding: 12px 0;
+    padding: 5px 0;
     font-size: 26px;
     font-weight: bold;
 }
@@ -209,7 +209,7 @@ button.btn-stop-all,
     color: #FF5555;
     border: 1px solid #882222;
     border-radius: 6px;
-    padding: 12px 0;
+    padding: 5px 0;
     font-size: 26px;
     font-weight: bold;
 }
@@ -243,7 +243,7 @@ button.btn-stop-all:active,
 .console-text,
 textview.console-text {
     background-color: #060F0A;
-    color: #00CC66;
+    color: #FFFFFF;
     font-family: "Courier New", monospace;
     font-size: 14px;
     font-weight: bold;
@@ -251,6 +251,6 @@ textview.console-text {
 
 textview.console-text text {
     background-color: #060F0A;
-    color: #00CC66;
+    color: #FFFFFF;
     font-weight: bold;
 }

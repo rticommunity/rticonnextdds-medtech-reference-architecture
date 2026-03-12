@@ -253,7 +253,7 @@ button.btn-shutdown:active,
 .console-text,
 textview.console-text {
     background-color: #060F0A;
-    color: #00CC66;
+    color: #FFFFFF;
     font-family: "Courier New", monospace;
     font-size: 14px;
     font-weight: bold;
@@ -261,7 +261,7 @@ textview.console-text {
 
 textview.console-text text {
     background-color: #060F0A;
-    color: #00CC66;
+    color: #FFFFFF;
     font-weight: bold;
 }
 

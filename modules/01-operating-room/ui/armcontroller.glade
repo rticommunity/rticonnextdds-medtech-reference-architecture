@@ -22,8 +22,8 @@
             <property name="visible">True</property>
             <property name="orientation">horizontal</property>
             <property name="spacing">10</property>
-            <property name="margin-start">20</property>
-            <property name="margin-end">20</property>
+            <property name="margin-start">12</property>
+            <property name="margin-end">12</property>
             <property name="height-request">80</property>
             <style><class name="header-bar"/></style>
             <child>
@@ -69,15 +69,15 @@
             <property name="visible">True</property>
             <property name="orientation">horizontal</property>
             <property name="spacing">0</property>
-            <property name="margin-start">16</property>
-            <property name="margin-end">16</property>
-            <property name="height-request">28</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="height-request">22</property>
             <style><class name="col-header"/></style>
             <child>
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="label">JOINT</property>
-                <property name="width-request">80</property>
+                <property name="width-request">130</property>
                 <property name="margin-start">12</property>
                 <property name="xalign">0</property>
                 <style><class name="col-hdr-lbl"/></style>
@@ -96,6 +96,7 @@
                 <property name="visible">True</property>
                 <property name="label">AUTO PLAY</property>
                 <property name="width-request">70</property>
+                <property name="margin-end">12</property>
                 <style><class name="col-hdr-lbl"/></style>
               </object>
             </child>
@@ -108,11 +109,11 @@
             <property name="visible">True</property>
             <property name="orientation">horizontal</property>
             <property name="spacing">0</property>
-            <property name="margin-start">16</property>
-            <property name="margin-end">16</property>
-            <property name="margin-top">5</property>
-            <property name="margin-bottom">5</property>
-            <property name="height-request">62</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="margin-top">2</property>
+            <property name="margin-bottom">2</property>
+            <property name="height-request">46</property>
             <style><class name="motor-row"/><class name="motor-row-base"/></style>
             <child>
               <object class="GtkLabel">
@@ -183,11 +184,11 @@
             <property name="visible">True</property>
             <property name="orientation">horizontal</property>
             <property name="spacing">0</property>
-            <property name="margin-start">16</property>
-            <property name="margin-end">16</property>
-            <property name="margin-top">5</property>
-            <property name="margin-bottom">5</property>
-            <property name="height-request">62</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="margin-top">2</property>
+            <property name="margin-bottom">2</property>
+            <property name="height-request">46</property>
             <style><class name="motor-row"/><class name="motor-row-shoulder"/></style>
             <child>
               <object class="GtkLabel">
@@ -258,11 +259,11 @@
             <property name="visible">True</property>
             <property name="orientation">horizontal</property>
             <property name="spacing">0</property>
-            <property name="margin-start">16</property>
-            <property name="margin-end">16</property>
-            <property name="margin-top">5</property>
-            <property name="margin-bottom">5</property>
-            <property name="height-request">62</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="margin-top">2</property>
+            <property name="margin-bottom">2</property>
+            <property name="height-request">46</property>
             <style><class name="motor-row"/><class name="motor-row-elbow"/></style>
             <child>
               <object class="GtkLabel">
@@ -333,11 +334,11 @@
             <property name="visible">True</property>
             <property name="orientation">horizontal</property>
             <property name="spacing">0</property>
-            <property name="margin-start">16</property>
-            <property name="margin-end">16</property>
-            <property name="margin-top">5</property>
-            <property name="margin-bottom">5</property>
-            <property name="height-request">62</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="margin-top">2</property>
+            <property name="margin-bottom">2</property>
+            <property name="height-request">46</property>
             <style><class name="motor-row"/><class name="motor-row-wrist"/></style>
             <child>
               <object class="GtkLabel">
@@ -408,11 +409,11 @@
             <property name="visible">True</property>
             <property name="orientation">horizontal</property>
             <property name="spacing">0</property>
-            <property name="margin-start">16</property>
-            <property name="margin-end">16</property>
-            <property name="margin-top">5</property>
-            <property name="margin-bottom">5</property>
-            <property name="height-request">62</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="margin-top">2</property>
+            <property name="margin-bottom">2</property>
+            <property name="height-request">46</property>
             <style><class name="motor-row"/><class name="motor-row-hand"/></style>
             <child>
               <object class="GtkLabel">
@@ -483,11 +484,11 @@
             <property name="visible">True</property>
             <property name="orientation">horizontal</property>
             <property name="spacing">12</property>
-            <property name="margin-start">16</property>
-            <property name="margin-end">16</property>
-            <property name="margin-top">10</property>
-            <property name="margin-bottom">10</property>
-            <property name="height-request">56</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="margin-top">5</property>
+            <property name="margin-bottom">5</property>
+            <property name="height-request">44</property>
             <style><class name="action-bar"/></style>
             <child>
               <object class="GtkBox">
@@ -523,8 +524,8 @@
             <property name="orientation">vertical</property>
             <property name="vexpand">True</property>
             <property name="spacing">4</property>
-            <property name="margin-start">16</property>
-            <property name="margin-end">16</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
             <property name="margin-bottom">12</property>
             <child>
               <object class="GtkLabel">

@@ -70,7 +70,7 @@ class ArcGauge(QWidget):
         super().__init__(parent)
         self.color = QColor(color)
         self._value = 180.0
-        self.setFixedSize(180, 180)
+        self.setFixedSize(110, 110)
         self.setStyleSheet("background: transparent;")
 
     def set_value(self, v: float):
@@ -125,13 +125,6 @@ class ArcGauge(QWidget):
         p.setBrush(QBrush(grad_color))
         p.drawEllipse(QPointF(cx, cy), 4, 4)
 
-        # ── Value text inside ──────────────────────────────────────
-        p.setPen(QPen(grad_color))
-        font = QFont("Courier New", 26, QFont.Bold)
-        p.setFont(font)
-        p.drawText(rect.adjusted(0, 20, 0, 0), Qt.AlignCenter,
-                   f"{self._value:.1f}°")
-
         p.end()
 
 
@@ -170,6 +163,7 @@ class JointRow(QFrame):
         self.name  = JOINT_NAMES[motor]
         self._history = [180.0] * HISTORY_LEN
         self._angle = 180.0
+        self._last_yrange_update = 0.0
 
         self.setFrameShape(QFrame.Box)
         self.setStyleSheet(f"""
@@ -183,22 +177,33 @@ class JointRow(QFrame):
 
     def _build_ui(self):
         row = QHBoxLayout(self)
-        row.setContentsMargins(12, 8, 12, 8)
-        row.setSpacing(16)
+        row.setContentsMargins(8, 4, 8, 4)
+        row.setSpacing(8)
 
         # Joint name
         name_lbl = QLabel(self.name)
-        name_lbl.setFixedWidth(160)
+        name_lbl.setFixedWidth(190)
         name_lbl.setStyleSheet(
             f"color: {self.color}; font-size: 26px; font-weight: bold; "
             f"background: transparent; letter-spacing: 1px;"
         )
         row.addWidget(name_lbl)
 
-        # Arc gauge
+        # Arc gauge + value label below
+        gauge_col = QVBoxLayout()
+        gauge_col.setContentsMargins(0, 0, 0, 0)
+        gauge_col.setSpacing(2)
         self.gauge = ArcGauge(self.color)
         self.gauge.set_value(180.0)
-        row.addWidget(self.gauge)
+        gauge_col.addWidget(self.gauge, alignment=Qt.AlignHCenter)
+        self.angle_lbl = QLabel("180.0°")
+        self.angle_lbl.setAlignment(Qt.AlignCenter)
+        self.angle_lbl.setStyleSheet(
+            f"color: {self.color}; font-size: 20px; font-weight: bold; "
+            f"background: transparent;"
+        )
+        gauge_col.addWidget(self.angle_lbl)
+        row.addLayout(gauge_col)
 
         # Direction badge
         self.dir_badge = DirectionBadge()
@@ -206,16 +211,17 @@ class JointRow(QFrame):
 
         # Mini scrolling chart (pyqtgraph)
         self.chart = pg.PlotWidget(background=BG_PANEL)
-        self.chart.setFixedSize(480, 150)
+        self.chart.setFixedHeight(150)
+        self.chart.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.chart.setMouseEnabled(x=False, y=False)
         self.chart.setMenuEnabled(False)
         self.chart.hideAxis("bottom")
         self.chart.getAxis("left").setStyle(
             tickTextOffset=2,
-            tickFont=QFont("Courier New", 26, QFont.Bold),
+            tickFont=QFont("Courier New", 20, QFont.Bold),
         )
         self.chart.getAxis("left").setTextPen(pg.mkPen(color=self.color + "99"))
-        self.chart.setYRange(175, 185, padding=0)
+        self.chart.setYRange(179, 181, padding=0)
         self.chart.setLabel("left", "°", color=self.color + "88", size="12pt")
         pen = pg.mkPen(color=self.color, width=2)
         self._curve = self.chart.plot(self._history, pen=pen)
@@ -224,12 +230,16 @@ class JointRow(QFrame):
     def update_data(self, angle: float, direction: str):
         self._angle = angle
         self.gauge.set_value(angle)
+        self.angle_lbl.setText(f"{angle:.1f}°")
         self.dir_badge.set_direction(direction)
         self._history.append(angle)
         if len(self._history) > HISTORY_LEN:
             self._history.pop(0)
         self._curve.setData(self._history)
-        self.chart.setYRange(angle - 5, angle + 5, padding=0)
+        now = time.monotonic()
+        if now - self._last_yrange_update >= 1.0:
+            self.chart.setYRange(angle - 1, angle + 1, padding=0)
+            self._last_yrange_update = now
 
 
 # ─── Main Window ─────────────────────────────────────────────────────────
@@ -237,7 +247,7 @@ class ArmWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("RTI Connext — Surgical Arm Monitor")
-        self.setMinimumSize(1400, 900)
+        self.setMinimumSize(640, 650)
         self.setStyleSheet(f"background-color: {BG_MAIN};")
         _icon_px = QPixmap("../../resource/images/rti_logo.ico")
         if not _icon_px.isNull():
@@ -306,10 +316,14 @@ class ArmWindow(QMainWindow):
         col_header.setFixedHeight(50)
         col_header.setStyleSheet(f"background-color: {BG_HEADER};")
         ch_layout = QHBoxLayout(col_header)
-        ch_layout.setContentsMargins(12, 0, 12, 0)
-        for txt, w in [("JOINT", 160), ("ANGLE", 200), ("ANGLE HISTORY (60 samples)", 480)]:
+        ch_layout.setContentsMargins(8, 0, 8, 0)
+        ch_layout.setSpacing(8)
+        for txt, w in [("JOINT", 190), ("ANGLE", 120), ("ANGLE HISTORY (60 samples)", -1)]:
             lbl = QLabel(txt)
-            lbl.setFixedWidth(w) if w > 1 else lbl.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+            if w > 0:
+                lbl.setFixedWidth(w)
+            else:
+                lbl.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
             lbl.setStyleSheet("color: #E0E8F0; font-size: 20px; font-weight: bold; letter-spacing: 1px; background: transparent;")
             ch_layout.addWidget(lbl)
         root.addWidget(col_header)
@@ -318,7 +332,7 @@ class ArmWindow(QMainWindow):
         body = QWidget()
         body.setStyleSheet(f"background-color: {BG_MAIN};")
         body_layout = QVBoxLayout(body)
-        body_layout.setContentsMargins(10, 8, 10, 8)
+        body_layout.setContentsMargins(0, 4, 0, 4)
         body_layout.setSpacing(6)
 
         self.joints: dict[SurgicalRobot.Motors, JointRow] = {}
