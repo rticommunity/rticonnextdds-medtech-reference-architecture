@@ -117,20 +117,7 @@
                                 <style><class name="device-name"/></style>
                               </object>
                             </child>
-                            <child>
-                              <object class="GtkBox">
-                                <property name="visible">True</property>
-                                <property name="hexpand">True</property>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkLabel">
-                                <property name="visible">True</property>
-                                <property name="label">Surgical Arm</property>
-                                <property name="margin-end">12</property>
-                                <style><class name="device-subtitle"/></style>
-                              </object>
-                            </child>
+
                           </object>
                         </child>
                         <child>
@@ -189,20 +176,7 @@
                                 <style><class name="device-name"/></style>
                               </object>
                             </child>
-                            <child>
-                              <object class="GtkBox">
-                                <property name="visible">True</property>
-                                <property name="hexpand">True</property>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkLabel">
-                                <property name="visible">True</property>
-                                <property name="label">Control Interface</property>
-                                <property name="margin-end">12</property>
-                                <style><class name="device-subtitle"/></style>
-                              </object>
-                            </child>
+
                           </object>
                         </child>
                         <child>
@@ -261,20 +235,7 @@
                                 <style><class name="device-name"/></style>
                               </object>
                             </child>
-                            <child>
-                              <object class="GtkBox">
-                                <property name="visible">True</property>
-                                <property name="hexpand">True</property>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkLabel">
-                                <property name="visible">True</property>
-                                <property name="label">Vital Signs Sensor</property>
-                                <property name="margin-end">12</property>
-                                <style><class name="device-subtitle"/></style>
-                              </object>
-                            </child>
+
                           </object>
                         </child>
                         <child>
@@ -333,20 +294,7 @@
                                 <style><class name="device-name"/></style>
                               </object>
                             </child>
-                            <child>
-                              <object class="GtkBox">
-                                <property name="visible">True</property>
-                                <property name="hexpand">True</property>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkLabel">
-                                <property name="visible">True</property>
-                                <property name="label">Patient Bedside Monitor</property>
-                                <property name="margin-end">12</property>
-                                <style><class name="device-subtitle"/></style>
-                              </object>
-                            </child>
+
                           </object>
                         </child>
                         <child>
