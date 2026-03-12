@@ -22,6 +22,7 @@
 #include <cstring>
 #include <mutex>
 #include <gtkmm.h>
+#include <gdkmm/screen.h>
 
 #include "Types.hpp"
 #include "DdsUtils.hpp"
@@ -45,12 +46,20 @@ public:
         Common::DeviceHeartbeat sample;
         reader.key_value(sample, status.last_instance_handle());
 
-        if (stat_map.at(sample.device())->get_text() != "DeviceStatuses::OFF") {
+        Gtk::Label *lbl = stat_map.at(sample.device());
+        if (lbl->get_text() != "DeviceStatuses::OFF") {
             std::stringstream ss;
             ss << sample.device()
                << " is no longer sending heartbeats. Updating Status to OFF.";
             log_alert(ss.str());
-            stat_map.at(sample.device())->set_text("DeviceStatuses::OFF");
+            Glib::signal_idle().connect([lbl]() -> bool {
+                lbl->set_text("DeviceStatuses::OFF");
+                auto ctx = lbl->get_style_context();
+                ctx->remove_class("status-on");
+                ctx->remove_class("status-paused");
+                ctx->add_class("status-off");
+                return false;
+            });
         }
     }
 
@@ -194,7 +203,9 @@ private:
                 // update the label
                 std::stringstream ss_label;
                 ss_label << sample.data().status();
-                stat_map.at(sample.data().device())->set_text(ss_label.str());
+                Gtk::Label *lbl = stat_map.at(sample.data().device());
+                lbl->set_text(ss_label.str());
+                apply_status_class(lbl, ss_label.str());
 
                 // print alert
                 std::stringstream ss_log;
@@ -205,10 +216,55 @@ private:
         }
     }
 
+    // Switches status-on/status-paused/status-off CSS class on a label
+    void apply_status_class(Gtk::Label *lbl, const std::string &status_str)
+    {
+        auto ctx = lbl->get_style_context();
+        ctx->remove_class("status-on");
+        ctx->remove_class("status-paused");
+        ctx->remove_class("status-off");
+        if (status_str.find("ON") != std::string::npos) {
+            ctx->add_class("status-on");
+        } else if (status_str.find("PAUSED") != std::string::npos) {
+            ctx->add_class("status-paused");
+        } else {
+            ctx->add_class("status-off");
+        }
+    }
+
     void ui_setup()
     {
+        // Load CSS stylesheet
+        auto css_provider = Gtk::CssProvider::create();
+        try {
+            css_provider->load_from_path("ui/orchestrator.css");
+        } catch (const Glib::Error &e) {
+            std::cerr << "Warning: could not load orchestrator.css: " << e.what() << std::endl;
+        }
+        Gtk::StyleContext::add_provider_for_screen(
+                Gdk::Screen::get_default(),
+                css_provider,
+                GTK_STYLE_PROVIDER_PRIORITY_USER);
+
         auto builder = Gtk::Builder::create_from_file("ui/orchestrator.glade");
         builder->get_widget<Gtk::Window>("window", window);
+
+        // Load RTI logo into header
+        {
+            Gtk::Box *hdr = nullptr;
+            builder->get_widget<Gtk::Box>("header_bar", hdr);
+            if (hdr) {
+                try {
+                    auto pb = Gdk::Pixbuf::create_from_file("../../resource/images/rti_logo.ico");
+                    auto scaled = pb->scale_simple(56, 56, Gdk::INTERP_BILINEAR);
+                    auto *logo = Gtk::manage(new Gtk::Image(scaled));
+                    logo->set_visible(true);
+                    logo->set_margin_end(8);
+                    hdr->pack_start(*logo, false, false, 0);
+                    hdr->reorder_child(*logo, 0);
+                } catch (...) {}
+            }
+        }
 
         window->signal_delete_event().connect([this](GdkEventAny *event) {
             std::cout << "Orchestrator UI closed" << std::endl;
@@ -245,6 +301,18 @@ private:
         Gtk::TextView *console;
         builder->get_widget<Gtk::TextView>("console", console);
         buffer = console->get_buffer();
+
+        // Force dark background on the text view (CSS alone is unreliable
+        // for GtkTextView internals in GTK3)
+        {
+            Gdk::RGBA bg, fg;
+            bg.set("#060F0A");
+            fg.set("#00CC66");
+            console->override_background_color(bg);
+            console->override_color(fg);
+            console->override_font(
+                    Pango::FontDescription("Courier New Bold 20"));
+        }
 
         builder->get_widget<Gtk::ScrolledWindow>("scroll", scroll);
 

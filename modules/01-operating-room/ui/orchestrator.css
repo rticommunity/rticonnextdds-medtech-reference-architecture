@@ -1,0 +1,277 @@
+/*
+ * RTI Connext DDS — Orchestrator UI Stylesheet
+ * Brand colors: RTI Blue #004C97  |  RTI Orange #ED8B00
+ */
+
+/* ── Global window ─────────────────────────────────────────────────── */
+.main-window {
+    background-color: #0A0E17;
+}
+
+/* ── Header bar ─────────────────────────────────────────────────────── */
+.header-bar {
+    background-color: #071020;
+    border-bottom: 2px solid #004C97;
+}
+
+.header-brand {
+    color: #004C97;
+    font-size: 26px;
+    font-weight: bold;
+}
+
+.header-sep {
+    color: #334455;
+    font-size: 34px;
+}
+
+.header-title {
+    color: #E0E8F0;
+    font-size: 34px;
+    font-weight: bold;
+}
+
+.header-qos {
+    color: rgba(237, 139, 0, 0.6);
+    font-size: 14px;
+}
+
+/* ── Device cards ────────────────────────────────────────────────────── */
+button.device-card,
+.device-card {
+    background-image: none;
+    background-color: #0F1822;
+    border: 2px solid #1A2A3A;
+    border-radius: 8px;
+    padding: 0;
+    outline: none;
+}
+
+button.device-card:checked,
+.device-card:checked {
+    background-image: none;
+    background-color: #0C1830;
+    border-color: #004C97;
+}
+
+button.device-card:hover,
+.device-card:hover {
+    background-image: none;
+    background-color: #121F30;
+    border-color: #336699;
+}
+
+button.device-card:active,
+.device-card:active {
+    background-image: none;
+    background-color: #0A1520;
+}
+
+.device-name {
+    color: #C8D8E8;
+    font-size: 34px;
+    font-weight: bold;
+}
+
+.device-subtitle {
+    color: #445566;
+    font-size: 20px;
+}
+
+/* ── Device selection radio button (shown as a small pill) ──────────── */
+button.device-select-btn,
+.device-select-btn {
+    background-image: none;
+    background-color: #1A2A3A;
+    color: #445566;
+    border: 1px solid #334455;
+    border-radius: 12px;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    font-size: 0;
+    opacity: 0;
+}
+
+button.device-select-btn:checked,
+.device-select-btn:checked {
+    background-color: #004C97;
+    background-image: none;
+    color: #FFFFFF;
+    border-color: #6699CC;
+}
+
+button.device-select-btn:hover,
+.device-select-btn:hover {
+    background-color: #223355;
+    border-color: #004C97;
+}
+
+/* ── Status labels (badge style) ────────────────────────────────────── */
+.status-hdr {
+    color: #445566;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.status-badge {
+    font-size: 26px;
+    font-weight: bold;
+    padding: 3px 10px;
+    border-radius: 4px;
+}
+
+.status-on {
+    color: #00E676;
+    background-color: #00331A;
+    border: 1px solid rgba(0, 102, 68, 0.13);
+}
+
+.status-paused {
+    color: #ED8B00;
+    background-color: #1A0D00;
+    border: 1px solid rgba(102, 68, 0, 0.13);
+}
+
+.status-off {
+    color: #FF5555;
+    background-color: #1A0505;
+    border: 1px solid rgba(102, 34, 0, 0.13);
+}
+
+/* ── Separator ───────────────────────────────────────────────────────── */
+.panel-sep {
+    color: #1A2A3A;
+}
+
+/* ── Command panel ───────────────────────────────────────────────────── */
+.cmd-panel-title {
+    color: #C8D8E8;
+    font-size: 26px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.cmd-panel-subtitle {
+    color: #C8D8E8;
+    font-size: 26px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+/* ── START button ────────────────────────────────────────────────────── */
+button.btn-start,
+.btn-start {
+    background-image: none;
+    background-color: #002A15;
+    color: #00CC66;
+    border: 1px solid #006633;
+    border-radius: 6px;
+    font-size: 34px;
+    font-weight: bold;
+    padding: 0;
+}
+
+button.btn-start:hover,
+.btn-start:hover {
+    background-color: #004C2A;
+    color: #00FF88;
+    border-color: #00CC66;
+}
+
+button.btn-start:active,
+.btn-start:active {
+    background-color: #00331A;
+}
+
+/* ── PAUSE button ────────────────────────────────────────────────────── */
+button.btn-pause,
+.btn-pause {
+    background-image: none;
+    background-color: #1A0D00;
+    color: #ED8B00;
+    border: 1px solid #884400;
+    border-radius: 6px;
+    font-size: 34px;
+    font-weight: bold;
+    padding: 0;
+}
+
+button.btn-pause:hover,
+.btn-pause:hover {
+    background-color: #332200;
+    color: #FFB84D;
+    border-color: #ED8B00;
+}
+
+button.btn-pause:active,
+.btn-pause:active {
+    background-color: #221500;
+}
+
+/* ── SHUT DOWN button ────────────────────────────────────────────────── */
+button.btn-shutdown,
+.btn-shutdown {
+    background-image: none;
+    background-color: #1A0505;
+    color: #FF5555;
+    border: 1px solid #882222;
+    border-radius: 6px;
+    font-size: 34px;
+    font-weight: bold;
+    padding: 0;
+}
+
+button.btn-shutdown:hover,
+.btn-shutdown:hover {
+    background-color: #440D0D;
+    color: #FF8888;
+    border-color: #CC4444;
+}
+
+button.btn-shutdown:active,
+.btn-shutdown:active {
+    background-color: #330808;
+}
+
+/* ── Console header ─────────────────────────────────────────────────── */
+.console-header {
+    color: #E0E8F0;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+/* ── Console scroll + text ──────────────────────────────────────────── */
+.console-scroll {
+    border: 1px solid #1A3A2A;
+    border-radius: 4px;
+    background-color: #060F0A;
+}
+
+.console-text,
+textview.console-text {
+    background-color: #060F0A;
+    color: #00CC66;
+    font-family: "Courier New", monospace;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+textview.console-text text {
+    background-color: #060F0A;
+    color: #00CC66;
+    font-weight: bold;
+}
+
+/* ── Footer bar ──────────────────────────────────────────────────────── */
+.footer-bar {
+    background-color: #071020;
+    border-top: 1px solid #1A2A3A;
+}
+
+.footer-lbl {
+    color: #445566;
+    font-size: 14px;
+}
