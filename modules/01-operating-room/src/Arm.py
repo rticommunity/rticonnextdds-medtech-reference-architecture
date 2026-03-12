@@ -14,7 +14,6 @@ import sys
 import math
 import time
 import threading
-import numpy as np
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QFrame,
@@ -25,8 +24,6 @@ from PyQt5.QtGui import (
     QPainter, QColor, QPen, QBrush, QFont, QConicalGradient, QPainterPath,
     QPixmap, QIcon
 )
-
-import pyqtgraph as pg
 
 import rti.connextdds as dds
 from Types import Common, SurgicalRobot, Orchestrator
@@ -58,8 +55,16 @@ JOINT_NAMES = {
     SurgicalRobot.Motors.HAND:     "HAND",
 }
 
-HISTORY_LEN = 60   # samples in the rolling waveform chart
 UPDATE_MS   = 100  # refresh rate ms (~10 fps)
+
+# Starting joint angles shown before the first DDS sample arrives
+INITIAL_ANGLES = {
+    SurgicalRobot.Motors.BASE:     204.0,
+    SurgicalRobot.Motors.SHOULDER: 176.0,
+    SurgicalRobot.Motors.ELBOW:    156.0,
+    SurgicalRobot.Motors.WRIST:    165.0,
+    SurgicalRobot.Motors.HAND:     151.0,
+}
 
 
 # ─── Circular Arc Gauge ──────────────────────────────────────────────────
@@ -161,9 +166,7 @@ class JointRow(QFrame):
         self.motor = motor
         self.color = JOINT_COLORS[motor]
         self.name  = JOINT_NAMES[motor]
-        self._history = [180.0] * HISTORY_LEN
         self._angle = 180.0
-        self._last_yrange_update = 0.0
 
         self.setFrameShape(QFrame.Box)
         self.setStyleSheet(f"""
@@ -209,37 +212,160 @@ class JointRow(QFrame):
         self.dir_badge = DirectionBadge()
         self.dir_badge.setVisible(False)
 
-        # Mini scrolling chart (pyqtgraph)
-        self.chart = pg.PlotWidget(background=BG_PANEL)
-        self.chart.setFixedHeight(150)
-        self.chart.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.chart.setMouseEnabled(x=False, y=False)
-        self.chart.setMenuEnabled(False)
-        self.chart.hideAxis("bottom")
-        self.chart.getAxis("left").setStyle(
-            tickTextOffset=2,
-            tickFont=QFont("Courier New", 20, QFont.Bold),
-        )
-        self.chart.getAxis("left").setTextPen(pg.mkPen(color=self.color + "99"))
-        self.chart.setYRange(179, 181, padding=0)
-        self.chart.setLabel("left", "°", color=self.color + "88", size="12pt")
-        pen = pg.mkPen(color=self.color, width=2)
-        self._curve = self.chart.plot(self._history, pen=pen)
-        row.addWidget(self.chart)
-
     def update_data(self, angle: float, direction: str):
         self._angle = angle
         self.gauge.set_value(angle)
         self.angle_lbl.setText(f"{angle:.1f}°")
         self.dir_badge.set_direction(direction)
-        self._history.append(angle)
-        if len(self._history) > HISTORY_LEN:
-            self._history.pop(0)
-        self._curve.setData(self._history)
-        now = time.monotonic()
-        if now - self._last_yrange_update >= 1.0:
-            self.chart.setYRange(angle - 1, angle + 1, padding=0)
-            self._last_yrange_update = now
+
+
+# ─── 2-D Kinematic Arm Visualisation ──────────────────────────────────────
+# Forward-kinematics: each joint angle is *relative* to the previous segment.
+# 180° = no bend (straight continuation); values > 180 bend counter-clockwise,
+# values < 180 bend clockwise, mirroring the arc-gauge convention in JointRow.
+#
+# Joint order: BASE → SHOULDER → ELBOW → WRIST → HAND (5 links, same as joints)
+# A 6th "link" past HAND represents the end-effector stub.
+
+_MOTORS_ORDERED = [
+    SurgicalRobot.Motors.BASE,
+    SurgicalRobot.Motors.SHOULDER,
+    SurgicalRobot.Motors.ELBOW,
+    SurgicalRobot.Motors.WRIST,
+    SurgicalRobot.Motors.HAND,
+]
+
+
+class ArmVizWidget(QWidget):
+    """Draws a simplified 2-D stick-figure robotic arm using QPainter.
+
+    The arm is rooted at the bottom-centre of the widget and extends
+    upward.  Each joint bends by (angle - 180°) relative to the incoming
+    segment direction, so at 180° all segments are collinear (straight up).
+    """
+
+    SEGMENT_LEN = 70   # px — length of each arm link (scaled dynamically)
+    JOINT_R     = 12   # px — radius of joint circles
+    EE_SIZE     = 16   # px — half-size of end-effector marker
+    GROUND_W    = 80   # px — half-width of ground hatch
+    GROUND_LINES = 6   # number of hatch lines under base
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._angles: dict = {m: 180.0 for m in _MOTORS_ORDERED}
+        self.setMinimumWidth(260)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setStyleSheet(f"background-color: {BG_PANEL};")
+
+    def update_angles(self, angles: dict):
+        """Receive updated angle dict and schedule a repaint."""
+        self._angles = dict(angles)
+        self.update()   # schedules paintEvent on next event-loop iteration
+
+    # ── painting ──────────────────────────────────────────────────────────
+    def paintEvent(self, event):
+        w, h = self.width(), self.height()
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+
+        # Background
+        p.fillRect(self.rect(), QColor(BG_PANEL))
+
+        # Title
+        p.setPen(QPen(QColor("#445566")))
+        p.setFont(QFont("Courier New", 11, QFont.Bold))
+        p.drawText(12, 22, "ARM VISUALIZATION")
+
+        # Scale segment length so the full arm (5 links) fills ~90 % of the
+        # widget height, leaving room for the title at top and ground at bottom.
+        usable_h = h - 70   # subtract top title space + bottom ground space
+        seg = int(usable_h * 0.90 / len(_MOTORS_ORDERED))
+        seg = max(seg, 40)
+
+        # Base point — bottom centre (leave room for ground symbol)
+        bx = w / 2.0
+        by = h - 36.0
+
+        # ── Ground symbol ──────────────────────────────────────────────
+        gw = self.GROUND_W
+        ground_pen = QPen(QColor("#334455"), 2)
+        p.setPen(ground_pen)
+        p.drawLine(QPointF(bx - gw, by), QPointF(bx + gw, by))
+        hatch_dx = gw / (self.GROUND_LINES + 1)
+        for i in range(self.GROUND_LINES):
+            hx = bx - gw + hatch_dx * (i + 1)
+            p.drawLine(QPointF(hx, by), QPointF(hx - 10, by + 12))
+
+        # ── Forward kinematics ─────────────────────────────────────────
+        # Start pointing straight up (π/2 in unit-circle convention;
+        # screen Y is inverted, so subtract when computing screen coords).
+        cumul_dir = math.pi / 2.0
+        x, y = bx, by
+
+        points = [(x, y)]   # joint positions
+
+        for motor in _MOTORS_ORDERED:
+            angle = self._angles.get(motor, 180.0)
+            delta_rad = (angle - 180.0) * math.pi / 180.0
+            cumul_dir += delta_rad
+            nx = x + seg * math.cos(cumul_dir)
+            ny = y - seg * math.sin(cumul_dir)  # screen Y inverted
+            points.append((nx, ny))
+            x, y = nx, ny
+
+        # ── Draw links ────────────────────────────────────────────────
+        link_pen_width = 7
+        for i, motor in enumerate(_MOTORS_ORDERED):
+            color = QColor(JOINT_COLORS[motor])
+            x0, y0 = points[i]
+            x1, y1 = points[i + 1]
+            pen = QPen(color, link_pen_width, Qt.SolidLine, Qt.RoundCap)
+            p.setPen(pen)
+            p.drawLine(QPointF(x0, y0), QPointF(x1, y1))
+
+        # ── Draw end-effector stub (past HAND) ────────────────────────
+        ee_color = QColor(JOINT_COLORS[SurgicalRobot.Motors.HAND])
+        ee_pen = QPen(ee_color, 2)
+        p.setPen(ee_pen)
+        ex, ey = points[-1]
+        # Small diamond
+        es = self.EE_SIZE
+        diamond = QPainterPath()
+        diamond.moveTo(ex,      ey - es)
+        diamond.lineTo(ex + es, ey)
+        diamond.lineTo(ex,      ey + es)
+        diamond.lineTo(ex - es, ey)
+        diamond.closeSubpath()
+        p.setBrush(QBrush(ee_color.darker(180)))
+        p.drawPath(diamond)
+
+        # ── Draw joint circles + labels ───────────────────────────────
+        jr = self.JOINT_R
+        for i, motor in enumerate(_MOTORS_ORDERED):
+            color = QColor(JOINT_COLORS[motor])
+            cx, cy = points[i]
+            # filled circle
+            p.setPen(QPen(color, 2))
+            p.setBrush(QBrush(color.darker(200)))
+            p.drawEllipse(QPointF(cx, cy), jr, jr)
+            # joint name label (abbreviated, 3 chars)
+            name = JOINT_NAMES[motor][:3]
+            p.setPen(QPen(color))
+            p.setFont(QFont("Courier New", 16, QFont.Bold))
+            label_x = cx + jr + 8
+            label_y = cy + 6
+            p.drawText(QPointF(label_x, label_y), name)
+
+        # ── Angle readouts next to each link midpoint ─────────────────
+        p.setFont(QFont("Courier New", 14))
+        for i, motor in enumerate(_MOTORS_ORDERED):
+            color = QColor(JOINT_COLORS[motor])
+            p.setPen(QPen(color.lighter(130)))
+            mx = (points[i][0] + points[i + 1][0]) / 2 + 10
+            my = (points[i][1] + points[i + 1][1]) / 2
+            p.drawText(QPointF(mx, my), f"{self._angles.get(motor, 180.0):.0f}°")
+
+        p.end()
 
 
 # ─── Main Window ─────────────────────────────────────────────────────────
@@ -311,44 +437,11 @@ class ArmWindow(QMainWindow):
 
         root.addWidget(header)
 
-        # ── Column headers ────────────────────────────────────────
-        col_header = QWidget()
-        col_header.setFixedHeight(50)
-        col_header.setStyleSheet(f"background-color: {BG_HEADER};")
-        ch_layout = QHBoxLayout(col_header)
-        ch_layout.setContentsMargins(8, 0, 8, 0)
-        ch_layout.setSpacing(8)
-        for txt, w in [("JOINT", 190), ("ANGLE", 120), ("ANGLE HISTORY (60 samples)", -1)]:
-            lbl = QLabel(txt)
-            if w > 0:
-                lbl.setFixedWidth(w)
-            else:
-                lbl.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-            lbl.setStyleSheet("color: #E0E8F0; font-size: 20px; font-weight: bold; letter-spacing: 1px; background: transparent;")
-            ch_layout.addWidget(lbl)
-        root.addWidget(col_header)
-
-        # ── Joint rows ────────────────────────────────────────────
-        body = QWidget()
-        body.setStyleSheet(f"background-color: {BG_MAIN};")
-        body_layout = QVBoxLayout(body)
-        body_layout.setContentsMargins(0, 4, 0, 4)
-        body_layout.setSpacing(6)
-
-        self.joints: dict[SurgicalRobot.Motors, JointRow] = {}
-        for motor in [
-            SurgicalRobot.Motors.BASE,
-            SurgicalRobot.Motors.SHOULDER,
-            SurgicalRobot.Motors.ELBOW,
-            SurgicalRobot.Motors.WRIST,
-            SurgicalRobot.Motors.HAND,
-        ]:
-            row = JointRow(motor)
-            self.joints[motor] = row
-            body_layout.addWidget(row)
-
-        body_layout.addStretch()
-        root.addWidget(body, 1)
+        # ── Body: arm visualisation only ─────────────────────────
+        self._arm_angles = dict(INITIAL_ANGLES)
+        self.arm_viz = ArmVizWidget()
+        self.arm_viz.update_angles(self._arm_angles)
+        root.addWidget(self.arm_viz, 1)
 
         # ── Footer ───────────────────────────────────────────────
         footer = QWidget()
@@ -367,8 +460,8 @@ class ArmWindow(QMainWindow):
         root.addWidget(footer)
 
     def update_joint(self, motor: SurgicalRobot.Motors, angle: float, direction: str):
-        if motor in self.joints:
-            self.joints[motor].update_data(angle, direction)
+        self._arm_angles[motor] = angle
+        self.arm_viz.update_angles(self._arm_angles)
 
     def set_state(self, state: str):
         colors = {"ON": "#00E676", "PAUSED": RTI_ORANGE, "OFF": "#FF4444"}
@@ -384,11 +477,11 @@ class ArmWindow(QMainWindow):
 class ArmApp:
     def __init__(self):
         self.angles = {
-            SurgicalRobot.Motors.BASE: 180.0,
-            SurgicalRobot.Motors.SHOULDER: 180.0,
-            SurgicalRobot.Motors.ELBOW: 180.0,
-            SurgicalRobot.Motors.WRIST: 180.0,
-            SurgicalRobot.Motors.HAND: 180.0,
+            SurgicalRobot.Motors.BASE:     204.0,
+            SurgicalRobot.Motors.SHOULDER: 176.0,
+            SurgicalRobot.Motors.ELBOW:    156.0,
+            SurgicalRobot.Motors.WRIST:    165.0,
+            SurgicalRobot.Motors.HAND:     151.0,
         }
         self.directions = {
             SurgicalRobot.Motors.BASE: "STATIONARY",
@@ -421,10 +514,10 @@ class ArmApp:
         for sample in samples:
             if self.arm_status.status == Common.DeviceStatuses.ON:
                 if sample.direction == SurgicalRobot.MotorDirections.INCREMENT:
-                    self.angles[sample.id] = (self.angles[sample.id] + 0.1) % 360.0
+                    self.angles[sample.id] = (self.angles[sample.id] + 0.3) % 360.0
                     self.directions[sample.id] = "INCREMENT"
                 elif sample.direction == SurgicalRobot.MotorDirections.DECREMENT:
-                    self.angles[sample.id] = (self.angles[sample.id] - 0.1) % 360.0
+                    self.angles[sample.id] = (self.angles[sample.id] - 0.3) % 360.0
                     self.directions[sample.id] = "DECREMENT"
                 else:
                     self.directions[sample.id] = "STATIONARY"
