@@ -359,16 +359,22 @@ private:
                     hdr->reorder_child(*logo, 0);
                 } catch (...) {}
 
-                if (SecureLogUtils::is_secure(participant)) {
-                    security_indicator = Gtk::manage(new Gtk::Label("SECURITY: OK"));
+                security_indicator = Gtk::manage(new Gtk::Label(""));
+                {
                     auto ctx = security_indicator->get_style_context();
                     ctx->add_class("security-indicator");
-                    ctx->add_class("security-ok");
-                    security_indicator->set_margin_start(10);
-                    security_indicator->set_margin_end(4);
-                    security_indicator->set_visible(true);
-                    hdr->pack_end(*security_indicator, false, false, 0);
+                    if (SecureLogUtils::is_secure(participant)) {
+                        ctx->add_class("security-ok");
+                        security_indicator->set_text("SECURITY: OK");
+                    } else {
+                        ctx->add_class("security-unsecure");
+                        security_indicator->set_text("UNSECURE MODE");
+                    }
                 }
+                security_indicator->set_margin_start(10);
+                security_indicator->set_margin_end(4);
+                security_indicator->set_visible(true);
+                hdr->pack_end(*security_indicator, false, false, 0);
             }
         }
 

@@ -61,6 +61,12 @@
     border: 1px solid #7A1F1F;
 }
 
+.security-unsecure {
+    color: #1A1200;
+    background-color: #F9A825;
+    border: 1px solid #C17900;
+}
+
 /* ── Device cards ────────────────────────────────────────────────────── */
 button.device-card,
 .device-card {
