@@ -26,6 +26,7 @@
 
 #include "Types.hpp"
 #include "DdsUtils.hpp"
+#include "SecureLogUtils.hpp"
 
 // Heartbeat listener to automatically monitor other applications
 class HeartbeatListener
@@ -114,6 +115,13 @@ public:
 
         waitset_status += status_read_condition;
 
+        if (SecureLogUtils::is_secure(participant)) {
+            securelog_reader = SecureLogUtils::setup_secure_log_reader(
+                std::bind(&OrchestratorApp::process_secure_log, this, std::placeholders::_1),
+                default_provider
+            );
+        }
+
         app = Gtk::Application::create("orchestrator.orchestrator");
         app->signal_activate().connect([this]() { ui_setup(); });
     }
@@ -134,6 +142,10 @@ private:
     std::map<Common::DeviceType, Gtk::RadioButton *> device_map;
     Gtk::ScrolledWindow *scroll;
     Glib::RefPtr<Gtk::TextBuffer> buffer;
+    Gtk::Label *security_indicator = nullptr;
+    sigc::connection security_flash_connection;
+    bool security_flash_on = false;
+    int security_flash_ticks_remaining = 0;
 
     // Connext entities
     dds::domain::DomainParticipant participant = dds::core::null;
@@ -144,6 +156,9 @@ private:
     dds::sub::cond::ReadCondition status_read_condition = dds::core::null;
     rti::core::cond::AsyncWaitSet waitset_status;
     std::shared_ptr<HeartbeatListener> hb_listener;
+
+    // Connext secure logging entities
+    SecureLogUtils::SecureLogReader securelog_reader = {dds::core::null, dds::core::null};
 
     void log_alert(std::string msg)
     {
@@ -191,6 +206,86 @@ private:
 
         Orchestrator::DeviceCommand command(device, cmd);
         command_writer.write(command);
+    }
+
+    void set_security_indicator_ok()
+    {
+        if (security_indicator == nullptr) {
+            return;
+        }
+
+        auto ctx = security_indicator->get_style_context();
+        ctx->remove_class("security-threat-on");
+        ctx->remove_class("security-threat-off");
+        ctx->add_class("security-ok");
+        security_indicator->set_text("SECURITY: OK");
+    }
+
+    void trigger_security_flash()
+    {
+        Glib::signal_idle().connect([this]() -> bool {
+            if (security_indicator == nullptr) {
+                return false;
+            }
+
+            // Keep flashing for ~8s after the latest threat event.
+            security_flash_ticks_remaining = 16;
+
+            if (security_flash_connection.connected()) {
+                return false;
+            }
+
+            security_flash_on = false;
+            security_flash_connection = Glib::signal_timeout().connect(
+                    [this]() -> bool {
+                        if (security_indicator == nullptr) {
+                            return false;
+                        }
+
+                        auto ctx = security_indicator->get_style_context();
+                        ctx->remove_class("security-ok");
+                        ctx->remove_class("security-threat-on");
+                        ctx->remove_class("security-threat-off");
+
+                        security_flash_on = !security_flash_on;
+                        if (security_flash_on) {
+                            security_indicator->set_text("SECURITY THREAT");
+                            ctx->add_class("security-threat-on");
+                        } else {
+                            security_indicator->set_text("SECURITY THREAT");
+                            ctx->add_class("security-threat-off");
+                        }
+
+                        --security_flash_ticks_remaining;
+                        if (security_flash_ticks_remaining <= 0) {
+                            set_security_indicator_ok();
+                            security_flash_connection.disconnect();
+                            return false;
+                        }
+
+                        return true;
+                    },
+                    500);
+
+            return false;
+        });
+    }
+
+    bool is_security_threat(const DDSSecurity::BuiltinLoggingTypeV2 &sample)
+    {
+        return static_cast<int32_t>(sample.severity())
+        // return sample.value<int32_t>("severity")
+                <= static_cast<int32_t>(DDSSecurity::LoggingLevel::WARNING_LEVEL);
+    }
+
+    void process_secure_log(const SecureLogUtils::SecureLogType& log)
+    {
+        if (is_security_threat(log)) {
+            std::stringstream ss;
+            ss << "SECURITY THREAT [" << log.appname() << "] " << log.message();
+            log_alert(ss.str());
+            trigger_security_flash();
+        }
     }
 
     void process_status()
@@ -263,6 +358,17 @@ private:
                     hdr->pack_start(*logo, false, false, 0);
                     hdr->reorder_child(*logo, 0);
                 } catch (...) {}
+
+                if (SecureLogUtils::is_secure(participant)) {
+                    security_indicator = Gtk::manage(new Gtk::Label("SECURITY: OK"));
+                    auto ctx = security_indicator->get_style_context();
+                    ctx->add_class("security-indicator");
+                    ctx->add_class("security-ok");
+                    security_indicator->set_margin_start(10);
+                    security_indicator->set_margin_end(4);
+                    security_indicator->set_visible(true);
+                    hdr->pack_end(*security_indicator, false, false, 0);
+                }
             }
         }
 

@@ -9,6 +9,7 @@
         <const name="DP_ORCHESTRATOR_NAME" type="string" value="&quot;dp/Orchestrator&quot;"/>
         <const name="DP_PATIENT_MONITOR_NAME" type="string" value="&quot;dp/PatientMonitor&quot;"/>
         <const name="DP_PATIENT_SENSOR_NAME" type="string" value="&quot;dp/PatientSensor&quot;"/>
+        <const name="DP_SECURELOG_READER_NAME" type="string" value="&quot;dp/SecureLogReader&quot;"/>
         <const name="SEPARATOR" type="string" value="&quot;::&quot;"/>
         <const name="PUBLISHER_NAME" type="string" value="&quot;p/publisher&quot;"/>
         <const name="SUBSCRIBER_NAME" type="string" value="&quot;s/subscriber&quot;"/>
@@ -19,6 +20,7 @@
         <const name="ENDPOINT_DEVICE_HEARTBEAT_NAME" type="string" value="&quot;DeviceHeartbeat&quot;"/>
         <const name="ENDPOINT_DEVICE_COMMAND_NAME" type="string" value="&quot;DeviceCommand&quot;"/>
         <const name="ENDPOINT_VITALS_NAME" type="string" value="&quot;Vitals&quot;"/>
+        <const name="ENDPOINT_SECURELOG_NAME" type="string" value="&quot;SecureLog&quot;"/>
       </module>
     </module>
     <module name="Common">

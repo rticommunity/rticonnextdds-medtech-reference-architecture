@@ -36,6 +36,31 @@
     font-size: 14px;
 }
 
+.security-indicator {
+    font-size: 14px;
+    font-weight: bold;
+    padding: 4px 10px;
+    border-radius: 12px;
+}
+
+.security-ok {
+    color: #00E676;
+    background-color: #00331A;
+    border: 1px solid #006633;
+}
+
+.security-threat-on {
+    color: #FFFFFF;
+    background-color: #C62828;
+    border: 1px solid #FF8A80;
+}
+
+.security-threat-off {
+    color: #FF8A80;
+    background-color: #2A0A0A;
+    border: 1px solid #7A1F1F;
+}
+
 /* ── Device cards ────────────────────────────────────────────────────── */
 button.device-card,
 .device-card {

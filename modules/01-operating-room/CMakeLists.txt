@@ -53,18 +53,30 @@ connextdds_rtiddsgen_run(
     OUTPUT_DIRECTORY
     "${CMAKE_CURRENT_BINARY_DIR}/src/"
     LANG C++11
-    DISABLE_PREPROCESSOR
+    UNBOUNDED
+)
+
+# Generate C++ types for DDS Security builtin logging topic when NDDSHOME is available.
+set(BUILTIN_LOGGING_IDL "${CONNEXTDDS_DIR}/resource/idl/builtin_logging_type.idl")
+connextdds_rtiddsgen_run(
+    IDL_FILE
+    "${BUILTIN_LOGGING_IDL}"
+    OUTPUT_DIRECTORY
+    "${CMAKE_CURRENT_BINARY_DIR}/src/"
+    LANG C++11
+    UNBOUNDED
 )
 
 # Use command line to manually generate Python types
 execute_process(
-    COMMAND bash -c "rtiddsgen ../../system_arch/Types.xml -ppDisable -d src -language python -create typefiles"
+    COMMAND bash -c "${RTICODEGEN_DIR}/rtiddsgen ../../system_arch/Types.xml -ppDisable -d src -language python -create typefiles"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 # Build object library with types
-add_library(refArchTypes OBJECT
+add_library(refArchTypes OBJECT 
     ${Types_CXX11_GENERATED_SOURCES}
+    ${builtin_logging_type_CXX11_GENERATED_SOURCES}
 )
 target_link_libraries(refArchTypes
     PRIVATE
