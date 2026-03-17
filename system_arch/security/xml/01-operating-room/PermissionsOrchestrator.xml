@@ -27,6 +27,7 @@ inability to use the software. -->
                 <publish>
                     <topics>
                         <topic>t/DeviceCommand</topic>
+                        <topic>DDS:Security:LogTopicV2</topic>
                     </topics>
                 </publish>
                 <subscribe>

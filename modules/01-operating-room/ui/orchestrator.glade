@@ -1,256 +1,471 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.2 -->
+<!-- RTI Connext DDS — Orchestrator UI (redesigned) -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkApplicationWindow" id="window">
+    <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="title" translatable="yes">Orchestrator</property>
+    <property name="title">System Orchestrator  —  RTI Connext</property>
+    <property name="default-width">1060</property>
+    <property name="default-height">720</property>
+    <style><class name="main-window"/></style>
     <child>
-      <!-- n-columns=4 n-rows=6 -->
-      <object class="GtkGrid">
+      <!-- Root vertical box -->
+      <object class="GtkBox">
         <property name="visible">True</property>
-        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">0</property>
+
+        <!-- ══════════════════════ HEADER BAR ══════════════════════ -->
         <child>
-          <object class="GtkLabel">
+          <object class="GtkBox" id="header_bar">
             <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">	Medical Devices	</property>
-            <attributes>
-              <attribute name="weight" value="bold"/>
-            </attributes>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Current Status
-(using Status QoS)</property>
-            <property name="justify">center</property>
-            <attributes>
-              <attribute name="weight" value="bold"/>
-            </attributes>
-          </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Alerts:</property>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">5</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="arm_label">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">DeviceStatuses::OFF</property>
-          </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="armctrl_label">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">DeviceStatuses::OFF</property>
-          </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="p_sensor_label">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">DeviceStatuses::OFF</property>
-          </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="p_monitor_label">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">DeviceStatuses::OFF</property>
-          </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">4</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Send Command to Selected Device:
-(using Command QoS)</property>
-            <property name="justify">center</property>
-            <attributes>
-              <attribute name="weight" value="bold"/>
-            </attributes>
-          </object>
-          <packing>
-            <property name="left-attach">3</property>
-            <property name="top-attach">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="start">
-            <property name="label" translatable="yes">START</property>
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="receives-default">True</property>
-          </object>
-          <packing>
-            <property name="left-attach">3</property>
-            <property name="top-attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="pause">
-            <property name="label" translatable="yes">PAUSE</property>
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="receives-default">True</property>
-          </object>
-          <packing>
-            <property name="left-attach">3</property>
-            <property name="top-attach">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="off">
-            <property name="label" translatable="yes">SHUT DOWN</property>
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="receives-default">True</property>
-          </object>
-          <packing>
-            <property name="left-attach">3</property>
-            <property name="top-attach">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkRadioButton" id="arm">
-            <property name="label" translatable="yes">Arm</property>
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="receives-default">False</property>
-            <property name="active">True</property>
-            <property name="draw-indicator">False</property>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkRadioButton" id="armctrl">
-            <property name="label" translatable="yes">Arm Controller</property>
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="receives-default">False</property>
-            <property name="active">True</property>
-            <property name="draw-indicator">False</property>
-            <property name="group">arm</property>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkRadioButton" id="p_sensor">
-            <property name="label" translatable="yes">Patient Sensor</property>
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="receives-default">False</property>
-            <property name="active">True</property>
-            <property name="draw-indicator">False</property>
-            <property name="group">arm</property>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkRadioButton" id="p_monitor">
-            <property name="label" translatable="yes">Patient Monitor</property>
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="receives-default">False</property>
-            <property name="draw-indicator">False</property>
-            <property name="group">arm</property>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">4</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkScrolledWindow" id="scroll">
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="shadow-type">in</property>
-            <property name="min-content-width">850</property>
-            <property name="min-content-height">200</property>
-            <property name="max-content-height">200</property>
+            <property name="orientation">horizontal</property>
+            <property name="spacing">10</property>
+            <property name="margin-start">20</property>
+            <property name="margin-end">20</property>
+            <property name="height-request">80</property>
+            <style><class name="header-bar"/></style>
             <child>
-              <object class="GtkTextView" id="console">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="editable">False</property>
-                <property name="right-margin">20</property>
+                <property name="label">RTI Connext</property>
+                <style><class name="header-brand"/></style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="label"> | </property>
+                <style><class name="header-sep"/></style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="label">System Orchestrator</property>
+                <style><class name="header-title"/></style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="hexpand">True</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="label">Status QoS  ·  Command QoS</property>
+                <style><class name="header-qos"/></style>
               </object>
             </child>
           </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">5</property>
-          </packing>
         </child>
+
+        <!-- ══════════════════ MIDDLE SECTION ══════════════════════ -->
+        <!-- Left: 4 device cards  |  Right: command panel           -->
         <child>
-          <placeholder/>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="orientation">horizontal</property>
+            <property name="spacing">0</property>
+            <property name="margin-start">16</property>
+            <property name="margin-end">16</property>
+            <property name="margin-top">14</property>
+            <property name="margin-bottom">10</property>
+            <property name="hexpand">True</property>
+
+            <!-- ── Device cards grid (2×2) ───────────────────────── -->
+            <child>
+              <object class="GtkGrid">
+                <property name="visible">True</property>
+                <property name="hexpand">True</property>
+                <property name="row-spacing">10</property>
+                <property name="column-spacing">10</property>
+                <property name="row-homogeneous">True</property>
+                <property name="column-homogeneous">True</property>
+
+                <!-- Card: ARM -->
+                <child>
+                  <object class="GtkRadioButton" id="arm">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="active">True</property>
+                    <property name="draw-indicator">False</property>
+                    <property name="margin-start">4</property>
+                    <property name="margin-end">4</property>
+                    <property name="margin-top">4</property>
+                    <property name="margin-bottom">4</property>
+                    <style><class name="device-card"/></style>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="visible">True</property>
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">6</property>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="visible">True</property>
+                            <property name="orientation">horizontal</property>
+                            <property name="spacing">8</property>
+                            <property name="margin-start">12</property>
+                            <property name="margin-top">10</property>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="label">Arm</property>
+                                <style><class name="device-name"/></style>
+                              </object>
+                            </child>
+
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="visible">True</property>
+                            <property name="orientation">horizontal</property>
+                            <property name="spacing">8</property>
+                            <property name="margin-start">12</property>
+                            <property name="margin-bottom">10</property>
+                            <child>
+                              <object class="GtkLabel" id="arm_label">
+                                <property name="visible">True</property>
+                                <property name="label">DeviceStatuses::OFF</property>
+                                <style><class name="status-badge"/><class name="status-off"/></style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">0</property>
+                  </packing>
+                </child>
+
+                <!-- Card: ARM CONTROLLER -->
+                <child>
+                  <object class="GtkRadioButton" id="armctrl">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="draw-indicator">False</property>
+                    <property name="group">arm</property>
+                    <property name="margin-start">4</property>
+                    <property name="margin-end">4</property>
+                    <property name="margin-top">4</property>
+                    <property name="margin-bottom">4</property>
+                    <style><class name="device-card"/></style>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="visible">True</property>
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">6</property>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="visible">True</property>
+                            <property name="orientation">horizontal</property>
+                            <property name="spacing">8</property>
+                            <property name="margin-start">12</property>
+                            <property name="margin-top">10</property>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="label">Arm Controller</property>
+                                <style><class name="device-name"/></style>
+                              </object>
+                            </child>
+
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="visible">True</property>
+                            <property name="orientation">horizontal</property>
+                            <property name="spacing">8</property>
+                            <property name="margin-start">12</property>
+                            <property name="margin-bottom">10</property>
+                            <child>
+                              <object class="GtkLabel" id="armctrl_label">
+                                <property name="visible">True</property>
+                                <property name="label">DeviceStatuses::OFF</property>
+                                <style><class name="status-badge"/><class name="status-off"/></style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">0</property>
+                  </packing>
+                </child>
+
+                <!-- Card: PATIENT SENSOR -->
+                <child>
+                  <object class="GtkRadioButton" id="p_sensor">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="draw-indicator">False</property>
+                    <property name="group">arm</property>
+                    <property name="margin-start">4</property>
+                    <property name="margin-end">4</property>
+                    <property name="margin-top">4</property>
+                    <property name="margin-bottom">4</property>
+                    <style><class name="device-card"/></style>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="visible">True</property>
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">6</property>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="visible">True</property>
+                            <property name="orientation">horizontal</property>
+                            <property name="spacing">8</property>
+                            <property name="margin-start">12</property>
+                            <property name="margin-top">10</property>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="label">Patient Sensor</property>
+                                <style><class name="device-name"/></style>
+                              </object>
+                            </child>
+
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="visible">True</property>
+                            <property name="orientation">horizontal</property>
+                            <property name="spacing">8</property>
+                            <property name="margin-start">12</property>
+                            <property name="margin-bottom">10</property>
+                            <child>
+                              <object class="GtkLabel" id="p_sensor_label">
+                                <property name="visible">True</property>
+                                <property name="label">DeviceStatuses::OFF</property>
+                                <style><class name="status-badge"/><class name="status-off"/></style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">1</property>
+                  </packing>
+                </child>
+
+                <!-- Card: PATIENT MONITOR -->
+                <child>
+                  <object class="GtkRadioButton" id="p_monitor">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="draw-indicator">False</property>
+                    <property name="group">arm</property>
+                    <property name="margin-start">4</property>
+                    <property name="margin-end">4</property>
+                    <property name="margin-top">4</property>
+                    <property name="margin-bottom">4</property>
+                    <style><class name="device-card"/></style>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="visible">True</property>
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">6</property>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="visible">True</property>
+                            <property name="orientation">horizontal</property>
+                            <property name="spacing">8</property>
+                            <property name="margin-start">12</property>
+                            <property name="margin-top">10</property>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="label">Patient Monitor</property>
+                                <style><class name="device-name"/></style>
+                              </object>
+                            </child>
+
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="visible">True</property>
+                            <property name="orientation">horizontal</property>
+                            <property name="spacing">8</property>
+                            <property name="margin-start">12</property>
+                            <property name="margin-bottom">10</property>
+                            <child>
+                              <object class="GtkLabel" id="p_monitor_label">
+                                <property name="visible">True</property>
+                                <property name="label">DeviceStatuses::OFF</property>
+                                <style><class name="status-badge"/><class name="status-off"/></style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">1</property>
+                  </packing>
+                </child>
+
+              </object>
+            </child>
+
+            <!-- ── Vertical separator ─────────────────────────────── -->
+            <child>
+              <object class="GtkSeparator">
+                <property name="visible">True</property>
+                <property name="orientation">vertical</property>
+                <property name="margin-start">14</property>
+                <property name="margin-end">14</property>
+                <style><class name="panel-sep"/></style>
+              </object>
+            </child>
+
+            <!-- ── Command panel ──────────────────────────────────── -->
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="orientation">vertical</property>
+                <property name="spacing">12</property>
+                <property name="width-request">220</property>
+                <property name="valign">center</property>
+
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="label">SEND COMMAND</property>
+                    <property name="xalign">0.5</property>
+                    <style><class name="cmd-panel-title"/></style>
+                  </object>
+                </child>
+
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="label">to selected device</property>
+                    <property name="xalign">0.5</property>
+                    <style><class name="cmd-panel-subtitle"/></style>
+                  </object>
+                </child>
+
+                <child>
+                  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="height-request">8</property>
+                  </object>
+                </child>
+
+                <child>
+                  <object class="GtkButton" id="start">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="label">▶  START</property>
+                    <property name="height-request">52</property>
+                    <style><class name="btn-start"/></style>
+                  </object>
+                </child>
+
+                <child>
+                  <object class="GtkButton" id="pause">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="label">▮▮  PAUSE</property>
+                    <property name="height-request">52</property>
+                    <style><class name="btn-pause"/></style>
+                  </object>
+                </child>
+
+                <child>
+                  <object class="GtkButton" id="off">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="label">■  SHUT DOWN</property>
+                    <property name="height-request">52</property>
+                    <style><class name="btn-shutdown"/></style>
+                  </object>
+                </child>
+
+              </object>
+            </child>
+
+          </object>
         </child>
+
+        <!-- ════════════════ ALERTS CONSOLE ════════════════════════ -->
         <child>
-          <placeholder/>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="orientation">vertical</property>
+            <property name="vexpand">True</property>
+            <property name="spacing">4</property>
+            <property name="margin-start">16</property>
+            <property name="margin-end">16</property>
+            <property name="margin-bottom">12</property>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="label">ALERTS</property>
+                <property name="xalign">0</property>
+                <style><class name="console-header"/></style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkScrolledWindow" id="scroll">
+                <property name="visible">True</property>
+                <property name="vexpand">True</property>
+                <property name="height-request">180</property>
+                <style><class name="console-scroll"/></style>
+                <child>
+                  <object class="GtkTextView" id="console">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="editable">False</property>
+                    <property name="wrap-mode">word</property>
+                    <property name="left-margin">8</property>
+                    <property name="right-margin">8</property>
+                    <property name="top-margin">6</property>
+                    <property name="bottom-margin">6</property>
+                    <style><class name="console-text"/></style>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
         </child>
+
+        <!-- ════════════════ FOOTER ════════════════════════════════ -->
         <child>
-          <placeholder/>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="height-request">28</property>
+            <property name="margin-start">20</property>
+            <property name="margin-end">20</property>
+            <style><class name="footer-bar"/></style>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="label">Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture</property>
+                <style><class name="footer-lbl"/></style>
+              </object>
+            </child>
+          </object>
         </child>
-        <child>
-          <placeholder/>
-        </child>
-        <child>
-          <placeholder/>
-        </child>
-        <child>
-          <placeholder/>
-        </child>
-        <child>
-          <placeholder/>
-        </child>
-        <child>
-          <placeholder/>
-        </child>
+
       </object>
     </child>
   </object>

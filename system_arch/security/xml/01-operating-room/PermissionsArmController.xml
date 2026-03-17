@@ -29,6 +29,7 @@ inability to use the software. -->
                         <topic>t/MotorControl</topic>
                         <topic>t/DeviceStatus</topic>
                         <topic>t/DeviceHeartbeat</topic>
+                        <topic>DDS:Security:LogTopicV2</topic>
                     </topics>
                 </publish>
                 <subscribe>

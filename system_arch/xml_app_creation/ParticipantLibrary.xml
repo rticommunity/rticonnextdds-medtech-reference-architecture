@@ -157,6 +157,17 @@ inability to use the software. -->
       </subscriber>
     </domain_participant>
 
+    <domain_participant name="dp/SecureLogReader" domain_ref="ConnextDomainLib::SecureLogDomain">
+      <domain_participant_qos base_name="DpQosLib::SecureLogReader"/>
+
+      <subscriber name="s/subscriber">
+        <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
+
+        <data_reader name="dr/SecureLog" topic_ref="DDS:Security:LogTopicV2">
+          <datareader_qos base_name="DataFlowLibrary::SecureLog"/>
+        </data_reader>
+      </subscriber>
+    </domain_participant>
   </domain_participant_library>
 
 </dds>

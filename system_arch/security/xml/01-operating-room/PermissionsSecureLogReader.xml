@@ -9,11 +9,12 @@ of any type, including any warranty for fitness for any purpose. RTI is
 under no obligation to maintain or support the software.  RTI shall not be
 liable for any incidental or consequential damages arising out of the use or
 inability to use the software. -->
+
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/dds_security_permissions.xsd">
     <permissions>
-        <grant name="PatientMonitorParticipant">
-            <subject_name>/C=US/ST=CA/O=Company Name/emailAddress=support@company_name.com/CN=PatientMonitor Application</subject_name>
+        <grant name="SecureLogParticipant">
+            <subject_name>/C=US/ST=CA/O=Company Name/emailAddress=support@company_name.com/CN=Secure Log Reader</subject_name>
             <validity>
                 <!-- Format is CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm] in GMT -->
                 <not_before>2024-06-01T13:00:00</not_before>
@@ -23,17 +24,9 @@ inability to use the software. -->
                 <domains>
                     <id>0</id>
                 </domains>
-                <publish>
-                    <topics>
-                        <topic>t/DeviceStatus</topic>
-                        <topic>t/DeviceHeartbeat</topic>
-                        <topic>DDS:Security:LogTopicV2</topic>
-                    </topics>
-                </publish>
                 <subscribe>
                     <topics>
-                        <topic>t/DeviceCommand</topic>
-                        <topic>t/Vitals</topic>
+                        <topic>DDS:Security:LogTopicV2</topic>
                     </topics>
                 </subscribe>
             </allow_rule>

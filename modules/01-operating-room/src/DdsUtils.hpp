@@ -28,6 +28,8 @@ inline const std::string orchestrator_dp_fqn =
         DP_LIBRARY_NAME + SEPARATOR + DP_ORCHESTRATOR_NAME;
 inline const std::string patient_sensor_dp_fqn =
         DP_LIBRARY_NAME + SEPARATOR + DP_PATIENT_SENSOR_NAME;
+inline const std::string securelog_reader_dp_fqn =
+        DP_LIBRARY_NAME + SEPARATOR + DP_SECURELOG_READER_NAME;
 
 // DW / DR prefixes
 inline const std::string dw_prefix = PUBLISHER_NAME + SEPARATOR + DW_PREFIX;
@@ -45,6 +47,7 @@ inline const std::string device_command_dw_fqn =
 inline const std::string device_command_dr_fqn =
         dr_prefix + ENDPOINT_DEVICE_COMMAND_NAME;
 inline const std::string vitals_dw_fqn = dw_prefix + ENDPOINT_VITALS_NAME;
+inline const std::string securelog_dr_fqn = dr_prefix + ENDPOINT_SECURELOG_NAME;
 
 }  // namespace DdsUtils
 

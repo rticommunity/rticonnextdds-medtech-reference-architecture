@@ -5,7 +5,7 @@ openssl req -nodes -x509 -days 1825 -text -sha256 -newkey ec -pkeyopt ec_paramge
 
 # Generate PrivateKeys and Identities
 declare -A modules
-modules[01-operating-room]="Arm ArmController Orchestrator PatientMonitor PatientSensor"
+modules[01-operating-room]="Arm ArmController Orchestrator PatientMonitor PatientSensor SecureLogReader"
 modules[02-record-playback]="RecordingService ReplayService"
 modules[03-remote-teleoperation]="RsActive RsCloud RsPassive"
 
@@ -26,6 +26,7 @@ declare -a xmls=(
   "01-operating-room/PermissionsOrchestrator"
   "01-operating-room/PermissionsPatientMonitor"
   "01-operating-room/PermissionsPatientSensor"
+  "01-operating-room/PermissionsSecureLogReader"
   "02-record-playback/PermissionsRecordingService"
   "02-record-playback/PermissionsReplayService"
   "03-remote-teleoperation/PermissionsRsActive"

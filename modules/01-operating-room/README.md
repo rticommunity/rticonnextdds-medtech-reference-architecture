@@ -54,44 +54,51 @@ It displays current device statuses, presents buttons to administer device comma
 
 To install Connext, follow the [installation guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/installation_guide/installation_guide/Installing.htm#Chapter_1_Installing_RTI%C2%A0Connext) and other required tools. You will also need the [Python API](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/getting_started_guide/python/before_python.html#installing-connext-heading) to be installed. **Make sure you run [Hands-On 1: Your First DataWriter and DataReader](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/getting_started_guide/python/intro_pubsub_python.html#hands-on-1-your-first-datawriter-and-datareader) from the Getting Started Guide to confirm that the Python API works.**
 
-Dependencies for building with C++:
+Dependencies for building the C++ applications:
 
-- `build-essential`
+- `build-essential` — compiler toolchain
+- `pkg-config` — library discovery
+- `libgtkmm-3.0-dev` — GTK+ C++ bindings used by *Arm Controller* and *Orchestrator*
 
-Dependencies used for GUI applications:
+Dependencies for the Python GUI applications (*Arm Monitor*, *Patient Monitor*):
 
-- `PyGObject`
-- `GTK`
+- `PyQt5` — Qt5 widget toolkit
+- `pyqtgraph` — fast scientific plotting
+- `numpy` — numerical arrays
 
-Install (Debian) system-provided packages with *apt*:
+#### Option A: Install system-provided packages with *apt*
 
 ```bash
 sudo apt install \
     build-essential \
+    pkg-config \
+    libgtkmm-3.0-dev \
     python3-pip \
-    python3-gi \
-    python3-gi-cairo \
-    python3-matplotlib \
+    python3-pyqt5 \
     python3-numpy \
-    python3-cairo \
-    gir1.2-gtk-4.0 \
-    libgtksourceviewmm-3.0-dev
+    python3-pyqtgraph
 ```
 
-Alternatively, install PyPI-provided packages with *pip* (for virtual environments):
+#### Option B: Install PyPI-provided packages with *pip* (recommended for virtual environments)
+
+First install the system build dependencies:
 
 ```bash
 sudo apt install \
     build-essential \
+    pkg-config \
+    libgtkmm-3.0-dev \
     python3-dev \
-    libcairo2-dev \
-    libgirepository-2.0-dev \
-    gir1.2-gtk-4.0
+    python3-pip
+```
 
+Then install the Python packages:
+
+```bash
 pip install \
-    pygobject \
-    numpy \
-    matplotlib
+    PyQt5 \
+    pyqtgraph \
+    numpy
 ```
 
 ### 2. Build the Project using CMake

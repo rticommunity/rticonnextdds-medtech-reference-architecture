@@ -29,5 +29,10 @@ inability to use the software. -->
       <topic name="t/DeviceCommand"   register_type_ref="Orchestrator::DeviceCommand"/>
       <topic name="t/Vitals"          register_type_ref="PatientMonitor::Vitals"/>
     </domain>
+
+    <domain name="SecureLogDomain" domain_id="0">
+      <register_type name="DDSSecurity::BuiltinLoggingTypeV2" type_ref="DDSSecurity::BuiltinLoggingTypeV2"/>
+      <topic name="DDS:Security:LogTopicV2" register_type_ref="DDSSecurity::BuiltinLoggingTypeV2"/>
+    </domain>
   </domain_library>
 </dds>

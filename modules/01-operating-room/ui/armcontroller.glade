@@ -1,421 +1,564 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.2 -->
+<!-- RTI Connext DDS — Arm Controller UI (redesigned) -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkApplicationWindow" id="window">
+    <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="title" translatable="yes">Arm Controller</property>
+    <property name="title">Arm Controller  —  RTI Connext</property>
+    <property name="default-width">720</property>
+    <property name="default-height">760</property>
+    <style><class name="main-window"/></style>
     <child>
-      <!-- n-columns=2 n-rows=8 -->
-      <object class="GtkGrid">
+      <!-- Root vertical box -->
+      <object class="GtkBox">
         <property name="visible">True</property>
-        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">0</property>
+
+        <!-- ══════════════════════ HEADER BAR ══════════════════════ -->
         <child>
-          <object class="GtkLabel">
+          <object class="GtkBox" id="header_bar">
             <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="xpad">20</property>
-            <property name="label" translatable="yes">Motor:</property>
-            <property name="justify">center</property>
-            <attributes>
-              <attribute name="weight" value="bold"/>
-            </attributes>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Alerts:</property>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">7</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkTextView" id="console">
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="editable">False</property>
-            <property name="right-margin">20</property>
-          </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">7</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Send Command:
-(using Command QoS)</property>
-            <property name="justify">center</property>
-            <attributes>
-              <attribute name="weight" value="bold"/>
-            </attributes>
-          </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Base</property>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Shoulder</property>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Elbow</property>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Wrist</property>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">4</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Hand</property>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">5</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButtonBox" id="base">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="layout-style">center</property>
+            <property name="orientation">horizontal</property>
+            <property name="spacing">10</property>
+            <property name="margin-start">12</property>
+            <property name="margin-end">12</property>
+            <property name="height-request">80</property>
+            <style><class name="header-bar"/></style>
             <child>
-              <object class="GtkButton" id="base_inc">
-                <property name="label" translatable="yes">+</property>
+              <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
+                <property name="label">RTI Connext</property>
+                <style><class name="header-brand"/></style>
               </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
             </child>
             <child>
-              <object class="GtkButton" id="base_dec">
-                <property name="label" translatable="yes">-</property>
+              <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
+                <property name="label"> | </property>
+                <style><class name="header-sep"/></style>
               </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
             </child>
             <child>
-              <object class="GtkToggleButton" id="base_play">
-                <property name="label" translatable="yes">PLAY</property>
+              <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
-                <property name="active">True</property>
+                <property name="label">Arm Controller</property>
+                <style><class name="header-title"/></style>
               </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">2</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButtonBox" id="shoulder">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="layout-style">center</property>
-            <child>
-              <object class="GtkButton" id="shoulder_inc">
-                <property name="label" translatable="yes">+</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
             </child>
             <child>
-              <object class="GtkButton" id="shoulder_dec">
-                <property name="label" translatable="yes">-</property>
+              <object class="GtkBox">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
+                <property name="hexpand">True</property>
               </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
             </child>
             <child>
-              <object class="GtkToggleButton" id="shoulder_play">
-                <property name="label" translatable="yes">PLAY</property>
+              <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
-                <property name="active">True</property>
+                <property name="label">● Command QoS</property>
+                <style><class name="header-qos"/></style>
               </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">2</property>
-              </packing>
             </child>
           </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">2</property>
-          </packing>
         </child>
+
+        <!-- ═══════════════════ COLUMN HEADERS ════════════════════ -->
         <child>
-          <object class="GtkButtonBox" id="elbow">
+          <object class="GtkBox">
             <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="layout-style">center</property>
+            <property name="orientation">horizontal</property>
+            <property name="spacing">0</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="height-request">22</property>
+            <style><class name="col-header"/></style>
             <child>
-              <object class="GtkButton" id="elbow_inc">
-                <property name="label" translatable="yes">+</property>
+              <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
+                <property name="label">JOINT</property>
+                <property name="width-request">170</property>
+                <property name="margin-start">12</property>
+                <property name="xalign">0</property>
+                <style><class name="col-hdr-lbl"/></style>
               </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
             </child>
             <child>
-              <object class="GtkButton" id="elbow_dec">
-                <property name="label" translatable="yes">-</property>
+              <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
+                <property name="label">MANUAL CONTROL</property>
+                <property name="hexpand">True</property>
+                <style><class name="col-hdr-lbl"/></style>
               </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
             </child>
             <child>
-              <object class="GtkToggleButton" id="elbow_play">
-                <property name="label" translatable="yes">PLAY</property>
+              <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
-                <property name="active">True</property>
+                <property name="label">AUTO PLAY</property>
+                <property name="width-request">70</property>
+                <property name="margin-end">12</property>
+                <style><class name="col-hdr-lbl"/></style>
               </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">2</property>
-              </packing>
             </child>
           </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">3</property>
-          </packing>
         </child>
+
+        <!-- ════════════════ MOTOR ROW — HAND ══════════════════════ -->
         <child>
-          <object class="GtkButtonBox" id="wrist">
+          <object class="GtkBox">
             <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="layout-style">center</property>
+            <property name="orientation">horizontal</property>
+            <property name="spacing">0</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="margin-top">2</property>
+            <property name="margin-bottom">2</property>
+            <property name="height-request">46</property>
+            <style><class name="motor-row"/><class name="motor-row-hand"/></style>
             <child>
-              <object class="GtkButton" id="wrist_inc">
-                <property name="label" translatable="yes">+</property>
+              <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
+                <property name="label">HAND</property>
+                <property name="xalign">0</property>
+                <property name="width-request">170</property>
+                <property name="margin-start">12</property>
+                <style><class name="motor-name"/><class name="motor-name-hand"/></style>
               </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
             </child>
             <child>
-              <object class="GtkButton" id="wrist_dec">
-                <property name="label" translatable="yes">-</property>
+              <object class="GtkBox">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
+                <property name="hexpand">True</property>
+                <property name="orientation">horizontal</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="hand_inc">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="label">▲  INC</property>
+                    <property name="width-request">80</property>
+                    <property name="margin-end">5</property>
+                    <style><class name="btn-inc"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="hand_dec">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="label">▼  DEC</property>
+                    <property name="width-request">80</property>
+                    <property name="margin-start">5</property>
+                    <style><class name="btn-dec"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
               </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkToggleButton" id="wrist_play">
-                <property name="label" translatable="yes">PLAY</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
-                <property name="active">True</property>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">2</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">4</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButtonBox" id="hand">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="layout-style">center</property>
-            <child>
-              <object class="GtkButton" id="hand_inc">
-                <property name="label" translatable="yes">+</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkButton" id="hand_dec">
-                <property name="label" translatable="yes">-</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
             </child>
             <child>
               <object class="GtkToggleButton" id="hand_play">
-                <property name="label" translatable="yes">PLAY</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
-                <property name="active">True</property>
+                <property name="label">AUTO</property>
+                <property name="active">False</property>
+                <property name="width-request">70</property>
+                <property name="margin-end">12</property>
+                <style><class name="btn-play"/></style>
               </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">2</property>
-              </packing>
             </child>
           </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">5</property>
-          </packing>
         </child>
+
+        <!-- ════════════════ MOTOR ROW — WRIST ═════════════════════ -->
         <child>
-          <object class="GtkButtonBox" id="all">
+          <object class="GtkBox">
             <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="baseline-position">top</property>
-            <property name="layout-style">center</property>
+            <property name="orientation">horizontal</property>
+            <property name="spacing">0</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="margin-top">2</property>
+            <property name="margin-bottom">2</property>
+            <property name="height-request">46</property>
+            <style><class name="motor-row"/><class name="motor-row-wrist"/></style>
             <child>
-              <object class="GtkButton" id="playall">
-                <property name="label" translatable="yes">PLAY ALL</property>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="label">WRIST</property>
+                <property name="xalign">0</property>
+                <property name="width-request">170</property>
+                <property name="margin-start">12</property>
+                <style><class name="motor-name"/><class name="motor-name-wrist"/></style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="hexpand">True</property>
+                <property name="orientation">horizontal</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="wrist_inc">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="label">▲  INC</property>
+                    <property name="width-request">80</property>
+                    <property name="margin-end">5</property>
+                    <style><class name="btn-inc"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="wrist_dec">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="label">▼  DEC</property>
+                    <property name="width-request">80</property>
+                    <property name="margin-start">5</property>
+                    <style><class name="btn-dec"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkToggleButton" id="wrist_play">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
+                <property name="label">AUTO</property>
+                <property name="active">False</property>
+                <property name="width-request">70</property>
+                <property name="margin-end">12</property>
+                <style><class name="btn-play"/></style>
               </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
+            </child>
+          </object>
+        </child>
+
+        <!-- ════════════════ MOTOR ROW — ELBOW ═════════════════════ -->
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="orientation">horizontal</property>
+            <property name="spacing">0</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="margin-top">2</property>
+            <property name="margin-bottom">2</property>
+            <property name="height-request">46</property>
+            <style><class name="motor-row"/><class name="motor-row-elbow"/></style>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="label">ELBOW</property>
+                <property name="xalign">0</property>
+                <property name="width-request">170</property>
+                <property name="margin-start">12</property>
+                <style><class name="motor-name"/><class name="motor-name-elbow"/></style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="hexpand">True</property>
+                <property name="orientation">horizontal</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="elbow_inc">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="label">▲  INC</property>
+                    <property name="width-request">80</property>
+                    <property name="margin-end">5</property>
+                    <style><class name="btn-inc"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="elbow_dec">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="label">▼  DEC</property>
+                    <property name="width-request">80</property>
+                    <property name="margin-start">5</property>
+                    <style><class name="btn-dec"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkToggleButton" id="elbow_play">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label">AUTO</property>
+                <property name="active">False</property>
+                <property name="width-request">70</property>
+                <property name="margin-end">12</property>
+                <style><class name="btn-play"/></style>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <!-- ════════════════ MOTOR ROW — SHOULDER ══════════════════ -->
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="orientation">horizontal</property>
+            <property name="spacing">0</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="margin-top">2</property>
+            <property name="margin-bottom">2</property>
+            <property name="height-request">46</property>
+            <style><class name="motor-row"/><class name="motor-row-shoulder"/></style>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="label">SHOULDER</property>
+                <property name="xalign">0</property>
+                <property name="width-request">170</property>
+                <property name="margin-start">12</property>
+                <style><class name="motor-name"/><class name="motor-name-shoulder"/></style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="hexpand">True</property>
+                <property name="orientation">horizontal</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="shoulder_inc">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="label">▲  INC</property>
+                    <property name="width-request">80</property>
+                    <property name="margin-end">5</property>
+                    <style><class name="btn-inc"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="shoulder_dec">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="label">▼  DEC</property>
+                    <property name="width-request">80</property>
+                    <property name="margin-start">5</property>
+                    <style><class name="btn-dec"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkToggleButton" id="shoulder_play">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label">AUTO</property>
+                <property name="active">False</property>
+                <property name="width-request">70</property>
+                <property name="margin-end">12</property>
+                <style><class name="btn-play"/></style>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <!-- ════════════════ MOTOR ROW — BASE ══════════════════════ -->
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="orientation">horizontal</property>
+            <property name="spacing">0</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="margin-top">2</property>
+            <property name="margin-bottom">2</property>
+            <property name="height-request">46</property>
+            <style><class name="motor-row"/><class name="motor-row-base"/></style>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="label">BASE</property>
+                <property name="xalign">0</property>
+                <property name="width-request">170</property>
+                <property name="margin-start">12</property>
+                <style><class name="motor-name"/><class name="motor-name-base"/></style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="hexpand">True</property>
+                <property name="orientation">horizontal</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="base_inc">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="label">▲  INC</property>
+                    <property name="width-request">80</property>
+                    <property name="margin-end">5</property>
+                    <style><class name="btn-inc"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="base_dec">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="label">▼  DEC</property>
+                    <property name="width-request">80</property>
+                    <property name="margin-start">5</property>
+                    <style><class name="btn-dec"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkToggleButton" id="base_play">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label">AUTO</property>
+                <property name="active">False</property>
+                <property name="width-request">70</property>
+                <property name="margin-end">12</property>
+                <style><class name="btn-play"/></style>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <!-- ════════════════ ACTION BAR ════════════════════════════ -->
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="orientation">horizontal</property>
+            <property name="spacing">12</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="margin-top">5</property>
+            <property name="margin-bottom">5</property>
+            <property name="height-request">44</property>
+            <style><class name="action-bar"/></style>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="hexpand">True</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="playall">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="label">▶  PLAY ALL</property>
+                <property name="width-request">170</property>
+                <style><class name="btn-play-all"/></style>
+              </object>
             </child>
             <child>
               <object class="GtkButton" id="stopall">
-                <property name="label" translatable="yes">STOP ALL</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
+                <property name="label">■  STOP ALL</property>
+                <property name="width-request">170</property>
+                <style><class name="btn-stop-all"/></style>
               </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
             </child>
           </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">6</property>
-          </packing>
         </child>
+
+        <!-- ════════════════ ALERTS CONSOLE ════════════════════════ -->
         <child>
-          <placeholder/>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="orientation">vertical</property>
+            <property name="vexpand">True</property>
+            <property name="spacing">4</property>
+            <property name="margin-start">8</property>
+            <property name="margin-end">8</property>
+            <property name="margin-bottom">12</property>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="label">ALERTS</property>
+                <property name="xalign">0</property>
+                <style><class name="console-header"/></style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkScrolledWindow">
+                <property name="visible">True</property>
+                <property name="vexpand">True</property>
+                <property name="height-request">140</property>
+                <style><class name="console-scroll"/></style>
+                <child>
+                  <object class="GtkTextView" id="console">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="editable">False</property>
+                    <property name="wrap-mode">word</property>
+                    <property name="left-margin">8</property>
+                    <property name="right-margin">8</property>
+                    <property name="top-margin">6</property>
+                    <property name="bottom-margin">6</property>
+                    <style><class name="console-text"/></style>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
         </child>
+
       </object>
     </child>
   </object>

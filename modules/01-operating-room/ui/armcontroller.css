@@ -1,0 +1,256 @@
+/*
+ * RTI Connext DDS — Arm Controller UI Stylesheet
+ * Brand colors: RTI Blue #004C97  |  RTI Orange #ED8B00
+ */
+
+/* ── Global window ─────────────────────────────────────────────────── */
+.main-window {
+    background-color: #0A0E17;
+}
+
+/* ── Header bar ─────────────────────────────────────────────────────── */
+.header-bar {
+    background-color: #071020;
+    border-bottom: 2px solid #004C97;
+}
+
+.header-brand {
+    color: #004C97;
+    font-size: 26px;
+    font-weight: bold;
+}
+
+.header-sep {
+    color: #334455;
+    font-size: 34px;
+}
+
+.header-title {
+    color: #E0E8F0;
+    font-size: 34px;
+    font-weight: bold;
+}
+
+.header-qos {
+    color: rgba(237, 139, 0, 0.6);
+    font-size: 14px;
+}
+
+/* ── Column header row ──────────────────────────────────────────────── */
+.col-header {
+    background-color: #071020;
+    border-bottom: 1px solid #1A2A3A;
+}
+
+.col-hdr-lbl {
+    color: #E0E8F0;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* ── Motor rows ─────────────────────────────────────────────────────── */
+.motor-row {
+    background-color: #0F1822;
+    border-radius: 6px;
+    border: 1px solid #1A2A3A;
+}
+
+/* Per-joint accent colors on the left stripe via motor name labels */
+.motor-name {
+    font-size: 26px;
+    font-weight: bold;
+    min-width: 170px;
+}
+
+.motor-name-base     { color: #004C97; }
+.motor-name-shoulder { color: #ED8B00; }
+.motor-name-elbow    { color: #00BFFF; }
+.motor-name-wrist    { color: #7CFC00; }
+.motor-name-hand     { color: #DA70D6; }
+
+/* ── Direction badge labels ─────────────────────────────────────────── */
+.dir-badge {
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+
+.dir-stationary {
+    color: #445566;
+    background-color: #0F151C;
+    border: 1px solid rgba(34, 51, 68, 0);
+}
+
+.dir-increment {
+    color: #ED8B00;
+    background-color: #1A0F00;
+    border: 1px solid rgba(237, 139, 0, 0.33);
+}
+
+.dir-decrement {
+    color: #FF5555;
+    background-color: #1A0505;
+    border: 1px solid rgba(255, 85, 85, 0.33);
+}
+
+/* ── INC / DEC buttons ──────────────────────────────────────────────── */
+button.btn-inc,
+.btn-inc {
+    background-image: none;
+    background-color: #0A1A30;
+    color: #4D99FF;
+    border: 1px solid #4D99FF;
+    border-radius: 4px;
+    padding: 3px 0;
+    font-size: 26px;
+    font-weight: bold;
+}
+
+button.btn-inc:hover,
+.btn-inc:hover {
+    background-color: #004C97;
+    color: #FFFFFF;
+}
+
+button.btn-inc:active,
+.btn-inc:active {
+    background-color: #003A75;
+    color: #FFFFFF;
+}
+
+button.btn-dec,
+.btn-dec {
+    background-image: none;
+    background-color: #1A0A0A;
+    color: #FF6666;
+    border: 1px solid #BB3333;
+    border-radius: 4px;
+    padding: 3px 0;
+    font-size: 26px;
+    font-weight: bold;
+}
+
+button.btn-dec:hover,
+.btn-dec:hover {
+    background-color: #882222;
+    color: #FFFFFF;
+}
+
+button.btn-dec:active,
+.btn-dec:active {
+    background-color: #661111;
+    color: #FFFFFF;
+}
+
+/* ── PLAY toggle button ─────────────────────────────────────────────── */
+button.btn-play,
+.btn-play {
+    background-image: none;
+    background-color: #1A1205;
+    color: #886633;
+    border: 1px solid #554422;
+    border-radius: 4px;
+    padding: 3px 0;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+button.btn-play:checked,
+.btn-play:checked {
+    background-color: #ED8B00;
+    background-image: none;
+    color: #000000;
+    border: 1px solid #FFB84D;
+}
+
+button.btn-play:hover,
+.btn-play:hover {
+    background-color: #2A1D08;
+    color: #ED8B00;
+    border-color: #ED8B00;
+}
+
+/* ── Action bar ─────────────────────────────────────────────────────── */
+.action-bar {
+    background-color: #0A0E17;
+    border-top: 1px solid #1A2A3A;
+}
+
+/* ── PLAY ALL button ────────────────────────────────────────────────── */
+button.btn-play-all,
+.btn-play-all {
+    background-image: none;
+    background-color: #ED8B00;
+    color: #000000;
+    border: 1px solid #FFB84D;
+    border-radius: 6px;
+    padding: 5px 0;
+    font-size: 26px;
+    font-weight: bold;
+}
+
+button.btn-play-all:hover,
+.btn-play-all:hover {
+    background-color: #FFB84D;
+    color: #000000;
+}
+
+button.btn-play-all:active,
+.btn-play-all:active {
+    background-color: #CC7700;
+}
+
+/* ── STOP ALL button ────────────────────────────────────────────────── */
+button.btn-stop-all,
+.btn-stop-all {
+    background-image: none;
+    background-color: #1A0505;
+    color: #FF5555;
+    border: 1px solid #882222;
+    border-radius: 6px;
+    padding: 5px 0;
+    font-size: 26px;
+    font-weight: bold;
+}
+
+button.btn-stop-all:hover,
+.btn-stop-all:hover {
+    background-color: #882222;
+    color: #FFFFFF;
+}
+
+button.btn-stop-all:active,
+.btn-stop-all:active {
+    background-color: #661111;
+}
+
+/* ── Console header label ───────────────────────────────────────────── */
+.console-header {
+    color: #E0E8F0;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+/* ── Console scroll window + text view ─────────────────────────────── */
+.console-scroll {
+    border: 1px solid #1A3A2A;
+    border-radius: 4px;
+    background-color: #060F0A;
+}
+
+.console-text,
+textview.console-text {
+    background-color: #060F0A;
+    color: #FFFFFF;
+    font-family: "Courier New", monospace;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+textview.console-text text {
+    background-color: #060F0A;
+    color: #FFFFFF;
+    font-weight: bold;
+}

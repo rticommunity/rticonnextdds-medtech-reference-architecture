@@ -28,7 +28,7 @@ inability to use the software. -->
                     <topics>
                         <topic>t/DeviceStatus</topic>
                         <topic>t/DeviceHeartbeat</topic>
-                        <topic></topic>
+                        <topic>DDS:Security:LogTopicV2</topic>
                     </topics>
                 </publish>
                 <subscribe>
