@@ -72,6 +72,7 @@ openssl smime -sign \
     -inkey rogue_ca/private/RogueCaPrivateKey.pem
 
 # Sign governance with rogue CA (for RogueCA mode threat participant's own governance)
+mkdir -p xml/signed
 openssl smime -sign \
     -in "xml/GovernanceDomain0.xml" \
     -text \

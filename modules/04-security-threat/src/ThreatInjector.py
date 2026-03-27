@@ -549,7 +549,7 @@ class ThreatInjectorWindow(QMainWindow):
 
     def set_launch_btn_active(self, active: bool):
         if active:
-            self.launch_btn.setText("⏹  STOP INJECTION")
+            self.launch_btn.setText("■  STOP INJECTION")
             self.launch_btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {RTI_ORANGE};

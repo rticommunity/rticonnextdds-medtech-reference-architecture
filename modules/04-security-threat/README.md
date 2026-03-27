@@ -1,6 +1,6 @@
 # Module 04: Security Threat Demonstration
 
-This module demonstrates the security properties of RTI Connext DDS by showing what happens when a malicious application attempts to tamper with surgical arm control commands or steal patient vital signs. Run it alongside [Module 01: Digital Operating Room](../01-operating-room/README.md) to observe attacks succeeding against an unsecured deployment and being blocked by DDS Security in a secured one.
+This module demonstrates the security properties of RTI Connext by showing what happens when a malicious application attempts to tamper with surgical arm control commands or steal patient vital signs. Run it alongside [Module 01: Digital Operating Room](../01-operating-room/README.md) to observe attacks succeeding against an unsecured deployment and being blocked by DDS Security in a secured one.
 
 *Note, this module was developed and tested on Debian 11 (Bullseye) and Ubuntu 22.04 running under WSL2 on Windows 11. The instructions below assume a Debian/Ubuntu environment.*
 
@@ -20,17 +20,30 @@ Two Python GUI applications simulate different real-world attack scenarios again
 
 ### Threat Injector
 
+![Threat Injector Example](../../resource/images/module-04-threat-injector-example.png)
+
 The *Threat Injector* application publishes fabricated commands on Topics `t/MotorControl` and `t/DeviceCommand`, simulating an attacker attempting to disrupt the surgical arm or seize device control. It provides a GUI to select:
 
-- **Attack Mode** — Unsecure, Rogue CA, Forged Permissions, or Expired Certificate (each affecting whether the DDS Security handshake succeeds or fails and why).
-- **Attack Type** — Motor Inject (continuous erratic joint commands at a configurable frequency), Command Inject PAUSE (one-shot), or Command Inject SHUTDOWN (one-shot).
-- **Frequency Slider** — Controls how many times per second the Motor Inject attack writes samples (only enabled when Motor Inject is selected and an attack is not already running).
+- **Attack Mode**. Each of these modes affects whether the DDS Security handshake succeeds or fails. See [Understanding Why Each Attack Is Blocked](#2-understanding-why-each-attack-is-blocked) to understand why the handshake and the attack can fail:
+  - Unsecure
+  - Rogue CA
+  - Forged Permissions
+  - Expired Certificate
+- **Attack Type**:
+  - Motor Inject. This triggers continuous erratic joint commands at a configurable frequency.
+  - Command Inject PAUSE (one-shot)
+  - Command Inject SHUTDOWN (one-shot)
+- **Frequency Slider**
+  - The slider controls how many times per second the Motor Inject attack writes samples.
+  - This is only enabled when Motor Inject is selected and an attack is not already running.
 
 Attack status is derived from `publication_matched_status` — the app checks whether its DataWriters have matched any remote subscribers. If a subscriber matches (unsecured OR is running), the status badge shows **ATTACKING** (green) and log entries appear as `[OK]`. If no subscriber matches (secured OR blocks the handshake), the status badge shows **NO ACCESS** (orange) and log entries appear as `[WARN]`.
 
-An arm visualisation panel shows the injected motor commands in real time. The panel renders in colour when an attack mode is active and in grey when idle.
+An arm visualization panel shows the injected motor commands in real time. The panel renders in color when an attack mode is active and in grey when idle.
 
 ### Threat Exfiltrator
+
+![Threat Exfiltrator Example](../../resource/images/module-04-threat-exfiltrator-example.png)
 
 The *Threat Exfiltrator* application subscribes to the `t/Vitals` topic, displaying patient vital signs as if harvesting them for unauthorised use. Attack status is derived from `subscription_matched_status` — when the exfiltrator's DataReader matches a remote publisher, the status badge shows **ACCESS GRANTED** and live heart rate, SpO₂, EtCO₂, and NiBP values stream in. When no match occurs (secured OR), the vitals panels show `---` and the status badge shows **NO ACCESS**.
 
@@ -38,13 +51,13 @@ The *Threat Exfiltrator* application subscribes to the `t/Vitals` topic, display
 
 Both applications use the following status states:
 
-| Status | Colour | Meaning |
+| Status | Color | Meaning |
 | --- | --- | --- |
-| **IDLE** | Grey | No attack mode selected |
-| **ACCESS GRANTED** | Green | DDS matched — data path is open |
-| **ATTACKING** | Green | Actively writing samples that reach a subscriber (injector only) |
-| **NO ACCESS** | Orange | No DDS match — security or configuration is blocking the connection |
-| **ATTACK FAILED** | Red | Participant creation itself failed (e.g. expired certificate rejected at startup) |
+| **IDLE** | ⚪ **Grey** | No attack mode selected |
+| **ACCESS GRANTED** | 🟢 **Green** | DDS matched — data path is open |
+| **ATTACKING** | 🟢 **Green** | Actively writing samples that reach a subscriber (injector only) |
+| **NO ACCESS** | 🟠 **Orange** | No DDS match — security or configuration is blocking the connection |
+| **ATTACK FAILED** | 🔴 **Red** | Participant creation itself failed (e.g. expired certificate rejected at startup) |
 
 ---
 
@@ -52,7 +65,7 @@ Both applications use the following status states:
 
 ### 1. See Module 01 Setup and Installation
 
-Installation and build steps from [Module 01: Digital Operating Room](../01-operating-room/README.md#setup-and-installation) satisfy the prerequisites for this module. Specifically, ensure RTI Connext DDS and its Python bindings (`rti.connextdds`) are installed and that the `NDDSHOME` environment variable is set.
+Installation and build steps from [Module 01: Digital Operating Room](../01-operating-room/README.md#setup-and-installation) satisfy the prerequisites for this module. Specifically, ensure RTI Connext and its Python bindings (`rti.connextdds`) are installed and that the `NDDSHOME` environment variable is set.
 
 ### 2. Install Additional Python Dependencies
 
@@ -126,7 +139,7 @@ The Activity Log and status badge update in real time.
 | Vitals exfiltrate | Secured | Rogue CA | Status: **NO ACCESS**; vitals panels show `---` | *Patient Monitor* continues normally |
 | Vitals exfiltrate | Secured | Expired Cert | Status: **ATTACK FAILED**; participant creation blocked | *Patient Monitor* continues normally |
 
-> **Observe:** When the OR is running in unsecured mode and you select **Motor Inject → LAUNCH ATTACK**, the *Arm* GUI in Module 01 begins receiving the fabricated commands and the arm visualisation moves erratically — even though no legitimate operator is sending commands. Switch the OR to secured mode (restart with `-s`) and repeat: the arm in Module 01 is completely unaffected, and the injector's status changes to **NO ACCESS**.
+> **Observe:** When the OR is running in unsecured mode and you select **Motor Inject → LAUNCH ATTACK**, the *Arm* GUI in Module 01 begins receiving the fabricated commands and the arm visualization moves erratically — even though no legitimate operator is sending commands. Switch the OR to secured mode (restart with `-s`) and repeat: the arm in Module 01 is completely unaffected, and the injector's status changes to **NO ACCESS**.
 
 > **Observe:** When you switch between Rogue CA and Forged Permissions modes, both result in **NO ACCESS** because the DDS Security handshake fails at different stages — but the observable result from the threat app's perspective is the same: no publication match, no data flowing.
 
