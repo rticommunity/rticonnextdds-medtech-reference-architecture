@@ -1,0 +1,9 @@
+prompt              = no
+distinguished_name  = req_distinguished_name
+
+[ req_distinguished_name ]
+countryName          = US
+stateOrProvinceName  = CA
+organizationName     = Rogue Organization
+emailAddress         = rogue@rogue_org.com
+commonName           = Rogue Certificate Authority

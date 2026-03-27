@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+RTI grants Licensee a license to use, modify, compile, and create derivative
+works of the software solely for use with RTI Connext DDS. -->
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_dds_profiles.xsd"
+    version="7.3.0">
+
+  <configuration_variables>
+    <value>
+      <!-- Path to this module's security folder.
+           Relative to the modules/04-security-threat/ working directory.
+           Override with THREAT_SECURITY_ARTIFACTS_DIR environment variable.
+      -->
+      <element>
+        <name>THREAT_SECURITY_ARTIFACTS_DIR</name>
+        <value>./security</value>
+      </element>
+      <!-- Path to the system-arch security folder (for trusted CA and governance).
+           Relative to the modules/04-security-threat/ working directory.
+           Override with RTI_SECURITY_ARTIFACTS_DIR environment variable.
+      -->
+      <element>
+        <name>RTI_SECURITY_ARTIFACTS_DIR</name>
+        <value>../../system_arch/security</value>
+      </element>
+    </value>
+  </configuration_variables>
+
+  <!-- ─── Common snippet: enable Security Plugins ──────────────────── -->
+  <qos_library name="ThreatSecurityLib">
+
+    <!-- Rogue CA base: identity_ca, permissions_ca, and governance all signed by rogue CA -->
+    <qos_profile name="RogueCABase">
+      <?rti-qos_snippet?>
+      <domain_participant_qos>
+        <base_name>
+          <element>BuiltinQosSnippetLib::Feature.Security.Enable</element>
+          <element>BuiltinQosSnippetLib::Optimization.Discovery.Common</element>
+          <element>BuiltinQosSnippetLib::Optimization.Discovery.Endpoint.Fast</element>
+        </base_name>
+        <property>
+          <value>
+            <element>
+              <name>dds.sec.auth.identity_ca</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/rogue_ca/RogueCaIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.access.permissions_ca</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/rogue_ca/RogueCaIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.access.governance</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/xml/signed/SignedGovernanceDomain0RogueCA.p7s</value>
+            </element>
+          </value>
+        </property>
+      </domain_participant_qos>
+    </qos_profile>
+
+    <!-- ForgedPerms base: identity_ca is the TRUSTED CA (so authentication can proceed),
+         but permissions_ca is the ROGUE CA (because permissions are signed by rogue CA).
+         Remote OR participants use the trusted CA as permissions_ca and will reject
+         the rogue-CA-signed permissions during handshake — that is the attack failure. -->
+    <qos_profile name="ForgedPermsBase">
+      <?rti-qos_snippet?>
+      <domain_participant_qos>
+        <base_name>
+          <element>BuiltinQosSnippetLib::Feature.Security.Enable</element>
+          <element>BuiltinQosSnippetLib::Optimization.Discovery.Common</element>
+          <element>BuiltinQosSnippetLib::Optimization.Discovery.Endpoint.Fast</element>
+        </base_name>
+        <property>
+          <value>
+            <element>
+              <name>dds.sec.auth.identity_ca</name>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/ca/CaIdentity.pem</value>
+            </element>
+            <element>
+              <!-- permissions_ca and governance must both be signed by the rogue CA;
+                   remote OR participants (trusted CA) will reject the rogue-signed permissions
+                   during the DDS handshake — that is the intended attack failure point. -->
+              <name>dds.sec.access.permissions_ca</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/rogue_ca/RogueCaIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.access.governance</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/xml/signed/SignedGovernanceDomain0RogueCA.p7s</value>
+            </element>
+          </value>
+        </property>
+      </domain_participant_qos>
+    </qos_profile>
+
+    <!-- ExpiredCert base: same as ForgedPerms base (trusted CAs).
+         The identity certificate will have a notAfter in the past. -->
+    <qos_profile name="ExpiredCertBase">
+      <?rti-qos_snippet?>
+      <domain_participant_qos>
+        <base_name>
+          <element>BuiltinQosSnippetLib::Feature.Security.Enable</element>
+          <element>BuiltinQosSnippetLib::Optimization.Discovery.Common</element>
+          <element>BuiltinQosSnippetLib::Optimization.Discovery.Endpoint.Fast</element>
+        </base_name>
+        <property>
+          <value>
+            <element>
+              <name>dds.sec.auth.identity_ca</name>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/ca/CaIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.access.permissions_ca</name>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/ca/CaIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.access.governance</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/xml/signed/SignedGovernanceDomain0.p7s</value>
+            </element>
+          </value>
+        </property>
+      </domain_participant_qos>
+    </qos_profile>
+
+    <!-- ─── ThreatInjector per-mode profiles ────────────────────────── -->
+
+    <qos_profile name="ThreatInjectorRogueCA" base_name="ThreatSecurityLib::RogueCABase">
+      <domain_participant_qos>
+        <property>
+          <value>
+            <element>
+              <name>dds.sec.auth.identity_certificate</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identities/ThreatInjector/ThreatInjectorIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.auth.private_key</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identities/ThreatInjector/ThreatInjectorPrivateKey.pem</value>
+            </element>
+            <!-- Permissions signed by rogue CA with rogue-org subject name -->
+            <element>
+              <name>dds.sec.access.permissions</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identities/ThreatInjector/SignedPermissionsRogueCAInjector.p7s</value>
+            </element>
+          </value>
+        </property>
+      </domain_participant_qos>
+    </qos_profile>
+
+    <qos_profile name="ThreatInjectorForgedPerms" base_name="ThreatSecurityLib::ForgedPermsBase">
+      <domain_participant_qos>
+        <property>
+          <value>
+            <element>
+              <name>dds.sec.auth.identity_certificate</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/forged_perms/ThreatInjector/ThreatInjectorIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.auth.private_key</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/forged_perms/ThreatInjector/ThreatInjectorPrivateKey.pem</value>
+            </element>
+            <!-- Permissions signed by ROGUE CA — this is what triggers the access control failure -->
+            <element>
+              <name>dds.sec.access.permissions</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/forged_perms/ThreatInjector/SignedPermissionsThreatInjector.p7s</value>
+            </element>
+          </value>
+        </property>
+      </domain_participant_qos>
+    </qos_profile>
+
+    <qos_profile name="ThreatInjectorExpiredCert" base_name="ThreatSecurityLib::ExpiredCertBase">
+      <domain_participant_qos>
+        <property>
+          <value>
+            <element>
+              <name>dds.sec.auth.identity_certificate</name>
+              <!-- Expired certificate — notAfter is in the past -->
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/expired/ThreatInjector/ThreatInjectorExpiredIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.auth.private_key</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/expired/ThreatInjector/ThreatInjectorPrivateKey.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.access.permissions</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/expired/ThreatInjector/SignedPermissionsThreatInjector.p7s</value>
+            </element>
+          </value>
+        </property>
+      </domain_participant_qos>
+    </qos_profile>
+
+    <!-- ─── ThreatExfiltrator per-mode profiles ──────────────────────── -->
+
+    <qos_profile name="ThreatExfiltratorRogueCA" base_name="ThreatSecurityLib::RogueCABase">
+      <domain_participant_qos>
+        <property>
+          <value>
+            <element>
+              <name>dds.sec.auth.identity_certificate</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identities/ThreatExfiltrator/ThreatExfiltratorIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.auth.private_key</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identities/ThreatExfiltrator/ThreatExfiltratorPrivateKey.pem</value>
+            </element>
+            <!-- Permissions signed by rogue CA with rogue-org subject name -->
+            <element>
+              <name>dds.sec.access.permissions</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identities/ThreatExfiltrator/SignedPermissionsRogueCAExfiltrator.p7s</value>
+            </element>
+          </value>
+        </property>
+      </domain_participant_qos>
+    </qos_profile>
+
+    <qos_profile name="ThreatExfiltratorForgedPerms" base_name="ThreatSecurityLib::ForgedPermsBase">
+      <domain_participant_qos>
+        <property>
+          <value>
+            <element>
+              <name>dds.sec.auth.identity_certificate</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/forged_perms/ThreatExfiltrator/ThreatExfiltratorIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.auth.private_key</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/forged_perms/ThreatExfiltrator/ThreatExfiltratorPrivateKey.pem</value>
+            </element>
+            <!-- Permissions signed by ROGUE CA -->
+            <element>
+              <name>dds.sec.access.permissions</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/forged_perms/ThreatExfiltrator/SignedPermissionsThreatExfiltrator.p7s</value>
+            </element>
+          </value>
+        </property>
+      </domain_participant_qos>
+    </qos_profile>
+
+    <qos_profile name="ThreatExfiltratorExpiredCert" base_name="ThreatSecurityLib::ExpiredCertBase">
+      <domain_participant_qos>
+        <property>
+          <value>
+            <element>
+              <name>dds.sec.auth.identity_certificate</name>
+              <!-- Expired certificate — notAfter is in the past -->
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/expired/ThreatExfiltrator/ThreatExfiltratorExpiredIdentity.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.auth.private_key</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/expired/ThreatExfiltrator/ThreatExfiltratorPrivateKey.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.access.permissions</name>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/expired/ThreatExfiltrator/SignedPermissionsThreatExfiltrator.p7s</value>
+            </element>
+          </value>
+        </property>
+      </domain_participant_qos>
+    </qos_profile>
+
+  </qos_library>
+
+  <!-- ─── DpQosLib: unsecure and secure per-participant profiles ──────── -->
+  <qos_library name="DpQosLib">
+    <!-- Unsecure profiles (no security properties — just base networking optimization) -->
+    <qos_profile name="ThreatInjectorUnsecure" base_name="SystemLibrary::DefaultParticipant"/>
+    <qos_profile name="ThreatExfiltratorUnsecure" base_name="SystemLibrary::DefaultParticipant"/>
+
+    <!-- Secure profiles reference the ThreatSecurityLib snippets above -->
+    <qos_profile name="ThreatInjectorRogueCA"     base_name="ThreatSecurityLib::ThreatInjectorRogueCA"/>
+    <qos_profile name="ThreatInjectorForgedPerms"  base_name="ThreatSecurityLib::ThreatInjectorForgedPerms"/>
+    <qos_profile name="ThreatInjectorExpiredCert"  base_name="ThreatSecurityLib::ThreatInjectorExpiredCert"/>
+
+    <qos_profile name="ThreatExfiltratorRogueCA"    base_name="ThreatSecurityLib::ThreatExfiltratorRogueCA"/>
+    <qos_profile name="ThreatExfiltratorForgedPerms" base_name="ThreatSecurityLib::ThreatExfiltratorForgedPerms"/>
+    <qos_profile name="ThreatExfiltratorExpiredCert" base_name="ThreatSecurityLib::ThreatExfiltratorExpiredCert"/>
+  </qos_library>
+
+</dds>

@@ -15,12 +15,12 @@ import math
 import time
 import threading
 
-from PyQt5.QtWidgets import (
+from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QFrame,
     QHBoxLayout, QVBoxLayout, QSizePolicy, QScrollArea
 )
-from PyQt5.QtCore import Qt, QTimer, QRectF, QPointF, pyqtSignal, QObject
-from PyQt5.QtGui import (
+from PySide6.QtCore import Qt, QTimer, QRectF, QPointF, Signal, QObject
+from PySide6.QtGui import (
     QPainter, QColor, QPen, QBrush, QFont, QConicalGradient, QPainterPath,
     QPixmap, QIcon
 )
@@ -84,7 +84,7 @@ class ArcGauge(QWidget):
 
     def paintEvent(self, event):
         p = QPainter(self)
-        p.setRenderHint(QPainter.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         side = min(self.width(), self.height()) - 10
         rect = QRectF((self.width() - side) / 2,
@@ -92,14 +92,14 @@ class ArcGauge(QWidget):
                       side, side)
 
         # ── Background track ──────────────────────────────────────
-        pen_bg = QPen(QColor("#1A2A40"), 8, Qt.SolidLine, Qt.FlatCap)
+        pen_bg = QPen(QColor("#1A2A40"), 8, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap)
         p.setPen(pen_bg)
         p.drawArc(rect, 225 * 16, -270 * 16)   # 270° arc, starts at 225°
 
         # ── Foreground arc (value / 360 × 270°) ───────────────────
         span = int((self._value / 360.0) * 270 * 16)
         grad_color = self.color
-        pen_fg = QPen(grad_color, 8, Qt.SolidLine, Qt.FlatCap)
+        pen_fg = QPen(grad_color, 8, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap)
         p.setPen(pen_fg)
         p.drawArc(rect, 225 * 16, -span)
 
@@ -117,16 +117,16 @@ class ArcGauge(QWidget):
         back_x = cx - hub_r * _math.cos(angle_rad)
         back_y = cy + hub_r * _math.sin(angle_rad)
         # Draw shadow
-        pen_shadow = QPen(QColor("#000000"), 4, Qt.SolidLine, Qt.RoundCap)
+        pen_shadow = QPen(QColor("#000000"), 4, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
         p.setPen(pen_shadow)
         p.drawLine(QPointF(back_x + 1, back_y + 1), QPointF(tip_x + 1, tip_y + 1))
         # Draw needle
-        pen_needle = QPen(grad_color, 2.5, Qt.SolidLine, Qt.RoundCap)
+        pen_needle = QPen(grad_color, 2.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
         p.setPen(pen_needle)
         p.drawLine(QPointF(back_x, back_y), QPointF(tip_x, tip_y))
 
         # ── Centre dot ────────────────────────────────────────────
-        p.setPen(Qt.NoPen)
+        p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QBrush(grad_color))
         p.drawEllipse(QPointF(cx, cy), 4, 4)
 
@@ -168,7 +168,7 @@ class JointRow(QFrame):
         self.name  = JOINT_NAMES[motor]
         self._angle = 180.0
 
-        self.setFrameShape(QFrame.Box)
+        self.setFrameShape(QFrame.Shape.Box)
         self.setStyleSheet(f"""
             JointRow {{
                 background-color: {BG_PANEL};
@@ -198,9 +198,9 @@ class JointRow(QFrame):
         gauge_col.setSpacing(2)
         self.gauge = ArcGauge(self.color)
         self.gauge.set_value(180.0)
-        gauge_col.addWidget(self.gauge, alignment=Qt.AlignHCenter)
+        gauge_col.addWidget(self.gauge, alignment=Qt.AlignmentFlag.AlignHCenter)
         self.angle_lbl = QLabel("180.0°")
-        self.angle_lbl.setAlignment(Qt.AlignCenter)
+        self.angle_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.angle_lbl.setStyleSheet(
             f"color: {self.color}; font-size: 20px; font-weight: bold; "
             f"background: transparent;"
@@ -254,7 +254,7 @@ class ArmVizWidget(QWidget):
         super().__init__(parent)
         self._angles: dict = {m: 180.0 for m in _MOTORS_ORDERED}
         self.setMinimumWidth(260)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setStyleSheet(f"background-color: {BG_PANEL};")
 
     def update_angles(self, angles: dict):
@@ -266,14 +266,14 @@ class ArmVizWidget(QWidget):
     def paintEvent(self, event):
         w, h = self.width(), self.height()
         p = QPainter(self)
-        p.setRenderHint(QPainter.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Background
         p.fillRect(self.rect(), QColor(BG_PANEL))
 
         # Title
         p.setPen(QPen(QColor("#445566")))
-        p.setFont(QFont("Courier New", 11, QFont.Bold))
+        p.setFont(QFont("Courier New", 11, QFont.Weight.Bold))
         p.drawText(12, 22, "ARM VISUALIZATION")
 
         # Scale segment length so the full arm (5 links) fills ~90 % of the
@@ -319,7 +319,7 @@ class ArmVizWidget(QWidget):
             color = QColor(JOINT_COLORS[motor])
             x0, y0 = points[i]
             x1, y1 = points[i + 1]
-            pen = QPen(color, link_pen_width, Qt.SolidLine, Qt.RoundCap)
+            pen = QPen(color, link_pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
             p.setPen(pen)
             p.drawLine(QPointF(x0, y0), QPointF(x1, y1))
 
@@ -351,7 +351,7 @@ class ArmVizWidget(QWidget):
             # joint name label (abbreviated, 3 chars)
             name = JOINT_NAMES[motor][:3]
             p.setPen(QPen(color))
-            p.setFont(QFont("Courier New", 16, QFont.Bold))
+            p.setFont(QFont("Courier New", 16, QFont.Weight.Bold))
             label_x = cx + jr + 8
             label_y = cy + 6
             p.drawText(QPointF(label_x, label_y), name)
@@ -402,7 +402,7 @@ class ArmWindow(QMainWindow):
         if not _logo_px.isNull():
             logo_lbl = QLabel()
             logo_lbl.setStyleSheet("background: transparent;")
-            logo_lbl.setPixmap(_logo_px.scaled(56, 56, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            logo_lbl.setPixmap(_logo_px.scaled(56, 56, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
             h_layout.addWidget(logo_lbl)
 
         rti_lbl = QLabel("RTI Connext")
@@ -593,7 +593,7 @@ class ArmApp:
         self.window.show()
         print("Started Arm")
 
-        app.exec_()
+        app.exec()
 
         print("Shutting down Arm")
         self.arm_status.status = Common.DeviceStatuses.OFF

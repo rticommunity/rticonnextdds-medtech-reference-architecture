@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Permissions for ThreatInjector in RogueCA attack mode.
+     Subject name matches the rogue-CA-signed identity certificate. -->
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/dds_security_permissions.xsd">
+    <permissions>
+        <grant name="ThreatInjectorParticipant">
+            <subject_name>/C=US/ST=CA/O=Rogue Organization/emailAddress=rogue@rogue_org.com/CN=Threat Injector Application</subject_name>
+            <validity>
+                <not_before>2024-06-01T13:00:00</not_before>
+                <not_after>2037-06-01T13:00:00</not_after>
+            </validity>
+            <allow_rule>
+                <domains>
+                    <id>0</id>
+                </domains>
+                <publish>
+                    <topics>
+                        <topic>t/MotorControl</topic>
+                        <topic>t/DeviceCommand</topic>
+                    </topics>
+                </publish>
+                <subscribe>
+                    <topics>
+                        <topic>t/MotorControl</topic>
+                        <topic>t/DeviceCommand</topic>
+                    </topics>
+                </subscribe>
+            </allow_rule>
+            <default>DENY</default>
+        </grant>
+    </permissions>
+</dds>

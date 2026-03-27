@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-03-27
+
+### Added
+
+- **Module 04 — Security Threat Demonstration**: Two Python/PySide6 GUI
+  applications (Threat Injector and Threat Exfiltrator) that simulate
+  real-world DDS security attack scenarios (Rogue CA, Forged Permissions,
+  Expired Certificate) against the operating room bus
+- Module 04 security infrastructure: `setup_threat_security.sh` script,
+  OpenSSL configs, XML governance and permissions templates for rogue CA,
+  forged permissions, and expired certificate attack modes
+- Module 04 DDS configuration: `ThreatParticipantLibrary.xml` and
+  `ThreatQos.xml` with partition-scoped threat participants
+- Module 04 launch and kill scripts (`launch_injector.sh`,
+  `launch_exfiltrator.sh`, `kill_all.sh`)
+- Module 04 local `DdsUtils.py` utility for participant and security
+  configuration
+- `.gitignore` for Module 04 security directory to exclude generated
+  certificates, keys, and OpenSSL CA database files
+
+### Changed
+
+- **Module 01 — PyQt5 → PySide6 migration**: Arm.py and PatientMonitor.py
+  ported from PyQt5 to PySide6 (updated imports, enum-style Qt constants,
+  `Signal` instead of `pyqtSignal`, `app.exec()` instead of `app.exec_()`)
+- Module 01 `CMakeLists.txt`: replaced manual `execute_process` codegen call
+  with proper `connextdds_rtiddsgen_run` targets for Python type generation
+  (both `Types.xml` and `builtin_logging_type.idl`); added `refArchTypesPy`
+  custom target
+- Module 01 `README.md`: updated Python dependency references from PyQt5 to
+  PySide6
+- `system_arch/qos/Qos.xml`: removed volatile durability override from
+  secure-log DataReader QoS profile
+- Root `.gitignore`: added patterns for `builtin_logging_type.py` and
+  `*_timestamp.cmake` generated files
+- Updated `rticonnextdds-cmake-utils` submodule to latest commit
+
 ## [1.0.0] - 2026-03-25
 
 Initial stable release of the RTI MedTech Reference Architecture.
