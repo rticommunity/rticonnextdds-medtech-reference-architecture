@@ -13,6 +13,7 @@ This repository contains documentation and module demo applications showcasing d
   - [Module 01: Digital Operating Room](#module-01--digital-operating-room)
   - [Module 02: RTI Recording Service & RTI Replay Service](#module-02--rti-recording-service--rti-replay-service)
   - [Module 03: Remote Teleoperation with RTI Real-Time WAN Transport](#module-03--remote-teleoperation-with-rti-real-time-wan-transport)
+  - [Module 04: Security Threat Demonstration](#module-04--security-threat-demonstration)
 - [Hands-On: Architecture](#hands-on-architecture)
 - [Architecture Overview](#architecture-overview)
   - [Data Types](#data-types)
@@ -72,6 +73,8 @@ The RTI MedTech Reference Architecture demonstrates use cases and capabilities o
 - ### [Module 02](./modules/02-record-playback/) : RTI Recording Service & RTI Replay Service
 
 - ### [Module 03](./modules/03-remote-teleoperation/) : Remote Teleoperation with RTI Real-Time WAN Transport
+
+- ### [Module 04](./modules/04-security-threat/) : Security Threat Demonstration
 
 ## Hands-On: Architecture
 
@@ -269,4 +272,5 @@ Check out the the [system_arch](./system_arch/) folder, where the system archite
 - [Connext Real-Time WAN Transport](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/PartRealtimeWAN.htm) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
 - [RTI Routing Service](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/services/routing_service/index.html) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
 - [RTI Cloud Discovery Service](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/addon_products/cloud_discovery_service/index.html) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
+- [RTI Security Plugins Users Manual](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/index.html) *, used in Module 04: Security Threat Demonstration*
 - [RTI Connext Third-Party Software](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/release_notes_3rdparty/index.html)
