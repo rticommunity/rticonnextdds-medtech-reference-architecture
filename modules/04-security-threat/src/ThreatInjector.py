@@ -689,11 +689,11 @@ class ThreatInjectorApp:
             )
             sample = SurgicalRobot.MotorControl(id=motor, direction=direction)
 
-            # Update local visualisation angle
+            # Update local visualisation angle (0.3° matches Arm.py step size)
             if direction == SurgicalRobot.MotorDirections.INCREMENT:
-                self._angles[motor] = (self._angles[motor] + 2.0) % 360.0
+                self._angles[motor] = (self._angles[motor] + 0.3) % 360.0
             else:
-                self._angles[motor] = (self._angles[motor] - 2.0) % 360.0
+                self._angles[motor] = (self._angles[motor] - 0.3) % 360.0
             self.window.arm_viz.update_angles(self._angles)
             self._motor_idx = (self._motor_idx + 1) % len(_MOTORS_ORDERED)
 
