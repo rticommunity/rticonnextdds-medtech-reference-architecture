@@ -97,4 +97,6 @@ Test how the system handles network interruptions.
 
 ## Next Steps
 
+Check out [Module 04: Security Threat Demonstration](../04-security-threat/), which demonstrates what happens when a malicious application attempts to tamper with surgical arm commands or steal patient vital signs — and how DDS Security blocks these attacks.
+
 Head back to the [main README](../../README.md) and pick up with the [Hands-On: Architecture](../../README.md#hands-on-architecture) section to learn more about the system architecture.

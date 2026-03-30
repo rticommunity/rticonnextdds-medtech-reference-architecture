@@ -16,12 +16,12 @@ import time
 import threading
 import numpy as np
 
-from PyQt5.QtWidgets import (
+from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QFrame,
     QGridLayout, QHBoxLayout, QVBoxLayout, QSizePolicy
 )
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt5.QtGui import QFont, QColor, QPalette, QFontDatabase, QPixmap, QIcon
+from PySide6.QtCore import Qt, QTimer, Signal, QObject
+from PySide6.QtGui import QFont, QColor, QPalette, QFontDatabase, QPixmap, QIcon
 
 import pyqtgraph as pg
 
@@ -91,9 +91,9 @@ def _capno_template(n_pts: int = SAMPLE_RATE) -> np.ndarray:
 
 # ─── DDS → Qt bridge ────────────────────────────────────────────────────────
 class DdsBridge(QObject):
-    vitals_received = pyqtSignal(float, float, float, float, float)  # hr, spo2, etco2, nibp_s, nibp_d
-    shutdown_received = pyqtSignal()
-    status_changed = pyqtSignal(str)   # "ON" / "PAUSED"
+    vitals_received = Signal(float, float, float, float, float)  # hr, spo2, etco2, nibp_s, nibp_d
+    shutdown_received = Signal()
+    status_changed = Signal(str)   # "ON" / "PAUSED"
 
 
 # ─── Waveform strip panel ─────────────────────────────────────────────────
@@ -121,7 +121,7 @@ class VitalPanel(QFrame):
 
     # ── UI construction ──────────────────────────────────────────────────
     def _build_ui(self):
-        self.setFrameShape(QFrame.Box)
+        self.setFrameShape(QFrame.Shape.Box)
         self.setStyleSheet(f"""
             VitalPanel {{
                 background-color: {BG_PANEL};
@@ -146,13 +146,13 @@ class VitalPanel(QFrame):
 
         self.unit_lbl = QLabel(self.unit)
         self.unit_lbl.setStyleSheet(f"color: {self.color}88; font-size: 16px; background: transparent;")
-        self.unit_lbl.setAlignment(Qt.AlignBottom | Qt.AlignRight)
+        self.unit_lbl.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight)
         top.addWidget(self.unit_lbl)
         root.addLayout(top)
 
         # ── Numeric value ─────────────────────────────────────────────
         self.value_lbl = QLabel("---")
-        self.value_lbl.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.value_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.value_lbl.setStyleSheet(
             f"color: {self.color}; font-size: 54px; font-weight: bold; "
             f"font-family: 'Courier New', monospace; background: transparent; "
@@ -163,7 +163,7 @@ class VitalPanel(QFrame):
         # ── Waveform plot ─────────────────────────────────────────────
         self.plot_widget = pg.PlotWidget(background=BG_PANEL)
         self.plot_widget.setMinimumHeight(150)
-        self.plot_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.plot_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.plot_widget.hideAxis("left")
         self.plot_widget.hideAxis("bottom")
         self.plot_widget.setMouseEnabled(x=False, y=False)
@@ -203,7 +203,7 @@ class VitalPanel(QFrame):
 class NiBPPanel(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFrameShape(QFrame.Box)
+        self.setFrameShape(QFrame.Shape.Box)
         self.setStyleSheet(f"""
             NiBPPanel {{
                 background-color: {BG_PANEL};
@@ -229,7 +229,7 @@ class NiBPPanel(QFrame):
 
         # sys / dia
         bp_row = QHBoxLayout()
-        bp_row.setAlignment(Qt.AlignCenter)
+        bp_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.sys_lbl = QLabel("---")
         self.sys_lbl.setStyleSheet(
@@ -251,7 +251,7 @@ class NiBPPanel(QFrame):
         root.addLayout(bp_row)
 
         sub_row = QHBoxLayout()
-        sub_row.setAlignment(Qt.AlignCenter)
+        sub_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sub_lbl = QLabel("Systolic  /  Diastolic")
         sub_lbl.setStyleSheet(f"color: {COLOR_NIBP}66; font-size: 20px; background: transparent;")
         sub_row.addWidget(sub_lbl)
@@ -261,7 +261,7 @@ class NiBPPanel(QFrame):
 
         # MAP estimate
         self.map_lbl = QLabel("MAP: ---")
-        self.map_lbl.setAlignment(Qt.AlignCenter)
+        self.map_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.map_lbl.setStyleSheet(
             f"color: {COLOR_NIBP}AA; font-size: 20px; background: transparent;"
         )
@@ -350,7 +350,7 @@ class PatientMonitorWindow(QMainWindow):
         if not _logo_px.isNull():
             logo_lbl = QLabel()
             logo_lbl.setStyleSheet("background: transparent;")
-            logo_lbl.setPixmap(_logo_px.scaled(56, 56, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            logo_lbl.setPixmap(_logo_px.scaled(56, 56, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
             h_layout.addWidget(logo_lbl)
 
         rti_lbl = QLabel("RTI Connext")
@@ -557,7 +557,7 @@ class PatientMonitorApp:
         self.window.show()
         print("Started Patient Monitor")
 
-        app.exec_()
+        app.exec()
 
         print("Shutting down Patient Monitor")
         self.pm_status.status = Common.DeviceStatuses.OFF

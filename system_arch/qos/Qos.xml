@@ -137,11 +137,7 @@ inability to use the software. -->
           <resource_limits>
             <max_samples>64</max_samples>
           </resource_limits>
-          <!-- We do not care about historical secure log events prior to joining a system -->
-          <durability>
-            <kind>VOLATILE_DURABILITY_QOS</kind>
-          </durability>
-      </datareader_qos>
+        </datareader_qos>
       </qos_profile>
     </qos_library>
      

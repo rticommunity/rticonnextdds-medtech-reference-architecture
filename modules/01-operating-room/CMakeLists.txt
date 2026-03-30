@@ -56,7 +56,17 @@ connextdds_rtiddsgen_run(
     UNBOUNDED
 )
 
-# Generate C++ types for DDS Security builtin logging topic when NDDSHOME is available.
+# Generate Python types for application use (output alongside source files so
+# DdsUtils.py in this module and module 04 can import them directly)
+connextdds_rtiddsgen_run(
+    IDL_FILE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../system_arch/Types.xml"
+    OUTPUT_DIRECTORY
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/"
+    LANG Python
+)
+
+# Generate C++ types for DDS Security builtin logging topic.
 set(BUILTIN_LOGGING_IDL "${CONNEXTDDS_DIR}/resource/idl/builtin_logging_type.idl")
 connextdds_rtiddsgen_run(
     IDL_FILE
@@ -67,10 +77,20 @@ connextdds_rtiddsgen_run(
     UNBOUNDED
 )
 
-# Use command line to manually generate Python types
-execute_process(
-    COMMAND bash -c "${RTICODEGEN_DIR}/rtiddsgen ../../system_arch/Types.xml -ppDisable -d src -language python -create typefiles"
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+# Generate Python types for DDS Security builtin logging topic (used by module 04
+# SecureLogUtils.py via the same _OR_SRC import path as Types.py)
+connextdds_rtiddsgen_run(
+    IDL_FILE
+    "${BUILTIN_LOGGING_IDL}"
+    OUTPUT_DIRECTORY
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/"
+    LANG Python
+)
+
+add_custom_target(refArchTypesPy ALL
+    DEPENDS
+        ${Types_PYTHON_SOURCES}
+        ${builtin_logging_type_PYTHON_SOURCES}
 )
 
 # Build object library with types

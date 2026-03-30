@@ -2,6 +2,8 @@
 .venv/
 build/
 Types.py
+builtin_logging_type.py
+*_timestamp.cmake
 *.pyc
 *.pem
 *.p7s

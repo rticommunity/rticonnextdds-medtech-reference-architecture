@@ -62,7 +62,7 @@ Dependencies for building the C++ applications:
 
 Dependencies for the Python GUI applications (*Arm Monitor*, *Patient Monitor*):
 
-- `PyQt5` — Qt5 widget toolkit
+- `PySide6` — PySide6 Qt widget toolkit
 - `pyqtgraph` — fast scientific plotting
 - `numpy` — numerical arrays
 
@@ -74,7 +74,7 @@ sudo apt install \
     pkg-config \
     libgtkmm-3.0-dev \
     python3-pip \
-    python3-pyqt5 \
+    python3-pyside6 \
     python3-numpy \
     python3-pyqtgraph
 ```
@@ -96,7 +96,7 @@ Then install the Python packages:
 
 ```bash
 pip install \
-    PyQt5 \
+    PySide6 \
     pyqtgraph \
     numpy
 ```
