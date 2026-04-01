@@ -25,7 +25,8 @@
 #include <gdkmm/screen.h>
 
 #include "Types.hpp"
-#include "DdsUtils.hpp"
+
+using namespace DdsEntities::Constants;
 
 class SurgicalArmController {
 public:
@@ -90,29 +91,32 @@ private:
         // NDDS_QOS_PROFILES environment variable
         auto default_provider = dds::core::QosProvider::Default();
 
+        std::cout << "Creating participant with config: " << ARM_CONTROLLER_DP
+                  << std::endl;
+
         dds::domain::DomainParticipant participant =
                 default_provider.extensions().create_participant_from_config(
-                        DdsUtils::arm_controller_dp_fqn);
+                        ARM_CONTROLLER_DP);
 
         // Initialize DataWriters
         status_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<Common::DeviceStatus>>(
                 participant,
-                DdsUtils::status_dw_fqn);
+                STATUS_DW);
         hb_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<Common::DeviceHeartbeat>>(
                 participant,
-                DdsUtils::hb_dw_fqn);
+                HB_DW);
         arm_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<SurgicalRobot::MotorControl>>(
                 participant,
-                DdsUtils::motor_control_dw_fqn);
+                MOTOR_CONTROL_DW);
 
         // Initialize DataReader
         cmd_reader = rti::sub::find_datareader_by_name<
                 dds::sub::DataReader<Orchestrator::DeviceCommand>>(
                 participant,
-                DdsUtils::device_command_dr_fqn);
+                DEVICE_COMMAND_DR);
 
         // Setup command handling with a WaitSet
         dds::sub::cond::ReadCondition command_read_condition(

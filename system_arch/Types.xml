@@ -21,6 +21,21 @@
         <const name="ENDPOINT_DEVICE_COMMAND_NAME" type="string" value="&quot;DeviceCommand&quot;"/>
         <const name="ENDPOINT_VITALS_NAME" type="string" value="&quot;Vitals&quot;"/>
         <const name="ENDPOINT_SECURELOG_NAME" type="string" value="&quot;SecureLog&quot;"/>
+
+        <!-- Fully-qualified names used by application code -->
+        <const name="ARM_CONTROLLER_DP" type="string" value="&quot;MedicalDemoParticipantLibrary::dp/ArmController&quot;"/>
+        <const name="ORCHESTRATOR_DP" type="string" value="&quot;MedicalDemoParticipantLibrary::dp/Orchestrator&quot;"/>
+        <const name="PATIENT_SENSOR_DP" type="string" value="&quot;MedicalDemoParticipantLibrary::dp/PatientSensor&quot;"/>
+        <const name="SECURELOG_READER_DP" type="string" value="&quot;MedicalDemoParticipantLibrary::dp/SecureLogReader&quot;"/>
+        <const name="STATUS_DW" type="string" value="&quot;p/publisher::dw/DeviceStatus&quot;"/>
+        <const name="STATUS_DR" type="string" value="&quot;s/subscriber::dr/DeviceStatus&quot;"/>
+        <const name="HB_DW" type="string" value="&quot;p/publisher::dw/DeviceHeartbeat&quot;"/>
+        <const name="HB_DR" type="string" value="&quot;s/subscriber::dr/DeviceHeartbeat&quot;"/>
+        <const name="MOTOR_CONTROL_DW" type="string" value="&quot;p/publisher::dw/MotorControl&quot;"/>
+        <const name="DEVICE_COMMAND_DW" type="string" value="&quot;p/publisher::dw/DeviceCommand&quot;"/>
+        <const name="DEVICE_COMMAND_DR" type="string" value="&quot;s/subscriber::dr/DeviceCommand&quot;"/>
+        <const name="VITALS_DW" type="string" value="&quot;p/publisher::dw/Vitals&quot;"/>
+        <const name="SECURELOG_DR" type="string" value="&quot;s/subscriber::dr/SecureLog&quot;"/>
       </module>
     </module>
     <module name="Common">

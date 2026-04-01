@@ -66,26 +66,26 @@ connextdds_rtiddsgen_run(
     LANG Python
 )
 
-# Generate C++ types for DDS Security builtin logging topic.
-set(BUILTIN_LOGGING_IDL "${CONNEXTDDS_DIR}/resource/idl/builtin_logging_type.idl")
-connextdds_rtiddsgen_run(
-    IDL_FILE
-    "${BUILTIN_LOGGING_IDL}"
-    OUTPUT_DIRECTORY
-    "${CMAKE_CURRENT_BINARY_DIR}/src/"
-    LANG C++11
-    UNBOUNDED
-)
+# # Generate C++ types for DDS Security builtin logging topic.
+# set(BUILTIN_LOGGING_IDL "${CONNEXTDDS_DIR}/resource/idl/builtin_logging_type.idl")
+# connextdds_rtiddsgen_run(
+#     IDL_FILE
+#     "${BUILTIN_LOGGING_IDL}"
+#     OUTPUT_DIRECTORY
+#     "${CMAKE_CURRENT_BINARY_DIR}/src/"
+#     LANG C++11
+#     UNBOUNDED
+# )
 
-# Generate Python types for DDS Security builtin logging topic (used by module 04
-# SecureLogUtils.py via the same _OR_SRC import path as Types.py)
-connextdds_rtiddsgen_run(
-    IDL_FILE
-    "${BUILTIN_LOGGING_IDL}"
-    OUTPUT_DIRECTORY
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/"
-    LANG Python
-)
+# # Generate Python types for DDS Security builtin logging topic (used by module 04
+# # SecureLogUtils.py via the same _OR_SRC import path as Types.py)
+# connextdds_rtiddsgen_run(
+#     IDL_FILE
+#     "${BUILTIN_LOGGING_IDL}"
+#     OUTPUT_DIRECTORY
+#     "${CMAKE_CURRENT_SOURCE_DIR}/src/"
+#     LANG Python
+# )
 
 add_custom_target(refArchTypesPy ALL
     DEPENDS
@@ -109,7 +109,6 @@ set(APPLICATIONS ArmController Orchestrator PatientSensor)
 foreach(application ${APPLICATIONS})
     add_executable(${application}
         "${CMAKE_CURRENT_SOURCE_DIR}/src/${application}.cxx"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/DdsUtils.hpp"
     )
 
     target_link_libraries(${application}
