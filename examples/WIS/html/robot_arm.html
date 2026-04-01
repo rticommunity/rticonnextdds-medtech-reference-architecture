@@ -1,0 +1,503 @@
+<!--
+ (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+
+ RTI grants Licensee a license to use, modify, compile, and create derivative
+ works of the Software solely in combination with RTI Connext DDS. Licensee
+ may redistribute copies of the Software provided that all such copies are
+ subject to this License. The Software is provided "as is", with no warranty
+ of any type, including any warranty for fitness for any purpose. RTI is
+ under no obligation to maintain or support the Software. RTI shall not be
+ liable for any incidental or consequential damages arising out of the use or
+ inability to use the Software. For purposes of clarity, nothing in this
+ License prevents Licensee from using alternate versions of DDS, provided
+ that Licensee may not combine or link such alternate versions of DDS with
+ the Software.
+
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="copyright" content="Copyright 2026 Real-Time Innovations, Inc. (RTI) All rights reserved">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>Robot Arm Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .robot-logo {
+            width: 40px;
+            height: 40px;
+        }
+
+        .servo-control {
+            margin-bottom: 25px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .servo-label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 12px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .servo-icon {
+            font-size: 20px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .control-btn {
+            flex: 1;
+            padding: 18px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-left, .btn-ccw {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-left:hover, .btn-ccw:hover {
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-right, .btn-cw {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .btn-right:hover, .btn-cw:hover {
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn-up {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .btn-up:hover {
+            box-shadow: 0 5px 15px rgba(67, 233, 123, 0.4);
+        }
+
+        .btn-down {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .btn-down:hover {
+            box-shadow: 0 5px 15px rgba(250, 112, 154, 0.4);
+        }
+
+        .btn-open {
+            background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+        }
+
+        .btn-open:hover {
+            box-shadow: 0 5px 15px rgba(48, 207, 208, 0.4);
+        }
+
+        .btn-close {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #333;
+        }
+
+        .btn-close:hover {
+            box-shadow: 0 5px 15px rgba(168, 237, 234, 0.4);
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 25px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 10px;
+            color: #2e7d32;
+            font-weight: 500;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .control-btn {
+                padding: 15px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            <img src="rti-logo.svg" alt="RTI Logo" class="robot-logo">
+            Robot Arm Controller
+        </h1>
+
+        <div class="servo-control">
+            <div class="servo-label">
+                <span class="servo-icon">🔄</span>
+                <span>Base Rotation</span>
+            </div>
+            <div class="button-group">
+                <button class="control-btn btn-ccw" data-servo="base" data-direction="ccw">
+                    ↺ CCW
+                </button>
+                <button class="control-btn btn-cw" data-servo="base" data-direction="cw">
+                    ↻ CW
+                </button>
+            </div>
+        </div>
+
+        <div class="servo-control">
+            <div class="servo-label">
+                <span class="servo-icon">💪</span>
+                <span>Shoulder</span>
+            </div>
+            <div class="button-group">
+                <button class="control-btn btn-up" data-servo="shoulder" data-direction="up">
+                    ↑ Up
+                </button>
+                <button class="control-btn btn-down" data-servo="shoulder" data-direction="down">
+                    ↓ Down
+                </button>
+            </div>
+        </div>
+
+        <div class="servo-control">
+            <div class="servo-label">
+                <span class="servo-icon">🦾</span>
+                <span>Elbow</span>
+            </div>
+            <div class="button-group">
+                <button class="control-btn btn-up" data-servo="elbow" data-direction="up">
+                    ↑ Up
+                </button>
+                <button class="control-btn btn-down" data-servo="elbow" data-direction="down">
+                    ↓ Down
+                </button>
+            </div>
+        </div>
+
+        <div class="servo-control">
+            <div class="servo-label">
+                <span class="servo-icon">✋</span>
+                <span>Wrist</span>
+            </div>
+            <div class="button-group">
+                <button class="control-btn btn-up" data-servo="wrist" data-direction="up">
+                    ↑ Up
+                </button>
+                <button class="control-btn btn-down" data-servo="wrist" data-direction="down">
+                    ↓ Down
+                </button>
+            </div>
+        </div>
+
+        <div class="servo-control">
+            <div class="servo-label">
+                <span class="servo-icon">🤏</span>
+                <span>Gripper</span>
+            </div>
+            <div class="button-group">
+                <button class="control-btn btn-open" data-servo="gripper" data-direction="open">
+                    ⬌ Open
+                </button>
+                <button class="control-btn btn-close" data-servo="gripper" data-direction="close">
+                    ⬌ Close
+                </button>
+            </div>
+        </div>
+
+        <div class="status" id="status">
+            Ready to control
+        </div>
+    </div>
+
+    <script>
+        const WIS_HOST = '45.147.251.81';
+        const WIS_HOST = window.location.hostname || '127.0.0.1';
+        const WIS_PORT = window.location.port || 80;
+        
+        const writerBindId = "motor_control_writer";
+        const writerUri = "/dds/rest1/applications/MotorControlApp/domain_participants/MotorControlParticipant/publishers/MotorControlPublisher/data_writers/MotorControlWriter";
+
+        const buttons = document.querySelectorAll('.control-btn');
+        const status = document.getElementById('status');
+        let ws = null;
+
+        // WebSocket connection setup
+        function connectWebSocket() {
+            return new Promise((resolve, reject) => {
+                const wsUrl = `ws://${WIS_HOST}:${WIS_PORT}/dds/websocket/MotorControlWebSocket`;
+                                
+                console.log(`Connecting to WebSocket: ${this.wsUrl}`);
+                ws = new WebSocket(wsUrl);
+                                    
+                ws.onopen = () => {
+                    console.log('WebSocket connected, sending HELLO message');
+                    
+                    // Send HELLO message (required by WIS) - note: must end with blank line
+                    const helloMsg =
+                        "Content-Type:application/dds-web+json\r\n" +
+                        "Accept:application/dds-web+json\r\n" +
+                        "OMG-DDS-API-Key:\r\n" +
+                        "Version:1\r\n\r\n";
+                    ws.send(helloMsg);
+                    console.log('WebSocket connected');                    
+                };
+                    
+                ws.onmessage = (event) => {
+                    const msg = event.data;
+                    console.log(`Received from WIS: ${msg.substring(0, 100)}${msg.length > 100 ? '...' : ''}`);
+
+                    if (msg.includes("HELLO") || msg.includes("OK")) {
+                        console.log('HELLO response received, binding DataWriter...');
+                        // Bind the DataWriter
+                        const bindMsg = {
+                            kind: "bind",
+                            body: [
+                                {
+                                    bind_kind: "bind_datawriter",
+                                    bind_id: writerBindId,
+                                    uri: writerUri
+                                }
+                            ]
+                        };
+                        ws.send(JSON.stringify(bindMsg));
+                    } 
+                    else if (msg.includes('"kind"') || msg.includes('bind') || msg.includes('ack')) {
+                        // Ready to publish
+                        console.log('Bind acknowledged, ready to publish');
+                        status.textContent = 'Connected to robot';
+                        status.style.background = '#e8f5e9';
+                        status.style.color = '#2e7d32';
+                        resolve();
+                    }
+                };
+                    
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    status.textContent = 'Connection error';
+                    status.style.background = '#ffebee';
+                    status.style.color = '#c62828';
+                    reject(error);
+                };
+                    
+                ws.onclose = function() {
+                    console.log('WebSocket disconnected');
+                    status.textContent = 'Disconnected - attempting reconnect...';
+                    status.style.background = '#fff3e0';
+                    status.style.color = '#e65100';
+                    
+                    // Attempt to reconnect after 3 seconds
+                    setTimeout(connectWebSocket, 3000);
+                };
+            });
+        }
+
+        // Connect when page loads
+        window.addEventListener('load', function(){        
+            console.log(`Attempting to create WIS connection on ${WIS_HOST}:${WIS_PORT}...`);
+            
+            // Step 1: Create the WebSocket connection via REST POST
+            const restUrl = `http://${WIS_HOST}:${WIS_PORT}/dds/v1/websocket_connections`;
+            console.log(`Posting to: ${restUrl}`);
+            
+            fetch(restUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/dds-web+json' },
+                body: JSON.stringify([{ name: "MotorControlWebSocket" }])
+            }).then(resp => {
+                if (!resp.ok) {
+                    throw new Error(`REST POST failed: ${resp.status} ${resp.statusText}`);
+                }
+                console.log('WIS connection created via REST, now connecting WebSocket...');
+                // Step 2: Now connect the WebSocket
+                return connectWebSocket();
+            }).then(() => {
+                console.log('Successfully connected to WIS!');
+            }).catch(err => {
+                console.error('Failed to create WebSocket:', err);
+                status.textContent = 'Failed to connect';
+                status.style.background = '#ffebee';
+                status.style.color = '#c62828';
+            });
+        });
+        let holdInterval = null;
+        let isHolding = false;
+
+        buttons.forEach(btn => {
+            // Start repeating on mouse/touch down
+            btn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                startHolding(this);
+            });
+
+            btn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                startHolding(this);
+            });
+
+            // Stop repeating on mouse/touch up or leave
+            btn.addEventListener('mouseup', stopHolding);
+            btn.addEventListener('mouseleave', stopHolding);
+            btn.addEventListener('touchend', stopHolding);
+            btn.addEventListener('touchcancel', stopHolding);
+        });
+
+        function startHolding(btn) {
+            if (isHolding) 
+                return;
+            
+            isHolding = true;
+            const servo = btn.dataset.servo;
+            const direction = btn.dataset.direction;
+                
+            // Visual feedback
+            btn.style.transform = 'scale(0.95)';
+
+            // Send first command immediately
+            status.textContent = `Moving ${servo} ${direction}`;
+            sendCommand(servo, direction);
+                                
+            // Then repeat every 100ms while held
+            holdInterval = setInterval(() => {
+                sendCommand(servo, direction);
+            }, 100);
+        }
+
+        function stopHolding() {
+            if (!isHolding) 
+                return;
+            
+            isHolding = false;
+            
+            // Clear the interval
+            if (holdInterval) {
+                clearInterval(holdInterval);
+                holdInterval = null;
+            }
+            
+            // Reset visual feedback
+            buttons.forEach(btn => {
+                btn.style.transform = '';
+            });
+            
+            status.textContent = 'Ready to control';
+        }
+
+        function sendCommand(servo, direction) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                
+                let _servo = 0;                
+                switch(servo) {
+                    case 'base': _servo = 0; break;
+                    case 'shoulder': _servo = 1; break;
+                    case 'elbow': _servo = 2; break;
+                    case 'wrist': _servo = 3; break;
+                    case 'gripper': _servo = 4; break;
+                }
+                
+                let _direction = 0;
+                switch(direction) {
+                    case 'ccw': _direction = 2; break;
+                    case 'cw': _direction = 1; break;
+                    case 'up': _direction = 1; break;
+                    case 'down': _direction = 2; break;
+                    case 'open': _direction = 2; break;
+                    case 'close': _direction = 1; break;
+                }
+                                
+                const data = {
+                    id: _servo,
+                    direction: _direction
+                };
+
+                // Compose B_REQUEST message
+                const bRequest = {
+                    kind: "b_req",
+                    bind_id: writerBindId,
+                    body: {
+                        write_sample_seq: [
+                            {
+                                data: data
+                            }
+                        ]
+                    }
+                };
+                console.log(`Publishing: ${JSON.stringify(data)}`);
+                ws.send(JSON.stringify(bRequest));
+
+            } 
+            else {
+                console.error('WebSocket not connected');
+                status.textContent = 'Not connected to robot';
+                status.style.background = '#ffebee';
+                status.style.color = '#c62828';
+            }          
+        }
+    </script>
+</body>
+</html>

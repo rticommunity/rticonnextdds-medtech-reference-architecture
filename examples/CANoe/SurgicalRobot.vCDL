@@ -1,0 +1,107 @@
+version 2.1;
+
+import module "DDS";
+
+[DDS::Settings::DomainParticipantMonitoring=ALL]
+
+refine module "DDS";
+
+namespace PatientMonitor {
+
+  struct Vitals {
+    [DDS::Key=true]
+    string patient_id; //@key //@ID 0
+    uint32 hr; //@ID 1
+    uint32 spo2; //@ID 2
+    uint32 etco2; //@ID 3
+    uint32 nibp_s; //@ID 4
+    uint32 nibp_d; //@ID 5
+  }  //@Extensibility EXTENSIBLE_EXTENSIBILITY
+
+  [CommunicationPattern=SendReceive]
+  [Binding="DDS"]
+  [DDS::Domain::ID=0] 
+  interface IPatientMonitor {
+    consumed data Vitals patientVitals;
+  }
+
+  // Subscribes
+  [DDS::Reader::Reliability=BEST_EFFORT]
+  [DDS::Reader::History=KEEP_ALL]
+  [DDS::Topic::Name="t/Vitals"]
+  IPatientMonitor Receiver;
+}
+
+namespace SurgicalRobot {
+   
+  enum Motors : int32 {
+    BASE = 0,
+    SHOULDER = 1,
+    ELBOW = 2,
+    WRIST = 3,
+    HAND = 4,
+  } //@Extensibility EXTENSIBLE_EXTENSIBILITY
+  
+  enum MotorDirections : int32 {  
+    STATIONARY = 0,
+    INCREMENT = 1,
+    DECREMENT = 2
+  } //@Extensibility EXTENSIBLE_EXTENSIBILITY
+  
+  struct MotorControl {
+    [DDS::Key=true]
+    SurgicalRobot::Motors id;
+    SurgicalRobot::MotorDirections direction;
+  } //@Extensibility EXTENSIBLE_EXTENSIBILITY
+
+  struct MotorTelemetry {
+    [DDS::Key=true]
+    SurgicalRobot::Motors id;
+    float position_deg;
+    float speed_rpm;
+    float current_mA;
+    float voltage_V;
+    float temp_c;
+  }
+
+  [CommunicationPattern=SendReceive]
+  [Binding="DDS"]
+  [DDS::Domain::ID=0] 
+  interface IMotorControl {
+    consumed data MotorControl motorData;
+  }
+  
+  [CommunicationPattern=SendReceive]
+  [Binding="DDS"]
+  [DDS::Domain::ID=6] 
+  interface ITelemetry {     
+    provided data MotorTelemetry telemetryData;
+  }
+
+  interface IPanelHelper {
+    internal data float base_position_deg;
+    internal data float shoulder_position_deg;
+    internal data float elbow_position_deg;
+    internal data float wrist_position_deg;
+    internal data float hand_position_deg;
+  } 
+  IPanelHelper panelHelper;
+
+  // Subscribes
+  [DDS::Reader::Reliability=RELIABLE]
+  [DDS::Reader::History=KEEP_ALL]
+  [DDS::Topic::Name="t/MotorControl"]
+  IMotorControl Receiver;
+
+  // Publishes
+  [DDS::Writer::Reliability=BEST_EFFORT]
+  [DDS::Writer::History=KEEP_ALL]
+  [DDS::Topic::Name="topic/MotorTelemetry"]
+  ITelemetry Sender;
+
+  // Testing sending on the same MotorControl publisher
+  [DDS::Reader::Reliability=RELIABLE]
+  [DDS::Reader::History=KEEP_ALL]
+  [DDS::Topic::Name="t/MotorControl"]
+  reverse<IMotorControl> Controller;
+}

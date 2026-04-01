@@ -1,0 +1,117 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Panel Type="Vector.CANalyzer.Panels.PanelSerializer, Vector.CANalyzer.Panels.Serializer, Version=19.3.118.0, Culture=neutral, PublicKeyToken=null">
+  <Object Type="Vector.CANalyzer.Panels.Runtime.Panel, Vector.CANalyzer.Panels.Common, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Panel" ControlName="RobotPanel">
+    <Object Type="Vector.CANalyzer.Panels.Design.StaticTextControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Xc5d547c7edf0ae4777ea8f7e50cb247d7605" ControlName="Static Text 4">
+      <Property Name="Name">Xc5d547c7edf0ae4777ea8f7e50cb247d7605</Property>
+      <Property Name="Size">35, 15</Property>
+      <Property Name="Location">256, 214</Property>
+      <Property Name="Text">Hand</Property>
+    </Object>
+    <Object Type="Vector.CANalyzer.Panels.Design.TrackBarControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="X58e7ab1fecd09e4ddce9ed5ea21b1091bcb5" ControlName="Track Bar 5">
+      <Property Name="Name">X58e7ab1fecd09e4ddce9ed5ea21b1091bcb5</Property>
+      <Property Name="Size">215, 47</Property>
+      <Property Name="Location">256, 235</Property>
+      <Property Name="DisplayMinMax">True</Property>
+      <Property Name="TabIndex">5</Property>
+      <Property Name="MaximumDouble">180</Property>
+      <Property Name="MinimumDouble">-180</Property>
+      <Property Name="MaximumSize">100000, 47</Property>
+      <Property Name="Minimum">-180</Property>
+      <Property Name="Maximum">180</Property>
+      <Property Name="SymbolConfiguration">8;4096;SurgicalRobot;panelHelper.hand_position_deg;;1;2;;;-1;;;Value;;;16</Property>
+    </Object>
+    <Object Type="Vector.CANalyzer.Panels.Design.StaticTextControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Xd46fed90ed806e4b5ce95d2ef342b9bc840b" ControlName="Static Text 3">
+      <Property Name="Name">Xd46fed90ed806e4b5ce95d2ef342b9bc840b</Property>
+      <Property Name="Size">34, 15</Property>
+      <Property Name="Location">23, 214</Property>
+      <Property Name="Text">Wrist</Property>
+    </Object>
+    <Object Type="Vector.CANalyzer.Panels.Design.TrackBarControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Xae3321a2e4107e4d96e96d9e694ef989030a" ControlName="Track Bar 4">
+      <Property Name="Name">Xae3321a2e4107e4d96e96d9e694ef989030a</Property>
+      <Property Name="Size">215, 47</Property>
+      <Property Name="Location">23, 235</Property>
+      <Property Name="DisplayMinMax">True</Property>
+      <Property Name="TabIndex">4</Property>
+      <Property Name="MaximumDouble">180</Property>
+      <Property Name="MinimumDouble">-180</Property>
+      <Property Name="MaximumSize">100000, 47</Property>
+      <Property Name="Minimum">-180</Property>
+      <Property Name="Maximum">180</Property>
+      <Property Name="SymbolConfiguration">8;4096;SurgicalRobot;panelHelper.wrist_position_deg;;1;2;;;-1;;;Value;;;16</Property>
+    </Object>
+    <Object Type="Vector.CANalyzer.Panels.Design.StaticTextControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Xa5f43c36efc8ce4a9aeb2c2e05a0715c8395" ControlName="Static Text 1">
+      <Property Name="Name">Xa5f43c36efc8ce4a9aeb2c2e05a0715c8395</Property>
+      <Property Name="Size">39, 15</Property>
+      <Property Name="Location">256, 144</Property>
+      <Property Name="Text">Elbow</Property>
+    </Object>
+    <Object Type="Vector.CANalyzer.Panels.Design.TrackBarControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Xdc4ac326ec6dae4bdaea4d4ef69cc1e3469d" ControlName="Track Bar 3">
+      <Property Name="Name">Xdc4ac326ec6dae4bdaea4d4ef69cc1e3469d</Property>
+      <Property Name="Size">215, 47</Property>
+      <Property Name="Location">256, 161</Property>
+      <Property Name="DisplayMinMax">True</Property>
+      <Property Name="TabIndex">3</Property>
+      <Property Name="MaximumDouble">180</Property>
+      <Property Name="MinimumDouble">-180</Property>
+      <Property Name="MaximumSize">100000, 47</Property>
+      <Property Name="Minimum">-180</Property>
+      <Property Name="Maximum">180</Property>
+      <Property Name="SymbolConfiguration">8;4096;SurgicalRobot;panelHelper.elbow_position_deg;;1;2;;;-1;;;Value;;;16</Property>
+    </Object>
+    <Object Type="Vector.CANalyzer.Panels.Design.GroupBoxControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Xfe9cfb4bef458e4f37eaf9ae3b7ee042b602" ControlName="Group Box 1">
+      <Object Type="Vector.CANalyzer.Panels.Design.CompassControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="X3c8ac383ed745e48dbe9b34e400fdb684389" ControlName="Compass 1">
+        <Property Name="Name">X3c8ac383ed745e48dbe9b34e400fdb684389</Property>
+        <Property Name="Size">102, 102</Property>
+        <Property Name="Location">225, 0</Property>
+        <Property Name="ToolTipMode">Automatic</Property>
+        <Property Name="SymbolConfiguration1">8;4096;SurgicalRobot;panelHelper.base_position_deg;;1;2;;;-1;;;Direction;;;16</Property>
+        <Property Name="SymbolConfiguration2"></Property>
+        <Property Name="ForeColor">Black</Property>
+        <Property Name="UnitForeColor">Black</Property>
+        <Property Name="ShowSpeed">False</Property>
+      </Object>
+      <Object Type="Vector.CANalyzer.Panels.Design.TrackBarControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Xe84cf2cfe12a9e4696eb8ece117b80ff5ae3" ControlName="Track Bar 1">
+        <Property Name="Name">Xe84cf2cfe12a9e4696eb8ece117b80ff5ae3</Property>
+        <Property Name="Size">215, 47</Property>
+        <Property Name="Location">5, 33</Property>
+        <Property Name="DisplayMinMax">True</Property>
+        <Property Name="TabIndex">1</Property>
+        <Property Name="MaximumDouble">180</Property>
+        <Property Name="MinimumDouble">-180</Property>
+        <Property Name="MaximumSize">100000, 47</Property>
+        <Property Name="Minimum">-180</Property>
+        <Property Name="Maximum">180</Property>
+        <Property Name="SymbolConfiguration">8;4096;SurgicalRobot;panelHelper.base_position_deg;;1;2;;;-1;;;Value;;;16</Property>
+      </Object>
+      <Property Name="Name">Xfe9cfb4bef458e4f37eaf9ae3b7ee042b602</Property>
+      <Property Name="Size">338, 110</Property>
+      <Property Name="Location">18, 19</Property>
+      <Property Name="Text">Base</Property>
+      <Property Name="TabIndex">3</Property>
+      <Property Name="UseWindowsStyle">False</Property>
+    </Object>
+    <Object Type="Vector.CANalyzer.Panels.Design.StaticTextControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Xf8c4665ce9709e40aaebb15eab86afe65493" ControlName="Static Text 2">
+      <Property Name="Name">Xf8c4665ce9709e40aaebb15eab86afe65493</Property>
+      <Property Name="Size">46, 15</Property>
+      <Property Name="Location">23, 144</Property>
+      <Property Name="Text">Sholder</Property>
+    </Object>
+    <Object Type="Vector.CANalyzer.Panels.Design.TrackBarControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="X181871f4e7cd5e4577e9df2e206dcb4d013a" ControlName="Track Bar 2">
+      <Property Name="Name">X181871f4e7cd5e4577e9df2e206dcb4d013a</Property>
+      <Property Name="Size">215, 47</Property>
+      <Property Name="Location">23, 165</Property>
+      <Property Name="DisplayMinMax">True</Property>
+      <Property Name="TabIndex">2</Property>
+      <Property Name="MaximumDouble">180</Property>
+      <Property Name="MinimumDouble">-180</Property>
+      <Property Name="MaximumSize">100000, 47</Property>
+      <Property Name="Minimum">-180</Property>
+      <Property Name="Maximum">180</Property>
+      <Property Name="SymbolConfiguration">8;4096;SurgicalRobot;panelHelper.shoulder_position_deg;;1;2;;;-1;;;Value;;;16</Property>
+    </Object>
+    <Property Name="Name">Panel</Property>
+    <Property Name="Size">502, 309</Property>
+    <Property Name="Location">0, 0</Property>
+    <Property Name="BackColor">White</Property>
+  </Object>
+</Panel>
