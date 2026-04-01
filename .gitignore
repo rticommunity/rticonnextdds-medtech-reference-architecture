@@ -8,5 +8,6 @@ builtin_logging_type.py
 *.pem
 *.p7s
 *.csr
+*.srl
 *.glade~
 or_recording/
