@@ -91,9 +91,6 @@ private:
         // NDDS_QOS_PROFILES environment variable
         auto default_provider = dds::core::QosProvider::Default();
 
-        std::cout << "Creating participant with config: " << ARM_CONTROLLER_DP
-                  << std::endl;
-
         dds::domain::DomainParticipant participant =
                 default_provider.extensions().create_participant_from_config(
                         ARM_CONTROLLER_DP);

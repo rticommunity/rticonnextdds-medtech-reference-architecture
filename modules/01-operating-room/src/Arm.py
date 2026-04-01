@@ -26,8 +26,8 @@ from PySide6.QtGui import (
 )
 
 import rti.connextdds as dds
-from Types import Common, SurgicalRobot, Orchestrator
-import DdsUtils
+from Types import Common, SurgicalRobot, Orchestrator, DdsEntities
+from DdsUtils import register_type
 
 # ─── RTI Brand Colors ────────────────────────────────────────────────────
 RTI_BLUE   = "#004C97"
@@ -545,19 +545,20 @@ class ArmApp:
 
     # ── Connext setup ─────────────────────────────────────────────────
     def connext_setup(self):
-        DdsUtils.register_type(Common.DeviceStatus)
-        DdsUtils.register_type(Common.DeviceHeartbeat)
-        DdsUtils.register_type(Orchestrator.DeviceCommand)
-        DdsUtils.register_type(SurgicalRobot.MotorControl)
+        entities = DdsEntities.Constants
+        register_type(Common.DeviceStatus)
+        register_type(Common.DeviceHeartbeat)
+        register_type(Orchestrator.DeviceCommand)
+        register_type(SurgicalRobot.MotorControl)
 
         qos_provider = dds.QosProvider.default
-        participant = qos_provider.create_participant_from_config(DdsUtils.arm_dp_fqn)
+        participant = qos_provider.create_participant_from_config(entities.ARM_DP)
 
         self.status_writer = dds.DataWriter(
-            participant.find_datawriter(DdsUtils.status_dw_fqn)
+            participant.find_datawriter(entities.STATUS_DW)
         )
         self.hb_writer = dds.DataWriter(
-            participant.find_datawriter(DdsUtils.device_hb_dw_fqn)
+            participant.find_datawriter(entities.HB_DW)
         )
         self.arm_status = Common.DeviceStatus(
             device=Common.DeviceType.ARM, status=Common.DeviceStatuses.ON
@@ -565,10 +566,10 @@ class ArmApp:
         self.status_writer.write(self.arm_status)
 
         self.motor_control_reader = dds.DataReader(
-            participant.find_datareader(DdsUtils.motor_control_dr_fqn)
+            participant.find_datareader(entities.MOTOR_CONTROL_DR)
         )
         self.cmd_reader = dds.DataReader(
-            participant.find_datareader(DdsUtils.device_command_dr_fqn)
+            participant.find_datareader(entities.DEVICE_COMMAND_DR)
         )
 
     # ── Entry point ───────────────────────────────────────────────────
