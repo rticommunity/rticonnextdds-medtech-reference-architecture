@@ -23,7 +23,7 @@
 #include "Types.hpp"
 
 using namespace DdsEntities::Constants;
-// #include "builtin_logging_type.hpp"
+#include "builtin_logging_type.hpp"
 
 
 // Define the SecureLogUtils namespace

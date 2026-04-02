@@ -68,4 +68,7 @@ emailAddress                    = support@company_name.com
 
 [ v3_ca ]
 # Extensions for a typical CA (`man x509v3_config`).
+basicConstraints = critical, CA:TRUE
+keyUsage = critical, keyCertSign, cRLSign
+subjectKeyIdentifier = hash
 basicConstraints = CA:true

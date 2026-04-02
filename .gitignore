@@ -9,4 +9,5 @@ builtin_logging_type.py
 *.p7s
 *.csr
 *.glade~
+*.srl
 or_recording/

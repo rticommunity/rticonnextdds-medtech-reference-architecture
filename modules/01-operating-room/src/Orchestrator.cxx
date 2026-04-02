@@ -27,7 +27,9 @@
 #include "Types.hpp"
 
 using namespace DdsEntities::Constants;
-// #include "SecureLogUtils.hpp"
+#ifdef RTI_SECURITY_AVAILABLE
+#include "SecureLogUtils.hpp"
+#endif
 
 // Heartbeat listener to automatically monitor other applications
 class HeartbeatListener
@@ -116,12 +118,14 @@ public:
 
         waitset_status += status_read_condition;
 
-        // if (SecureLogUtils::is_secure(participant)) {
-        //     securelog_reader = SecureLogUtils::setup_secure_log_reader(
-        //         std::bind(&OrchestratorApp::process_secure_log, this, std::placeholders::_1),
-        //         default_provider
-        //     );
-        // }
+#ifdef RTI_SECURITY_AVAILABLE
+        if (SecureLogUtils::is_secure(participant)) {
+            securelog_reader = SecureLogUtils::setup_secure_log_reader(
+                std::bind(&OrchestratorApp::process_secure_log, this, std::placeholders::_1),
+                default_provider
+            );
+        }
+#endif
 
         app = Gtk::Application::create("orchestrator.orchestrator");
         app->signal_activate().connect([this]() { ui_setup(); });
@@ -143,10 +147,10 @@ private:
     std::map<Common::DeviceType, Gtk::RadioButton *> device_map;
     Gtk::ScrolledWindow *scroll;
     Glib::RefPtr<Gtk::TextBuffer> buffer;
-    // Gtk::Label *security_indicator = nullptr;
-    // sigc::connection security_flash_connection;
-    // bool security_flash_on = false;
-    // int security_flash_ticks_remaining = 0;
+    Gtk::Label *security_indicator = nullptr;
+    sigc::connection security_flash_connection;
+    bool security_flash_on = false;
+    int security_flash_ticks_remaining = 0;
 
     // Connext entities
     dds::domain::DomainParticipant participant = dds::core::null;
@@ -158,8 +162,10 @@ private:
     rti::core::cond::AsyncWaitSet waitset_status;
     std::shared_ptr<HeartbeatListener> hb_listener;
 
+#ifdef RTI_SECURITY_AVAILABLE
     // Connext secure logging entities
-    // SecureLogUtils::SecureLogReader securelog_reader = {dds::core::null, dds::core::null};
+    SecureLogUtils::SecureLogReader securelog_reader = {dds::core::null, dds::core::null};
+#endif
 
     void log_alert(std::string msg)
     {
@@ -209,85 +215,87 @@ private:
         command_writer.write(command);
     }
 
-    // void set_security_indicator_ok()
-    // {
-    //     if (security_indicator == nullptr) {
-    //         return;
-    //     }
+    void set_security_indicator_ok()
+    {
+        if (security_indicator == nullptr) {
+            return;
+        }
 
-    //     auto ctx = security_indicator->get_style_context();
-    //     ctx->remove_class("security-threat-on");
-    //     ctx->remove_class("security-threat-off");
-    //     ctx->add_class("security-ok");
-    //     security_indicator->set_text("SECURITY: OK");
-    // }
+        auto ctx = security_indicator->get_style_context();
+        ctx->remove_class("security-threat-on");
+        ctx->remove_class("security-threat-off");
+        ctx->add_class("security-ok");
+        security_indicator->set_text("SECURITY: OK");
+    }
 
-    // void trigger_security_flash()
-    // {
-    //     Glib::signal_idle().connect([this]() -> bool {
-    //         if (security_indicator == nullptr) {
-    //             return false;
-    //         }
+    void trigger_security_flash()
+    {
+        Glib::signal_idle().connect([this]() -> bool {
+            if (security_indicator == nullptr) {
+                return false;
+            }
 
-    //         // Keep flashing for ~8s after the latest threat event.
-    //         security_flash_ticks_remaining = 16;
+            // Keep flashing for ~8s after the latest threat event.
+            security_flash_ticks_remaining = 16;
 
-    //         if (security_flash_connection.connected()) {
-    //             return false;
-    //         }
+            if (security_flash_connection.connected()) {
+                return false;
+            }
 
-    //         security_flash_on = false;
-    //         security_flash_connection = Glib::signal_timeout().connect(
-    //                 [this]() -> bool {
-    //                     if (security_indicator == nullptr) {
-    //                         return false;
-    //                     }
+            security_flash_on = false;
+            security_flash_connection = Glib::signal_timeout().connect(
+                    [this]() -> bool {
+                        if (security_indicator == nullptr) {
+                            return false;
+                        }
 
-    //                     auto ctx = security_indicator->get_style_context();
-    //                     ctx->remove_class("security-ok");
-    //                     ctx->remove_class("security-threat-on");
-    //                     ctx->remove_class("security-threat-off");
+                        auto ctx = security_indicator->get_style_context();
+                        ctx->remove_class("security-ok");
+                        ctx->remove_class("security-threat-on");
+                        ctx->remove_class("security-threat-off");
 
-    //                     security_flash_on = !security_flash_on;
-    //                     if (security_flash_on) {
-    //                         security_indicator->set_text("SECURITY THREAT");
-    //                         ctx->add_class("security-threat-on");
-    //                     } else {
-    //                         security_indicator->set_text("SECURITY THREAT");
-    //                         ctx->add_class("security-threat-off");
-    //                     }
+                        security_flash_on = !security_flash_on;
+                        if (security_flash_on) {
+                            security_indicator->set_text("SECURITY THREAT");
+                            ctx->add_class("security-threat-on");
+                        } else {
+                            security_indicator->set_text("SECURITY THREAT");
+                            ctx->add_class("security-threat-off");
+                        }
 
-    //                     --security_flash_ticks_remaining;
-    //                     if (security_flash_ticks_remaining <= 0) {
-    //                         set_security_indicator_ok();
-    //                         security_flash_connection.disconnect();
-    //                         return false;
-    //                     }
+                        --security_flash_ticks_remaining;
+                        if (security_flash_ticks_remaining <= 0) {
+                            set_security_indicator_ok();
+                            security_flash_connection.disconnect();
+                            return false;
+                        }
 
-    //                     return true;
-    //                 },
-    //                 500);
+                        return true;
+                    },
+                    500);
 
-    //         return false;
-    //     });
-    // }
+            return false;
+        });
+    }
 
-    // bool is_security_threat(const DDSSecurity::BuiltinLoggingTypeV2 &sample)
-    // {
-    //     return static_cast<int32_t>(sample.severity())
-    //     // return sample.value<int32_t>("severity")
-    //             <= static_cast<int32_t>(DDSSecurity::LoggingLevel::WARNING_LEVEL);
-    // }
+#ifdef RTI_SECURITY_AVAILABLE
+    bool is_security_threat(const DDSSecurity::BuiltinLoggingTypeV2 &sample)
+    {
+        return static_cast<int32_t>(sample.severity())
+        // return sample.value<int32_t>("severity")
+                <= static_cast<int32_t>(DDSSecurity::LoggingLevel::WARNING_LEVEL);
+    }
 
-    // void process_secure_log(const SecureLogUtils::SecureLogType& log)
-    // {
-    //     if (is_security_threat(log)) {
-    //         std::stringstream ss;
-    //         ss << "SECURITY THREAT [" << log.appname() << "] " << log.message();
-    //         log_alert(ss.str());
-    //         trigger_security_flash();
-    //     }
-    // }
+    void process_secure_log(const SecureLogUtils::SecureLogType& log)
+    {
+        if (is_security_threat(log)) {
+            std::stringstream ss;
+            ss << "SECURITY THREAT [" << log.appname() << "] " << log.message();
+            log_alert(ss.str());
+            trigger_security_flash();
+        }
+    }
+#endif
 
     void process_status()
     {
@@ -360,22 +368,27 @@ private:
                     hdr->reorder_child(*logo, 0);
                 } catch (...) {}
 
-                // security_indicator = Gtk::manage(new Gtk::Label(""));
-                // {
-                //     auto ctx = security_indicator->get_style_context();
-                //     ctx->add_class("security-indicator");
-                //     if (SecureLogUtils::is_secure(participant)) {
-                //         ctx->add_class("security-ok");
-                //         security_indicator->set_text("SECURITY: OK");
-                //     } else {
-                //         ctx->add_class("security-unsecure");
-                //         security_indicator->set_text("UNSECURE MODE");
-                //     }
-                // }
-                // security_indicator->set_margin_start(10);
-                // security_indicator->set_margin_end(4);
-                // security_indicator->set_visible(true);
-                // hdr->pack_end(*security_indicator, false, false, 0);
+                security_indicator = Gtk::manage(new Gtk::Label(""));
+                {
+                    auto ctx = security_indicator->get_style_context();
+                    ctx->add_class("security-indicator");
+#ifdef RTI_SECURITY_AVAILABLE
+                    if (SecureLogUtils::is_secure(participant)) {
+                        ctx->add_class("security-ok");
+                        security_indicator->set_text("SECURITY: OK");
+                    } else {
+                        ctx->add_class("security-unsecure");
+                        security_indicator->set_text("UNSECURE MODE");
+                    }
+#else
+                    ctx->add_class("security-unsecure");
+                    security_indicator->set_text("UNSECURE MODE");
+#endif
+                }
+                security_indicator->set_margin_start(10);
+                security_indicator->set_margin_end(4);
+                security_indicator->set_visible(true);
+                hdr->pack_end(*security_indicator, false, false, 0);
             }
         }
 
