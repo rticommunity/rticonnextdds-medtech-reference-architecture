@@ -35,13 +35,6 @@ def register_type(type):
     except dds.Error:
         pass
 
-
-def register_all_types():
-    """Register all IDL types used by threat participants."""
-    for t in (SurgicalRobot.MotorControl, Orchestrator.DeviceCommand,
-              PatientMonitor.Vitals):
-        register_type(t)
-
 # ─── Threat Participant Library ──────────────────────────────────────────────
 
 # Injector DPs

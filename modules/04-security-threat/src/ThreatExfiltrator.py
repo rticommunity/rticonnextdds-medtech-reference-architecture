@@ -10,6 +10,8 @@
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
 
+from __future__ import annotations
+
 import sys
 import math
 import time
@@ -32,6 +34,7 @@ import DdsUtils
 import PySide6.QtAsyncio as QtAsyncio
 
 # Import OR types (path added by DdsUtils)
+from Types import Common, PatientMonitor, Orchestrator, DdsEntities
 
 RTI_BLUE    = "#004C97"
 RTI_ORANGE  = "#ED8B00"
@@ -90,10 +93,10 @@ MODE_FORGED_PERMS = "FORGED PERMS"
 MODE_EXPIRED_CERT = "EXPIRED CERT"
 
 MODE_TO_DP_NAME = {
-    MODE_UNSECURE:     DdsUtils.exfiltrator_unsecure_dp,
-    MODE_ROGUE_CA:     DdsUtils.exfiltrator_rogue_ca_dp,
-    MODE_FORGED_PERMS: DdsUtils.exfiltrator_forged_perms_dp,
-    MODE_EXPIRED_CERT: DdsUtils.exfiltrator_expired_cert_dp,
+    MODE_UNSECURE:     DdsUtils.EXFILTRATOR_UNSECURE_DP,
+    MODE_ROGUE_CA:     DdsUtils.EXFILTRATOR_ROGUE_CA_DP,
+    MODE_FORGED_PERMS: DdsUtils.EXFILTRATOR_FORGED_PERMS_DP,
+    MODE_EXPIRED_CERT: DdsUtils.EXFILTRATOR_EXPIRED_CERT_DP,
 }
 
 SAMPLE_RATE  = 200
@@ -309,7 +312,7 @@ class ThreatExfiltratorWindow(QMainWindow):
         self.resize(1200, 760)
         self.setStyleSheet(f"background-color: {BG_MAIN};")
 
-        _icon_px = QPixmap("../../resource/images/rti_logo.ico")
+        _icon_px = QPixmap("../../resource/images/rti_logo.png")
         if not _icon_px.isNull():
             self.setWindowIcon(QIcon(_icon_px))
 
@@ -350,7 +353,7 @@ class ThreatExfiltratorWindow(QMainWindow):
         h = QHBoxLayout(header)
         h.setContentsMargins(20, 0, 20, 0)
 
-        _logo_px = QPixmap("../../resource/images/rti_logo.ico")
+        _logo_px = QPixmap("../../resource/images/rti_logo.png")
         if not _logo_px.isNull():
             logo = QLabel()
             logo.setStyleSheet("background: transparent;")
@@ -594,12 +597,12 @@ class ThreatExfiltratorApp:
                 self._current_mode = None
                 self._prev_matched = None
 
-            dp_name = MODE_TO_DP_NAME.get(mode, DdsUtils.exfiltrator_unsecure_dp)
+            dp_name = MODE_TO_DP_NAME.get(mode, DdsUtils.EXFILTRATOR_UNSECURE_DP)
             try:
                 qos_provider = dds.QosProvider.default
                 self._participant = qos_provider.create_participant_from_config(dp_name)
                 self._vitals_reader = dds.DataReader(
-                    self._participant.find_datareader(DdsUtils.constants.VITALS_DR)
+                    self._participant.find_datareader(DdsEntities.Constants.VITALS_DR)
                 )
                 self.window.log("INFO", f"Participant created — {mode}")
 
@@ -752,6 +755,9 @@ class ThreatExfiltratorApp:
     def run(self) -> None:
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
+        _icon = QIcon(QPixmap("../../resource/images/rti_logo.png"))
+        if not _icon.isNull():
+            app.setWindowIcon(_icon)
         QtAsyncio.run(self._async_main(app), keep_running=True)
 
 

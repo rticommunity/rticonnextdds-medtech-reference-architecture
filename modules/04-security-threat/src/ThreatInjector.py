@@ -10,6 +10,8 @@
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
 
+from __future__ import annotations
+
 import sys
 import math
 import time
@@ -30,8 +32,7 @@ import DdsUtils
 import PySide6.QtAsyncio as QtAsyncio
 
 # Import OR types (path added by DdsUtils)
-from Types import SurgicalRobot, Orchestrator, Common
-from ThreatParticipants import ThreatEntities
+from Types import SurgicalRobot, Orchestrator, Common, DdsEntities
 
 # ─── RTI Brand Colors ────────────────────────────────────────────────────
 RTI_BLUE    = "#004C97"
@@ -259,7 +260,7 @@ class ThreatInjectorWindow(QMainWindow):
         self.resize(1100, 720)
         self.setStyleSheet(f"background-color: {BG_MAIN};")
 
-        _icon_px = QPixmap("../../resource/images/rti_logo.ico")
+        _icon_px = QPixmap("../../resource/images/rti_logo.png")
         if not _icon_px.isNull():
             self.setWindowIcon(QIcon(_icon_px))
 
@@ -301,7 +302,7 @@ class ThreatInjectorWindow(QMainWindow):
         h = QHBoxLayout(header)
         h.setContentsMargins(20, 0, 20, 0)
 
-        _logo_px = QPixmap("../../resource/images/rti_logo.ico")
+        _logo_px = QPixmap("../../resource/images/rti_logo.png")
         if not _logo_px.isNull():
             logo = QLabel()
             logo.setStyleSheet("background: transparent;")
@@ -627,10 +628,10 @@ class ThreatInjectorApp:
                 qos_provider = dds.QosProvider.default
                 self._participant = qos_provider.create_participant_from_config(dp_name)
                 self._motor_writer = dds.DataWriter(
-                    self._participant.find_datawriter(DdsUtils.constants.MOTOR_CONTROL_DW)
+                    self._participant.find_datawriter(DdsEntities.Constants.MOTOR_CONTROL_DW)
                 )
                 self._cmd_writer = dds.DataWriter(
-                    self._participant.find_datawriter(DdsUtils.constants.DEVICE_COMMAND_DW)
+                    self._participant.find_datawriter(DdsEntities.Constants.DEVICE_COMMAND_DW)
                 )
                 self.window.log("INFO", f"Participant created — {mode}")
 
@@ -853,6 +854,9 @@ class ThreatInjectorApp:
     def run(self) -> None:
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
+        _icon = QIcon(QPixmap("../../resource/images/rti_logo.png"))
+        if not _icon.isNull():
+            app.setWindowIcon(_icon)
         QtAsyncio.run(self._async_main(app), keep_running=True)
 
 
