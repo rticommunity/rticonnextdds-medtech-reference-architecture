@@ -26,6 +26,10 @@
 
 #include "Types.hpp"
 
+#ifdef __APPLE__
+#include "MacOsDockIcon.h"
+#endif
+
 using namespace DdsEntities::Constants;
 #ifdef RTI_SECURITY_AVAILABLE
 #include "SecureLogUtils.hpp"
@@ -353,21 +357,27 @@ private:
         auto builder = Gtk::Builder::create_from_file("ui/orchestrator.glade");
         builder->get_widget<Gtk::Window>("window", window);
 
-        // Load RTI logo into header
+        // Load RTI logo into header and set as dock/taskbar icon
         {
             Gtk::Box *hdr = nullptr;
             builder->get_widget<Gtk::Box>("header_bar", hdr);
-            if (hdr) {
-                try {
-                    auto pb = Gdk::Pixbuf::create_from_file("../../resource/images/rti_logo.ico");
+            try {
+                auto pb = Gdk::Pixbuf::create_from_file("../../resource/images/rti_logo.png");
+                window->set_icon(pb);
+#ifdef __APPLE__
+                set_macos_dock_icon(pb);
+#endif
+                if (hdr) {
                     auto scaled = pb->scale_simple(56, 56, Gdk::INTERP_BILINEAR);
                     auto *logo = Gtk::manage(new Gtk::Image(scaled));
                     logo->set_visible(true);
                     logo->set_margin_end(8);
                     hdr->pack_start(*logo, false, false, 0);
                     hdr->reorder_child(*logo, 0);
-                } catch (...) {}
+                }
+            } catch (...) {}
 
+            if (hdr) {
                 security_indicator = Gtk::manage(new Gtk::Label(""));
                 {
                     auto ctx = security_indicator->get_style_context();

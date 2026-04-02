@@ -137,7 +137,7 @@ From the repository root:
 
 ```bash
 cd modules/01-operating-room
-./scripts/build.sh
+python3 scripts/build.py
 ```
 
 This script creates a `build/` directory, runs CMake configuration and compilation automatically.
@@ -153,7 +153,7 @@ This includes identity certificates, private keys, and the signing of DDS Securi
 
 ```bash
 cd system_arch/security
-./setup_security.sh
+python3 setup_security.py
 ```
 
 ## Run the Demo
@@ -164,13 +164,13 @@ Run operating room applications:
 
 ```bash
 cd modules/01-operating-room
-./scripts/launch_all.sh
+python3 scripts/launch_all.py
 ```
 
 To run with security enabled, use the `-s` option:
 
 ```bash
-./scripts/launch_all.sh -s
+python3 scripts/launch_all.py -s
 ```
 
 *This script does the following:*
@@ -179,7 +179,7 @@ To run with security enabled, use the `-s` option:
 
 2. Launch the application executables.
 
-*Note, applications can be launched individually from a terminal instead of all at once via the **launch_all.sh** script. Please refer how `NDDS_QOS_PROFILES` is set in [launch_all.sh](./scripts/launch_all.sh), so your terminal environment can be configured similarly without errors.*
+*Note, applications can be launched individually from a terminal instead of all at once via the **launch_all.py** script. Please refer how `NDDS_QOS_PROFILES` is set in [launch_all.py](./scripts/launch_all.py), so your terminal environment can be configured similarly without errors.*
 
 ### 3. Observe the application behavior
 
@@ -195,7 +195,7 @@ Observe and play around with the interactive operating room applications. The fo
 To ensure application processes are killed when finished, run:
 
 ```bash
-./scripts/kill_all.sh
+python3 scripts/kill_all.py
 ```
 
 ## Hands-On: Going Further

@@ -316,7 +316,7 @@ class PatientMonitorWindow(QMainWindow):
 
     # ── Window icon ─────────────────────────────────────────────────
     def _set_icon(self):
-        _px = QPixmap("../../resource/images/rti_logo.ico")
+        _px = QPixmap("../../resource/images/rti_logo.png")
         if not _px.isNull():
             self.setWindowIcon(QIcon(_px))
 
@@ -346,7 +346,7 @@ class PatientMonitorWindow(QMainWindow):
         h_layout = QHBoxLayout(header)
         h_layout.setContentsMargins(20, 0, 20, 0)
 
-        _logo_px = QPixmap("../../resource/images/rti_logo.ico")
+        _logo_px = QPixmap("../../resource/images/rti_logo.png")
         if not _logo_px.isNull():
             logo_lbl = QLabel()
             logo_lbl.setStyleSheet("background: transparent;")
@@ -542,6 +542,9 @@ class PatientMonitorApp:
     def run(self):
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
+        _icon = QIcon(QPixmap("../../resource/images/rti_logo.png"))
+        if not _icon.isNull():
+            app.setWindowIcon(_icon)
 
         self.window = PatientMonitorWindow()
         self.connext_setup()

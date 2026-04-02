@@ -36,7 +36,7 @@ This includes identity certificates, private keys, and the signing of DDS Securi
 
 ### 5. Network Configuration
 
-On the *Active* sides and on your cloud instance, configure these variables in [variables.sh](./scripts/variables.sh)/[variables.bat](./scripts/variables.bat):
+On the *Active* sides and on your cloud instance, configure these variables in [variables.py](./scripts/variables.py):
 
 | Variable         | Value                                                                                 | Default |
 |------------------|---------------------------------------------------------------------------------------|---------|
@@ -59,7 +59,7 @@ From one machine, start the teleop Arm Controller:
 
 ```bash
 cd 01-operating-room
-./scripts/launch_arm_controller.sh
+python3 scripts/launch_arm_controller.py
 ```
 
 ### 2. Launch Passive Side Applications
@@ -68,7 +68,7 @@ From the other machine, start the Operating Room applications:
 
 ```bash
 cd 01-operating-room
-./scripts/launch_OR_apps.sh
+python3 scripts/launch_OR_apps.py
 ```
 
 >**Observe:** You should see **no communication** between applications since the RTI Routing Service infrastructure has not been started yet.
@@ -83,7 +83,7 @@ In a terminal on your cloud instance, run the *Passive* RTI Routing Service:
 
 ```bash
 cd 03-remote-teleoperation
-./scripts/launch_rs_cloud.sh [-s]
+python3 scripts/launch_rs_cloud.py [-s]
 ```
 
 ### 5. Launch Active Routing Services
@@ -92,7 +92,7 @@ Open a new terminal on both *Active* sides and run the following in each:
 
 ```bash
 cd 03-remote-teleoperation
-./scripts/launch_rs_active.sh [-s]
+python3 scripts/launch_rs_active.py [-s]
 ```
 
 ### 6. Observe Communication
@@ -106,5 +106,5 @@ cd 03-remote-teleoperation
 Kill all running applications:
 
 ```bash
-../01-operating-room/scripts/kill_all.sh
+python3 ../01-operating-room/scripts/kill_all.py
 ```

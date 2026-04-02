@@ -375,7 +375,7 @@ class ArmWindow(QMainWindow):
         self.setWindowTitle("RTI Connext — Surgical Arm Monitor")
         self.setMinimumSize(640, 650)
         self.setStyleSheet(f"background-color: {BG_MAIN};")
-        _icon_px = QPixmap("../../resource/images/rti_logo.ico")
+        _icon_px = QPixmap("../../resource/images/rti_logo.png")
         if not _icon_px.isNull():
             self.setWindowIcon(QIcon(_icon_px))
 
@@ -398,7 +398,7 @@ class ArmWindow(QMainWindow):
         h_layout = QHBoxLayout(header)
         h_layout.setContentsMargins(20, 0, 20, 0)
 
-        _logo_px = QPixmap("../../resource/images/rti_logo.ico")
+        _logo_px = QPixmap("../../resource/images/rti_logo.png")
         if not _logo_px.isNull():
             logo_lbl = QLabel()
             logo_lbl.setStyleSheet("background: transparent;")
@@ -576,6 +576,9 @@ class ArmApp:
     def run(self):
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
+        _icon = QIcon(QPixmap("../../resource/images/rti_logo.png"))
+        if not _icon.isNull():
+            app.setWindowIcon(_icon)
 
         self.window = ArmWindow()
         self.connext_setup()

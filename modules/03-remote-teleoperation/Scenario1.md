@@ -27,7 +27,7 @@ This includes identity certificates, private keys, and the signing of DDS Securi
 
 ### 4. Network Configuration
 
-On both *Passive* and *Active* sides, configure these variables in [variables.sh](./scripts/variables.sh)/[variables.bat](./scripts/variables.bat):
+On both *Passive* and *Active* sides, configure these variables in [variables.py](./scripts/variables.py):
 
 | Variable         | Value                                                                                 | Default |
 |------------------|---------------------------------------------------------------------------------------|---------|
@@ -51,7 +51,7 @@ From the machine *not* publicly exposed, start the teleop Arm Controller as the 
 
 ```bash
 cd 01-operating-room
-./scripts/launch_arm_controller.sh
+python3 scripts/launch_arm_controller.py
 ```
 
 ### 2. Launch Passive Side Applications
@@ -60,7 +60,7 @@ From the machine *publicly* exposed, start the Operating Room applications as th
 
 ```bash
 cd 01-operating-room
-./scripts/launch_OR_apps.sh
+python3 scripts/launch_OR_apps.py
 ```
 
 >**Observe:** You should see **no communication** between applications since the Routing Service infrastructure has not been started yet.
@@ -71,7 +71,7 @@ In a new terminal on the *Passive* side:
 
 ```bash
 cd 03-remote-teleoperation
-./scripts/launch_rs_passive.sh [-s]
+python3 scripts/launch_rs_passive.py [-s]
 ```
 
 ### 4. Launch Active Routing Service
@@ -80,7 +80,7 @@ In a new terminal on the *Active* side:
 
 ```bash
 cd 03-remote-teleoperation
-./scripts/launch_rs_active.sh [-s]
+python3 scripts/launch_rs_active.py [-s]
 ```
 
 ### 5. Observe Communication
@@ -94,5 +94,5 @@ cd 03-remote-teleoperation
 Kill all running applications:
 
 ```bash
-../01-operating-room/scripts/kill_all.sh
+python3 ../01-operating-room/scripts/kill_all.py
 ```

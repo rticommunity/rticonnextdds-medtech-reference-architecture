@@ -48,7 +48,7 @@ This includes identity certificates, private keys, and the signing of DDS Securi
 
 ```bash
 cd system_arch/security
-./setup_security.sh
+python3 setup_security.py
 ```
 
 ## Run the Demo
@@ -59,7 +59,7 @@ In its own terminal, launch the operating room applications from [Module 01](../
 
 ```bash
 cd 01-operating-room
-./scripts/launch_all.sh [-s]
+python3 scripts/launch_all.py [-s]
 ```
 
 ### 2. Run RTI Recording Service
@@ -99,14 +99,14 @@ Inspect [RecordingServiceConfiguration.xml](RecordingServiceConfiguration.xml) t
 Kill all running operating room application processes:
 
 ```bash
-../01-operating-room/scripts/kill_all.sh
+../01-operating-room/scripts/kill_all.py
 ```
 
 Relaunch the Digital Operating Room Arm and Patient Monitor GUI applications only (use `-s` option for security):
 
 ```bash
 cd 01-operating-room
-./scripts/launch_arm_and_patient_monitor.sh [-s]
+python3 scripts/launch_arm_and_patient_monitor.py [-s]
 ```
 
 >**Observe:** You should see the GUI applications are not receiving data.
@@ -128,7 +128,7 @@ The Replay Service configuration has `<enable_looping>` set to `true`, so the re
 Kill all active operating room applications:
 
 ```bash
-../01-operating-room/scripts/kill_all.sh
+python3 ../01-operating-room/scripts/kill_all.py
 ```
 
 #### Further Learning: Replay Service

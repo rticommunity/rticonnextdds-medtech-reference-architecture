@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Replaced all `.sh` and `.bat` scripts with cross-platform Python equivalents
+  across all modules and `system_arch/security/`. This eliminates macOS SIP
+  `DYLD_LIBRARY_PATH` stripping issues, removes duplicate `.sh`/`.bat` pairs
+  in Module 03, and consolidates scripting on the Python runtime already
+  required by the project. Launch commands change from e.g.
+  `./scripts/launch_all.sh` to `python3 scripts/launch_all.py`.
+
 ## [1.1.0] - 2026-03-27
 
 ### Added
@@ -15,13 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   applications (Threat Injector and Threat Exfiltrator) that simulate
   real-world DDS security attack scenarios (Rogue CA, Forged Permissions,
   Expired Certificate) against the operating room bus
-- Module 04 security infrastructure: `setup_threat_security.sh` script,
+- Module 04 security infrastructure: `setup_threat_security.py` script,
   OpenSSL configs, XML governance and permissions templates for rogue CA,
   forged permissions, and expired certificate attack modes
 - Module 04 DDS configuration: `ThreatParticipantLibrary.xml` and
   `ThreatQos.xml` with partition-scoped threat participants
-- Module 04 launch and kill scripts (`launch_injector.sh`,
-  `launch_exfiltrator.sh`, `kill_all.sh`)
+- Module 04 launch and kill scripts (`launch_injector.py`,
+  `launch_exfiltrator.py`, `kill_all.py`)
 - Module 04 local `DdsUtils.py` utility for participant and security
   configuration
 - `.gitignore` for Module 04 security directory to exclude generated
