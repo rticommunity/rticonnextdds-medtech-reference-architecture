@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Replaced `rti_logo.ico` with `rti_logo.png` for cross-platform compatibility
 - CMake links `-framework AppKit` on Apple targets for Dock icon support
 - Ported `setup_security.sh` and `setup_threat_security.sh` to Python
+- All C++ and Python applications now handle SIGINT/SIGTERM for graceful
+  shutdown without warnings; launch scripts forward signals to child processes
+- Security setup scripts suppress verbose OpenSSL output and print a summary
+  of generated artifacts on completion
 
 ### Removed
 
