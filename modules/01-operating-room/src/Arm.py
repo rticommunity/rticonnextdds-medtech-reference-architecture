@@ -14,6 +14,7 @@ import sys
 import math
 import time
 import threading
+import signal
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QFrame,
@@ -543,6 +544,9 @@ class ArmApp:
                 QApplication.quit()
             self.status_writer.write(self.arm_status)
 
+    def _cleanup(self):
+        print("Shutting down Arm")
+
     # ── Connext setup ─────────────────────────────────────────────────
     def connext_setup(self):
         entities = DdsEntities.Constants
@@ -594,12 +598,20 @@ class ArmApp:
         )
         hb_thread.start()
 
+        # Allow Ctrl+C to cleanly quit the Qt event loop.
+        # The QTimer is needed so the event loop periodically yields control
+        # back to Python, enabling signal delivery.
+        signal.signal(signal.SIGINT, lambda *_: app.quit())
+        _sig_timer = QTimer()
+        _sig_timer.timeout.connect(lambda: None)
+        _sig_timer.start(300)
+        app.aboutToQuit.connect(self._cleanup)
+
         self.window.show()
         print("Started Arm")
 
         app.exec()
 
-        print("Shutting down Arm")
         self.arm_status.status = Common.DeviceStatuses.OFF
 
 

@@ -21,10 +21,16 @@
 #include <chrono>
 #include <unistd.h>
 #include <cstring>
+#include <csignal>
+#include <atomic>
 
 #include "Types.hpp"
 
 using namespace DdsEntities::Constants;
+
+static std::atomic<bool> g_shutdown{false};
+
+static void handle_signal(int) { g_shutdown = true; }
 
 class PatientSensor {
 public:
@@ -91,9 +97,19 @@ public:
         write_status(status_writer);
 
         // Main loop
-        while (current_status.status() != Common::DeviceStatuses::OFF) {
-            waitset_command.dispatch(dds::core::Duration(1));
+        while (!g_shutdown && current_status.status() != Common::DeviceStatuses::OFF) {
+            try {
+                waitset_command.dispatch(dds::core::Duration(1));
+            } catch (const dds::core::Error &) {
+                break;
+            }
             write_vitals(vitals_writer);
+        }
+
+        if (g_shutdown) {
+            std::cout << "Shutting Down Patient Sensor (signal)" << std::endl;
+            current_status.status(Common::DeviceStatuses::OFF);
+            write_status(status_writer);
         }
 
         hb_thread.join();
@@ -166,6 +182,8 @@ private:
 // Main function creates an instance of PatientMonitor and runs it
 int main(int argc, char const *argv[])
 {
+    std::signal(SIGINT, handle_signal);
+    std::signal(SIGTERM, handle_signal);
     PatientSensor patient_sensor;
     patient_sensor.run();
     return 0;

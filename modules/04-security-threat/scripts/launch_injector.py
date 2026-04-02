@@ -13,4 +13,7 @@ import xml_setup
 
 if __name__ == "__main__":
     env = xml_setup.setup_env()
-    subprocess.run([sys.executable, "src/ThreatInjector.py"], env=env, check=True)
+    try:
+        subprocess.run([sys.executable, "src/ThreatInjector.py"], env=env, check=True)
+    except KeyboardInterrupt:
+        pass

@@ -26,5 +26,9 @@ if __name__ == "__main__":
             cmd = [cmd]
         children.append(subprocess.Popen(cmd, env=env))
 
-    for child in children:
-        child.wait()
+    try:
+        for child in children:
+            child.wait()
+    except KeyboardInterrupt:
+        for child in children:
+            child.wait()

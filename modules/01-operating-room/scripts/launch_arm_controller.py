@@ -14,4 +14,7 @@ if __name__ == "__main__":
     env = xml_setup.setup_env()
 
     child = subprocess.Popen([platform_setup.find_executable("ArmController")], env=env)
-    child.wait()
+    try:
+        child.wait()
+    except KeyboardInterrupt:
+        child.wait()

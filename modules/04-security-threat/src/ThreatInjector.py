@@ -16,6 +16,7 @@ import sys
 import math
 import time
 import threading
+import signal
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QFrame,
@@ -857,6 +858,13 @@ class ThreatInjectorApp:
         _icon = QIcon(QPixmap("../../resource/images/rti_logo.png"))
         if not _icon.isNull():
             app.setWindowIcon(_icon)
+        # Allow Ctrl+C to cleanly quit the Qt event loop.
+        # The QTimer is needed so the event loop periodically yields control
+        # back to Python, enabling signal delivery.
+        signal.signal(signal.SIGINT, lambda *_: app.quit())
+        _sig_timer = QTimer()
+        _sig_timer.timeout.connect(lambda: None)
+        _sig_timer.start(300)
         QtAsyncio.run(self._async_main(app), keep_running=True)
 
 

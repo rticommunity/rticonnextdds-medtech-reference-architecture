@@ -14,6 +14,7 @@ import sys
 import math
 import time
 import threading
+import signal
 import numpy as np
 
 from PySide6.QtWidgets import (
@@ -558,13 +559,24 @@ class PatientMonitorApp:
         hb_thread = threading.Thread(target=self.write_hb, daemon=True)
         hb_thread.start()
 
+        # Allow Ctrl+C to cleanly quit the Qt event loop.
+        # The QTimer is needed so the event loop periodically yields control
+        # back to Python, enabling signal delivery.
+        signal.signal(signal.SIGINT, lambda *_: app.quit())
+        _sig_timer = QTimer()
+        _sig_timer.timeout.connect(lambda: None)
+        _sig_timer.start(300)
+        app.aboutToQuit.connect(self._cleanup)
+
         self.window.show()
         print("Started Patient Monitor")
 
         app.exec()
 
-        print("Shutting down Patient Monitor")
         self.pm_status.status = Common.DeviceStatuses.OFF
+
+    def _cleanup(self):
+        print("Shutting down Patient Monitor")
 
 
 if __name__ == "__main__":

@@ -30,6 +30,10 @@
 #include "MacOsDockIcon.h"
 #endif
 
+#ifndef _WIN32
+#include <glib-unix.h>
+#endif
+
 using namespace DdsEntities::Constants;
 #ifdef RTI_SECURITY_AVAILABLE
 #include "SecureLogUtils.hpp"
@@ -137,7 +141,28 @@ public:
 
     void run()
     {
+#ifndef _WIN32
+        // Route SIGINT/SIGTERM through the GLib main loop so GTK functions
+        // can be called safely from the callback.
+        g_unix_signal_add(SIGINT, [](gpointer data) -> gboolean {
+            static_cast<OrchestratorApp *>(data)->window_close_from_signal();
+            return G_SOURCE_REMOVE;
+        }, this);
+        g_unix_signal_add(SIGTERM, [](gpointer data) -> gboolean {
+            static_cast<OrchestratorApp *>(data)->window_close_from_signal();
+            return G_SOURCE_REMOVE;
+        }, this);
+#endif
         app->run();
+    }
+
+    // Close the window from within the GLib main loop (e.g. on SIGINT).
+    void window_close_from_signal()
+    {
+        if (window)
+            window->close();
+        else if (app)
+            app->quit();
     }
 
 private:
