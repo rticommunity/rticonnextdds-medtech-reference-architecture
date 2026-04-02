@@ -31,6 +31,7 @@ import PySide6.QtAsyncio as QtAsyncio
 
 # Import OR types (path added by DdsUtils)
 from Types import SurgicalRobot, Orchestrator, Common
+from ThreatParticipants import ThreatEntities
 
 # ─── RTI Brand Colors ────────────────────────────────────────────────────
 RTI_BLUE    = "#004C97"
@@ -132,11 +133,11 @@ ATTACK_MOTOR_INJECT    = "MOTOR INJECT"
 ATTACK_CMD_PAUSE       = "CMD INJECT (PAUSE)"
 ATTACK_CMD_SHUTDOWN    = "CMD INJECT (SHUTDOWN)"
 
-MODE_TO_FQN = {
-    MODE_UNSECURE:     DdsUtils.injector_unsecure_dp_fqn,
-    MODE_ROGUE_CA:     DdsUtils.injector_rogue_ca_dp_fqn,
-    MODE_FORGED_PERMS: DdsUtils.injector_forged_perms_dp_fqn,
-    MODE_EXPIRED_CERT: DdsUtils.injector_expired_cert_dp_fqn,
+MODE_TO_DP_NAME = {
+    MODE_UNSECURE:     DdsUtils.INJECTOR_UNSECURE_DP,
+    MODE_ROGUE_CA:     DdsUtils.INJECTOR_ROGUE_CA_DP,
+    MODE_FORGED_PERMS: DdsUtils.INJECTOR_FORGED_PERMS_DP,
+    MODE_EXPIRED_CERT: DdsUtils.INJECTOR_EXPIRED_CERT_DP,
 }
 
 
@@ -621,15 +622,15 @@ class ThreatInjectorApp:
                 self._cert_invalid = False
                 self._prev_matched = None
 
-            fqn = MODE_TO_FQN.get(mode, DdsUtils.injector_unsecure_dp_fqn)
+            dp_name = MODE_TO_DP_NAME.get(mode, DdsUtils.INJECTOR_UNSECURE_DP)
             try:
                 qos_provider = dds.QosProvider.default
-                self._participant = qos_provider.create_participant_from_config(fqn)
+                self._participant = qos_provider.create_participant_from_config(dp_name)
                 self._motor_writer = dds.DataWriter(
-                    self._participant.find_datawriter(DdsUtils.motor_control_dw_fqn)
+                    self._participant.find_datawriter(DdsUtils.constants.MOTOR_CONTROL_DW)
                 )
                 self._cmd_writer = dds.DataWriter(
-                    self._participant.find_datawriter(DdsUtils.device_command_dw_fqn)
+                    self._participant.find_datawriter(DdsUtils.constants.DEVICE_COMMAND_DW)
                 )
                 self.window.log("INFO", f"Participant created — {mode}")
 

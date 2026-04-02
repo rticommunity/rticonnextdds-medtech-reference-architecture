@@ -2,7 +2,7 @@
 
 Module 01 simulates a Digital Operating Room.
 
-The applications have been tested to work in Debian-based environments with a GUI, including those in [WSL2 with GUI support](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps#install-support-for-linux-gui-apps) (Windows 10 and 11).
+The applications have been tested to work in Debian-based environments with a GUI, including those in [WSL2 with GUI support](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps#install-support-for-linux-gui-apps) (Windows 10 and 11), as well as on macOS.
 
 ## Contents
 
@@ -56,17 +56,20 @@ To install Connext, follow the [installation guide](https://community.rti.com/st
 
 Dependencies for building the C++ applications:
 
-- `build-essential` — compiler toolchain
+- A C++ compiler toolchain (e.g., `build-essential` on Linux, Xcode Command Line Tools on macOS)
 - `pkg-config` — library discovery
-- `libgtkmm-3.0-dev` — GTK+ C++ bindings used by *Arm Controller* and *Orchestrator*
+- gtkmm 3.0 — GTK+ C++ bindings used by *Arm Controller* and *Orchestrator* (e.g., `libgtkmm-3.0-dev` on Linux, `gtkmm3` via Homebrew on macOS)
 
 Dependencies for the Python GUI applications (*Arm Monitor*, *Patient Monitor*):
 
-- `PySide6` — PySide6 Qt widget toolkit
+- `PySide6` — Qt widget toolkit
 - `pyqtgraph` — fast scientific plotting
 - `numpy` — numerical arrays
 
-#### Option A: Install system-provided packages with *apt*
+<details>
+<summary><strong>Linux</strong></summary>
+
+##### Option A: Install system-provided packages with *apt*
 
 ```bash
 sudo apt install \
@@ -79,7 +82,7 @@ sudo apt install \
     python3-pyqtgraph
 ```
 
-#### Option B: Install PyPI-provided packages with *pip* (recommended for virtual environments)
+##### Option B: Install PyPI-provided packages with *pip* (recommended for virtual environments)
 
 First install the system build dependencies:
 
@@ -101,16 +104,43 @@ pip install \
     numpy
 ```
 
-### 2. Build the Project using CMake
+</details>
+
+<details>
+<summary><strong>macOS</strong></summary>
+
+Install with *Homebrew* and *pip*.
+
+First, ensure [Homebrew](https://brew.sh) is installed. Then install the system build dependencies (Xcode Command Line Tools provide the compiler):
 
 ```bash
-source <connext installation directory>/resource/scripts/rtisetenv_x64Linux4gcc7.3.0.bash
-cd modules/01-operating-room
-mkdir build
-cd build
-cmake ..
-cmake --build .
+xcode-select --install   # if not already installed
+brew install pkg-config gtkmm3
 ```
+
+Then install the Python packages (a virtual environment is recommended):
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install \
+    PySide6 \
+    pyqtgraph \
+    numpy
+```
+
+</details>
+
+### 2. Build the Project
+
+From the repository root:
+
+```bash
+cd modules/01-operating-room
+./scripts/build.sh
+```
+
+This script creates a `build/` directory, runs CMake configuration and compilation automatically.
 
 ### 3. Security (optional)
 

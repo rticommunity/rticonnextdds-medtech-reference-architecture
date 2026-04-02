@@ -32,9 +32,7 @@ import DdsUtils
 import PySide6.QtAsyncio as QtAsyncio
 
 # Import OR types (path added by DdsUtils)
-from Types import PatientMonitor
 
-# ─── RTI Brand Colors ────────────────────────────────────────────────────
 RTI_BLUE    = "#004C97"
 RTI_ORANGE  = "#ED8B00"
 BG_MAIN     = "#0A0E17"
@@ -91,11 +89,11 @@ MODE_ROGUE_CA     = "ROGUE CA"
 MODE_FORGED_PERMS = "FORGED PERMS"
 MODE_EXPIRED_CERT = "EXPIRED CERT"
 
-MODE_TO_FQN = {
-    MODE_UNSECURE:     DdsUtils.exfiltrator_unsecure_dp_fqn,
-    MODE_ROGUE_CA:     DdsUtils.exfiltrator_rogue_ca_dp_fqn,
-    MODE_FORGED_PERMS: DdsUtils.exfiltrator_forged_perms_dp_fqn,
-    MODE_EXPIRED_CERT: DdsUtils.exfiltrator_expired_cert_dp_fqn,
+MODE_TO_DP_NAME = {
+    MODE_UNSECURE:     DdsUtils.exfiltrator_unsecure_dp,
+    MODE_ROGUE_CA:     DdsUtils.exfiltrator_rogue_ca_dp,
+    MODE_FORGED_PERMS: DdsUtils.exfiltrator_forged_perms_dp,
+    MODE_EXPIRED_CERT: DdsUtils.exfiltrator_expired_cert_dp,
 }
 
 SAMPLE_RATE  = 200
@@ -596,12 +594,12 @@ class ThreatExfiltratorApp:
                 self._current_mode = None
                 self._prev_matched = None
 
-            fqn = MODE_TO_FQN.get(mode, DdsUtils.exfiltrator_unsecure_dp_fqn)
+            dp_name = MODE_TO_DP_NAME.get(mode, DdsUtils.exfiltrator_unsecure_dp)
             try:
                 qos_provider = dds.QosProvider.default
-                self._participant = qos_provider.create_participant_from_config(fqn)
+                self._participant = qos_provider.create_participant_from_config(dp_name)
                 self._vitals_reader = dds.DataReader(
-                    self._participant.find_datareader(DdsUtils.vitals_dr_fqn)
+                    self._participant.find_datareader(DdsUtils.constants.VITALS_DR)
                 )
                 self.window.log("INFO", f"Participant created — {mode}")
 

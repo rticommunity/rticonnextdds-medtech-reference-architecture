@@ -42,30 +42,16 @@ def register_all_types():
               PatientMonitor.Vitals):
         register_type(t)
 
-
-constants = DdsEntities.Constants
-
 # ─── Threat Participant Library ──────────────────────────────────────────────
 
-_THREAT_LIB = "ThreatParticipantLibrary"
-
-# DW / DR prefixes
-dw_prefix = constants.PUBLISHER_NAME + constants.SEPARATOR + constants.DW_PREFIX
-dr_prefix = constants.SUBSCRIBER_NAME + constants.SEPARATOR + constants.DR_PREFIX
-
 # Injector DPs
-injector_unsecure_dp_fqn     = _THREAT_LIB + constants.SEPARATOR + "dp/ThreatInjector/Unsecure"
-injector_rogue_ca_dp_fqn     = _THREAT_LIB + constants.SEPARATOR + "dp/ThreatInjector/RogueCA"
-injector_forged_perms_dp_fqn = _THREAT_LIB + constants.SEPARATOR + "dp/ThreatInjector/ForgedPerms"
-injector_expired_cert_dp_fqn = _THREAT_LIB + constants.SEPARATOR + "dp/ThreatInjector/ExpiredCert"
+INJECTOR_UNSECURE_DP     = "ThreatParticipantLibrary::dp/ThreatInjector/Unsecure"
+INJECTOR_ROGUE_CA_DP     = "ThreatParticipantLibrary::dp/ThreatInjector/RogueCA"
+INJECTOR_FORGED_PERMS_DP = "ThreatParticipantLibrary::dp/ThreatInjector/ForgedPerms"
+INJECTOR_EXPIRED_CERT_DP = "ThreatParticipantLibrary::dp/ThreatInjector/ExpiredCert"
 
 # Exfiltrator DPs
-exfiltrator_unsecure_dp_fqn     = _THREAT_LIB + constants.SEPARATOR + "dp/ThreatExfiltrator/Unsecure"
-exfiltrator_rogue_ca_dp_fqn     = _THREAT_LIB + constants.SEPARATOR + "dp/ThreatExfiltrator/RogueCA"
-exfiltrator_forged_perms_dp_fqn = _THREAT_LIB + constants.SEPARATOR + "dp/ThreatExfiltrator/ForgedPerms"
-exfiltrator_expired_cert_dp_fqn = _THREAT_LIB + constants.SEPARATOR + "dp/ThreatExfiltrator/ExpiredCert"
-
-# DWs / DRs names
-motor_control_dw_fqn  = dw_prefix + constants.ENDPOINT_MOTOR_CONTROL_NAME
-device_command_dw_fqn = dw_prefix + constants.ENDPOINT_DEVICE_COMMAND_NAME
-vitals_dr_fqn         = dr_prefix + constants.ENDPOINT_VITALS_NAME
+EXFILTRATOR_UNSECURE_DP     = "ThreatParticipantLibrary::dp/ThreatExfiltrator/Unsecure"
+EXFILTRATOR_ROGUE_CA_DP     = "ThreatParticipantLibrary::dp/ThreatExfiltrator/RogueCA"
+EXFILTRATOR_FORGED_PERMS_DP = "ThreatParticipantLibrary::dp/ThreatExfiltrator/ForgedPerms"
+EXFILTRATOR_EXPIRED_CERT_DP = "ThreatParticipantLibrary::dp/ThreatExfiltrator/ExpiredCert"

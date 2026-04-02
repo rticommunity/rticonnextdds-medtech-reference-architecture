@@ -6,6 +6,22 @@ works of the software solely for use with RTI Connext DDS. -->
     xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_dds_profiles.xsd"
     version="7.3.0">
 
+  <types>
+    <module name="ThreatEntities">
+      <module name="Constants">
+        <!-- Fully-qualified names for threat participant DomainParticipants -->
+        <const name="INJECTOR_UNSECURE_DP"     type="string" value="&quot;ThreatParticipantLibrary::dp/ThreatInjector/Unsecure&quot;"/>
+        <const name="INJECTOR_ROGUE_CA_DP"     type="string" value="&quot;ThreatParticipantLibrary::dp/ThreatInjector/RogueCA&quot;"/>
+        <const name="INJECTOR_FORGED_PERMS_DP" type="string" value="&quot;ThreatParticipantLibrary::dp/ThreatInjector/ForgedPerms&quot;"/>
+        <const name="INJECTOR_EXPIRED_CERT_DP" type="string" value="&quot;ThreatParticipantLibrary::dp/ThreatInjector/ExpiredCert&quot;"/>
+        <const name="EXFILTRATOR_UNSECURE_DP"     type="string" value="&quot;ThreatParticipantLibrary::dp/ThreatExfiltrator/Unsecure&quot;"/>
+        <const name="EXFILTRATOR_ROGUE_CA_DP"     type="string" value="&quot;ThreatParticipantLibrary::dp/ThreatExfiltrator/RogueCA&quot;"/>
+        <const name="EXFILTRATOR_FORGED_PERMS_DP" type="string" value="&quot;ThreatParticipantLibrary::dp/ThreatExfiltrator/ForgedPerms&quot;"/>
+        <const name="EXFILTRATOR_EXPIRED_CERT_DP" type="string" value="&quot;ThreatParticipantLibrary::dp/ThreatExfiltrator/ExpiredCert&quot;"/>
+      </module>
+    </module>
+  </types>
+
   <domain_participant_library name="ThreatParticipantLibrary">
 
     <!-- ── ThreatInjector: Unsecure mode (no security plugins) ──────── -->

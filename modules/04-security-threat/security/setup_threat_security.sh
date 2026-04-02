@@ -20,6 +20,39 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TRUSTED_CA_DIR="$SCRIPT_DIR/../../../system_arch/security"
 
+# Use the OpenSSL bundled with RTI Connext (requires NDDSHOME to be set).
+if [ -z "${NDDSHOME:-}" ]; then
+  echo "Error: NDDSHOME must be set." >&2
+  echo "  export NDDSHOME=/path/to/rti_connext_dds-<version>" >&2
+  exit 1
+fi
+
+OPENSSL=""
+for _ossl_dir in "$NDDSHOME"/third_party/openssl-*/; do
+  for _arch_dir in "$_ossl_dir"*/; do
+    if [ -x "${_arch_dir}release/bin/openssl" ]; then
+      OPENSSL="${_arch_dir}release/bin/openssl"
+      export DYLD_LIBRARY_PATH="${_arch_dir}release/lib${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
+      export LD_LIBRARY_PATH="${_arch_dir}release/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+      break 2
+    fi
+  done
+done
+
+if [ -z "$OPENSSL" ]; then
+  echo "Error: Could not find OpenSSL under $NDDSHOME/third_party/" >&2
+  exit 1
+fi
+
+echo "Using OpenSSL: $OPENSSL"
+
+# Temporary extensions file for identity (end-entity) certificates.
+IDENTITY_EXT=$(mktemp)
+cat > "$IDENTITY_EXT" <<'EOF'
+keyUsage = critical, digitalSignature
+EOF
+trap 'rm -f "$IDENTITY_EXT"' EXIT
+
 # Verify trusted CA artifacts exist (required for ForgedPerms and ExpiredCert modes)
 if [ ! -f "$TRUSTED_CA_DIR/ca/CaIdentity.pem" ] || [ ! -f "$TRUSTED_CA_DIR/ca/private/CaPrivateKey.pem" ]; then
     echo "ERROR: Trusted CA artifacts not found at $TRUSTED_CA_DIR/ca/"
@@ -32,9 +65,9 @@ echo "=== Generating Module 04 Security Artifacts ==="
 # ─── 1. Rogue CA (self-signed) ────────────────────────────────────────────
 echo "--- Generating Rogue CA..."
 mkdir -p rogue_ca/private
-openssl req -nodes -x509 -days 1825 -text -sha256 \
-    -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
-    -keyout rogue_ca/private/RogueCaPrivateKey.pem \
+$OPENSSL ecparam -name prime256v1 -genkey -noout -out rogue_ca/private/RogueCaPrivateKey.pem
+$OPENSSL req -new -x509 -days 1825 -text -sha256 \
+    -key rogue_ca/private/RogueCaPrivateKey.pem \
     -out rogue_ca/RogueCaIdentity.pem \
     -config rogue_ca/RogueCa.cnf
 
@@ -42,11 +75,12 @@ openssl req -nodes -x509 -days 1825 -text -sha256 \
 echo "--- Generating Rogue CA identities..."
 for participant in ThreatInjector ThreatExfiltrator; do
     base="identities/$participant/$participant"
-    openssl req -nodes -new -newkey rsa:2048 \
+    $OPENSSL req -nodes -new -newkey rsa:2048 \
         -config "$base.cnf" \
         -keyout "${base}PrivateKey.pem" \
         -out "${base}.csr"
-    openssl x509 -req -days 730 -text \
+    $OPENSSL x509 -req -days 730 -text \
+        -extfile "$IDENTITY_EXT" \
         -CA rogue_ca/RogueCaIdentity.pem \
         -CAkey rogue_ca/private/RogueCaPrivateKey.pem \
         -CAcreateserial \
@@ -58,13 +92,13 @@ done
 # Sign rogue-org permissions with rogue CA for RogueCA attack mode.
 # These use subject names that match the rogue-CA-signed identity certs
 # (O=Rogue Organization) rather than the legitimate org subject.
-openssl smime -sign \
+$OPENSSL smime -sign \
     -in "xml/PermissionsRogueCAInjector.xml" \
     -text \
     -out "identities/ThreatInjector/SignedPermissionsRogueCAInjector.p7s" \
     -signer rogue_ca/RogueCaIdentity.pem \
     -inkey rogue_ca/private/RogueCaPrivateKey.pem
-openssl smime -sign \
+$OPENSSL smime -sign \
     -in "xml/PermissionsRogueCAExfiltrator.xml" \
     -text \
     -out "identities/ThreatExfiltrator/SignedPermissionsRogueCAExfiltrator.p7s" \
@@ -73,7 +107,7 @@ openssl smime -sign \
 
 # Sign governance with rogue CA (for RogueCA mode threat participant's own governance)
 mkdir -p xml/signed
-openssl smime -sign \
+$OPENSSL smime -sign \
     -in "xml/GovernanceDomain0.xml" \
     -text \
     -out "xml/signed/SignedGovernanceDomain0RogueCA.p7s" \
@@ -84,11 +118,12 @@ openssl smime -sign \
 echo "--- Generating ForgedPerms identities (trusted CA signed)..."
 for participant in ThreatInjector ThreatExfiltrator; do
     base="forged_perms/$participant/$participant"
-    openssl req -nodes -new -newkey rsa:2048 \
+    $OPENSSL req -nodes -new -newkey rsa:2048 \
         -config "$base.cnf" \
         -keyout "${base}PrivateKey.pem" \
         -out "${base}.csr"
-    openssl x509 -req -days 730 -text \
+    $OPENSSL x509 -req -days 730 -text \
+        -extfile "$IDENTITY_EXT" \
         -CA "$TRUSTED_CA_DIR/ca/CaIdentity.pem" \
         -CAkey "$TRUSTED_CA_DIR/ca/private/CaPrivateKey.pem" \
         -CAcreateserial \
@@ -99,7 +134,7 @@ done
 
 # Sign permissions with ROGUE CA (this is the "forged" part — permissions signed by untrusted CA)
 for participant in ThreatInjector ThreatExfiltrator; do
-    openssl smime -sign \
+    $OPENSSL smime -sign \
         -in "xml/Permissions${participant}.xml" \
         -text \
         -out "forged_perms/${participant}/SignedPermissions${participant}.p7s" \
@@ -120,11 +155,11 @@ mkdir -p expired/newcerts
 
 for participant in ThreatInjector ThreatExfiltrator; do
     base="expired/$participant/${participant}Expired"
-    openssl req -nodes -new -newkey rsa:2048 \
+    $OPENSSL req -nodes -new -newkey rsa:2048 \
         -config "$base.cnf" \
         -keyout "expired/${participant}/${participant}PrivateKey.pem" \
         -out "${base}.csr"
-    openssl ca -batch \
+    $OPENSSL ca -batch \
         -config "expired/ca.cnf" \
         -startdate 20200101000000Z \
         -enddate   20220101000000Z \
@@ -135,7 +170,7 @@ done
 
 # Sign permissions with trusted CA for ExpiredCert mode
 for participant in ThreatInjector ThreatExfiltrator; do
-    openssl smime -sign \
+    $OPENSSL smime -sign \
         -in "xml/Permissions${participant}.xml" \
         -text \
         -out "expired/${participant}/SignedPermissions${participant}.p7s" \
@@ -144,7 +179,7 @@ for participant in ThreatInjector ThreatExfiltrator; do
 done
 
 # Sign governance with trusted CA (for ForgedPerms and ExpiredCert modes)
-openssl smime -sign \
+$OPENSSL smime -sign \
     -in "xml/GovernanceDomain0.xml" \
     -text \
     -out "xml/signed/SignedGovernanceDomain0.p7s" \
