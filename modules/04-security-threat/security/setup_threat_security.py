@@ -25,7 +25,7 @@ import platform_setup
 
 
 def _run(cmd: "list[str]", env: dict) -> None:
-    subprocess.run(cmd, env=env, check=True)
+    subprocess.run(cmd, env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # ---------------------------------------------------------------------------

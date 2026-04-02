@@ -7,14 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- macOS Dock icon support for C++ apps via Objective-C runtime (`MacOsDockIcon.h`)
+- RTI logo window icon for all Python GUI apps (Arm, PatientMonitor, Threat apps)
+- `system_arch/scripts/platform_setup.py` — shared utility for `NDDSHOME`
+  resolution, architecture detection, OpenSSL discovery, and Connext library
+  path setup
+- `xml_setup.py` helpers in each module for resolving XML config paths and
+  setting `NDDS_QOS_PROFILES` at runtime
+
 ### Changed
 
 - Replaced all `.sh` and `.bat` scripts with cross-platform Python equivalents
-  across all modules and `system_arch/security/`. This eliminates macOS SIP
-  `DYLD_LIBRARY_PATH` stripping issues, removes duplicate `.sh`/`.bat` pairs
-  in Module 03, and consolidates scripting on the Python runtime already
-  required by the project. Launch commands change from e.g.
-  `./scripts/launch_all.sh` to `python3 scripts/launch_all.py`.
+  across all modules and `system_arch/security/`. Launch commands change from
+  e.g. `./scripts/launch_all.sh` to `python3 scripts/launch_all.py`
+- Security plugins are now optional in CMake: OpenSSL (including RTI-bundled)
+  is auto-detected and `security_plugins` is only requested when available
+- Simplified FQN constants in `Types.xml` — names are now pre-assembled
+  (e.g. `MedicalDemoParticipantLibrary::dp/ArmController`) instead of
+  requiring runtime string concatenation
+- All C++ and Python apps updated to use the new FQN constants directly
+- Replaced `rti_logo.ico` with `rti_logo.png` for cross-platform compatibility
+- CMake links `-framework AppKit` on Apple targets for Dock icon support
+- Ported `setup_security.sh` and `setup_threat_security.sh` to Python
+
+### Removed
+
+- All `.sh` and `.bat` scripts (replaced by Python equivalents)
+- `DdsUtils.hpp` (FQN logic moved into XML constants)
+- Runtime FQN-mangling code from `DdsUtils.py` (both Module 01 and 04)
 
 ## [1.1.0] - 2026-03-27
 

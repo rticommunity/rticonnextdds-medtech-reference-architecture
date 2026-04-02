@@ -22,7 +22,7 @@ import platform_setup
 
 
 def _run(cmd: "list[str]", env: dict) -> None:
-    subprocess.run(cmd, env=env, check=True)
+    subprocess.run(cmd, env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # ---------------------------------------------------------------------------
@@ -94,7 +94,10 @@ def main() -> None:
         identity_ext = ext_file.name
 
     try:
+        print("=== Generating System Architecture Security Artifacts ===")
+
         # Self-signed CA
+        print("--- Generating self-signed CA...")
         _run(
             [
                 openssl, "req", "-nodes", "-x509", "-days", "1825",
@@ -109,17 +112,20 @@ def main() -> None:
         )
 
         # Generate identities per module
+        print("--- Generating Module 01 identities (Operating Room)...")
         generate_identities(
             openssl, env, identity_ext,
             "01-operating-room",
             ["Arm", "ArmController", "Orchestrator", "PatientMonitor",
              "PatientSensor", "SecureLogReader"],
         )
+        print("--- Generating Module 02 identities (Record/Playback)...")
         generate_identities(
             openssl, env, identity_ext,
             "02-record-playback",
             ["RecordingService", "ReplayService"],
         )
+        print("--- Generating Module 03 identities (Remote Teleoperation)...")
         generate_identities(
             openssl, env, identity_ext,
             "03-remote-teleoperation",
@@ -127,6 +133,7 @@ def main() -> None:
         )
 
         # Sign Governance and Permissions files
+        print("--- Signing Governance and Permissions XMLs...")
         sign_xmls(openssl, env, [
             "GovernanceDomain0",
             "GovernanceDomain1",
@@ -146,6 +153,36 @@ def main() -> None:
         # Clean up CSR files
         for csr in Path("identities").rglob("*.csr"):
             csr.unlink()
+
+        print("=== Security artifact generation complete ===")
+        print()
+        print("Generated artifacts:")
+        print("  ca/CaIdentity.pem                                          (self-signed CA)")
+        print()
+        print("  Module 01 — Operating Room:")
+        for p in ("Arm", "ArmController", "Orchestrator", "PatientMonitor",
+                  "PatientSensor", "SecureLogReader"):
+            print(f"    identities/01-operating-room/{p}/{p}Identity.pem")
+        print()
+        print("  Module 02 — Record/Playback:")
+        for p in ("RecordingService", "ReplayService"):
+            print(f"    identities/02-record-playback/{p}/{p}Identity.pem")
+        print()
+        print("  Module 03 — Remote Teleoperation:")
+        for p in ("RsActive", "RsCloud", "RsPassive"):
+            print(f"    identities/03-remote-teleoperation/{p}/{p}Identity.pem")
+        print()
+        print("  Signed XMLs:")
+        print("    xml/signed/SignedGovernanceDomain0.p7s")
+        print("    xml/signed/SignedGovernanceDomain1.p7s")
+        for module, perms in (
+            ("01-operating-room", ("Arm", "ArmController", "Orchestrator",
+                                   "PatientMonitor", "PatientSensor", "SecureLogReader")),
+            ("02-record-playback", ("RecordingService", "ReplayService")),
+            ("03-remote-teleoperation", ("RsActive", "RsCloud", "RsPassive")),
+        ):
+            for p in perms:
+                print(f"    xml/signed/SignedPermissions{p}.p7s")
 
     finally:
         os.unlink(identity_ext)
