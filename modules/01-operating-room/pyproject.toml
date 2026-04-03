@@ -1,0 +1,9 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "gui: test requires a graphical display (deselect with '-m not gui')",
+    "secure: test requires DDS Security artifacts (deselect with '-m not secure')",
+    "slow: long-running end-to-end scenario (deselect with '-m not slow')",
+]
+# Show reason for skips, short test summary, verbose by default
+addopts = "-rs"

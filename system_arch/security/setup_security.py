@@ -117,7 +117,7 @@ def main() -> None:
             openssl, env, identity_ext,
             "01-operating-room",
             ["Arm", "ArmController", "Orchestrator", "PatientMonitor",
-             "PatientSensor", "SecureLogReader"],
+             "PatientSensor", "Test", "SecureLogReader"],
         )
         print("--- Generating Module 02 identities (Record/Playback)...")
         generate_identities(
@@ -142,6 +142,7 @@ def main() -> None:
             "01-operating-room/PermissionsOrchestrator",
             "01-operating-room/PermissionsPatientMonitor",
             "01-operating-room/PermissionsPatientSensor",
+            "01-operating-room/PermissionsTest",
             "01-operating-room/PermissionsSecureLogReader",
             "02-record-playback/PermissionsRecordingService",
             "02-record-playback/PermissionsReplayService",
@@ -161,7 +162,7 @@ def main() -> None:
         print()
         print("  Module 01 — Operating Room:")
         for p in ("Arm", "ArmController", "Orchestrator", "PatientMonitor",
-                  "PatientSensor", "SecureLogReader"):
+                  "PatientSensor", "Test", "SecureLogReader"):
             print(f"    identities/01-operating-room/{p}/{p}Identity.pem")
         print()
         print("  Module 02 — Record/Playback:")
@@ -177,7 +178,7 @@ def main() -> None:
         print("    xml/signed/SignedGovernanceDomain1.p7s")
         for module, perms in (
             ("01-operating-room", ("Arm", "ArmController", "Orchestrator",
-                                   "PatientMonitor", "PatientSensor", "SecureLogReader")),
+                                   "PatientMonitor", "PatientSensor", "Test", "SecureLogReader")),
             ("02-record-playback", ("RecordingService", "ReplayService")),
             ("03-remote-teleoperation", ("RsActive", "RsCloud", "RsPassive")),
         ):

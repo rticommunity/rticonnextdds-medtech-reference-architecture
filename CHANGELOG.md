@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   path setup
 - `xml_setup.py` helpers in each module for resolving XML config paths and
   setting `NDDS_QOS_PROFILES` at runtime
+- **Module 01 pytest test suite** (`tests/`) with build, launch, DDS
+  communication, and end-to-end demo-flow tests; includes shared fixtures,
+  custom markers (`gui`, `secure`, `slow`), and pytest configuration
+- DDS Security and QoS infrastructure for the test participant (`Test` QoS
+  profile, identity, and permissions)
 
 ### Changed
 
