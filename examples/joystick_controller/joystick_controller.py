@@ -50,12 +50,12 @@ class JoystickApp:
         self.joystick = pygame.joystick.Joystick(0)
         self.joystick.init()
 
-        print(f"Starting Joystick Controller, using joystick: {joystick.get_name()}")
+        print(f"Starting Joystick Controller, using joystick: {self.joystick.get_name()}")
 
         # Print detected joystick mapping for debugging
-        num_axes = joystick.get_numaxes()
-        num_buttons = joystick.get_numbuttons()
-        num_hats = joystick.get_numhats()
+        num_axes = self.joystick.get_numaxes()
+        num_buttons = self.joystick.get_numbuttons()
+        num_hats = self.joystick.get_numhats()
         print(f"Joystick detected: axes={num_axes}, buttons={num_buttons}, hats={num_hats}")
         print("Controls:")
         print("  BASE <- X (L = CCW, R = CW)")
