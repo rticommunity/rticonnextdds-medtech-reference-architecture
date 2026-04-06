@@ -79,6 +79,7 @@ class RobotApp:
             self.servolist[i].move(0) # go to initial position
 
         print("Robot hardware setup complete.")
+        return True
 
 
     async def connext_setup(self):
@@ -239,7 +240,13 @@ class RobotApp:
         threading.Thread(target=self.event_loop.run_forever, daemon=True).start()
 
         # setup robot hardware and connext in parallel, as they are independent and can save time - the robot setup can take a while as it resets and initializes the servos, so doing this in parallel with the connext setup allows us to be ready to receive commands as soon as possible. The connext setup is mostly just creating entities and doesn't involve any waiting, so it will be ready very quickly.
-        await asyncio.gather( self.robot_setup(), self.connext_setup() )
+        robot_ok, connext_ok = await asyncio.gather(self.robot_setup(), self.connext_setup(), return_exceptions=True)
+        if isinstance(connext_ok, Exception):
+            print(f"Connext setup failed: {connext_ok}")
+            return
+        if not robot_ok:
+            print("Robot setup failed, exiting.")
+            return
 
         # Start heartbeat task - this will run until the application is shutdown, at which point the stop_event will be set and the task will exit its loop and complete
         hb_task = asyncio.create_task(self.write_hb(self.hb_writer))

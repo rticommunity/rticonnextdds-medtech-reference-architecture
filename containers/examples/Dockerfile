@@ -98,7 +98,7 @@ RUN echo "source ${NDDSHOME}/resource/scripts/rtisetenv_*.bash" >> /root/.bashrc
 
 WORKDIR /root
 
-RUN git clone --recurse-submodule https://github.com/rticommunity/rticonnextdds-medtech-reference-architecture.git medtech_ra 
+RUN git clone -b examples --recurse-submodule https://github.com/rticommunity/rticonnextdds-medtech-reference-architecture.git medtech_ra
 WORKDIR /root/medtech_ra/modules/01-operating-room
 
 # Copy additional source files
