@@ -274,7 +274,10 @@ class JoystickApp:
 
         threading.Thread(target=self.event_loop.run_forever, daemon=True).start()
 
-        joystick_ok, _ = await asyncio.gather( self.joystick_setup(), self.connext_setup(), return_exceptions=True )
+        joystick_ok, connext_ok = await asyncio.gather(self.joystick_setup(), self.connext_setup(), return_exceptions=True)
+        if isinstance(connext_ok, Exception):
+            print(f"Connext setup failed: {connext_ok}")
+            return
         if not joystick_ok:
             print("Joystick setup failed, exiting.")
             return
