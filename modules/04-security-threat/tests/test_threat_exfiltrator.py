@@ -1,3 +1,14 @@
+#
+# (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+#
+# RTI grants Licensee a license to use, modify, compile, and create derivative
+# works of the software solely for use with RTI Connext DDS.  Licensee may
+# redistribute copies of the software provided that all such copies are
+# subject to this license. The software is provided "as is", with no warranty
+# of any type, including any warranty for fitness for any purpose. RTI is
+# under no obligation to maintain or support the software.  RTI shall not be
+# liable for any incidental or consequential damages arising out of the use or
+# inability to use the software.
 """Threat Exfiltrator tests for Module 04.
 
 Verifies that DDS Security correctly blocks (or allows) threat exfiltrator
@@ -161,3 +172,30 @@ class TestExfiltratorSecure:
             timeout_sec=10,
         )
         assert result["received"] == 0, "Rogue CA exfiltrator should NOT receive vitals from secured OR"
+
+    def test_forged_perms_exfiltrator_blocked(self, or_pm_secure, or_env_secure, threat_env):
+        """Forged permissions exfiltrator should NOT receive vitals from secured OR apps."""
+        or_pm_secure.start_module01_cpp("PatientSensor")
+        time.sleep(3)
+
+        result = _run_exfiltrator_probe(
+            threat_env,
+            dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/ForgedPerms",
+            timeout_sec=10,
+        )
+        assert result["received"] == 0, "Forged permissions exfiltrator should NOT receive vitals from secured OR"
+
+    def test_expired_cert_exfiltrator_blocked(self, or_pm_secure, or_env_secure, threat_env):
+        """Expired certificate exfiltrator should fail to create participant or receive data."""
+        or_pm_secure.start_module01_cpp("PatientSensor")
+        time.sleep(3)
+
+        result = _run_exfiltrator_probe(
+            threat_env,
+            dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/ExpiredCert",
+            timeout_sec=10,
+        )
+        # Expired cert typically causes participant creation failure
+        if result["created"]:
+            assert result["received"] == 0, "Expired cert exfiltrator should NOT receive vitals from secured OR"
+        # If not created, that's also a valid block
