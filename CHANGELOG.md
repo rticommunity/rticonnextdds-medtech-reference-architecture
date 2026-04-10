@@ -19,8 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Module 01 pytest test suite** (`tests/`) with build, launch, DDS
   communication, and end-to-end demo-flow tests; includes shared fixtures,
   custom markers (`gui`, `secure`, `slow`), and pytest configuration
+- **Module 02 pytest test suite** (`tests/`) with Recording Service and
+  Replay Service integration tests, plus XML configuration validation
+- **Module 04 pytest test suite** (`tests/`) with threat injector and
+  exfiltrator tests across all four attack modes (Unsecure, Rogue CA,
+  Forged Permissions, Expired Certificate), plus XML configuration validation
+- **GitHub Actions CI pipeline** (`.github/workflows/ci.yml`) with 10 jobs:
+  lint, C++ build, Module 01 unit/integration/secure/GUI tests, Module 02
+  tests, Module 04 tests, and artifact upload — runs on every push and PRs
+  to main/develop
+- `pyproject.toml` (root) with ruff linter/formatter configuration
+- `requirements-dev.txt` with development/testing dependencies
+- `.pre-commit-config.yaml` for ruff and clang-format hooks
+- Per-module `pyproject.toml` files with pytest configuration
 - DDS Security and QoS infrastructure for the test participant (`Test` QoS
   profile, identity, and permissions)
+- 2026 copyright headers on all new test files
 
 ### Changed
 
