@@ -9,7 +9,6 @@ import sys
 import time
 
 import pytest
-
 from conftest import (
     MODULE_DIR,
     SRC_DIR,
@@ -27,6 +26,7 @@ if str(SRC_DIR) not in sys.path:
 # PatientSensor (headless) — no @gui marker needed
 # ---------------------------------------------------------------------------
 
+
 class TestPatientSensorVitals:
     """PatientSensor should publish vitals on t/Vitals."""
 
@@ -35,7 +35,9 @@ class TestPatientSensorVitals:
 
         proc_manager.start_cpp("PatientSensor")
         reader = create_reader(
-            dds_participant, "t/Vitals", PatientMonitor_Vitals,
+            dds_participant,
+            "t/Vitals",
+            PatientMonitor_Vitals,
             "DataFlowLibrary::Streaming",
         )
 
@@ -47,7 +49,9 @@ class TestPatientSensorVitals:
 
         proc_manager.start_cpp("PatientSensor")
         reader = create_reader(
-            dds_participant, "t/Vitals", PatientMonitor_Vitals,
+            dds_participant,
+            "t/Vitals",
+            PatientMonitor_Vitals,
             "DataFlowLibrary::Streaming",
         )
 
@@ -70,7 +74,9 @@ class TestPatientSensorHeartbeat:
 
         proc_manager.start_cpp("PatientSensor")
         reader = create_reader(
-            dds_participant, "t/DeviceHeartbeat", Common_DeviceHeartbeat,
+            dds_participant,
+            "t/DeviceHeartbeat",
+            Common_DeviceHeartbeat,
             "DataFlowLibrary::Heartbeat",
         )
 
@@ -86,28 +92,25 @@ class TestPatientSensorHeartbeat:
             time.sleep(0.02)  # poll at 50 Hz
 
         # At 20 Hz we expect ~20 samples/sec; require at least 8 to be safe
-        assert count >= 8, (
-            f"Expected ≥8 heartbeats in 1s, got {count}"
-        )
+        assert count >= 8, f"Expected ≥8 heartbeats in 1s, got {count}"
 
 
 class TestPatientSensorStatus:
     """PatientSensor should publish DeviceStatus ON on startup."""
 
     def test_status_on(self, proc_manager, dds_participant):
-        from Types import Common_DeviceStatus, Common
+        from Types import Common, Common_DeviceStatus
 
         proc_manager.start_cpp("PatientSensor")
         reader = create_reader(
-            dds_participant, "t/DeviceStatus", Common_DeviceStatus,
+            dds_participant,
+            "t/DeviceStatus",
+            Common_DeviceStatus,
             "DataFlowLibrary::Status",
         )
 
         samples = wait_for_data(reader, timeout_sec=10)
-        sensor_statuses = [
-            s for s in samples
-            if s.device == Common.DeviceType.PATIENT_SENSOR
-        ]
+        sensor_statuses = [s for s in samples if s.device == Common.DeviceType.PATIENT_SENSOR]
         assert len(sensor_statuses) >= 1, "No DeviceStatus from PatientSensor"
         assert sensor_statuses[-1].status == Common.DeviceStatuses.ON
 
@@ -117,29 +120,31 @@ class TestPatientSensorCommands:
 
     def test_responds_to_pause(self, proc_manager, dds_participant):
         from Types import (
-            Common_DeviceStatus,
-            Orchestrator_DeviceCommand,
             Common,
+            Common_DeviceStatus,
             Orchestrator,
+            Orchestrator_DeviceCommand,
         )
 
         proc_manager.start_cpp("PatientSensor")
 
         status_reader = create_reader(
-            dds_participant, "t/DeviceStatus", Common_DeviceStatus,
+            dds_participant,
+            "t/DeviceStatus",
+            Common_DeviceStatus,
             "DataFlowLibrary::Status",
         )
         cmd_writer = create_writer(
-            dds_participant, "t/DeviceCommand", Orchestrator_DeviceCommand,
+            dds_participant,
+            "t/DeviceCommand",
+            Orchestrator_DeviceCommand,
             "DataFlowLibrary::Command",
         )
 
         # Wait for PatientSensor to come online (status = ON)
         samples = wait_for_data(status_reader, timeout_sec=10)
         sensor_on = any(
-            s.device == Common.DeviceType.PATIENT_SENSOR
-            and s.status == Common.DeviceStatuses.ON
-            for s in samples
+            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON for s in samples
         )
         assert sensor_on, "PatientSensor did not publish ON status"
 
@@ -153,28 +158,31 @@ class TestPatientSensorCommands:
         # Wait for status to change to PAUSED
         paused_samples = wait_for_data(status_reader, timeout_sec=10)
         paused = any(
-            s.device == Common.DeviceType.PATIENT_SENSOR
-            and s.status == Common.DeviceStatuses.PAUSED
+            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.PAUSED
             for s in paused_samples
         )
         assert paused, "PatientSensor did not transition to PAUSED"
 
     def test_responds_to_shutdown(self, proc_manager, dds_participant):
         from Types import (
-            Common_DeviceStatus,
-            Orchestrator_DeviceCommand,
             Common,
+            Common_DeviceStatus,
             Orchestrator,
+            Orchestrator_DeviceCommand,
         )
 
         proc = proc_manager.start_cpp("PatientSensor")
 
         status_reader = create_reader(
-            dds_participant, "t/DeviceStatus", Common_DeviceStatus,
+            dds_participant,
+            "t/DeviceStatus",
+            Common_DeviceStatus,
             "DataFlowLibrary::Status",
         )
         cmd_writer = create_writer(
-            dds_participant, "t/DeviceCommand", Orchestrator_DeviceCommand,
+            dds_participant,
+            "t/DeviceCommand",
+            Orchestrator_DeviceCommand,
             "DataFlowLibrary::Command",
         )
 
@@ -199,6 +207,7 @@ class TestPatientSensorCommands:
 # Arm (Qt GUI) — needs display
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.gui
 class TestArmMotorControl:
     """Arm should receive MotorControl commands and stay alive."""
@@ -206,13 +215,15 @@ class TestArmMotorControl:
     QT_ENV = {"QT_QPA_PLATFORM": "offscreen"}
 
     def test_arm_receives_motor_control(self, proc_manager, dds_participant):
-        from Types import SurgicalRobot_MotorControl, SurgicalRobot
+        from Types import SurgicalRobot, SurgicalRobot_MotorControl
 
         proc = proc_manager.start_python("Arm.py", extra_env=self.QT_ENV)
         time.sleep(3)  # let Qt init
 
         writer = create_writer(
-            dds_participant, "t/MotorControl", SurgicalRobot_MotorControl,
+            dds_participant,
+            "t/MotorControl",
+            SurgicalRobot_MotorControl,
             "DataFlowLibrary::Command",
         )
 
@@ -231,6 +242,7 @@ class TestArmMotorControl:
 # All apps — status reporting
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.gui
 class TestAllAppsStatus:
     """All five apps should report DeviceStatus ON when running."""
@@ -247,7 +259,7 @@ class TestAllAppsStatus:
     }
 
     def test_all_apps_report_status_on(self, proc_manager, dds_participant):
-        from Types import Common_DeviceStatus, Common
+        from Types import Common, Common_DeviceStatus
 
         proc_manager.start_cpp("PatientSensor")
         proc_manager.start_cpp("Orchestrator")
@@ -256,7 +268,9 @@ class TestAllAppsStatus:
         proc_manager.start_python("Arm.py", extra_env=self.QT_ENV)
 
         reader = create_reader(
-            dds_participant, "t/DeviceStatus", Common_DeviceStatus,
+            dds_participant,
+            "t/DeviceStatus",
+            Common_DeviceStatus,
             "DataFlowLibrary::Status",
         )
 
@@ -274,7 +288,117 @@ class TestAllAppsStatus:
                 break
             time.sleep(0.2)
 
-        assert len(devices_on) >= 4, (
-            f"Only {len(devices_on)} devices reported ON: {devices_on}. "
-            f"Expected at least 4."
+        assert len(devices_on) >= 4, f"Only {len(devices_on)} devices reported ON: {devices_on}. Expected at least 4."
+
+
+# ---------------------------------------------------------------------------
+# Content filter verification
+# ---------------------------------------------------------------------------
+
+
+class TestContentFilter:
+    """DeviceCommand content filters should route commands only to the targeted device."""
+
+    def test_patient_sensor_receives_own_command(self, proc_manager, dds_participant):
+        """PatientSensor should receive a command addressed to PATIENT_SENSOR."""
+        from Types import (
+            Common,
+            Common_DeviceStatus,
+            Orchestrator,
+            Orchestrator_DeviceCommand,
+        )
+
+        proc_manager.start_cpp("PatientSensor")
+
+        status_reader = create_reader(
+            dds_participant,
+            "t/DeviceStatus",
+            Common_DeviceStatus,
+            "DataFlowLibrary::Status",
+        )
+        cmd_writer = create_writer(
+            dds_participant,
+            "t/DeviceCommand",
+            Orchestrator_DeviceCommand,
+            "DataFlowLibrary::Command",
+        )
+
+        # Wait for PatientSensor to come online
+        samples = wait_for_data(status_reader, timeout_sec=10)
+        assert any(
+            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON for s in samples
+        ), "PatientSensor never reached ON"
+
+        # Send PAUSE addressed to PATIENT_SENSOR
+        cmd_writer.write(
+            Orchestrator_DeviceCommand(
+                device=Common.DeviceType.PATIENT_SENSOR,
+                command=Orchestrator.DeviceCommands.PAUSE,
+            )
+        )
+
+        # Verify PatientSensor transitioned to PAUSED
+        paused = False
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline and not paused:
+            for s in wait_for_data(status_reader, timeout_sec=1):
+                if s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.PAUSED:
+                    paused = True
+                    break
+        assert paused, "PatientSensor did not receive its own PAUSE command"
+
+    def test_patient_sensor_ignores_arm_command(self, proc_manager, dds_participant):
+        """PatientSensor should NOT react to a command addressed to ARM."""
+        from Types import (
+            Common,
+            Common_DeviceStatus,
+            Orchestrator,
+            Orchestrator_DeviceCommand,
+            PatientMonitor_Vitals,
+        )
+
+        proc_manager.start_cpp("PatientSensor")
+
+        status_reader = create_reader(
+            dds_participant,
+            "t/DeviceStatus",
+            Common_DeviceStatus,
+            "DataFlowLibrary::Status",
+        )
+        vitals_reader = create_reader(
+            dds_participant,
+            "t/Vitals",
+            PatientMonitor_Vitals,
+            "DataFlowLibrary::Streaming",
+        )
+        cmd_writer = create_writer(
+            dds_participant,
+            "t/DeviceCommand",
+            Orchestrator_DeviceCommand,
+            "DataFlowLibrary::Command",
+        )
+
+        # Wait for ON status and verify vitals are flowing
+        samples = wait_for_data(status_reader, timeout_sec=10)
+        assert any(
+            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON for s in samples
+        )
+        wait_for_data(vitals_reader, timeout_sec=5, min_count=1)
+
+        # Send PAUSE addressed to ARM — PatientSensor should ignore it
+        cmd_writer.write(
+            Orchestrator_DeviceCommand(
+                device=Common.DeviceType.ARM,
+                command=Orchestrator.DeviceCommands.PAUSE,
+            )
+        )
+
+        # Give time for any reaction and drain vitals
+        vitals_reader.take()
+        time.sleep(1.5)
+
+        # PatientSensor should still be publishing vitals (not paused)
+        fresh = wait_for_data(vitals_reader, timeout_sec=3.0, min_count=1)
+        assert len(fresh) >= 1, (
+            "PatientSensor stopped publishing vitals after a command addressed to ARM — content filter may be broken"
         )

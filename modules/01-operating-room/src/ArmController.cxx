@@ -27,11 +27,11 @@
 #include "Types.hpp"
 
 #ifdef __APPLE__
-#include "MacOsDockIcon.h"
+    #include "MacOsDockIcon.h"
 #endif
 
 #ifndef _WIN32
-#include <glib-unix.h>
+    #include <glib-unix.h>
 #endif
 
 using namespace DdsEntities::Constants;
@@ -63,16 +63,22 @@ public:
 #ifndef _WIN32
         // Route SIGINT/SIGTERM through the GLib main loop so GTK functions
         // can be called safely from the callback.
-        g_unix_signal_add(SIGINT, [](gpointer data) -> gboolean {
-            static_cast<SurgicalArmController *>(data)
-                    ->window_close_from_signal();
-            return G_SOURCE_REMOVE;
-        }, this);
-        g_unix_signal_add(SIGTERM, [](gpointer data) -> gboolean {
-            static_cast<SurgicalArmController *>(data)
-                    ->window_close_from_signal();
-            return G_SOURCE_REMOVE;
-        }, this);
+        g_unix_signal_add(
+                SIGINT,
+                [](gpointer data) -> gboolean {
+                    static_cast<SurgicalArmController *>(data)
+                            ->window_close_from_signal();
+                    return G_SOURCE_REMOVE;
+                },
+                this);
+        g_unix_signal_add(
+                SIGTERM,
+                [](gpointer data) -> gboolean {
+                    static_cast<SurgicalArmController *>(data)
+                            ->window_close_from_signal();
+                    return G_SOURCE_REMOVE;
+                },
+                this);
 #endif
 
         app->run(argc, const_cast<char **>(argv));
@@ -242,7 +248,8 @@ private:
         try {
             css_provider->load_from_path("ui/armcontroller.css");
         } catch (const Glib::Error &e) {
-            std::cerr << "Warning: could not load armcontroller.css: " << e.what() << std::endl;
+            std::cerr << "Warning: could not load armcontroller.css: "
+                      << e.what() << std::endl;
         }
         Gtk::StyleContext::add_provider_for_screen(
                 Gdk::Screen::get_default(),
@@ -257,20 +264,23 @@ private:
             Gtk::Box *hdr = nullptr;
             builder->get_widget<Gtk::Box>("header_bar", hdr);
             try {
-                auto pb = Gdk::Pixbuf::create_from_file("../../resource/images/rti_logo.png");
+                auto pb = Gdk::Pixbuf::create_from_file(
+                        "../../resource/images/rti_logo.png");
                 window->set_icon(pb);
 #ifdef __APPLE__
                 set_macos_dock_icon(pb);
 #endif
                 if (hdr) {
-                    auto scaled = pb->scale_simple(56, 56, Gdk::INTERP_BILINEAR);
+                    auto scaled =
+                            pb->scale_simple(56, 56, Gdk::INTERP_BILINEAR);
                     auto *logo = Gtk::manage(new Gtk::Image(scaled));
                     logo->set_visible(true);
                     logo->set_margin_end(8);
                     hdr->pack_start(*logo, false, false, 0);
                     hdr->reorder_child(*logo, 0);
                 }
-            } catch (...) {}
+            } catch (...) {
+            }
         }
 
         window->signal_delete_event().connect(
@@ -333,60 +343,57 @@ private:
 
     // Connect buttons to their respective signal handlers.
     // INC/DEC buttons:
-    //   - On press: deactivate AUTO for that joint, send one command immediately,
+    //   - On press: deactivate AUTO for that joint, send one command
+    //   immediately,
     //     then repeat at 20 Hz (every 50 ms) while held.
     //   - On release: stop repeating.
     //   - AUTO / PLAY ALL can re-enable automatic mode.
     void connect_buttons(const Glib::RefPtr<Gtk::Builder> &builder)
     {
-        auto connect_inc_dec =
-                [this, &builder](
-                        const std::string &btn_name,
-                        SurgicalRobot::Motors motor,
-                        SurgicalRobot::MotorDirections direction) {
-                    Gtk::Button *button = nullptr;
-                    builder->get_widget<Gtk::Button>(btn_name, button);
-                    if (!button)
-                        return;
+        auto connect_inc_dec = [this, &builder](
+                                       const std::string &btn_name,
+                                       SurgicalRobot::Motors motor,
+                                       SurgicalRobot::MotorDirections
+                                               direction) {
+            Gtk::Button *button = nullptr;
+            builder->get_widget<Gtk::Button>(btn_name, button);
+            if (!button)
+                return;
 
-                    button->signal_button_press_event().connect(
-                            [this, motor, direction, btn_name](
-                                    GdkEventButton *ev) -> bool {
-                                if (ev->button == 1) {
-                                    // Deactivate AUTO for this joint
-                                    motor_play_btns[motor]->set_active(false);
-                                    // Send one command right away
-                                    write_command(motor, direction);
-                                    // Start 20 Hz repeat timer
-                                    inc_dec_timers[btn_name] =
-                                            Glib::signal_timeout().connect(
-                                                    [this,
-                                                     motor,
-                                                     direction]() -> bool {
-                                                        write_command(
-                                                                motor,
-                                                                direction);
-                                                        return true;
-                                                    },
-                                                    50);
-                                }
-                                return false;
-                            },
-                            false);
+            button->signal_button_press_event().connect(
+                    [this, motor, direction, btn_name](
+                            GdkEventButton *ev) -> bool {
+                        if (ev->button == 1) {
+                            // Deactivate AUTO for this joint
+                            motor_play_btns[motor]->set_active(false);
+                            // Send one command right away
+                            write_command(motor, direction);
+                            // Start 20 Hz repeat timer
+                            inc_dec_timers[btn_name] =
+                                    Glib::signal_timeout().connect(
+                                            [this, motor, direction]() -> bool {
+                                                write_command(motor, direction);
+                                                return true;
+                                            },
+                                            50);
+                        }
+                        return false;
+                    },
+                    false);
 
-                    button->signal_button_release_event().connect(
-                            [this, btn_name](GdkEventButton *ev) -> bool {
-                                if (ev->button == 1) {
-                                    auto it = inc_dec_timers.find(btn_name);
-                                    if (it != inc_dec_timers.end()) {
-                                        it->second.disconnect();
-                                        inc_dec_timers.erase(it);
-                                    }
-                                }
-                                return false;
-                            },
-                            false);
-                };
+            button->signal_button_release_event().connect(
+                    [this, btn_name](GdkEventButton *ev) -> bool {
+                        if (ev->button == 1) {
+                            auto it = inc_dec_timers.find(btn_name);
+                            if (it != inc_dec_timers.end()) {
+                                it->second.disconnect();
+                                inc_dec_timers.erase(it);
+                            }
+                        }
+                        return false;
+                    },
+                    false);
+        };
 
         connect_inc_dec(
                 "base_inc",

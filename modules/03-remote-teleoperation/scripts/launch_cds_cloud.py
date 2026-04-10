@@ -23,8 +23,10 @@ if __name__ == "__main__":
     subprocess.run(
         [
             cds_bin,
-            "-cfgFile", "./xml_config/CdsConfigCloud.xml",
-            "-cfgName", cfg_name,
+            "-cfgFile",
+            "./xml_config/CdsConfigCloud.xml",
+            "-cfgName",
+            cfg_name,
         ],
         check=True,
     )

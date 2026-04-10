@@ -7,7 +7,7 @@ from pathlib import Path
 # Add system_arch/scripts/ to the import path for platform_setup
 _SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPT_DIR / ".." / ".." / ".." / "system_arch" / "scripts"))
-import platform_setup
+import platform_setup  # noqa: E402
 
 _SYSTEM_ARCH = Path("../../system_arch")
 

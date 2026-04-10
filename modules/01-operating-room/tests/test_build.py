@@ -9,13 +9,12 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from conftest import MODULE_DIR, SRC_DIR
-
 
 # ---------------------------------------------------------------------------
 # Build
 # ---------------------------------------------------------------------------
+
 
 class TestBuild:
     """Validate the CMake build pipeline."""
@@ -27,9 +26,7 @@ class TestBuild:
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 0, (
-            f"CMake configure failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
+        assert result.returncode == 0, f"CMake configure failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
 
     def test_cmake_build_succeeds(self):
         """cmake --build build exits cleanly."""
@@ -38,9 +35,7 @@ class TestBuild:
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 0, (
-            f"CMake build failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
+        assert result.returncode == 0, f"CMake build failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
 
     @pytest.mark.parametrize("binary", ["PatientSensor", "Orchestrator", "ArmController"])
     def test_binary_exists(self, binary: str):
@@ -52,6 +47,7 @@ class TestBuild:
 # ---------------------------------------------------------------------------
 # Generated types
 # ---------------------------------------------------------------------------
+
 
 class TestPythonTypes:
     """Validate that rtiddsgen-generated Python types are importable."""
@@ -66,11 +62,11 @@ class TestPythonTypes:
             sys.path.insert(0, str(SRC_DIR))
 
         from Types import (
-            Common_DeviceStatus,
             Common_DeviceHeartbeat,
-            SurgicalRobot_MotorControl,
+            Common_DeviceStatus,
             Orchestrator_DeviceCommand,
             PatientMonitor_Vitals,
+            SurgicalRobot_MotorControl,
         )
 
         # Smoke-check that we can instantiate them
@@ -81,3 +77,95 @@ class TestPythonTypes:
         vitals = PatientMonitor_Vitals()
         assert hasattr(vitals, "hr")
         assert hasattr(vitals, "spo2")
+
+
+# ---------------------------------------------------------------------------
+# Type instantiation and enum validation
+# ---------------------------------------------------------------------------
+
+
+class TestTypeInstantiation:
+    """All generated DDS types should be instantiable with default values."""
+
+    @pytest.fixture(autouse=True)
+    def _setup_path(self):
+        if str(SRC_DIR) not in sys.path:
+            sys.path.insert(0, str(SRC_DIR))
+
+    def test_device_status_fields(self):
+        from Types import Common_DeviceStatus
+
+        s = Common_DeviceStatus()
+        assert hasattr(s, "device")
+        assert hasattr(s, "status")
+
+    def test_device_heartbeat_fields(self):
+        from Types import Common_DeviceHeartbeat
+
+        h = Common_DeviceHeartbeat()
+        assert hasattr(h, "device")
+
+    def test_motor_control_fields(self):
+        from Types import SurgicalRobot_MotorControl
+
+        m = SurgicalRobot_MotorControl()
+        assert hasattr(m, "id")
+        assert hasattr(m, "direction")
+
+    def test_device_command_fields(self):
+        from Types import Orchestrator_DeviceCommand
+
+        c = Orchestrator_DeviceCommand()
+        assert hasattr(c, "device")
+        assert hasattr(c, "command")
+
+    def test_vitals_fields(self):
+        from Types import PatientMonitor_Vitals
+
+        v = PatientMonitor_Vitals()
+        for field in ("patient_id", "hr", "spo2", "etco2", "nibp_s", "nibp_d"):
+            assert hasattr(v, field), f"Vitals missing field: {field}"
+
+
+class TestEnumMembers:
+    """Generated enum types should have the expected members."""
+
+    @pytest.fixture(autouse=True)
+    def _setup_path(self):
+        if str(SRC_DIR) not in sys.path:
+            sys.path.insert(0, str(SRC_DIR))
+
+    def test_device_type_enum(self):
+        from Types import Common
+
+        expected = {"ARM_CONTROLLER", "ARM", "VIDEO_PUB", "VIDEO_SUB", "PATIENT_MONITOR", "PATIENT_SENSOR"}
+        actual = {e.name for e in Common.DeviceType}
+        assert expected <= actual
+
+    def test_device_statuses_enum(self):
+        from Types import Common
+
+        expected = {"ON", "OFF", "PAUSED", "ERROR"}
+        actual = {e.name for e in Common.DeviceStatuses}
+        assert expected == actual
+
+    def test_device_commands_enum(self):
+        from Types import Orchestrator
+
+        expected = {"START", "SHUTDOWN", "PAUSE"}
+        actual = {e.name for e in Orchestrator.DeviceCommands}
+        assert expected == actual
+
+    def test_motors_enum(self):
+        from Types import SurgicalRobot
+
+        expected = {"BASE", "SHOULDER", "ELBOW", "WRIST", "HAND"}
+        actual = {e.name for e in SurgicalRobot.Motors}
+        assert expected == actual
+
+    def test_motor_directions_enum(self):
+        from Types import SurgicalRobot
+
+        expected = {"STATIONARY", "INCREMENT", "DECREMENT"}
+        actual = {e.name for e in SurgicalRobot.MotorDirections}
+        assert expected == actual

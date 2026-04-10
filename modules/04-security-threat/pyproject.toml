@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "gui: test requires a graphical display",
+    "slow: long-running scenario",
+]
+addopts = "-rs"

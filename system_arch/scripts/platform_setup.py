@@ -18,11 +18,7 @@ def parse_security_flag(argv: "list[str] | None" = None) -> bool:
         return False
     if args[0] == "-s":
         return True
-    print(
-        f"Unknown argument: {args[0]}. "
-        "Use -s to run with Security. "
-        "Don't use any argument to run without security."
-    )
+    print(f"Unknown argument: {args[0]}. Use -s to run with Security. Don't use any argument to run without security.")
     sys.exit(1)
 
 
@@ -31,8 +27,7 @@ def check_nddshome() -> Path:
     nddshome = os.environ.get("NDDSHOME")
     if not nddshome:
         print(
-            "Error: NDDSHOME must be set.\n"
-            "  export NDDSHOME=/path/to/rti_connext_dds-<version>",
+            "Error: NDDSHOME must be set.\n  export NDDSHOME=/path/to/rti_connext_dds-<version>",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -40,6 +35,7 @@ def check_nddshome() -> Path:
 
 
 # -- Library discovery -------------------------------------------------------
+
 
 def _find_connext_lib(nddshome: Path) -> "Path | None":
     """Return the first Connext lib/ directory that contains the core C lib."""
@@ -85,6 +81,7 @@ def setup_library_env(env: dict, nddshome: Path) -> None:
 
 # -- Executable / service binary location ------------------------------------
 
+
 def find_executable(name: str, build_dir: Path = Path("build")) -> str:
     """Locate a compiled C++ executable, accounting for platform differences.
 
@@ -115,6 +112,7 @@ def find_service_binary(name: str) -> str:
 
 # -- OpenSSL discovery -------------------------------------------------------
 
+
 def find_openssl() -> "tuple[str, dict]":
     """Locate the OpenSSL binary bundled with RTI Connext.
 
@@ -123,8 +121,8 @@ def find_openssl() -> "tuple[str, dict]":
     its own ``libssl``/``libcrypto``.
     """
     nddshome = check_nddshome()
-    openssl_bin: "Path | None" = None
-    openssl_lib: "Path | None" = None
+    openssl_bin: Path | None = None
+    openssl_lib: Path | None = None
 
     for arch_dir in sorted(nddshome.glob("third_party/openssl-*/*")):
         candidate = arch_dir / "release" / "bin" / "openssl"
@@ -136,11 +134,20 @@ def find_openssl() -> "tuple[str, dict]":
             break
 
     if openssl_bin is None:
-        print(
-            f"Error: Could not find OpenSSL under {nddshome}/third_party/",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        # Fall back to system OpenSSL (e.g., on CI where the apt Connext
+        # package may not include the bundled OpenSSL binary).
+        import shutil
+
+        system_openssl = shutil.which("openssl")
+        if system_openssl:
+            openssl_bin = Path(system_openssl)
+            print(f"Warning: bundled OpenSSL not found; using system: {openssl_bin}", file=sys.stderr)
+        else:
+            print(
+                f"Error: Could not find OpenSSL under {nddshome}/third_party/ or on PATH",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     print(f"Using OpenSSL: {openssl_bin}")
 

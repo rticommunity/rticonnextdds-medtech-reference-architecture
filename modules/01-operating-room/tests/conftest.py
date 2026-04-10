@@ -18,8 +18,8 @@ import pytest
 # ---------------------------------------------------------------------------
 # Path bootstrapping — mirror what the launch scripts do
 # ---------------------------------------------------------------------------
-MODULE_DIR = Path(__file__).resolve().parent.parent          # modules/01-operating-room
-REPO_ROOT = MODULE_DIR.parent.parent                         # repo root
+MODULE_DIR = Path(__file__).resolve().parent.parent  # modules/01-operating-room
+REPO_ROOT = MODULE_DIR.parent.parent  # repo root
 SCRIPTS_DIR = MODULE_DIR / "scripts"
 SRC_DIR = MODULE_DIR / "src"
 SYSTEM_ARCH_DIR = REPO_ROOT / "system_arch"
@@ -30,11 +30,12 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(SYSTEM_ARCH_DIR / "scripts"))
 
 import platform_setup  # noqa: E402
-import xml_setup       # noqa: E402
+import xml_setup  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Auto-skip helpers for custom markers
 # ---------------------------------------------------------------------------
+
 
 def _has_display() -> bool:
     """Return True when a graphical display is likely available."""
@@ -53,24 +54,60 @@ def _security_artifacts_exist() -> bool:
     return any(signed_dir.glob("*.p7s"))
 
 
+def _security_plugin_available() -> bool:
+    """Return True when the DDS Security plugin is fully usable.
+
+    Requires:
+    1. ``libnddssecurity`` shared library
+    2. Bundled OpenSSL ``release/lib`` directory
+    3. A valid ``rti_license.dat`` in NDDSHOME (Security Plugins are
+       a licensed feature).
+    """
+    nddshome = os.environ.get("NDDSHOME")
+    if not nddshome:
+        return False
+    nddshome_path = Path(nddshome)
+    has_plugin = bool(list(nddshome_path.glob("lib/*/libnddssecurity.*")))
+    has_openssl = any((arch / "release" / "lib").is_dir() for arch in nddshome_path.glob("third_party/openssl-*/*"))
+    has_license = (nddshome_path / "rti_license.dat").is_file() and (
+        (nddshome_path / "rti_license.dat").stat().st_size > 0
+    )
+    return has_plugin and has_openssl and has_license
+
+
 def pytest_collection_modifyitems(config, items):
-    """Auto-skip tests based on environment capabilities."""
-    skip_gui = pytest.mark.skip(reason="No graphical display available")
-    skip_sec = pytest.mark.skip(reason="Security artifacts not generated (run setup_security.py)")
+    """Fail tests when prerequisites are missing instead of silently skipping."""
+    fail_gui = pytest.mark.xfail(
+        reason="No graphical display available (need DISPLAY or WAYLAND_DISPLAY)",
+        strict=True,
+        run=False,
+    )
+    fail_sec_artifacts = pytest.mark.xfail(
+        reason="Security artifacts not generated (run setup_security.py)",
+        strict=True,
+        run=False,
+    )
+    fail_sec_plugin = pytest.mark.xfail(
+        reason="DDS Security plugin not fully installed (need libnddssecurity, OpenSSL, rti_license.dat)",
+        strict=True,
+        run=False,
+    )
 
     has_display = _has_display()
-    has_security = _security_artifacts_exist()
 
     for item in items:
         if "gui" in item.keywords and not has_display:
-            item.add_marker(skip_gui)
-        if "secure" in item.keywords and not has_security:
-            item.add_marker(skip_sec)
+            item.add_marker(fail_gui)
+        if "secure" in item.keywords and not _security_artifacts_exist():
+            item.add_marker(fail_sec_artifacts)
+        elif "secure" in item.keywords and not _security_plugin_available():
+            item.add_marker(fail_sec_plugin)
 
 
 # ---------------------------------------------------------------------------
 # Environment fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="session")
 def dds_env():
@@ -93,12 +130,15 @@ def dds_env_secure():
         env = xml_setup.setup_env(security=True)
     finally:
         os.chdir(original_cwd)
+    # Use absolute path so DDS file: URLs resolve regardless of CWD
+    env["RTI_SECURITY_ARTIFACTS_DIR"] = str(SECURITY_DIR)
     return env
 
 
 # ---------------------------------------------------------------------------
 # Process management
 # ---------------------------------------------------------------------------
+
 
 class ProcessManager:
     """Launch and track child processes, ensuring cleanup on teardown."""
@@ -174,6 +214,7 @@ def proc_manager_secure(dds_env_secure):
 # DDS helpers
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def dds_participant(dds_env):
     """Create a lightweight DDS DomainParticipant for test observation.
@@ -187,9 +228,7 @@ def dds_participant(dds_env):
     os.environ["NDDS_QOS_PROFILES"] = dds_env["NDDS_QOS_PROFILES"]
 
     provider = dds.QosProvider.default
-    participant_qos = provider.participant_qos_from_profile(
-        "DpQosLib::Test"
-    )
+    participant_qos = provider.participant_qos_from_profile("DpQosLib::Test")
     participant = dds.DomainParticipant(domain_id=0, qos=participant_qos)
     yield participant
     participant.close()
@@ -217,7 +256,7 @@ def run_dds_subscriber_secure(
     (or values of *extract_field* if specified).
     """
     script = f"""\
-import sys, time, json
+import sys, os, time, json
 sys.path.insert(0, "src")
 import rti.connextdds as dds
 from Types import {type_class}, idl
@@ -238,7 +277,7 @@ deadline = time.monotonic() + {timeout_sec}
 while time.monotonic() < deadline and len(collected) < {min_count}:
     for s in reader.take():
         if s.info.valid:
-            val = getattr(s.data, "{extract_field or ''}") if "{extract_field or ''}" else str(s.data)
+            val = getattr(s.data, "{extract_field or ""}") if "{extract_field or ""}" else str(s.data)
             collected.append(str(val))
     if len(collected) < {min_count}:
         time.sleep(0.1)
@@ -246,9 +285,25 @@ while time.monotonic() < deadline and len(collected) < {min_count}:
 participant.close()
 print(json.dumps(collected))
 """
+    # The pip rti.connext package bundles its own libnddsc.so (loaded via RPATH),
+    # which may lack trust-plugin symbols needed by the system-installed
+    # libnddssecurity.so.  LD_PRELOAD forces the system Connext core library
+    # so that dlopen("libnddssecurity.so") can resolve all symbols.
+    sub_env = dict(dds_env_secure)
+    nddshome = os.environ.get("NDDSHOME", "")
+    if nddshome and sys.platform == "linux":
+        nddshome_path = Path(nddshome)
+        preload_libs = []
+        for lib_name in ("libnddsc.so", "libnddscpp2.so"):
+            candidates = list(nddshome_path.glob(f"lib/*/{lib_name}"))
+            if candidates:
+                preload_libs.append(str(candidates[0]))
+        if preload_libs:
+            sub_env["LD_PRELOAD"] = ":".join(preload_libs)
+
     result = subprocess.run(
         [sys.executable, "-c", script],
-        env=dds_env_secure,
+        env=sub_env,
         cwd=MODULE_DIR,
         capture_output=True,
         text=True,
@@ -256,11 +311,17 @@ print(json.dumps(collected))
     )
     if result.returncode != 0:
         raise RuntimeError(
-            f"Secure DDS subscriber subprocess failed "
-            f"(exit {result.returncode}):\n{result.stderr}"
+            f"Secure DDS subscriber subprocess failed (exit {result.returncode}):\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         )
     import json
-    return json.loads(result.stdout.strip())
+
+    # DDS security may print warnings to stdout after our JSON line.
+    # Extract only lines that look like JSON arrays.
+    lines = [line for line in result.stdout.strip().splitlines() if line.startswith("[")]
+    if not lines:
+        raise RuntimeError(f"No JSON output from secure subscriber.\nstdout: {result.stdout}\nstderr: {result.stderr}")
+    return json.loads(lines[0])
 
 
 def wait_for_data(reader, timeout_sec: float = 5.0, min_count: int = 1):

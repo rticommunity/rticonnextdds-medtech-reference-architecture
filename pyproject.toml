@@ -1,0 +1,26 @@
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+# Only lint test infrastructure and CI files; exclude pre-existing application source
+extend-exclude = [
+    "modules/01-operating-room/src/",
+    "modules/01-operating-room/scripts/",
+    "modules/04-security-threat/src/",
+    "modules/04-security-threat/scripts/",
+    "modules/04-security-threat/security/",
+    "system_arch/",
+    "resource/",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort
+    "UP",  # pyupgrade
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test files may have unused imports for readability
+"**/tests/*.py" = ["F401"]

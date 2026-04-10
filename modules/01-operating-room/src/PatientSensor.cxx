@@ -28,9 +28,12 @@
 
 using namespace DdsEntities::Constants;
 
-static std::atomic<bool> g_shutdown{false};
+static std::atomic<bool> g_shutdown { false };
 
-static void handle_signal(int) { g_shutdown = true; }
+static void handle_signal(int)
+{
+    g_shutdown = true;
+}
 
 class PatientSensor {
 public:
@@ -97,7 +100,8 @@ public:
         write_status(status_writer);
 
         // Main loop
-        while (!g_shutdown && current_status.status() != Common::DeviceStatuses::OFF) {
+        while (!g_shutdown
+               && current_status.status() != Common::DeviceStatuses::OFF) {
             try {
                 waitset_command.dispatch(dds::core::Duration(1));
             } catch (const dds::core::Error &) {

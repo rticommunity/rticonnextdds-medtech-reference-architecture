@@ -18,8 +18,10 @@ if __name__ == "__main__":
     subprocess.run(
         [
             rs_bin,
-            "-cfgFile", "./xml_config/RsConfigActive.xml",
-            "-cfgName", "RsConfigActive",
+            "-cfgFile",
+            "./xml_config/RsConfigActive.xml",
+            "-cfgName",
+            "RsConfigActive",
         ],
         env=env,
         check=True,

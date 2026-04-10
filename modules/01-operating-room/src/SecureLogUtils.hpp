@@ -30,59 +30,63 @@ using namespace DdsEntities::Constants;
 namespace SecureLogUtils {
 
 using SecureLogType = DDSSecurity::BuiltinLoggingTypeV2;
-using SecureLogHandler = std::function<void(const SecureLogType&)>;
-using SecureLogReader = std::pair<dds::sub::DataReader<SecureLogType>, rti::sub::SampleProcessor>;
+using SecureLogHandler = std::function<void(const SecureLogType &)>;
+using SecureLogReader = std::
+        pair<dds::sub::DataReader<SecureLogType>, rti::sub::SampleProcessor>;
 
-bool is_secure(const dds::domain::DomainParticipant& participant)
+bool is_secure(const dds::domain::DomainParticipant &participant)
 {
     if (participant == dds::core::null) {
-        throw std::runtime_error("Participant must be created to determine if secure.");
+        throw std::runtime_error(
+                "Participant must be created to determine if secure.");
     }
-    return participant.qos().policy<rti::core::policy::Property>().exists("com.rti.serv.load_plugin");
+    return participant.qos().policy<rti::core::policy::Property>().exists(
+            "com.rti.serv.load_plugin");
 }
 
 SecureLogReader setup_secure_log_reader(
-    SecureLogHandler log_handler,
-    dds::core::QosProvider qos_provider = dds::core::QosProvider::Default()
-)
+        SecureLogHandler log_handler,
+        dds::core::QosProvider qos_provider = dds::core::QosProvider::Default())
 {
     try {
         rti::domain::register_type<SecureLogType>();
-    } catch (const std::exception& e) {
-        std::cerr << "Failed to register internal secure logging type: " << e.what() << std::endl;
+    } catch (const std::exception &e) {
+        std::cerr << "Failed to register internal secure logging type: "
+                  << e.what() << std::endl;
     }
 
     // Initialize Participant
     dds::domain::DomainParticipant securelog_participant =
-        qos_provider.extensions().create_participant_from_config(
-                SECURELOG_READER_DP);
+            qos_provider.extensions().create_participant_from_config(
+                    SECURELOG_READER_DP);
     if (securelog_participant == dds::core::null) {
-        throw std::runtime_error("Failed to lookup secure log reader participant");
+        throw std::runtime_error(
+                "Failed to lookup secure log reader participant");
     }
 
     // Initialize DataReader
-    dds::sub::DataReader<SecureLogType> securelog_reader = 
-        rti::sub::find_datareader_by_name<
-            dds::sub::DataReader<SecureLogType>>(
-                securelog_participant,
-                SECURELOG_DR);
+    dds::sub::DataReader<SecureLogType> securelog_reader =
+            rti::sub::find_datareader_by_name<
+                    dds::sub::DataReader<SecureLogType>>(
+                    securelog_participant,
+                    SECURELOG_DR);
     if (securelog_reader == dds::core::null) {
-        throw std::runtime_error("Failed to lookup secure log reader datareader");
+        throw std::runtime_error(
+                "Failed to lookup secure log reader datareader");
     }
 
     rti::sub::SampleProcessor securelog_processor;
     securelog_processor.attach_reader(
-        securelog_reader,
-        [log_handler](const rti::sub::LoanedSample<SecureLogType>&sample) {
-            if (sample.info().valid()) {
-                log_handler(sample.data());
-            }
-        }
-    );
+            securelog_reader,
+            [log_handler](const rti::sub::LoanedSample<SecureLogType> &sample) {
+                if (sample.info().valid()) {
+                    log_handler(sample.data());
+                }
+            });
 
-    return {securelog_reader, securelog_processor};
+    return { securelog_reader, securelog_processor };
 }
 
 }  // namespace SecureLogUtils
 
-#endif // SECURE_LOG_UTILS_H
+#endif  // SECURE_LOG_UTILS_H
