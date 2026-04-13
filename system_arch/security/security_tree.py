@@ -6,6 +6,8 @@ domain scopes, and identity modules of a DDS security system, plus
 :meth:`SecurityTree.generate_artifacts` for artifact generation.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from fnmatch import fnmatch

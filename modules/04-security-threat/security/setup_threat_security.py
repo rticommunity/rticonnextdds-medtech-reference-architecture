@@ -179,6 +179,7 @@ def main():
         scaffold_tree(SECURITY_TREE, root=MODULE_SECURITY_DIR,
                       templates_dir=MAIN_SECURITY_DIR / "templates",
                       strict=args.strict)
+        print(f"Security directory tree scaffolded under {MODULE_SECURITY_DIR}")
     else:
         SECURITY_TREE.generate_artifacts(
             root=MODULE_SECURITY_DIR, force=args.force, strict=args.strict)
@@ -206,6 +207,8 @@ def main():
                 issuer_cwd=MAIN_SECURITY_DIR / "ca" / "TrustedIdentityCa",
                 force=args.force,
             )
+
+        print(f"Threat security artifacts generated!")
 
 
 if __name__ == "__main__":

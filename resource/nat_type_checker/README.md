@@ -5,7 +5,7 @@ with the IP address seen by a STUN server.
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.9+
 - `requests` library
 - `pystun3` library
 

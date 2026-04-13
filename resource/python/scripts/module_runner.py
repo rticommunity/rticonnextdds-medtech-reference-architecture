@@ -23,6 +23,8 @@ The runner loads this config, resolves all placeholders, builds the
 process environment, and manages application lifecycles.
 """
 
+from __future__ import annotations
+
 import json
 import os
 import re

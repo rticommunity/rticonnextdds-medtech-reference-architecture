@@ -59,7 +59,7 @@ You will need:
 
   > If `NDDSHOME` is not already in your environment, source the platform setup script from your Connext installation: `source <connext_dir>/resource/scripts/rtisetenv_<arch>.bash` (Linux/macOS) or `rtisetenv_<arch>.bat` (Windows). This script sets `NDDSHOME`, `CONNEXTDDS_ARCH`, and related library paths required by both `build.py` and `launch.py`.
 - **CMake** ≥ 3.17 and a C++ compiler toolchain.
-- **Python** ≥ 3.10.
+- **Python** ≥ 3.9.
 
 **Make sure you run [Hands-On 1: Your First DataWriter and DataReader](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/getting_started_guide/python/intro_pubsub_python.html#hands-on-1-your-first-datawriter-and-datareader) from the Getting Started Guide to confirm that the Python API works.**
 

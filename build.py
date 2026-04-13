@@ -10,6 +10,8 @@ Usage:
     python3 build.py --target module-01       # build all Module 01 targets
 """
 
+from __future__ import annotations
+
 import platform
 import subprocess
 import sys

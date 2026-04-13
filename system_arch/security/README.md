@@ -4,7 +4,7 @@ This directory contains the DDS Security PKI infrastructure, governance, permiss
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.9+
 - OpenSSL (available on PATH)
 - [RTI Security Plugins](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/installation_guide/security_plugins/installation_guide/SecurityPluginsInstallationTitle.htm) installed
 

@@ -5,6 +5,8 @@ path setup (DYLD_LIBRARY_PATH / LD_LIBRARY_PATH / PATH), compiled
 executable location, and RTI service binary location.
 """
 
+from __future__ import annotations
+
 import os
 import platform
 import sys

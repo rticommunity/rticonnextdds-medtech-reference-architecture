@@ -210,9 +210,11 @@ def main():
         SECURITY_TREE.check_status(root=SECURITY_DIR, warn_days=args.warn_days)
     elif args.scaffold:
         scaffold_tree(SECURITY_TREE, root=SECURITY_DIR, strict=args.strict)
+        print(f"Security directory tree scaffolded under {SECURITY_DIR}")
     else:
         SECURITY_TREE.generate_artifacts(
             root=SECURITY_DIR, force=args.force, strict=args.strict)
+        print(f"Security artifacts generated!")
 
 
 if __name__ == "__main__":

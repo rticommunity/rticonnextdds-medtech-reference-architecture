@@ -24,8 +24,12 @@ workflow operations; each groups one or more primitives:
     (p)   generate_psk_seed         random PSK passphrase seed
 """
 
+from __future__ import annotations
+
 import base64
 import logging
+import os
+import platform
 import secrets
 import shutil
 import subprocess
@@ -42,11 +46,43 @@ CA_CERT_VALIDITY_DAYS = 7300
 IDENTITY_CERT_VALIDITY_DAYS = 730
 EC_CURVE = "prime256v1"
 
-_openssl = shutil.which("openssl")
+
+def _find_openssl() -> str | None:
+    """Locate the OpenSSL binary, preferring the one bundled with Connext."""
+    nddshome = os.environ.get("NDDSHOME")
+    if nddshome:
+        suffix = ".exe" if platform.system() == "Windows" else ""
+        for candidate in sorted(
+            Path(nddshome).glob(f"third_party/openssl-*/*/release/bin/openssl{suffix}"),
+            reverse=True,
+        ):
+            if candidate.is_file():
+                log.info("Using Connext-bundled OpenSSL: %s", candidate)
+                return str(candidate)
+    return shutil.which("openssl")
+
+
+_openssl = _find_openssl()
 
 # ===========================================================================
 # Layer 1 — Primitives
 # ===========================================================================
+
+
+def _openssl_env() -> dict | None:
+    """Build an env dict with library paths for the bundled OpenSSL, if needed."""
+    if not _openssl:
+        return None
+    openssl_bin = Path(_openssl)
+    lib_dir = openssl_bin.parent.parent / "lib"
+    if not lib_dir.is_dir():
+        return None
+    env = os.environ.copy()
+    system = platform.system()
+    var = "DYLD_LIBRARY_PATH" if system == "Darwin" else (
+        "PATH" if system == "Windows" else "LD_LIBRARY_PATH")
+    env[var] = str(lib_dir) + os.pathsep + env.get(var, "")
+    return env
 
 
 def openssl_run(args: list[str], **kwargs) -> subprocess.CompletedProcess:
@@ -56,6 +92,10 @@ def openssl_run(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     kwargs.setdefault("check", True)
     kwargs.setdefault("stdout", subprocess.PIPE)
     kwargs.setdefault("stderr", subprocess.PIPE)
+    if "env" not in kwargs:
+        env = _openssl_env()
+        if env:
+            kwargs["env"] = env
     log.debug("openssl %s", " ".join(str(a) for a in args))
     result = subprocess.run([_openssl, *args], **kwargs)
     if result.stderr:
