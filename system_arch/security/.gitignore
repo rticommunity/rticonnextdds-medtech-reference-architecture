@@ -1,0 +1,22 @@
+# Generated security artifacts — re-run setup_security.py to regenerate.
+# Committed files: *.cnf, *.xml (unsigned), *.j2 templates, *.py scripts.
+
+# CA state and generated files (keys, certs, CRLs)
+ca/*/index.txt
+ca/*/index.txt.*
+ca/*/serial
+ca/*/serial.*
+ca/*/private/
+ca/*/certs/
+ca/*/newcerts/
+ca/*/requests/
+
+# Signed governance and permissions (.p7s)
+domain_scope/**/signed/
+
+# Identity keys and certificates
+identity/**/private/
+identity/**/certs/
+
+# Scaffold hash sidecar
+.scaffold-hash

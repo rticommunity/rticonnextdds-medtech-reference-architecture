@@ -1,196 +1,225 @@
 #!/usr/bin/env python3
 """Generate DDS Security artifacts for the reference architecture.
 
-Run from the ``system_arch/security/`` directory::
+Usage::
 
-    cd system_arch/security
+    # Generate all security artifacts (keys, certs, signed XML)
     python3 setup_security.py
+
+    # Re-generate even if artifacts already exist
+    python3 setup_security.py --force
+
+    # (Maintainer-only) Scaffold the directory tree from templates.
+    # Run this once when adding new CAs, identities, or domain scopes,
+    # then hand-edit the generated config/XML files as needed before
+    # committing them to the repo.
+    python3 setup_security.py --scaffold
 
 Prerequisite: ``NDDSHOME`` must be set to the Connext installation path.
 """
 
-import os
+import argparse
+import logging
 import subprocess
-import sys
-import tempfile
 from pathlib import Path
 
-# Add system_arch/scripts/ to the import path for platform_setup
-_SCRIPT_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(_SCRIPT_DIR / ".." / "scripts"))
-import platform_setup
+from security_tree import (
+    CA,
+    App,
+    DomainScope,
+    Governance,
+    Identity,
+    Module,
+    Permissions,
+    PskSeed,
+    SecurityTree,
+    detect_connext_version,
+    scaffold_tree,
+)
 
-
-def _run(cmd: "list[str]", env: dict) -> None:
-    subprocess.run(cmd, env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-
-# ---------------------------------------------------------------------------
-# Certificate generation helpers
-# ---------------------------------------------------------------------------
-
-def generate_identities(
-    openssl: str,
-    env: dict,
-    identity_ext: str,
-    module: str,
-    participants: "list[str]",
-) -> None:
-    """Generate private keys and CA-signed identity certs for *participants*."""
-    for participant in participants:
-        base = f"identities/{module}/{participant}/{participant}"
-        _run(
-            [
-                openssl, "req", "-nodes", "-new", "-newkey", "rsa:2048",
-                "-config", f"{base}.cnf",
-                "-keyout", f"{base}PrivateKey.pem",
-                "-out", f"{base}.csr",
-            ],
-            env,
-        )
-        _run(
-            [
-                openssl, "x509", "-req", "-days", "730", "-text",
-                "-CAcreateserial",
-                "-extfile", identity_ext,
-                "-CA", "ca/CaIdentity.pem",
-                "-CAkey", "ca/private/CaPrivateKey.pem",
-                "-in", f"{base}.csr",
-                "-out", f"{base}Identity.pem",
-            ],
-            env,
-        )
-
-
-def sign_xmls(openssl: str, env: dict, xml_names: "list[str]") -> None:
-    """Sign Governance and Permissions XMLs with S/MIME."""
-    for xml in xml_names:
-        basename = Path(xml).name
-        _run(
-            [
-                openssl, "smime", "-sign",
-                "-in", f"xml/{xml}.xml",
-                "-text",
-                "-out", f"xml/signed/Signed{basename}.p7s",
-                "-signer", "ca/CaIdentity.pem",
-                "-inkey", "ca/private/CaPrivateKey.pem",
-            ],
-            env,
-        )
-
+SECURITY_DIR = Path(__file__).parent.resolve()
 
 # ---------------------------------------------------------------------------
-# Main
+# Certificate authorities
 # ---------------------------------------------------------------------------
 
-def main() -> None:
-    openssl, env = platform_setup.find_openssl()
+TRUSTED_ROOT_CA = CA(name="TrustedRootCa")
+TRUSTED_PERMISSIONS_CA = CA(name="TrustedPermissionsCa", issuer=TRUSTED_ROOT_CA)
+TRUSTED_IDENTITY_CA = CA(name="TrustedIdentityCa", issuer=TRUSTED_ROOT_CA)
 
-    # Temporary extensions file for identity (end-entity) certificates.
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".cnf", delete=False
-    ) as ext_file:
-        ext_file.write("keyUsage = critical, digitalSignature\n")
-        identity_ext = ext_file.name
+# ---------------------------------------------------------------------------
+# Domain scopes (governance + permissions)
+# ---------------------------------------------------------------------------
 
-    try:
-        print("=== Generating System Architecture Security Artifacts ===")
+OPERATIONAL_DOMAIN = DomainScope(
+    name="OperationalDomain",
+    governance=Governance(
+        name="OperationalDomain", issuer=TRUSTED_PERMISSIONS_CA,
+        # Explicitly NONE: the reference architecture does not protect
+        # discovery or liveliness metadata (RTPS payload is encrypted).
+        discovery_protection_kind="NONE",
+        liveliness_protection_kind="NONE",
+    ),
+    permissions=[
+        Permissions(name="Arm", issuer=TRUSTED_PERMISSIONS_CA,
+                    publish_topics=["t/DeviceStatus", "t/DeviceHeartbeat",
+                                    "DDS:Security:LogTopicV2"],
+                    subscribe_topics=["t/MotorControl", "t/DeviceCommand"]),
+        Permissions(name="ArmController", issuer=TRUSTED_PERMISSIONS_CA,
+                    publish_topics=["t/MotorControl", "t/DeviceStatus",
+                                    "t/DeviceHeartbeat",
+                                    "DDS:Security:LogTopicV2"],
+                    subscribe_topics=["t/DeviceCommand"]),
+        Permissions(name="Orchestrator", issuer=TRUSTED_PERMISSIONS_CA,
+                    publish_topics=["t/DeviceCommand",
+                                    "DDS:Security:LogTopicV2"],
+                    subscribe_topics=["t/DeviceStatus", "t/DeviceHeartbeat"]),
+        Permissions(name="PatientMonitor", issuer=TRUSTED_PERMISSIONS_CA,
+                    publish_topics=["t/DeviceStatus", "t/DeviceHeartbeat",
+                                    "DDS:Security:LogTopicV2"],
+                    subscribe_topics=["t/DeviceCommand", "t/Vitals"]),
+        Permissions(name="PatientSensor", issuer=TRUSTED_PERMISSIONS_CA,
+                    publish_topics=["t/Vitals", "t/DeviceStatus",
+                                    "t/DeviceHeartbeat",
+                                    "DDS:Security:LogTopicV2"],
+                    subscribe_topics=["t/DeviceCommand"]),
+        Permissions(name="SecureLogReader", issuer=TRUSTED_PERMISSIONS_CA,
+                    publish_topics=[],
+                    subscribe_topics=["DDS:Security:LogTopicV2"]),
+        Permissions(name="RecordingService", issuer=TRUSTED_PERMISSIONS_CA),
+        Permissions(name="ReplayService", issuer=TRUSTED_PERMISSIONS_CA),
+        Permissions(name="RsActiveLan", issuer=TRUSTED_PERMISSIONS_CA),
+        Permissions(name="RsPassiveLan", issuer=TRUSTED_PERMISSIONS_CA),
+    ],
+)
 
-        # Self-signed CA
-        print("--- Generating self-signed CA...")
-        _run(
-            [
-                openssl, "req", "-nodes", "-x509", "-days", "1825",
-                "-text", "-sha256",
-                "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1",
-                "-keyout", "ca/private/CaPrivateKey.pem",
-                "-out", "ca/CaIdentity.pem",
-                "-config", "ca/Ca.cnf",
-                "-extensions", "v3_ca",
-            ],
-            env,
-        )
+TELEOP_WAN_DOMAIN = DomainScope(
+    name="TeleopWanDomain",
+    governance=Governance(
+        name="TeleopWanDomain", issuer=TRUSTED_PERMISSIONS_CA,
+        discovery_protection_kind="NONE",
+        liveliness_protection_kind="NONE",
+    ),
+    permissions=[
+        Permissions(name="RsActiveWan",  issuer=TRUSTED_PERMISSIONS_CA),
+        Permissions(name="RsPassiveWan", issuer=TRUSTED_PERMISSIONS_CA),
+        Permissions(name="RsCloudWan",   issuer=TRUSTED_PERMISSIONS_CA),
+    ],
+    psk_seeds=[
+        # PSK seed for the WAN (TeleopWanDomain) domain.
+        # Loaded by CDS and all WAN RS participants via
+        # dds.sec.crypto.rtps_psk_secret_passphrase = file:<scope>/TeleopWanDomain.psk
+        # Increment 'id' on every rotation (never reuse). Valid range: 0-254 for 7.3.x.
+        PskSeed(filename="TeleopWanDomain.psk"),
+    ],
+)
 
-        # Generate identities per module
-        print("--- Generating Module 01 identities (Operating Room)...")
-        generate_identities(
-            openssl, env, identity_ext,
-            "01-operating-room",
-            ["Arm", "ArmController", "Orchestrator", "PatientMonitor",
-             "PatientSensor", "SecureLogReader"],
-        )
-        print("--- Generating Module 02 identities (Record/Playback)...")
-        generate_identities(
-            openssl, env, identity_ext,
-            "02-record-playback",
-            ["RecordingService", "ReplayService"],
-        )
-        print("--- Generating Module 03 identities (Remote Teleoperation)...")
-        generate_identities(
-            openssl, env, identity_ext,
-            "03-remote-teleoperation",
-            ["RsActive", "RsCloud", "RsPassive"],
-        )
+# ---------------------------------------------------------------------------
+# Modules (applications + participant identities)
+# ---------------------------------------------------------------------------
 
-        # Sign Governance and Permissions files
-        print("--- Signing Governance and Permissions XMLs...")
-        sign_xmls(openssl, env, [
-            "GovernanceDomain0",
-            "GovernanceDomain1",
-            "01-operating-room/PermissionsArm",
-            "01-operating-room/PermissionsArmController",
-            "01-operating-room/PermissionsOrchestrator",
-            "01-operating-room/PermissionsPatientMonitor",
-            "01-operating-room/PermissionsPatientSensor",
-            "01-operating-room/PermissionsSecureLogReader",
-            "02-record-playback/PermissionsRecordingService",
-            "02-record-playback/PermissionsReplayService",
-            "03-remote-teleoperation/PermissionsRsActive",
-            "03-remote-teleoperation/PermissionsRsCloud",
-            "03-remote-teleoperation/PermissionsRsPassive",
-        ])
+OPERATING_ROOM = Module(
+    name="operating-room",
+    apps=[
+        App(name="Arm",
+            identities=[Identity(name="Arm",             issuer=TRUSTED_IDENTITY_CA)]),
+        App(name="ArmController",
+            identities=[Identity(name="ArmController",   issuer=TRUSTED_IDENTITY_CA)]),
+        App(name="Orchestrator",
+            identities=[Identity(name="Orchestrator",    issuer=TRUSTED_IDENTITY_CA),
+                        Identity(name="SecureLogReader", issuer=TRUSTED_IDENTITY_CA)]),
+        App(name="PatientMonitor",
+            identities=[Identity(name="PatientMonitor",  issuer=TRUSTED_IDENTITY_CA)]),
+        App(name="PatientSensor",
+            identities=[Identity(name="PatientSensor",   issuer=TRUSTED_IDENTITY_CA)]),
+    ],
+)
 
-        # Clean up CSR files
-        for csr in Path("identities").rglob("*.csr"):
-            csr.unlink()
+RECORD_PLAYBACK = Module(
+    name="record-playback",
+    apps=[
+        App(name="RecordingService",
+            identities=[Identity(name="RecordingService", issuer=TRUSTED_IDENTITY_CA)]),
+        App(name="ReplayService",
+            identities=[Identity(name="ReplayService",    issuer=TRUSTED_IDENTITY_CA)]),
+    ],
+)
 
-        print("=== Security artifact generation complete ===")
-        print()
-        print("Generated artifacts:")
-        print("  ca/CaIdentity.pem                                          (self-signed CA)")
-        print()
-        print("  Module 01 — Operating Room:")
-        for p in ("Arm", "ArmController", "Orchestrator", "PatientMonitor",
-                  "PatientSensor", "SecureLogReader"):
-            print(f"    identities/01-operating-room/{p}/{p}Identity.pem")
-        print()
-        print("  Module 02 — Record/Playback:")
-        for p in ("RecordingService", "ReplayService"):
-            print(f"    identities/02-record-playback/{p}/{p}Identity.pem")
-        print()
-        print("  Module 03 — Remote Teleoperation:")
-        for p in ("RsActive", "RsCloud", "RsPassive"):
-            print(f"    identities/03-remote-teleoperation/{p}/{p}Identity.pem")
-        print()
-        print("  Signed XMLs:")
-        print("    xml/signed/SignedGovernanceDomain0.p7s")
-        print("    xml/signed/SignedGovernanceDomain1.p7s")
-        for module, perms in (
-            ("01-operating-room", ("Arm", "ArmController", "Orchestrator",
-                                   "PatientMonitor", "PatientSensor", "SecureLogReader")),
-            ("02-record-playback", ("RecordingService", "ReplayService")),
-            ("03-remote-teleoperation", ("RsActive", "RsCloud", "RsPassive")),
-        ):
-            for p in perms:
-                print(f"    xml/signed/SignedPermissions{p}.p7s")
+REMOTE_TELEOP = Module(
+    name="remote-teleop",
+    apps=[
+        App(name="RsActiveLan",
+            identities=[Identity(name="RsActiveLan",  issuer=TRUSTED_IDENTITY_CA)]),
+        App(name="RsActiveWan",
+            identities=[Identity(name="RsActiveWan",  issuer=TRUSTED_IDENTITY_CA)]),
+        App(name="RsPassiveLan",
+            identities=[Identity(name="RsPassiveLan", issuer=TRUSTED_IDENTITY_CA)]),
+        App(name="RsPassiveWan",
+            identities=[Identity(name="RsPassiveWan", issuer=TRUSTED_IDENTITY_CA)]),
+        App(name="RsCloudWan",
+            identities=[Identity(name="RsCloudWan",   issuer=TRUSTED_IDENTITY_CA)]),
+    ],
+)
 
-    finally:
-        os.unlink(identity_ext)
+# ---------------------------------------------------------------------------
+# Security tree
+# ---------------------------------------------------------------------------
+
+SECURITY_TREE = SecurityTree(
+    certificate_authorities=[TRUSTED_ROOT_CA, TRUSTED_PERMISSIONS_CA, TRUSTED_IDENTITY_CA],
+    domain_scopes=[OPERATIONAL_DOMAIN, TELEOP_WAN_DOMAIN],
+    modules=[OPERATING_ROOM, RECORD_PLAYBACK, REMOTE_TELEOP],
+    org_name="Company Name",
+    country="US",
+    state="CA",
+    email_domain="company_name.com",
+)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Generate DDS Security artifacts for the reference architecture.")
+    parser.add_argument("--scaffold", action="store_true",
+                        help="(Maintainer-only) Scaffold the directory tree from templates.")
+    parser.add_argument("--force", action="store_true",
+                        help="Re-generate artifacts even if they already exist.")
+    parser.add_argument("--strict", action="store_true",
+                        help="Promote warnings to fatal errors.")
+    parser.add_argument("--status", action="store_true",
+                        help="Report certificate expiry status and exit.")
+    parser.add_argument("--warn-days", type=int, default=30,
+                        help="Days-to-expiry warning threshold for --status (default: 30).")
+    parser.add_argument("--connext-version",
+                        help="Override Connext version (e.g. '7.5.0'). "
+                             "Auto-detected from rti.connextdds if not set.")
+    args = parser.parse_args()
+
+    if args.connext_version:
+        SECURITY_TREE.connext_version = tuple(
+            int(x) for x in args.connext_version.split("."))
+    else:
+        detected = detect_connext_version()
+        if detected:
+            SECURITY_TREE.connext_version = detected
+            logging.getLogger(__name__).info(
+                "Detected Connext version: %s",
+                ".".join(str(x) for x in detected))
+
+    if args.status:
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+        SECURITY_TREE.check_status(root=SECURITY_DIR, warn_days=args.warn_days)
+    elif args.scaffold:
+        scaffold_tree(SECURITY_TREE, root=SECURITY_DIR, strict=args.strict)
+    else:
+        SECURITY_TREE.generate_artifacts(
+            root=SECURITY_DIR, force=args.force, strict=args.strict)
 
 
 if __name__ == "__main__":
     try:
         main()
-    except subprocess.CalledProcessError as exc:
-        print(f"OpenSSL command failed (exit code {exc.returncode})", file=sys.stderr)
-        sys.exit(exc.returncode)
+    except subprocess.CalledProcessError as e:
+        print(f"Command failed with exit code {e.returncode}")
+        print("STDOUT:", e.stdout)
+        print("STDERR:", e.stderr)
+        raise
