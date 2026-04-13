@@ -40,6 +40,9 @@ find_package(RTIConnextDDS "7.3.0" REQUIRED
 
 # --- Modules with C++ code ---
 add_subdirectory(modules/01-operating-room)
+add_subdirectory(modules/02-record-playback)
+add_subdirectory(modules/03-remote-teleoperation)
+add_subdirectory(modules/04-security-threat)
 
 # Convenience target: build all module targets at once
-add_custom_target(all-modules DEPENDS module-01)
+add_custom_target(all-modules DEPENDS module-01 module-02 module-03 module-04)

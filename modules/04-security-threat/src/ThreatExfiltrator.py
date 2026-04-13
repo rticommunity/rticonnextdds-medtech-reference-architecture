@@ -17,6 +17,7 @@ import math
 import time
 import threading
 import signal
+from pathlib import Path
 
 import numpy as np
 
@@ -31,11 +32,17 @@ from PySide6.QtGui import QFont, QColor, QPalette, QPixmap, QIcon
 import pyqtgraph as pg
 
 import rti.connextdds as dds
-import DdsUtils
 import PySide6.QtAsyncio as QtAsyncio
 
-# Import OR types (path added by DdsUtils)
-from Types import Common, PatientMonitor, Orchestrator, DdsEntities
+# Import OR types
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
+if str(PROJECT_ROOT / "modules" / "01-operating-room" / "src") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "modules" / "01-operating-room" / "src"))
+import DdsUtils
+from Types import PatientMonitor, DdsEntities
+from ThreatTypes import ThreatEntities
+threat_entities = ThreatEntities.Constants
+entities = DdsEntities.Constants
 
 RTI_BLUE    = "#004C97"
 RTI_ORANGE  = "#ED8B00"
@@ -94,10 +101,10 @@ MODE_FORGED_PERMS = "FORGED PERMS"
 MODE_EXPIRED_CERT = "EXPIRED CERT"
 
 MODE_TO_DP_NAME = {
-    MODE_UNSECURE:     DdsUtils.EXFILTRATOR_UNSECURE_DP,
-    MODE_ROGUE_CA:     DdsUtils.EXFILTRATOR_ROGUE_CA_DP,
-    MODE_FORGED_PERMS: DdsUtils.EXFILTRATOR_FORGED_PERMS_DP,
-    MODE_EXPIRED_CERT: DdsUtils.EXFILTRATOR_EXPIRED_CERT_DP,
+    MODE_UNSECURE:     threat_entities.EXFILTRATOR_UNSECURE_DP,
+    MODE_ROGUE_CA:     threat_entities.EXFILTRATOR_ROGUE_CA_DP,
+    MODE_FORGED_PERMS: threat_entities.EXFILTRATOR_FORGED_PERMS_DP,
+    MODE_EXPIRED_CERT: threat_entities.EXFILTRATOR_EXPIRED_CERT_DP,
 }
 
 SAMPLE_RATE  = 200
@@ -598,12 +605,12 @@ class ThreatExfiltratorApp:
                 self._current_mode = None
                 self._prev_matched = None
 
-            dp_name = MODE_TO_DP_NAME.get(mode, DdsUtils.EXFILTRATOR_UNSECURE_DP)
+            dp_name = MODE_TO_DP_NAME.get(mode, threat_entities.EXFILTRATOR_UNSECURE_DP)
             try:
                 qos_provider = dds.QosProvider.default
                 self._participant = qos_provider.create_participant_from_config(dp_name)
                 self._vitals_reader = dds.DataReader(
-                    self._participant.find_datareader(DdsEntities.Constants.VITALS_DR)
+                    self._participant.find_datareader(entities.VITALS_DR)
                 )
                 self.window.log("INFO", f"Participant created — {mode}")
 

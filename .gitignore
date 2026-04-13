@@ -4,6 +4,7 @@ build/
 __pycache__/
 Types.py
 builtin_logging_type.py
+ThreatTypes.py
 *_timestamp.cmake
 *.pyc
 *.pem

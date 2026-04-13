@@ -17,6 +17,7 @@ import math
 import time
 import threading
 import signal
+from pathlib import Path
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QFrame,
@@ -29,11 +30,17 @@ from PySide6.QtGui import (
 )
 
 import rti.connextdds as dds
-import DdsUtils
 import PySide6.QtAsyncio as QtAsyncio
 
-# Import OR types (path added by DdsUtils)
-from Types import SurgicalRobot, Orchestrator, Common, DdsEntities
+# Import OR types
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
+if str(PROJECT_ROOT / "modules" / "01-operating-room" / "src") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "modules" / "01-operating-room" / "src"))
+import DdsUtils
+from Types import Common, Orchestrator, SurgicalRobot, DdsEntities
+from ThreatTypes import ThreatEntities
+threat_entities = ThreatEntities.Constants
+entities = DdsEntities.Constants
 
 # ─── RTI Brand Colors ────────────────────────────────────────────────────
 RTI_BLUE    = "#004C97"
@@ -136,10 +143,10 @@ ATTACK_CMD_PAUSE       = "CMD INJECT (PAUSE)"
 ATTACK_CMD_SHUTDOWN    = "CMD INJECT (SHUTDOWN)"
 
 MODE_TO_DP_NAME = {
-    MODE_UNSECURE:     DdsUtils.INJECTOR_UNSECURE_DP,
-    MODE_ROGUE_CA:     DdsUtils.INJECTOR_ROGUE_CA_DP,
-    MODE_FORGED_PERMS: DdsUtils.INJECTOR_FORGED_PERMS_DP,
-    MODE_EXPIRED_CERT: DdsUtils.INJECTOR_EXPIRED_CERT_DP,
+    MODE_UNSECURE:     threat_entities.INJECTOR_UNSECURE_DP,
+    MODE_ROGUE_CA:     threat_entities.INJECTOR_ROGUE_CA_DP,
+    MODE_FORGED_PERMS: threat_entities.INJECTOR_FORGED_PERMS_DP,
+    MODE_EXPIRED_CERT: threat_entities.INJECTOR_EXPIRED_CERT_DP,
 }
 
 
@@ -624,15 +631,15 @@ class ThreatInjectorApp:
                 self._cert_invalid = False
                 self._prev_matched = None
 
-            dp_name = MODE_TO_DP_NAME.get(mode, DdsUtils.INJECTOR_UNSECURE_DP)
+            dp_name = MODE_TO_DP_NAME.get(mode, threat_entities.INJECTOR_UNSECURE_DP)
             try:
                 qos_provider = dds.QosProvider.default
                 self._participant = qos_provider.create_participant_from_config(dp_name)
                 self._motor_writer = dds.DataWriter(
-                    self._participant.find_datawriter(DdsEntities.Constants.MOTOR_CONTROL_DW)
+                    self._participant.find_datawriter(entities.MOTOR_CONTROL_DW)
                 )
                 self._cmd_writer = dds.DataWriter(
-                    self._participant.find_datawriter(DdsEntities.Constants.DEVICE_COMMAND_DW)
+                    self._participant.find_datawriter(entities.DEVICE_COMMAND_DW)
                 )
                 self.window.log("INFO", f"Participant created — {mode}")
 
