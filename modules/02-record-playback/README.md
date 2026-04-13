@@ -33,7 +33,7 @@ RTI Recording Service is used in this module to record the `t/MotorControl` and 
 
 ### RTI Replay Service
 
-RTI Recording Service is used in this module to replay recorded data from the `t/MotorControl` and `t/Vitals` Topics from [Module 01: Digital Operating Room](../01-operating-room/).
+RTI Replay Service is used in this module to replay recorded data from the `t/MotorControl` and `t/Vitals` Topics from [Module 01: Digital Operating Room](../01-operating-room/).
 
 ## Setup and Installation
 
@@ -43,12 +43,10 @@ RTI Recording Service is used in this module to replay recorded data from the `t
 
 ### 2. Security (optional)
 
-Generate the security artifacts for RTI Recording Service and RTI Replay Service using OpenSSL.
-This includes identity certificates, private keys, and the signing of DDS Security XML permissions & governance files located in [system_arch/security](../../system_arch/security).
+Generate the security artifacts (CA certificates, identity certificates, and signed governance/permissions XML). See the [Security README](../../system_arch/security/README.md) for full details.
 
 ```bash
-cd system_arch/security
-python3 setup_security.py
+python3 system_arch/security/setup_security.py
 ```
 
 ## Run the Demo
@@ -58,32 +56,15 @@ python3 setup_security.py
 In its own terminal, launch the operating room applications from [Module 01](../01-operating-room/README.md#run-the-demo) (use `-s` option for security):
 
 ```bash
-cd 01-operating-room
-python3 scripts/launch_all.py [-s]
+python3 launch.py 01-operating-room [-s]
 ```
 
 ### 2. Run RTI Recording Service
 
-Configure the Connnext environment with [NonSecureAppsQos.xml](../../system_arch/NonSecureAppsQos.xml):
+In a new terminal, launch RTI Recording Service from the repository root (use `-s` option for security):
 
 ```bash
-cd 02-record-playback
-source <connext installation directory>/resource/scripts/rtisetenv_x64Linux4gcc7.3.0.bash
-export NDDS_QOS_PROFILES="../../system_arch/qos/Qos.xml;../../system_arch/qos/NonSecureAppsQos.xml"
-```
-
-Alternatively, if using security, configure with [SecureAppsQos.xml](../../system_arch/SecureAppsQos.xml):
-
-```bash
-cd 02-record-playback
-source <connext installation directory>/resource/scripts/rtisetenv_x64Linux4gcc7.3.0.bash
-export NDDS_QOS_PROFILES="../../system_arch/qos/Qos.xml;../../system_arch/qos/SecureAppsQos.xml"
-```
-
-Run RTI Recording Service:
-
-```bash
-$NDDSHOME/bin/rtirecordingservice -cfgFile RecordingServiceConfiguration.xml -cfgName RecServCfg
+python3 launch.py 02-record-playback RecordingService [-s]
 ```
 
 Let RTI Recording Service run for some time (e.g. 10-20 seconds) before initiating shutdown with `Ctrl-C`.
@@ -96,27 +77,22 @@ Inspect [RecordingServiceConfiguration.xml](RecordingServiceConfiguration.xml) t
 
 ### 3. Shutdown Operating Room Applications / Restart GUI Applications
 
-Kill all running operating room application processes:
-
-```bash
-../01-operating-room/scripts/kill_all.py
-```
+Press `Ctrl-C` in the terminal where Module 01's `launch.py` is running to terminate the operating room applications.
 
 Relaunch the Digital Operating Room Arm and Patient Monitor GUI applications only (use `-s` option for security):
 
 ```bash
-cd 01-operating-room
-python3 scripts/launch_arm_and_patient_monitor.py [-s]
+python3 launch.py 01-operating-room Arm PatientMonitor [-s]
 ```
 
 >**Observe:** You should see the GUI applications are not receiving data.
 
 ### 4. Run RTI Replay Service
 
-In the terminal RTI Recording Service was launched and shutdown from [Step 2](#2-run-rti-recording-service), launch RTI Replay Service (to reuse the previously configured environment):
+In a new terminal, launch RTI Replay Service from the repository root (use `-s` option for security):
 
 ```bash
-$NDDSHOME/bin/rtireplayservice -cfgFile ReplayServiceConfiguration.xml -cfgName RepServCfg
+python3 launch.py 02-record-playback ReplayService [-s]
 ```
 
 >**Observe:** You should see the Arm and Patient Monitor applications are receiving data previously recorded.
@@ -125,11 +101,7 @@ The Replay Service configuration has `<enable_looping>` set to `true`, so the re
 
 ### 5. Kill the applications
 
-Kill all active operating room applications:
-
-```bash
-python3 ../01-operating-room/scripts/kill_all.py
-```
+Press `Ctrl-C` in each terminal to terminate the running applications.
 
 #### Further Learning: Replay Service
 

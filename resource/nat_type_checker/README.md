@@ -5,14 +5,13 @@ with the IP address seen by a STUN server.
 
 ## Requirements
 
-- Python 3.x
-- python3-pip
+- Python 3.10+
 - `requests` library
 - `pystun3` library
 
-## Installation
+These are included in the project's `requirements.txt`. If you have already followed the [Quick Start](../../README.md#quick-start) setup, no additional installation is needed.
 
-To install the required libraries, run the following commands:
+To install standalone:
 
 ```sh
 pip install requests pystun3

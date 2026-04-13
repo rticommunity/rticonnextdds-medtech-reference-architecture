@@ -2,7 +2,7 @@
 
 Module 03 demonstrates remote teleoperation across the Wide Area Network (WAN) using the RTI Real-Time WAN Transport. This transport plugin enables DDS communication across the WAN using UDP as the underlying transport-layer protocol.
 
-This module shows how the Surgeon Console from [Module 01: Digital Operating Room](../01-operating-room/) can be located anywhere in the world and continue to communicate with the rest of the system. Be sure you are able to run the operating room application from Module 01 before trying out this module's demo.
+This module shows how the *ArmController* from [Module 01: Digital Operating Room](../01-operating-room/) can be located anywhere in the world and continue to communicate with the rest of the system. Be sure you are able to run the operating room application from Module 01 before trying out this module's demo.
 
 ## Contents
 
@@ -27,8 +27,8 @@ WAN communication can be deployed in 3 different scenarios:
 
 ### RTI Real-Time WAN Transport
 
-The RTI Real-Time WAN Transport provides a way for DDS traffic to traverse Network Address Translation (NAT) units - a foundational piece to the scalability and security of the Wide Area Network.
-The Real-Time WAN Transport enables support for NAT traversal at the DDS layer, which in turn allows UDP to be leveraged as an underlying transport for lower latency and higher throughput.
+The RTI Real-Time WAN Transport extends Connext's UDP-based communication to support Network Address Translation (NAT) traversal scenarios - a foundational piece to the scalability and security of the Wide Area Network.
+The Real-Time WAN Transport enables direct peer-to-peer DDS communication across the WAN, leveraging UDP as an underlying transport for lower latency and higher throughput.
 
 Together, the RTI Real-Time WAN Transport, RTI Security Plugins, and RTI Cloud Discovery Service, offer a robust solution that provides:
 

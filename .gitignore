@@ -1,6 +1,7 @@
 .vscode/
 .venv/
 build/
+__pycache__/
 Types.py
 builtin_logging_type.py
 *_timestamp.cmake
@@ -10,4 +11,6 @@ builtin_logging_type.py
 *.csr
 *.glade~
 *.srl
+*.psk
 or_recording/
+COMMIT_PLAN.md

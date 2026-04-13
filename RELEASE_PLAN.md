@@ -26,12 +26,12 @@ guidelines for the **RTI MedTech Reference Architecture** project.
 
 This project follows [Semantic Versioning 2.0.0](https://semver.org/) (SemVer):
 
-```
+```text
 MAJOR.MINOR.PATCH
 ```
 
 | Component | Meaning                                                        |
-|-----------|----------------------------------------------------------------|
+| --------- | -------------------------------------------------------------- |
 | **MAJOR** | Incompatible changes that break existing usage or integration  |
 | **MINOR** | New functionality added in a backward-compatible manner        |
 | **PATCH** | Backward-compatible bug fixes, corrections, and small updates  |
@@ -51,7 +51,7 @@ with, or understood by users and downstream consumers.
 ### Examples that warrant a version change
 
 | Change                                                        | Version Impact |
-|---------------------------------------------------------------|----------------|
+| ------------------------------------------------------------- | -------------- |
 | New module added (e.g., `04-security-threat/`)                | MINOR          |
 | Breaking change to DDS topic types in `Types.xml`             | MAJOR          |
 | QoS profile restructured in a non-backward-compatible way     | MAJOR          |
@@ -89,7 +89,7 @@ setup, code, or configuration to accommodate the change.
 
 **Examples:**
 
-```
+```text
 v1.0.0 → v2.0.0
   - Renamed topic "PatientData" to "PatientVitals" in Types.xml
   - Removed deprecated Module 01 launch scripts
@@ -115,7 +115,6 @@ behavior. Everything that worked before continues to work.
 ```
 v1.0.0 → v1.1.0
   - Added Module 04: Security Threat Demonstration
-  - Added shared utility library (modules/00-common/)
   - Added new QoS profile "HighThroughputStream" to Qos.xml
 ```
 
@@ -378,7 +377,7 @@ and update them as part of the release process.
 |-------------------------|-------------------------|-----------------------------|
 | RTI Connext DDS         | 7.3.0                   | CMakeLists.txt, README.md   |
 | RTI Code Generator      | 4.3.0                   | Generated source headers    |
-| CMake                   | 3.11                    | CMakeLists.txt              |
+| CMake                   | 3.17                    | CMakeLists.txt              |
 
 **When a dependency version changes:**
 

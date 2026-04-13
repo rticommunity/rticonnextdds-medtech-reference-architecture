@@ -9,38 +9,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- macOS Dock icon support for C++ apps via Objective-C runtime (`MacOsDockIcon.h`)
-- RTI logo window icon for all Python GUI apps (Arm, PatientMonitor, Threat apps)
-- `system_arch/scripts/platform_setup.py` — shared utility for `NDDSHOME`
-  resolution, architecture detection, OpenSSL discovery, and Connext library
-  path setup
-- `xml_setup.py` helpers in each module for resolving XML config paths and
-  setting `NDDS_QOS_PROFILES` at runtime
+- Centralized top-level `build.py` and `launch.py` replacing per-module
+  build/launch scripts — usage: `python3 launch.py <module> [apps] [-s]`
+- `scenarios.json` for declarative scenario definitions across all modules
+- `requirements.txt` for Python dependencies
+- Top-level `CMakeLists.txt` for unified CMake build orchestration
+- `resource/python/scripts/` package with `module_runner.py` and
+  `platform_setup.py` (NDDSHOME resolution, architecture detection,
+  OpenSSL discovery, Connext library path setup)
+- `module.json` descriptors for all four modules
+- Jinja2-based security artifact generation via `dds_security.py` and
+  `security_tree.py` with templates (`ca.cnf.j2`, `governance.xml.j2`,
+  `identity.cnf.j2`, `permissions.xml.j2`)
+- Hierarchical security tree: `ca/`, `domain_scope/`, and `identity/`
+  directories under both `system_arch/security/` and
+  `modules/04-security-threat/security/`
+- Three-tier CA hierarchy: TrustedRootCa, TrustedIdentityCa,
+  TrustedPermissionsCa
+- Domain-scoped governance and permissions for OperationalDomain and
+  TeleopWanDomain (system_arch) and ThreatDomain (module 04)
+- Per-participant identity configs organized by module
+  (operating-room, record-playback, remote-teleop, security-threat)
+- `.markdownlint.json` for consistent Markdown linting across contributors
 
 ### Changed
 
-- Replaced all `.sh` and `.bat` scripts with cross-platform Python equivalents
-  across all modules and `system_arch/security/`. Launch commands change from
-  e.g. `./scripts/launch_all.sh` to `python3 scripts/launch_all.py`
-- Security plugins are now optional in CMake: OpenSSL (including RTI-bundled)
-  is auto-detected and `security_plugins` is only requested when available
-- Simplified FQN constants in `Types.xml` — names are now pre-assembled
-  (e.g. `MedicalDemoParticipantLibrary::dp/ArmController`) instead of
-  requiring runtime string concatenation
-- All C++ and Python apps updated to use the new FQN constants directly
-- Replaced `rti_logo.ico` with `rti_logo.png` for cross-platform compatibility
-- CMake links `-framework AppKit` on Apple targets for Dock icon support
-- Ported `setup_security.sh` and `setup_threat_security.sh` to Python
-- All C++ and Python applications now handle SIGINT/SIGTERM for graceful
-  shutdown without warnings; launch scripts forward signals to child processes
-- Security setup scripts suppress verbose OpenSSL output and print a summary
-  of generated artifacts on completion
+- Replaced all per-module `scripts/` directories with the unified
+  top-level `build.py` + `launch.py` orchestration
+- Restructured `system_arch/security/` from flat `identities/` + `xml/`
+  layout to hierarchical `ca/` + `domain_scope/` + `identity/` tree
+- Restructured `modules/04-security-threat/security/` from flat layout
+  (`expired/`, `forged_perms/`, `identities/`, `rogue_ca/`, `xml/`) to
+  hierarchical `ca/` + `domain_scope/` + `identity/` tree
+- Security setup scripts (`setup_security.py`, `setup_threat_security.py`)
+  rewritten to use Jinja2 templates and the new tree structure
+- QoS profiles updated with new security artifact paths
+  (`SecureAppsQos.xml`, `NonSecureAppsQos.xml`, `ThreatQos.xml`)
+- Remote teleoperation routing service configs updated for new security
+  paths (`CdsConfigCloud.xml`, `RsConfigActive.xml`, `RsConfigCloud.xml`,
+  `RsConfigPassive.xml`)
+- Converted `rticonnextdds-cmake-utils` from git submodule to CMake
+  `FetchContent` dependency
+- Comprehensive documentation refresh across all module READMEs,
+  scenario guides, and system architecture docs
 
 ### Removed
 
-- All `.sh` and `.bat` scripts (replaced by Python equivalents)
-- `DdsUtils.hpp` (FQN logic moved into XML constants)
-- Runtime FQN-mangling code from `DdsUtils.py` (both Module 01 and 04)
+- Per-module `scripts/` directories (modules 01, 03, 04) — replaced by
+  centralized `build.py` + `launch.py`
+- `system_arch/scripts/platform_setup.py` — moved to
+  `resource/python/scripts/platform_setup.py`
+- `resource/cmake/rticonnextdds-cmake-utils` submodule — replaced by
+  CMake FetchContent
+- Flat security layouts: `system_arch/security/identities/`,
+  `system_arch/security/xml/`, and module 04 equivalents
+  (`expired/`, `forged_perms/`, `identities/`, `rogue_ca/`, `xml/`)
 
 ## [1.1.0] - 2026-03-27
 
@@ -109,7 +132,7 @@ Initial stable release of the RTI MedTech Reference Architecture.
 
 - RTI Connext DDS 7.3.0
 - RTI Code Generator (rtiddsgen) 4.3.0
-- CMake >= 3.11
+- CMake >= 3.17
 
 ---
 
@@ -119,7 +142,7 @@ The following milestones occurred during development prior to the adoption of
 formal versioning:
 
 | Date | Commit | Milestone |
-|------|--------|-----------|
+| --- | --- | --- |
 | 2024-09-24 | `b2ff6e4` | First commit — Modules 01 (Operating Room) and 02 (Record/Playback) with system architecture |
 | 2024-10-15 | `d68d8a4` | Optimized C++ type registration |
 | 2025-09-18 | `39aff1b` | Changed `patient_name` to `patient_id` for HIPAA compliance |

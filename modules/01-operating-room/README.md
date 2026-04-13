@@ -44,117 +44,101 @@ It presents buttons to administer *Arm* motor commands, and shows an "Alerts" pa
 
 ### Orchestrator
 
-The *Orchestrator* application primarily acts as a system application state observer and controller. It detects the presense and current status of other system applications on Topics `t/DeviceHeartbeat` and `t/DeviceStatus`, respectively. It can also command device-level actions, such as "Start" or "Shut Down" on Topic `t/DeviceCommand`.
+The *Orchestrator* application primarily acts as a system application state observer and controller. It detects the presence and current status of other system applications on Topics `t/DeviceHeartbeat` and `t/DeviceStatus`, respectively. It can also command device-level actions, such as "Start" or "Shut Down" on Topic `t/DeviceCommand`.
 
 It displays current device statuses, presents buttons to administer device commands, and shows an "Alerts" panel to display observed events.
 
 ## Setup and Installation
 
-### 1. Install Dependencies
+### 1. Prerequisites
 
-To install Connext, follow the [installation guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/installation_guide/installation_guide/Installing.htm#Chapter_1_Installing_RTI%C2%A0Connext) and other required tools. You will also need the [Python API](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/getting_started_guide/python/before_python.html#installing-connext-heading) to be installed. **Make sure you run [Hands-On 1: Your First DataWriter and DataReader](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/getting_started_guide/python/intro_pubsub_python.html#hands-on-1-your-first-datawriter-and-datareader) from the Getting Started Guide to confirm that the Python API works.**
+You will need:
 
-Dependencies for building the C++ applications:
+- **RTI Connext DDS 7.3** installed and `NDDSHOME` set, including the Python API `.whl`.
+  See the [Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/installation_guide/installation_guide/Installing.htm) and [Python API setup](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/getting_started_guide/python/before_python.html#installing-connext-heading).
 
-- A C++ compiler toolchain (e.g., `build-essential` on Linux, Xcode Command Line Tools on macOS)
-- `pkg-config` — library discovery
-- gtkmm 3.0 — GTK+ C++ bindings used by *Arm Controller* and *Orchestrator* (e.g., `libgtkmm-3.0-dev` on Linux, `gtkmm3` via Homebrew on macOS)
+  > If `NDDSHOME` is not already in your environment, source the platform setup script from your Connext installation: `source <connext_dir>/resource/scripts/rtisetenv_<arch>.bash` (Linux/macOS) or `rtisetenv_<arch>.bat` (Windows). This script sets `NDDSHOME`, `CONNEXTDDS_ARCH`, and related library paths required by both `build.py` and `launch.py`.
+- **CMake** ≥ 3.17 and a C++ compiler toolchain.
+- **Python** ≥ 3.10.
 
-Dependencies for the Python GUI applications (*Arm Monitor*, *Patient Monitor*):
+**Make sure you run [Hands-On 1: Your First DataWriter and DataReader](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/getting_started_guide/python/intro_pubsub_python.html#hands-on-1-your-first-datawriter-and-datareader) from the Getting Started Guide to confirm that the Python API works.**
 
-- `PySide6` — Qt widget toolkit
-- `pyqtgraph` — fast scientific plotting
-- `numpy` — numerical arrays
+Install the system build dependencies for your platform:
 
 <details>
-<summary><strong>Linux</strong></summary>
-
-##### Option A: Install system-provided packages with *apt*
+<summary><strong>Linux (Debian/Ubuntu)</strong></summary>
 
 ```bash
 sudo apt install \
     build-essential \
+    cmake \
     pkg-config \
     libgtkmm-3.0-dev \
-    python3-pip \
-    python3-pyside6 \
-    python3-numpy \
-    python3-pyqtgraph
+    python3-venv
 ```
 
-##### Option B: Install PyPI-provided packages with *pip* (recommended for virtual environments)
-
-First install the system build dependencies:
-
-```bash
-sudo apt install \
-    build-essential \
-    pkg-config \
-    libgtkmm-3.0-dev \
-    python3-dev \
-    python3-pip
-```
-
-Then install the Python packages:
-
-```bash
-pip install \
-    PySide6 \
-    pyqtgraph \
-    numpy
-```
+> `python3-venv` is required on Debian/Ubuntu to create virtual environments (`python3 -m venv`).
+> It is a split package not included with the base `python3` install.
 
 </details>
 
 <details>
 <summary><strong>macOS</strong></summary>
 
-Install with *Homebrew* and *pip*.
-
-First, ensure [Homebrew](https://brew.sh) is installed. Then install the system build dependencies (Xcode Command Line Tools provide the compiler):
-
 ```bash
-xcode-select --install   # if not already installed
-brew install pkg-config gtkmm3
+xcode-select --install          # compiler toolchain (if not already installed)
+brew install cmake pkg-config gtkmm3 python3
 ```
 
-Then install the Python packages (a virtual environment is recommended):
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install \
-    PySide6 \
-    pyqtgraph \
-    numpy
-```
+> Homebrew's `python3` includes `pip` and `venv` — no separate installs needed.
 
 </details>
 
-### 2. Build the Project
+### 2. Set Up a Python Virtual Environment
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# Install the RTI Connext Python API from your local Connext installation:
+pip install rti.connext.activated -f $NDDSHOME/resource/python_api
+# Alternatively, if the above path is not available, install from PyPI:
+# pip install rti.connext==7.3.0
+```
+
+### 3. Build the Project
 
 From the repository root:
 
 ```bash
-cd modules/01-operating-room
-python3 scripts/build.py
+python3 build.py
 ```
 
 This script creates a `build/` directory, runs CMake configuration and compilation automatically.
 
-### 3. Security (optional)
+To build only the modules you intend to run:
+
+```bash
+python3 build.py --target module-01   # all C++ targets in Module 01
+python3 build.py --target ArmController  # only the ArmController target
+```
+
+The compiled binaries are placed under `build/<CONNEXTDDS_ARCH>/`.
+
+### 4. Security (optional)
 
 This module also demonstrates how [RTI Security Plugins](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/index.html) can easily be applied to an existing system.
 
 To run the secure version of the module, you need the Security Plugins installed (see the [RTI Security Plugins Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/installation_guide/security_plugins/installation_guide/SecurityPluginsInstallationTitle.htm)).
 
-Generate the security artifacts using OpenSSL.
-This includes identity certificates, private keys, and the signing of DDS Security XML permissions & governance files located in [system_arch/security](../../system_arch/security).
+Generate the security artifacts (CA certificates, identity certificates, and signed governance/permissions XML). See the [Security README](../../system_arch/security/README.md) for full details.
 
 ```bash
-cd system_arch/security
-python3 setup_security.py
+python3 system_arch/security/setup_security.py
 ```
+
+Re-run with `--force` to regenerate existing artifacts.
 
 ## Run the Demo
 
@@ -163,14 +147,13 @@ python3 setup_security.py
 Run operating room applications:
 
 ```bash
-cd modules/01-operating-room
-python3 scripts/launch_all.py
+python3 launch.py 01-operating-room
 ```
 
 To run with security enabled, use the `-s` option:
 
 ```bash
-python3 scripts/launch_all.py -s
+python3 launch.py 01-operating-room -s
 ```
 
 *This script does the following:*
@@ -179,9 +162,9 @@ python3 scripts/launch_all.py -s
 
 2. Launch the application executables.
 
-*Note, applications can be launched individually from a terminal instead of all at once via the **launch_all.py** script. Please refer how `NDDS_QOS_PROFILES` is set in [launch_all.py](./scripts/launch_all.py), so your terminal environment can be configured similarly without errors.*
+*Note, applications can be launched individually by name, e.g. `python3 launch.py 01-operating-room Arm PatientMonitor`. Refer to [module.json](./module.json) for the list of available app names and QoS configuration.*
 
-### 3. Observe the application behavior
+### 2. Observe the application behavior
 
 Observe and play around with the interactive operating room applications. The following are some ideas to get started:
 
@@ -192,11 +175,7 @@ Observe and play around with the interactive operating room applications. The fo
 
 ### 3. Kill the applications
 
-To ensure application processes are killed when finished, run:
-
-```bash
-python3 scripts/kill_all.py
-```
+Press `Ctrl-C` in the terminal where `launch.py` is running to terminate all application processes.
 
 ## Hands-On: Going Further
 

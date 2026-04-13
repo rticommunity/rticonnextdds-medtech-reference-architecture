@@ -16,7 +16,7 @@
 
 ## RTI XML-Based Application Creation
 
-This reference architecture uses [RTI XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/Introduction/XMLAppCreation_Intro.htm#Chapter_1_Introduction) to define all DDS entities that the modules will use. This mechanism simplifies and streamlines the development of Connext applications. An alternative approach is to define the entities programatically, which is more cumbersome, error-prone, and more difficult to coordinate across distributed developer groups.
+This reference architecture uses [RTI XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/Introduction/XMLAppCreation_Intro.htm#Chapter_1_Introduction) to define all DDS entities that the modules will use. This mechanism simplifies and streamlines the development of Connext applications. An alternative approach is to define the entities programmatically, which is more cumbersome, error-prone, and more difficult to coordinate across distributed developer groups.
 
 RTI XML-Based Application Creation allows for the extraction of a Connext system definition from the implemented application logic and behavior.
 
@@ -43,13 +43,13 @@ Applications can be implemented via any supported Connext Professional API langu
     In this reference architecture, it is recommended to use `NDDS_QOS_PROFILES` environment variable to point to the defined XML files.
 
     For example, this bash statement will allow Connext to load the following files:
-    - [Qos.xml](./Qos.xml)
-    - [NonSecureAppsQos.xml](./NonSecureAppsQos.xml)
+    - [Qos.xml](../qos/Qos.xml)
+    - [NonSecureAppsQos.xml](../qos/NonSecureAppsQos.xml)
     - [DomainLibrary.xml](./DomainLibrary.xml)
     - [ParticipantLibrary.xml](./ParticipantLibrary.xml)
 
     ```bash
-    export NDDS_QOS_PROFILES="./Qos.xml;./NonSecureAppsQos.xml;./DomainLibrary.xml;./ParticipantLibrary.xml"
+    export NDDS_QOS_PROFILES="system_arch/qos/Qos.xml;system_arch/qos/NonSecureAppsQos.xml;system_arch/xml_app_creation/DomainLibrary.xml;system_arch/xml_app_creation/ParticipantLibrary.xml"
     ```
 
     Documentation:
@@ -76,7 +76,7 @@ Applications can be implemented via any supported Connext Professional API langu
     - [Referring to Entities and Other Elements within XML Files](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ReferringToEntitiesElements.htm#4.6.1_Referring_to_Entities_and_Other_Elements_within_XML_Files)
 
 4. Retrieve Created Entities by Name  
-    Commonly, configured named DDS entities must be retreived for use (e.g. publishing to or subscribing to data) or preconfiguration before enabling (e.g. runtime QoS configuration).
+    Commonly, configured named DDS entities must be retrieved for use (e.g. publishing to or subscribing to data) or preconfiguration before enabling (e.g. runtime QoS configuration).
 
     DDS entities can be retrieved by name via API-specific "find" or "lookup" functions. Entities are referred to by their fully-qualified name in configuration. Please see the referred documentation for entity-specifics.
 
@@ -100,7 +100,7 @@ Applications can be implemented via any supported Connext Professional API langu
 
 ### Domain Configuration
 
-The heirarchy of the components configured in a Domain are as follows:
+The hierarchy of the components configured in a Domain are as follows:
 
 ```text
 Domain → Domain ID
@@ -156,17 +156,17 @@ Subelements:
 
 This reference architecture defines the following Domain Library in [DomainLibrary.xml](DomainLibrary.xml):
 
-| Domain Library  | Intended Use
-| --------------  | ------------
+| Domain Library                          | Intended Use
+| --------------                          | ------------
 | [*ConnextDomainLib*](#connextdomainlib) | Contain all defined MedTech Domains
 
 #### ***ConnextDomainLib***
 
 This Domain Library will hold all Domains defined as part of this reference architecture for simplicity. *ConnextDomainLib* contains the following Domain (`<domain>`):
 
-| Domain  | Domain ID | Intended Use
-| ------  | --------- | ------------
-| [*OperationalDataDomain*](#connextdomainliboperationaldatadomain) | 0 |  Real-time operational medical device data
+| Domain                                                            | Domain ID | Intended Use
+| ------                                                            | --------- | ------------
+| [*OperationalDataDomain*](#connextdomainliboperationaldatadomain) | 0         | Real-time operational medical device data
 
 ##### ***ConnextDomainLib::OperationalDataDomain***
 
@@ -194,7 +194,7 @@ In this reference architecture, you will find a single Domain defined, called *O
 
 ### DomainParticipant Configuration
 
-The heirarchy of DDS entities and components configured in a DomainParticipant are as follows:
+The hierarchy of DDS entities and components configured in a DomainParticipant are as follows:
 
 ```text
 DomainParticipant → Domain
@@ -312,8 +312,8 @@ Subelements:
 
 This reference architecture defines the following DomainParticipant library in [ParticipantLibrary.xml](ParticipantLibrary.xml):
 
-| DomainParticipant Library | Intended Use
-| --------------            | ------------
+| DomainParticipant Library                                         | Intended Use
+| -------------------------                                         | ------------
 | [*MedicalDemoParticipantLibrary*](#medicaldemoparticipantlibrary) | Contains all defined module DomainParticipants
 
 #### ***MedicalDemoParticipantLibrary***
@@ -366,7 +366,7 @@ The *ArmController* DomainParticipant is intended to administer commands to the 
 
 ##### ***MedicalDemoParticipantLibrary::dp/Orchestrator***
 
-The *Orchestrator* DomainParticipant is intended to administer device-level commands to all other DomainParticipants in the system. It also monitors status and presense of all system devices.
+The *Orchestrator* DomainParticipant is intended to administer device-level commands to all other DomainParticipants in the system. It also monitors status and presence of all system devices.
 
 *dp/Orchestrator* contains the following DataWriters (`<data_writer>`):
 
