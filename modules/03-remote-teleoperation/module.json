@@ -1,0 +1,24 @@
+{
+    "description": "Remote Teleoperation",
+    "env": {
+        "NDDS_QOS_PROFILES": "system_arch/qos/Qos.xml;${args:security}"
+    },
+    "args": {
+        "security": {
+            "true": "system_arch/qos/SecureAppsQos.xml",
+            "false": "system_arch/qos/NonSecureAppsQos.xml"
+        },
+        "cds_config_name": {
+            "flag": "security",
+            "true": "CdsConfigCloudSecurity",
+            "false": "CdsConfigCloud"
+        }
+    },
+    "setup_library_paths": false,
+    "apps": {
+        "CdsCloud":  ["${RTISERVICE:rticlouddiscoveryservice}", "-cfgFile", "./xml_config/CdsConfigCloud.xml", "-cfgName", "${args:cds_config_name}"],
+        "RsActive":  ["${RTISERVICE:rtiroutingservice}", "-cfgFile", "./xml_config/RsConfigActive.xml", "-cfgName", "RsConfigActive"],
+        "RsCloud":   ["${RTISERVICE:rtiroutingservice}", "-cfgFile", "./xml_config/RsConfigCloud.xml", "-cfgName", "RsConfigCloud"],
+        "RsPassive": ["${RTISERVICE:rtiroutingservice}", "-cfgFile", "./xml_config/RsConfigPassive.xml", "-cfgName", "RsConfigPassive"]
+    }
+}

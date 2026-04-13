@@ -1,0 +1,17 @@
+{
+    "description": "Record & Playback",
+    "env": {
+        "NDDS_QOS_PROFILES": "system_arch/qos/Qos.xml;${args:security}"
+    },
+    "args": {
+        "security": {
+            "true": "system_arch/qos/SecureAppsQos.xml",
+            "false": "system_arch/qos/NonSecureAppsQos.xml"
+        }
+    },
+    "setup_library_paths": false,
+    "apps": {
+        "RecordingService": ["${RTISERVICE:rtirecordingservice}", "-cfgFile", "RecordingServiceConfiguration.xml", "-cfgName", "RecServCfg"],
+        "ReplayService":    ["${RTISERVICE:rtireplayservice}", "-cfgFile", "ReplayServiceConfiguration.xml", "-cfgName", "RepServCfg"]
+    }
+}
