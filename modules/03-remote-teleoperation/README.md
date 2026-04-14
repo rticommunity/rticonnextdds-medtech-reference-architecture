@@ -4,9 +4,12 @@ Module 03 demonstrates remote teleoperation across the Wide Area Network (WAN) u
 
 This module shows how the *ArmController* from [Module 01: Digital Operating Room](../01-operating-room/) can be located anywhere in the world and continue to communicate with the rest of the system. Be sure you are able to run the operating room application from Module 01 before trying out this module's demo.
 
+All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
+
 ## Contents
 
 - [Module Description](#module-description)
+- [Setup and Installation](#setup-and-installation)
 - [Run the Demo](#run-the-demo)
 - [Hands-On: Going Further](#hands-on-going-further)
 - [Next Steps](#next-steps)
@@ -38,7 +41,13 @@ Together, the RTI Real-Time WAN Transport, RTI Security Plugins, and RTI Cloud D
 - **Bandwidth optimization** for efficient data transfer (when compared to TCP-based communication)
 - **Connection resilience** with automatic reconnection
 
+## Setup and Installation
+
+Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. This module adds WAN-specific prerequisites that the scenario pages cover in detail.
+
 ## Run the Demo
+
+> Important: The commands below are run from the repository root using the project-level `launch.py` script.
 
 For this module, you will need the following:
 

@@ -26,11 +26,12 @@ except ImportError:
     argcomplete = None
 
 PROJECT_ROOT = Path(__file__).resolve().parent
+SCENARIOS_PATH = PROJECT_ROOT / "resource" / "config" / "scenarios.json"
 
 sys.path.insert(0, str(PROJECT_ROOT / "resource" / "python"))
 from scripts import module_runner
 
-with open(PROJECT_ROOT / "scenarios.json") as f:
+with open(SCENARIOS_PATH) as f:
     SCENARIOS: dict[str, dict] = json.load(f)
 
 

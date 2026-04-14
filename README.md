@@ -38,7 +38,7 @@ Here are some links that compliment this repository:
 
 ## Quick Start
 
-The steps below get you running Module 01 (Digital Operating Room) as fast as possible. For other modules or advanced configuration, follow the module-specific READMEs.
+The steps below cover environment setup, dependencies, security artifacts, and building the project. To run anything, follow the module-specific README for the scenario you want to explore.
 
 ### 1. Prerequisites
 
@@ -129,35 +129,13 @@ python3 system_arch/security/setup_security.py
 
 Re-run with `--force` to regenerate existing artifacts. See the [Security README](./system_arch/security/README.md) for full details.
 
-### 6. Run
-
-Launch all applications in a module:
-
-```bash
-python3 launch.py 01-operating-room          # without security
-python3 launch.py 01-operating-room -s       # with security
-```
-
-Launch individual applications:
-
-```bash
-python3 launch.py 01-operating-room Arm ArmController
-```
-
-List or run available scenarios:
-
-```bash
-python3 launch.py --list-scenarios
-python3 launch.py --scenario record -s
-```
-
-From here, explore the [module READMEs](#hands-on-modules), then dive into the [architecture overview](#hands-on-architecture).
+When setup is complete, use the module-specific READMEs below to choose a workflow. They explain what each demo launches and how to run it from the repository root with the project-level `launch.py` script.
 
 ## Hands-On: Modules
 
 The RTI MedTech Reference Architecture demonstrates use cases and capabilities of the provided system architecture.
 
-*RTI recommends following along the module-specific READMEs before returning here and learning more about the designed system architecture.*
+Use the module-specific READMEs when you want to run a demo. They describe what each workflow launches, why it exists, and the exact `launch.py` commands to use from the repository root.
 
 - ### [Module 01](./modules/01-operating-room/) : Digital Operating Room
 

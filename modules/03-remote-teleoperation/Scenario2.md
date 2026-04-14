@@ -6,21 +6,25 @@ The *Active* Routing Services initiate discovery towards the public *Cloud* inst
 
 In this scenario, only Domain 1 is secured. Operating room applications from Module 01 run in non-secured mode locally on Domain 0, while WAN communication uses authentication and encryption on Domain 1. In a production deployment, you may choose to secure the local traffic as well or just the remote traffic as demonstrated here.
 
+Make sure the shared setup in the root [Quick Start](../../README.md#quick-start) section is complete and that Module 01 is already working before you try this scenario.
+
 ![Scenario 2 diagram](../../resource/images/module-03-diagram-scenario-02.gif)
 
 ## Setup and Installation
 
 **This scenario requires the *OR's* and the *Arm Controller's* NATs to be cone NATs. You can use the NAT type checker script in [resource/nat_type_checker](../../resource/nat_type_checker) to make sure you have cone NATs.**
 
-### 1. See Module 01 Setup and Installation
+Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. This scenario then adds the WAN transport, cloud instance, security, and network configuration below.
 
-[Installation and build steps from Module 01: Digital Operating Room](../01-operating-room/README.md#setup-and-installation) satisfy prerequisites for this module.
+Module-specific notes:
 
-### 2. Install RTI Real-Time WAN Transport
+- If you plan to use secure mode, make sure the security artifacts from the root README have been generated.
+
+### 1. Install RTI Real-Time WAN Transport
 
 RTI Real-Time WAN Transport is available as an add-on product. Follow the [RTI Real-Time WAN Transport Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/addon_products/realtime_wan_transport/installation_guide/index.htm) to install the transport plugin on both machines.
 
-### 3. Setup Cloud Instance
+### 2. Setup Cloud Instance
 
 On your publicly reachable cloud instance, install the RTI Connext host, the Real-Time WAN Transport, Cloud Discovery Service and RTI Security Plugins packages.
 
@@ -29,17 +33,13 @@ On your publicly reachable cloud instance, install the RTI Connext host, the Rea
 3. Cloud Discovery Service is available as an add-on component. Follow the [RTI Cloud Discovery Service Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/addon_products/cloud_discovery_service/installation.html).
 4. If using Security, install the host bundle for both OpenSSL and RTI Security Plugins.
 
-### 4. Security (optional)
+### 3. Security (optional)
 
-Generate the security artifacts (CA certificates, identity certificates, and signed governance/permissions XML). See the [Security README](../../system_arch/security/README.md) for full details.
-
-```bash
-python3 system_arch/security/setup_security.py
-```
+The shared trusted security artifacts are covered in the root [Quick Start](../../README.md#quick-start). Complete that setup before running this scenario, then distribute the generated artifacts to whichever machines are used to run the demo applications.
 
 **You should generate the security artifacts once and then distribute to whichever machines are used to run the demo applications. This ensures the certificates can be correctly verified across machines during DomainParticipant authentication.**
 
-### 5. Network Configuration
+### 4. Network Configuration
 
 On the *Active* sides and on your cloud instance, set the following environment variables before running the scenario. `NDDSHOME` must already be set from your Connext installation (see [Module 01 Setup](../01-operating-room/README.md#setup-and-installation)).
 
@@ -66,6 +66,8 @@ You will need to add a security rule on your cloud instance to allow incoming/ou
 
 ## Run the Scenario
 
+> Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+
 *Note: This scenario will not work if different certificate sets are used on each side when using Security.*
 
 ### 1. Launch Active Side Applications
@@ -73,6 +75,7 @@ You will need to add a security rule on your cloud instance to allow incoming/ou
 From one machine, start the teleop Arm Controller:
 
 ```bash
+# From the repository root
 python3 launch.py 01-operating-room ArmController
 ```
 
@@ -81,6 +84,7 @@ python3 launch.py 01-operating-room ArmController
 From the other machine, start the Operating Room applications:
 
 ```bash
+# From the repository root
 python3 launch.py 01-operating-room Orchestrator PatientSensor Arm PatientMonitor
 ```
 
@@ -91,6 +95,7 @@ python3 launch.py 01-operating-room Orchestrator PatientSensor Arm PatientMonito
 In a terminal on your cloud instance, run Cloud Discovery Service:
 
 ```bash
+# From the repository root
 python3 launch.py 03-remote-teleoperation CdsCloud [-s]
 ```
 
@@ -99,6 +104,7 @@ python3 launch.py 03-remote-teleoperation CdsCloud [-s]
 Open a new terminal on both *Active* sides and run the following in each:
 
 ```bash
+# From the repository root
 python3 launch.py 03-remote-teleoperation RsActive [-s]
 ```
 

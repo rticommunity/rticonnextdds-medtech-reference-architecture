@@ -6,29 +6,29 @@ The *Passive* RTI Routing Service listens for incoming communications. The *Acti
 
 In this scenario, only Domain 1 is secured. Operating room applications from Module 01 run in non-secured mode locally on Domain 0, while WAN communication uses authentication and encryption on Domain 1. In a production deployment, you may choose to secure the local traffic as well or just the remote traffic as demonstrated here.
 
+Make sure the shared setup in the root [Quick Start](../../README.md#quick-start) section is complete and that Module 01 is already working before you try this scenario.
+
 ![Scenario 1 diagram](../../resource/images/module-03-diagram-scenario-01.gif)
 
 ## Setup and Installation
 
-### 1. See Module 01 Setup and Installation
+Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. This scenario then adds the WAN transport, security, and network configuration below.
 
-[Installation and build steps from Module 01: Digital Operating Room](../01-operating-room/README.md#setup-and-installation) satisfy prerequisites for this module.
+Module-specific notes:
 
-### 2. Install RTI Real-Time WAN Transport
+- If you plan to use secure mode, make sure the security artifacts from the root README have been generated.
+
+### 1. Install RTI Real-Time WAN Transport
 
 The RTI Real-Time WAN Transport is available as an add-on product. Follow the [RTI Real-Time WAN Transport Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/addon_products/realtime_wan_transport/installation_guide/index.htm) to install the transport plugin on both machines.
 
-### 3. Security (optional)
+### 2. Security (optional)
 
-Generate the security artifacts (CA certificates, identity certificates, and signed governance/permissions XML). See the [Security README](../../system_arch/security/README.md) for full details.
-
-```bash
-python3 system_arch/security/setup_security.py
-```
+The shared trusted security artifacts are covered in the root [Quick Start](../../README.md#quick-start). Complete that setup before running this scenario, then distribute the generated artifacts to whichever machines are used to run the demo applications.
 
 **You should generate the security artifacts once and then distribute to whichever machines are used to run the demo applications. This ensures the certificates can be correctly verified across machines during DomainParticipant authentication.**
 
-### 4. Network Configuration
+### 3. Network Configuration
 
 On both *Passive* and *Active* sides, set the following environment variables before running the scenario. `NDDSHOME` must already be set from your Connext installation (see [Module 01 Setup](../01-operating-room/README.md#setup-and-installation)).
 
@@ -59,6 +59,8 @@ For example:
 
 ## Run the Scenario
 
+> Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+
 *Note: This scenario will not work if different certificate sets are used on each side when using Security.*
 
 ### 1. Launch Active Side Applications
@@ -66,6 +68,7 @@ For example:
 From the machine *not* publicly exposed, start the teleop Arm Controller as the *Active* side:
 
 ```bash
+# From the repository root
 python3 launch.py 01-operating-room ArmController
 ```
 
@@ -74,6 +77,7 @@ python3 launch.py 01-operating-room ArmController
 From the machine *publicly* exposed, start the Operating Room applications as the *Passive* side:
 
 ```bash
+# From the repository root
 python3 launch.py 01-operating-room Orchestrator PatientSensor Arm PatientMonitor
 ```
 
@@ -84,6 +88,7 @@ python3 launch.py 01-operating-room Orchestrator PatientSensor Arm PatientMonito
 In a new terminal on the *Passive* side:
 
 ```bash
+# From the repository root
 python3 launch.py 03-remote-teleoperation RsPassive [-s]
 ```
 
@@ -92,6 +97,7 @@ python3 launch.py 03-remote-teleoperation RsPassive [-s]
 In a new terminal on the *Active* side:
 
 ```bash
+# From the repository root
 python3 launch.py 03-remote-teleoperation RsActive [-s]
 ```
 

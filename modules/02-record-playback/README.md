@@ -13,6 +13,8 @@ This module reuses the operating room applications from [Module 01](../01-operat
 
 RTI Recording Service and RTI Replay Service can be run on any [officially supported platform](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/release_notes/pam_table.html#rti-infrastructure-services), provided the machine is directly discoverable by the machine the operating room applications are launched from.
 
+All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
+
 ## Contents
 
 - [Module Description](#module-description)
@@ -37,25 +39,22 @@ RTI Replay Service is used in this module to replay recorded data from the `t/Mo
 
 ## Setup and Installation
 
-### 1. See Module 01 Setup and Installation
+Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. This module reuses the operating room applications from Module 01, so make sure that workflow is built and working before you start record/playback.
 
-[Installation and build steps from Module 01: Digital Operating Room](../01-operating-room/README.md#setup-and-installation) satisfy prerequisites for this module.
+Module-specific notes:
 
-### 2. Security (optional)
-
-Generate the security artifacts (CA certificates, identity certificates, and signed governance/permissions XML). See the [Security README](../../system_arch/security/README.md) for full details.
-
-```bash
-python3 system_arch/security/setup_security.py
-```
+- If you plan to use secure mode, make sure the security artifacts from the root README have been generated.
 
 ## Run the Demo
 
+> Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+
 ### 1. Run Operating Room Applications
 
-In its own terminal, launch the operating room applications from [Module 01](../01-operating-room/README.md#run-the-demo) (use `-s` option for security):
+In its own terminal, launch the operating room applications from [Module 01](../01-operating-room/README.md#run-the-demo) using the project-level launcher (use `-s` option for security):
 
 ```bash
+# From the repository root
 python3 launch.py 01-operating-room [-s]
 ```
 
@@ -64,6 +63,7 @@ python3 launch.py 01-operating-room [-s]
 In a new terminal, launch RTI Recording Service from the repository root (use `-s` option for security):
 
 ```bash
+# From the repository root
 python3 launch.py 02-record-playback RecordingService [-s]
 ```
 
@@ -82,6 +82,7 @@ Press `Ctrl-C` in the terminal where Module 01's `launch.py` is running to termi
 Relaunch the Digital Operating Room Arm and Patient Monitor GUI applications only (use `-s` option for security):
 
 ```bash
+# From the repository root
 python3 launch.py 01-operating-room Arm PatientMonitor [-s]
 ```
 
@@ -92,6 +93,7 @@ python3 launch.py 01-operating-room Arm PatientMonitor [-s]
 In a new terminal, launch RTI Replay Service from the repository root (use `-s` option for security):
 
 ```bash
+# From the repository root
 python3 launch.py 02-record-playback ReplayService [-s]
 ```
 

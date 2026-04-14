@@ -4,6 +4,8 @@ Module 01 simulates a Digital Operating Room.
 
 The applications have been tested to work in Debian-based environments with a GUI, including those in [WSL2 with GUI support](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps#install-support-for-linux-gui-apps) (Windows 10 and 11), as well as on macOS.
 
+All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
+
 ## Contents
 
 - [Module Description](#module-description)
@@ -50,109 +52,30 @@ It displays current device statuses, presents buttons to administer device comma
 
 ## Setup and Installation
 
-### 1. Prerequisites
+Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. That covers prerequisites, environment setup, the project-level build, and security artifact generation.
 
-You will need:
+Module-specific notes:
 
-- **RTI Connext DDS 7.3** installed and `NDDSHOME` set, including the Python API `.whl`.
-  See the [Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/installation_guide/installation_guide/Installing.htm) and [Python API setup](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/getting_started_guide/python/before_python.html#installing-connext-heading).
-
-  > If `NDDSHOME` is not already in your environment, source the platform setup script from your Connext installation: `source <connext_dir>/resource/scripts/rtisetenv_<arch>.bash` (Linux/macOS) or `rtisetenv_<arch>.bat` (Windows). This script sets `NDDSHOME`, `CONNEXTDDS_ARCH`, and related library paths required by both `build.py` and `launch.py`.
-- **CMake** ≥ 3.17 and a C++ compiler toolchain.
-- **Python** ≥ 3.9.
-
-**Make sure you run [Hands-On 1: Your First DataWriter and DataReader](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/getting_started_guide/python/intro_pubsub_python.html#hands-on-1-your-first-datawriter-and-datareader) from the Getting Started Guide to confirm that the Python API works.**
-
-Install the system build dependencies for your platform:
-
-<details>
-<summary><strong>Linux (Debian/Ubuntu)</strong></summary>
-
-```bash
-sudo apt install \
-    build-essential \
-    cmake \
-    pkg-config \
-    libgtkmm-3.0-dev \
-    python3-venv
-```
-
-> `python3-venv` is required on Debian/Ubuntu to create virtual environments (`python3 -m venv`).
-> It is a split package not included with the base `python3` install.
-
-</details>
-
-<details>
-<summary><strong>macOS</strong></summary>
-
-```bash
-xcode-select --install          # compiler toolchain (if not already installed)
-brew install cmake pkg-config gtkmm3 python3
-```
-
-> Homebrew's `python3` includes `pip` and `venv` — no separate installs needed.
-
-</details>
-
-### 2. Set Up a Python Virtual Environment
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-
-# Install the RTI Connext Python API from your local Connext installation:
-pip install rti.connext.activated -f $NDDSHOME/resource/python_api
-# Alternatively, if the above path is not available, install from PyPI:
-# pip install rti.connext==7.3.0
-```
-
-### 3. Build the Project
-
-From the repository root:
-
-```bash
-python3 build.py
-```
-
-This script creates a `build/` directory, runs CMake configuration and compilation automatically.
-
-To build only the modules you intend to run:
-
-```bash
-python3 build.py --target module-01   # all C++ targets in Module 01
-python3 build.py --target ArmController  # only the ArmController target
-```
-
-The compiled binaries are placed under `build/<CONNEXTDDS_ARCH>/`.
-
-### 4. Security (optional)
-
-This module also demonstrates how [RTI Security Plugins](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/index.html) can easily be applied to an existing system.
-
-To run the secure version of the module, you need the Security Plugins installed (see the [RTI Security Plugins Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/installation_guide/security_plugins/installation_guide/SecurityPluginsInstallationTitle.htm)).
-
-Generate the security artifacts (CA certificates, identity certificates, and signed governance/permissions XML). See the [Security README](../../system_arch/security/README.md) for full details.
-
-```bash
-python3 system_arch/security/setup_security.py
-```
-
-Re-run with `--force` to regenerate existing artifacts.
+- If you plan to use secure mode, make sure the security artifacts from the root README have been generated.
+- There is no module-local build or launch script; use the project-level `build.py` and `launch.py` scripts from the repository root.
 
 ## Run the Demo
 
+> Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+
 ### 1. Launch the applications
 
-Run operating room applications:
+Run operating room applications from the repository root:
 
 ```bash
+# From the repository root
 python3 launch.py 01-operating-room
 ```
 
 To run with security enabled, use the `-s` option:
 
 ```bash
+# From the repository root
 python3 launch.py 01-operating-room -s
 ```
 
