@@ -189,10 +189,15 @@ def main():
                         help="Report certificate expiry status and exit.")
     parser.add_argument("--warn-days", type=int, default=30,
                         help="Days-to-expiry warning threshold for --status (default: 30).")
+    parser.add_argument("-v", "--verbose", action="count", default=0,
+                        help="Increase logging verbosity (-v=INFO, -vv=DEBUG).")
     parser.add_argument("--connext-version",
                         help="Override Connext version (e.g. '7.5.0'). "
                              "Auto-detected from rti.connextdds if not set.")
     args = parser.parse_args()
+
+    level = (logging.WARNING, logging.INFO, logging.DEBUG)[min(args.verbose, 2)]
+    logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
 
     if args.connext_version:
         SECURITY_TREE.connext_version = tuple(
@@ -206,7 +211,6 @@ def main():
                 ".".join(str(x) for x in detected))
 
     if args.status:
-        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
         SECURITY_TREE.check_status(root=SECURITY_DIR, warn_days=args.warn_days)
     elif args.scaffold:
         scaffold_tree(SECURITY_TREE, root=SECURITY_DIR, strict=args.strict)

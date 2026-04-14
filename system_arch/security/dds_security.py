@@ -137,6 +137,7 @@ def generate_key(key_path: Path, *, ec_curve: str = EC_CURVE) -> Path:
     openssl_run([
         "genpkey", "-algorithm", "EC",
         "-pkeyopt", f"ec_paramgen_curve:{ec_curve}",
+        "-pkeyopt", "ec_param_enc:named_curve",
         "-out", str(key_path),
     ])
     key_path.chmod(0o600)
