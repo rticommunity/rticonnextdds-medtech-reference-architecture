@@ -7,8 +7,7 @@ This repository contains documentation and module demo applications showcasing d
 ## Contents
 
 - [Introduction](#introduction)
-- [Getting Started](#getting-started)
-- [Cloning the Repository](#cloning-the-repository)
+- [Quick Start](#quick-start)
 - [Hands-On: Modules](#hands-on-modules)
   - [Module 01: Digital Operating Room](#module-01--digital-operating-room)
   - [Module 02: RTI Recording Service & RTI Replay Service](#module-02--rti-recording-service--rti-replay-service)
@@ -37,36 +36,106 @@ Here are some links that compliment this repository:
 - [Capability Brief PDF](https://www.rti.com/hubfs/_Collateral/capability-briefs/rti-capability-brief-MedTech-Reference-Architecture.pdf)
 - [Case+Code page on rti.com](https://www.rti.com/developers/case-code/medtech-reference-architecture)
 
-## Getting Started
+## Quick Start
 
-*RTI strongly recommends proceeding in the following order:*
+The steps below cover environment setup, dependencies, security artifacts, and building the project. To run anything, follow the module-specific README for the scenario you want to explore.
 
-1. Setup: [Clone the repository.](#cloning-the-repository)
-2. Run: [Run the modules.](#hands-on-modules)
-3. Learn: [Understand the architecture.](#hands-on-architecture)
+### 1. Prerequisites
 
-## Cloning the Repository
+You will need:
 
-To clone the repository you will need to run git clone as follows to download both the repository and its submodule dependencies:
+- **RTI Connext DDS 7.3** installed and `NDDSHOME` set, including the Python API `.whl`.
+  See the [Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/installation_guide/installation_guide/Installing.htm) and [Python API setup](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/getting_started_guide/python/before_python.html#installing-connext-heading).
 
-```sh
-git clone --recurse-submodule https://github.com/rticommunity/rticonnextdds-medtech-reference-architecture.git
+  > If `NDDSHOME` is not already in your environment, source the platform setup script from your Connext installation: `source <connext_dir>/resource/scripts/rtisetenv_<arch>.bash` (Linux/macOS) or `rtisetenv_<arch>.bat` (Windows). This script sets `NDDSHOME`, `CONNEXTDDS_ARCH`, and related library paths required by both `build.py` and `launch.py`.
+- **CMake** ≥ 3.17 and a C++ compiler toolchain.
+- **Python** ≥ 3.9.
+
+Install the system build dependencies for your platform:
+
+<details>
+<summary><strong>Linux (Debian/Ubuntu)</strong></summary>
+
+```bash
+sudo apt install \
+    build-essential \
+    cmake \
+    pkg-config \
+    libgtkmm-3.0-dev \
+    python3-venv
 ```
 
-If you forget to clone the repository with `--recurse-submodule`, simply run
-the following command to pull all the dependencies:
+> `python3-venv` is required on Debian/Ubuntu to create virtual environments (`python3 -m venv`).
+> It is a split package not included with the base `python3` install.
 
-```sh
-git submodule update --init --recursive
+</details>
+
+<details>
+<summary><strong>macOS</strong></summary>
+
+```bash
+xcode-select --install          # compiler toolchain (if not already installed)
+brew install cmake pkg-config gtkmm3 python3
 ```
 
-For the demonstrated modules and their prerequisites, refer to the README.md located in their respective folder.
+> Homebrew's `python3` includes `pip` and `venv` — no separate installs needed.
+
+</details>
+
+### 2. Clone the Repository
+
+```bash
+git clone https://github.com/rticommunity/rticonnextdds-medtech-reference-architecture.git
+cd rticonnextdds-medtech-reference-architecture
+```
+
+### 3. Set Up a Python Virtual Environment
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# Install the RTI Connext Python API from your local Connext installation:
+pip install rti.connext.activated -f $NDDSHOME/resource/python_api
+# Alternatively, if the above path is not available, install from PyPI:
+# pip install rti.connext==7.3.0
+```
+
+### 4. Build the C++ Modules
+
+Build all modules:
+
+```bash
+python3 build.py
+```
+
+To build only the modules you intend to run:
+
+```bash
+python3 build.py --target module-01   # all C++ targets in Module 01
+python3 build.py --target ArmController  # only the ArmController target
+```
+
+The compiled binaries are placed under `build/<CONNEXTDDS_ARCH>/`.
+
+### 5. Generate Security Artifacts *(optional — skip if not using `-s`)*
+
+The security flag (`-s`) requires PKI certificates, signed governance/permissions XML, and a WAN PSK seed file. Generate them once:
+
+```bash
+python3 system_arch/security/setup_security.py
+```
+
+Re-run with `--force` to regenerate existing artifacts. See the [Security README](./system_arch/security/README.md) for full details.
+
+When setup is complete, use the module-specific READMEs below to choose a workflow. They explain what each demo launches and how to run it from the repository root with the project-level `launch.py` script.
 
 ## Hands-On: Modules
 
 The RTI MedTech Reference Architecture demonstrates use cases and capabilities of the provided system architecture.
 
-*RTI recommends following along the module-specific READMEs before returning here and learning more about the designed system architecture.*
+Use the module-specific READMEs when you want to run a demo. They describe what each workflow launches, why it exists, and the exact `launch.py` commands to use from the repository root.
 
 - ### [Module 01](./modules/01-operating-room/) : Digital Operating Room
 
@@ -132,7 +201,7 @@ This reference architecture defines the following Data Types in [Types.xml](./sy
 
 Quality of Service (QoS) in DDS characterizes a system's infrastructure and data flow. In a QoS Profile, you can define a set of QoS policy values for a DDS entity (e.g. DomainParticipant, DataWriter, DataReader).
 
-The heirarchy of components configured in a QoS Profile are as follows:
+The hierarchy of components configured in a QoS Profile are as follows:
 
 ```text
 QoS Profile
@@ -152,13 +221,13 @@ This reference architecture defines the following QoS Profiles in [Qos.xml](./sy
 | DataFlow    | Streaming           | Periodic data that is published at a high frequency (i.e. frequencies <1 second)
 | DataFlow    | Status              | "Current status"-like data, sent once at the beginning of operation and again only upon change to the status
 | DataFlow    | Command             | Data that represents commands or trigger some action in the system
-| DataFlow    | Heartbeat           | Assert and detect the presense of system devices
+| DataFlow    | Heartbeat           | Assert and detect the presence of system devices
 
 ### Domains & Topics
 
 A Domain represents a data space where data can be shared by means of reading and writing the same Topics, where each Topic has a corresponding Data Type. In a Domain, you can define Topics and associate Data Types.
 
-The heirarchy of the components configured in a Domain are as follows:
+The hierarchy of the components configured in a Domain are as follows:
 
 ```text
 Domain → Domain ID
@@ -201,7 +270,7 @@ This is where the entire system architecture is tied together:
 - DataWriters and DataReaders are configured to operate on a defined *Topic*, which has been associated with a defined *Data Type*.
 - DataWriters and DataReaders are configured to use a defined *QoS Profile*.
 
-The heirarchy of DDS entities and components configured in a DomainParticipant are as follows:
+The hierarchy of DDS entities and components configured in a DomainParticipant are as follows:
 
 ```text
 DomainParticipant → Domain
@@ -224,13 +293,13 @@ Legend:
 
 This reference architecture defines the following DomainParticipants in [ParticipantLibrary.xml](./system_arch/xml_app_creation/ParticipantLibrary.xml):
 
-| Domain                | DomainParticipant | Subscriptions                       | Publications                                    | Intended Use
-| ------                | ----------------- | ----------                          | ---------                                       | ------------
-| OperationalDataDomain | Arm               | `t/DeviceCommand`, `t/MotorControl`  | `t/DeviceStatus`, `t/DeviceHeartbeat`            | Operate a robotic surgery arm with 5 motors: Base, Shoulder, Elbow, Wrist, and Hand.
-| OperationalDataDomain | ArmController     | `t/DeviceCommand`                   | `t/MotorControl`, `t/DeviceHeartbeat`            | Administer commands to an Arm device to control its motors.
-| OperationalDataDomain | Orchestrator      | `t/DeviceStatus`, `t/DeviceHeartbeat`| `t/DeviceCommand`                               | Administer device-level commands and monitor presense and status of all devices.
-| OperationalDataDomain | PatientSensor     | `t/DeviceCommand`                   | `t/Vitals`, `t/DeviceStatus`, `t/DeviceHeartbeat` | Stream simulated patient vitals.
-| OperationalDataDomain | PatientMonitor    | `t/DeviceCommand`, `t/Vitals`        | `t/DeviceStatus`, `t/DeviceHeartbeat`            | Process and display patient vitals.
+| Domain                | DomainParticipant | Subscriptions                         | Publications                                       | Intended Use
+| --------------------- | ----------------- | ------------------------------------- | -------------------------------------------------- | ------------
+| OperationalDataDomain | Arm               | `t/DeviceCommand`, `t/MotorControl`   | `t/DeviceStatus`, `t/DeviceHeartbeat`              | Operate a robotic surgery arm with 5 motors: Base, Shoulder, Elbow, Wrist, and Hand.
+| OperationalDataDomain | ArmController     | `t/DeviceCommand`                     | `t/MotorControl`, `t/DeviceHeartbeat`              | Administer commands to an Arm device to control its motors.
+| OperationalDataDomain | Orchestrator      | `t/DeviceStatus`, `t/DeviceHeartbeat` | `t/DeviceCommand`                                  | Administer device-level commands and monitor presence and status of all devices.
+| OperationalDataDomain | PatientSensor     | `t/DeviceCommand`                     | `t/Vitals`, `t/DeviceStatus`, `t/DeviceHeartbeat`  | Stream simulated patient vitals.
+| OperationalDataDomain | PatientMonitor    | `t/DeviceCommand`, `t/Vitals`         | `t/DeviceStatus`, `t/DeviceHeartbeat`              | Process and display patient vitals.
 
 *Note, this reference architecture utilizes one DomainParticipant for each device application. It is a **best practice** to define one DomainParticipant per application. However, in more complex systems, an application may be required to operate on multiple Domains. This requires defining multiple DomainParticipants for those applications that run in parallel.*
 
@@ -242,17 +311,19 @@ DDS Security is meant to be a pluggable component to the system architecture. Th
 
 The reference architecture configures security in [SecureAppsQos.xml](./system_arch/qos/SecureAppsQos.xml) with:
 
-| Component | Security Features
-|-----------|-------------------
+| Component              | Security Features
+| ---------------------- | -----------------
 | **LAN Communications** | Domain 0 governance, participant-specific certificates and permissions
 | **WAN Communications** | Domain 1 governance for WAN connections
-| **RTI Services** | Dedicated security profiles for Recording/Replay Services and Routing Services
+| **RTI Services**       | Dedicated security profiles for Recording/Replay Services and Routing Services
 
 Security Artifacts Structure in [security](./system_arch/security/):
 
-- `ca/` - Certificate Authority files and configuration
-- `identities/` - Individual participant certificates and private keys organized by module
-- `xml/` - DDS Governance and Permissions XML documents with signed versions
+- `ca/` - Certificate Authority hierarchy (root CA → intermediate identity CA + intermediate permissions CA)
+- `domain_scope/` - Per-domain governance and permissions XML documents with signed versions
+- `identity/` - Per-participant identity certificates, private keys, and cert chains organized by module
+
+See the [Security README](./system_arch/security/README.md) for generation instructions and full details.
 
 ## Going Further
 

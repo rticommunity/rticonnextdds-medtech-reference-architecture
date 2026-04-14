@@ -2,7 +2,9 @@
 
 Module 01 simulates a Digital Operating Room.
 
-The applications have been tested to work in Debian-based environments with a GUI, including those in [WSL2 with GUI support](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps#install-support-for-linux-gui-apps) (Windows 10 and 11).
+The applications have been tested to work in Debian-based environments with a GUI, including those in [WSL2 with GUI support](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps#install-support-for-linux-gui-apps) (Windows 10 and 11), as well as on macOS.
+
+All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
 
 ## Contents
 
@@ -44,103 +46,37 @@ It presents buttons to administer *Arm* motor commands, and shows an "Alerts" pa
 
 ### Orchestrator
 
-The *Orchestrator* application primarily acts as a system application state observer and controller. It detects the presense and current status of other system applications on Topics `t/DeviceHeartbeat` and `t/DeviceStatus`, respectively. It can also command device-level actions, such as "Start" or "Shut Down" on Topic `t/DeviceCommand`.
+The *Orchestrator* application primarily acts as a system application state observer and controller. It detects the presence and current status of other system applications on Topics `t/DeviceHeartbeat` and `t/DeviceStatus`, respectively. It can also command device-level actions, such as "Start" or "Shut Down" on Topic `t/DeviceCommand`.
 
 It displays current device statuses, presents buttons to administer device commands, and shows an "Alerts" panel to display observed events.
 
 ## Setup and Installation
 
-### 1. Install Dependencies
+Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. That covers prerequisites, environment setup, the project-level build, and security artifact generation.
 
-To install Connext, follow the [installation guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/installation_guide/installation_guide/Installing.htm#Chapter_1_Installing_RTI%C2%A0Connext) and other required tools. You will also need the [Python API](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/getting_started_guide/python/before_python.html#installing-connext-heading) to be installed. **Make sure you run [Hands-On 1: Your First DataWriter and DataReader](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/getting_started_guide/python/intro_pubsub_python.html#hands-on-1-your-first-datawriter-and-datareader) from the Getting Started Guide to confirm that the Python API works.**
+Module-specific notes:
 
-Dependencies for building the C++ applications:
-
-- `build-essential` — compiler toolchain
-- `pkg-config` — library discovery
-- `libgtkmm-3.0-dev` — GTK+ C++ bindings used by *Arm Controller* and *Orchestrator*
-
-Dependencies for the Python GUI applications (*Arm Monitor*, *Patient Monitor*):
-
-- `PySide6` — PySide6 Qt widget toolkit
-- `pyqtgraph` — fast scientific plotting
-- `numpy` — numerical arrays
-
-#### Option A: Install system-provided packages with *apt*
-
-```bash
-sudo apt install \
-    build-essential \
-    pkg-config \
-    libgtkmm-3.0-dev \
-    python3-pip \
-    python3-pyside6 \
-    python3-numpy \
-    python3-pyqtgraph
-```
-
-#### Option B: Install PyPI-provided packages with *pip* (recommended for virtual environments)
-
-First install the system build dependencies:
-
-```bash
-sudo apt install \
-    build-essential \
-    pkg-config \
-    libgtkmm-3.0-dev \
-    python3-dev \
-    python3-pip
-```
-
-Then install the Python packages:
-
-```bash
-pip install \
-    PySide6 \
-    pyqtgraph \
-    numpy
-```
-
-### 2. Build the Project using CMake
-
-```bash
-source <connext installation directory>/resource/scripts/rtisetenv_x64Linux4gcc7.3.0.bash
-cd modules/01-operating-room
-mkdir build
-cd build
-cmake ..
-cmake --build .
-```
-
-### 3. Security (optional)
-
-This module also demonstrates how [RTI Security Plugins](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/index.html) can easily be applied to an existing system.
-
-To run the secure version of the module, you need the Security Plugins installed (see the [RTI Security Plugins Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/installation_guide/security_plugins/installation_guide/SecurityPluginsInstallationTitle.htm)).
-
-Generate the security artifacts using OpenSSL.
-This includes identity certificates, private keys, and the signing of DDS Security XML permissions & governance files located in [system_arch/security](../../system_arch/security).
-
-```bash
-cd system_arch/security
-./setup_security.sh
-```
+- If you plan to use secure mode, make sure the security artifacts from the root README have been generated.
+- There is no module-local build or launch script; use the project-level `build.py` and `launch.py` scripts from the repository root.
 
 ## Run the Demo
 
+> Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+
 ### 1. Launch the applications
 
-Run operating room applications:
+Run operating room applications from the repository root:
 
 ```bash
-cd modules/01-operating-room
-./scripts/launch_all.sh
+# From the repository root
+python3 launch.py 01-operating-room
 ```
 
 To run with security enabled, use the `-s` option:
 
 ```bash
-./scripts/launch_all.sh -s
+# From the repository root
+python3 launch.py 01-operating-room -s
 ```
 
 *This script does the following:*
@@ -149,9 +85,9 @@ To run with security enabled, use the `-s` option:
 
 2. Launch the application executables.
 
-*Note, applications can be launched individually from a terminal instead of all at once via the **launch_all.sh** script. Please refer how `NDDS_QOS_PROFILES` is set in [launch_all.sh](./scripts/launch_all.sh), so your terminal environment can be configured similarly without errors.*
+*Note, applications can be launched individually by name, e.g. `python3 launch.py 01-operating-room Arm PatientMonitor`. Refer to [module.json](./module.json) for the list of available app names and QoS configuration.*
 
-### 3. Observe the application behavior
+### 2. Observe the application behavior
 
 Observe and play around with the interactive operating room applications. The following are some ideas to get started:
 
@@ -162,11 +98,7 @@ Observe and play around with the interactive operating room applications. The fo
 
 ### 3. Kill the applications
 
-To ensure application processes are killed when finished, run:
-
-```bash
-./scripts/kill_all.sh
-```
+Press `Ctrl-C` in the terminal where `launch.py` is running to terminate all application processes.
 
 ## Hands-On: Going Further
 

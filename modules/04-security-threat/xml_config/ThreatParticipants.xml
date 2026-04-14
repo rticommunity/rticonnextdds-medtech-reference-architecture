@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+RTI grants Licensee a license to use, modify, compile, and create derivative
+works of the software solely for use with RTI Connext DDS. -->
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_dds_profiles.xsd"
+    version="7.3.0">
+    
+  <domain_participant_library name="ThreatParticipantLibrary">
+
+    <!-- ── ThreatInjector: Unsecure mode (no security plugins) ──────── -->
+    <domain_participant name="dp/ThreatInjector/Unsecure"
+                        domain_ref="ConnextDomainLib::OperationalDataDomain">
+      <domain_participant_qos base_name="DpQosLib::ThreatInjectorUnsecure"/>
+
+      <publisher name="p/publisher">
+        <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
+        <data_writer name="dw/MotorControl" topic_ref="t/MotorControl">
+          <datawriter_qos base_name="DataFlowLibrary::Command"/>
+        </data_writer>
+        <data_writer name="dw/DeviceCommand" topic_ref="t/DeviceCommand">
+          <datawriter_qos base_name="DataFlowLibrary::Command"/>
+        </data_writer>
+      </publisher>
+    </domain_participant>
+
+    <!-- ── ThreatInjector: Rogue CA mode ────────────────────────────── -->
+    <domain_participant name="dp/ThreatInjector/RogueCA"
+                        domain_ref="ConnextDomainLib::OperationalDataDomain">
+      <domain_participant_qos base_name="DpQosLib::ThreatInjectorRogueCA"/>
+
+      <publisher name="p/publisher">
+        <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
+        <data_writer name="dw/MotorControl" topic_ref="t/MotorControl">
+          <datawriter_qos base_name="DataFlowLibrary::Command"/>
+        </data_writer>
+        <data_writer name="dw/DeviceCommand" topic_ref="t/DeviceCommand">
+          <datawriter_qos base_name="DataFlowLibrary::Command"/>
+        </data_writer>
+      </publisher>
+    </domain_participant>
+
+    <!-- ── ThreatInjector: Forged Permissions mode ───────────────────── -->
+    <domain_participant name="dp/ThreatInjector/ForgedPerms"
+                        domain_ref="ConnextDomainLib::OperationalDataDomain">
+      <domain_participant_qos base_name="DpQosLib::ThreatInjectorForgedPerms"/>
+
+      <publisher name="p/publisher">
+        <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
+        <data_writer name="dw/MotorControl" topic_ref="t/MotorControl">
+          <datawriter_qos base_name="DataFlowLibrary::Command"/>
+        </data_writer>
+        <data_writer name="dw/DeviceCommand" topic_ref="t/DeviceCommand">
+          <datawriter_qos base_name="DataFlowLibrary::Command"/>
+        </data_writer>
+      </publisher>
+    </domain_participant>
+
+    <!-- ── ThreatInjector: Expired Certificate mode ──────────────────── -->
+    <domain_participant name="dp/ThreatInjector/ExpiredCert"
+                        domain_ref="ConnextDomainLib::OperationalDataDomain">
+      <domain_participant_qos base_name="DpQosLib::ThreatInjectorExpiredCert"/>
+
+      <publisher name="p/publisher">
+        <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
+        <data_writer name="dw/MotorControl" topic_ref="t/MotorControl">
+          <datawriter_qos base_name="DataFlowLibrary::Command"/>
+        </data_writer>
+        <data_writer name="dw/DeviceCommand" topic_ref="t/DeviceCommand">
+          <datawriter_qos base_name="DataFlowLibrary::Command"/>
+        </data_writer>
+      </publisher>
+    </domain_participant>
+
+    <!-- ── ThreatExfiltrator: Unsecure mode ─────────────────────────── -->
+    <domain_participant name="dp/ThreatExfiltrator/Unsecure"
+                        domain_ref="ConnextDomainLib::OperationalDataDomain">
+      <domain_participant_qos base_name="DpQosLib::ThreatExfiltratorUnsecure"/>
+
+      <subscriber name="s/subscriber">
+        <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
+        <data_reader name="dr/Vitals" topic_ref="t/Vitals">
+          <datareader_qos base_name="DataFlowLibrary::Streaming"/>
+        </data_reader>
+      </subscriber>
+    </domain_participant>
+
+    <!-- ── ThreatExfiltrator: Rogue CA mode ─────────────────────────── -->
+    <domain_participant name="dp/ThreatExfiltrator/RogueCA"
+                        domain_ref="ConnextDomainLib::OperationalDataDomain">
+      <domain_participant_qos base_name="DpQosLib::ThreatExfiltratorRogueCA"/>
+
+      <subscriber name="s/subscriber">
+        <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
+        <data_reader name="dr/Vitals" topic_ref="t/Vitals">
+          <datareader_qos base_name="DataFlowLibrary::Streaming"/>
+        </data_reader>
+      </subscriber>
+    </domain_participant>
+
+    <!-- ── ThreatExfiltrator: Forged Permissions mode ────────────────── -->
+    <domain_participant name="dp/ThreatExfiltrator/ForgedPerms"
+                        domain_ref="ConnextDomainLib::OperationalDataDomain">
+      <domain_participant_qos base_name="DpQosLib::ThreatExfiltratorForgedPerms"/>
+
+      <subscriber name="s/subscriber">
+        <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
+        <data_reader name="dr/Vitals" topic_ref="t/Vitals">
+          <datareader_qos base_name="DataFlowLibrary::Streaming"/>
+        </data_reader>
+      </subscriber>
+    </domain_participant>
+
+    <!-- ── ThreatExfiltrator: Expired Certificate mode ───────────────── -->
+    <domain_participant name="dp/ThreatExfiltrator/ExpiredCert"
+                        domain_ref="ConnextDomainLib::OperationalDataDomain">
+      <domain_participant_qos base_name="DpQosLib::ThreatExfiltratorExpiredCert"/>
+
+      <subscriber name="s/subscriber">
+        <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
+        <data_reader name="dr/Vitals" topic_ref="t/Vitals">
+          <datareader_qos base_name="DataFlowLibrary::Streaming"/>
+        </data_reader>
+      </subscriber>
+    </domain_participant>
+
+  </domain_participant_library>
+
+</dds>

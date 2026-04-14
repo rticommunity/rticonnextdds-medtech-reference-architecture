@@ -10,10 +10,14 @@
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
 
+from __future__ import annotations
+
 import sys
 import math
 import time
 import threading
+import signal
+from pathlib import Path
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QFrame,
@@ -26,11 +30,17 @@ from PySide6.QtGui import (
 )
 
 import rti.connextdds as dds
-import DdsUtils
 import PySide6.QtAsyncio as QtAsyncio
 
-# Import OR types (path added by DdsUtils)
-from Types import SurgicalRobot, Orchestrator, Common
+# Import OR types
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
+if str(PROJECT_ROOT / "modules" / "01-operating-room" / "src") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "modules" / "01-operating-room" / "src"))
+import DdsUtils
+from Types import Common, Orchestrator, SurgicalRobot, DdsEntities
+from ThreatTypes import ThreatEntities
+threat_entities = ThreatEntities.Constants
+entities = DdsEntities.Constants
 
 # ─── RTI Brand Colors ────────────────────────────────────────────────────
 RTI_BLUE    = "#004C97"
@@ -132,11 +142,11 @@ ATTACK_MOTOR_INJECT    = "MOTOR INJECT"
 ATTACK_CMD_PAUSE       = "CMD INJECT (PAUSE)"
 ATTACK_CMD_SHUTDOWN    = "CMD INJECT (SHUTDOWN)"
 
-MODE_TO_FQN = {
-    MODE_UNSECURE:     DdsUtils.injector_unsecure_dp_fqn,
-    MODE_ROGUE_CA:     DdsUtils.injector_rogue_ca_dp_fqn,
-    MODE_FORGED_PERMS: DdsUtils.injector_forged_perms_dp_fqn,
-    MODE_EXPIRED_CERT: DdsUtils.injector_expired_cert_dp_fqn,
+MODE_TO_DP_NAME = {
+    MODE_UNSECURE:     threat_entities.INJECTOR_UNSECURE_DP,
+    MODE_ROGUE_CA:     threat_entities.INJECTOR_ROGUE_CA_DP,
+    MODE_FORGED_PERMS: threat_entities.INJECTOR_FORGED_PERMS_DP,
+    MODE_EXPIRED_CERT: threat_entities.INJECTOR_EXPIRED_CERT_DP,
 }
 
 
@@ -258,7 +268,7 @@ class ThreatInjectorWindow(QMainWindow):
         self.resize(1100, 720)
         self.setStyleSheet(f"background-color: {BG_MAIN};")
 
-        _icon_px = QPixmap("../../resource/images/rti_logo.ico")
+        _icon_px = QPixmap("../../resource/images/rti_logo.png")
         if not _icon_px.isNull():
             self.setWindowIcon(QIcon(_icon_px))
 
@@ -300,7 +310,7 @@ class ThreatInjectorWindow(QMainWindow):
         h = QHBoxLayout(header)
         h.setContentsMargins(20, 0, 20, 0)
 
-        _logo_px = QPixmap("../../resource/images/rti_logo.ico")
+        _logo_px = QPixmap("../../resource/images/rti_logo.png")
         if not _logo_px.isNull():
             logo = QLabel()
             logo.setStyleSheet("background: transparent;")
@@ -621,15 +631,15 @@ class ThreatInjectorApp:
                 self._cert_invalid = False
                 self._prev_matched = None
 
-            fqn = MODE_TO_FQN.get(mode, DdsUtils.injector_unsecure_dp_fqn)
+            dp_name = MODE_TO_DP_NAME.get(mode, threat_entities.INJECTOR_UNSECURE_DP)
             try:
                 qos_provider = dds.QosProvider.default
-                self._participant = qos_provider.create_participant_from_config(fqn)
+                self._participant = qos_provider.create_participant_from_config(dp_name)
                 self._motor_writer = dds.DataWriter(
-                    self._participant.find_datawriter(DdsUtils.motor_control_dw_fqn)
+                    self._participant.find_datawriter(entities.MOTOR_CONTROL_DW)
                 )
                 self._cmd_writer = dds.DataWriter(
-                    self._participant.find_datawriter(DdsUtils.device_command_dw_fqn)
+                    self._participant.find_datawriter(entities.DEVICE_COMMAND_DW)
                 )
                 self.window.log("INFO", f"Participant created — {mode}")
 
@@ -852,6 +862,16 @@ class ThreatInjectorApp:
     def run(self) -> None:
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
+        _icon = QIcon(QPixmap("../../resource/images/rti_logo.png"))
+        if not _icon.isNull():
+            app.setWindowIcon(_icon)
+        # Allow Ctrl+C to cleanly quit the Qt event loop.
+        # The QTimer is needed so the event loop periodically yields control
+        # back to Python, enabling signal delivery.
+        signal.signal(signal.SIGINT, lambda *_: app.quit())
+        _sig_timer = QTimer()
+        _sig_timer.timeout.connect(lambda: None)
+        _sig_timer.start(300)
         QtAsyncio.run(self._async_main(app), keep_running=True)
 
 

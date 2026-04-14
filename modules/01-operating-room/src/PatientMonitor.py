@@ -14,6 +14,7 @@ import sys
 import math
 import time
 import threading
+import signal
 import numpy as np
 
 from PySide6.QtWidgets import (
@@ -26,8 +27,8 @@ from PySide6.QtGui import QFont, QColor, QPalette, QFontDatabase, QPixmap, QIcon
 import pyqtgraph as pg
 
 import rti.connextdds as dds
-from Types import Common, PatientMonitor, Orchestrator
-import DdsUtils
+from Types import Common, PatientMonitor, Orchestrator, DdsEntities
+from DdsUtils import register_type
 
 # ─── RTI Brand Colors ───────────────────────────────────────────────────────
 RTI_BLUE   = "#004C97"
@@ -316,7 +317,7 @@ class PatientMonitorWindow(QMainWindow):
 
     # ── Window icon ─────────────────────────────────────────────────
     def _set_icon(self):
-        _px = QPixmap("../../resource/images/rti_logo.ico")
+        _px = QPixmap("../../resource/images/rti_logo.png")
         if not _px.isNull():
             self.setWindowIcon(QIcon(_px))
 
@@ -346,7 +347,7 @@ class PatientMonitorWindow(QMainWindow):
         h_layout = QHBoxLayout(header)
         h_layout.setContentsMargins(20, 0, 20, 0)
 
-        _logo_px = QPixmap("../../resource/images/rti_logo.ico")
+        _logo_px = QPixmap("../../resource/images/rti_logo.png")
         if not _logo_px.isNull():
             logo_lbl = QLabel()
             logo_lbl.setStyleSheet("background: transparent;")
@@ -509,27 +510,28 @@ class PatientMonitorApp:
 
     # ── Connext setup ────────────────────────────────────────────────
     def connext_setup(self):
-        DdsUtils.register_type(Common.DeviceStatus)
-        DdsUtils.register_type(Common.DeviceHeartbeat)
-        DdsUtils.register_type(Orchestrator.DeviceCommand)
-        DdsUtils.register_type(PatientMonitor.Vitals)
+        entities = DdsEntities.Constants
+        register_type(Common.DeviceStatus)
+        register_type(Common.DeviceHeartbeat)
+        register_type(Orchestrator.DeviceCommand)
+        register_type(PatientMonitor.Vitals)
 
         qos_provider = dds.QosProvider.default
         participant = qos_provider.create_participant_from_config(
-            DdsUtils.patient_monitor_dp_fqn
+            entities.PATIENT_MONITOR_DP
         )
 
         self.status_writer = dds.DataWriter(
-            participant.find_datawriter(DdsUtils.status_dw_fqn)
+            participant.find_datawriter(entities.STATUS_DW)
         )
         self.hb_writer = dds.DataWriter(
-            participant.find_datawriter(DdsUtils.device_hb_dw_fqn)
+            participant.find_datawriter(entities.HB_DW)
         )
         self.vitals_reader = dds.DataReader(
-            participant.find_datareader(DdsUtils.vitals_dr_fqn)
+            participant.find_datareader(entities.VITALS_DR)
         )
         self.cmd_reader = dds.DataReader(
-            participant.find_datareader(DdsUtils.device_command_dr_fqn)
+            participant.find_datareader(entities.DEVICE_COMMAND_DR)
         )
         self.pm_status = Common.DeviceStatus(
             device=Common.DeviceType.PATIENT_MONITOR,
@@ -541,6 +543,9 @@ class PatientMonitorApp:
     def run(self):
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
+        _icon = QIcon(QPixmap("../../resource/images/rti_logo.png"))
+        if not _icon.isNull():
+            app.setWindowIcon(_icon)
 
         self.window = PatientMonitorWindow()
         self.connext_setup()
@@ -554,13 +559,24 @@ class PatientMonitorApp:
         hb_thread = threading.Thread(target=self.write_hb, daemon=True)
         hb_thread.start()
 
+        # Allow Ctrl+C to cleanly quit the Qt event loop.
+        # The QTimer is needed so the event loop periodically yields control
+        # back to Python, enabling signal delivery.
+        signal.signal(signal.SIGINT, lambda *_: app.quit())
+        _sig_timer = QTimer()
+        _sig_timer.timeout.connect(lambda: None)
+        _sig_timer.start(300)
+        app.aboutToQuit.connect(self._cleanup)
+
         self.window.show()
         print("Started Patient Monitor")
 
         app.exec()
 
-        print("Shutting down Patient Monitor")
         self.pm_status.status = Common.DeviceStatuses.OFF
+
+    def _cleanup(self):
+        print("Shutting down Patient Monitor")
 
 
 if __name__ == "__main__":

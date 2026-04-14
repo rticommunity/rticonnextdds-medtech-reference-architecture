@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- (c) {{ copyright_year }} Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+
+RTI grants Licensee a license to use, modify, compile, and create derivative
+works of the software solely for use with RTI Connext DDS.  Licensee may
+redistribute copies of the software provided that all such copies are
+subject to this license. The software is provided "as is", with no warranty
+of any type, including any warranty for fitness for any purpose. RTI is
+under no obligation to maintain or support the software.  RTI shall not be
+liable for any incidental or consequential damages arising out of the use or
+inability to use the software. -->
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/{{ connext_version_str }}/dds_security_governance.xsd">
+    <domain_access_rules>
+        <domain_rule>
+            <domains>
+                <id_range>
+                    <min>{{ domain_id_min }}</min>
+{% if domain_id_max is not none %}
+                    <max>{{ domain_id_max }}</max>
+{% endif %}
+                </id_range>
+            </domains>
+            <allow_unauthenticated_participants>{{ "true" if allow_unauthenticated_participants else "false" }}</allow_unauthenticated_participants>
+            <enable_join_access_control>{{ "true" if enable_join_access_control else "false" }}</enable_join_access_control>
+            <discovery_protection_kind>{{ discovery_protection_kind }}</discovery_protection_kind>
+            <liveliness_protection_kind>{{ liveliness_protection_kind }}</liveliness_protection_kind>
+            <rtps_protection_kind>{{ rtps_protection_kind }}</rtps_protection_kind>
+{% if connext_version >= (7, 5, 0) %}
+            <enable_key_revision>{{ "true" if enable_key_revision else "false" }}</enable_key_revision>
+{% endif %}
+            <topic_access_rules>
+{% for rule in topic_rules %}
+                <topic_rule>
+                    <topic_expression>{{ rule.topic_expression }}</topic_expression>
+                    <enable_discovery_protection>{{ "true" if rule.enable_discovery_protection else "false" }}</enable_discovery_protection>
+                    <enable_liveliness_protection>{{ "true" if rule.enable_liveliness_protection else "false" }}</enable_liveliness_protection>
+                    <enable_read_access_control>{{ "true" if rule.enable_read_access_control else "false" }}</enable_read_access_control>
+                    <enable_write_access_control>{{ "true" if rule.enable_write_access_control else "false" }}</enable_write_access_control>
+                    <metadata_protection_kind>{{ rule.metadata_protection_kind }}</metadata_protection_kind>
+                    <data_protection_kind>{{ rule.data_protection_kind }}</data_protection_kind>
+                </topic_rule>
+{% endfor %}
+            </topic_access_rules>
+        </domain_rule>
+    </domain_access_rules>
+</dds>

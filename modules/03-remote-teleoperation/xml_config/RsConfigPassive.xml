@@ -19,9 +19,26 @@
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_routing_service.xsd">
 
+    <!-- PUBLIC_ADDRESS must be set as an environment variable to the publicly
+            accessible IP address of this (Passive) side.
+            PUBLIC_PORT and INTERNAL_PORT default to 10777 and may be overridden
+            via environment variable. PUBLIC_PORT is the externally forwarded port;
+            INTERNAL_PORT is the port this host listens on locally. -->
+    <configuration_variables>
+        <value>
+            <element>
+                <name>PUBLIC_PORT</name>
+                <value>10777</value>
+            </element>
+            <element>
+                <name>INTERNAL_PORT</name>
+                <value>10777</value>
+            </element>
+        </value>
+    </configuration_variables>
+
     <!-- RS that is not behind a well-known public IP address -->
     <routing_service name="RsConfigPassive">
-
         <!-- The administration tag enables remote administration, and is 
             required when using Admin Console. -->
         <administration>
@@ -53,12 +70,12 @@
 
             <participant name="Local_domain">
                 <domain_id>0</domain_id>
-                <domain_participant_qos base_name="BuiltinQosLib::Generic.Common"/>
+                <domain_participant_qos base_name="RtiServicesLib::RsPassiveLan"/>
             </participant>
 
             <participant name="WAN_domain">
                 <domain_id>1</domain_id>
-                <domain_participant_qos base_name="RtiServicesLib::RsPassive">
+                <domain_participant_qos base_name="RtiServicesLib::RsPassiveWan">
                     <transport_builtin>
                         <udpv4_wan>
                             <public_address>$(PUBLIC_ADDRESS)</public_address>

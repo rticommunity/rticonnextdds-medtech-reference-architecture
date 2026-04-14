@@ -21,9 +21,16 @@
 #include <chrono>
 #include <unistd.h>
 #include <cstring>
+#include <csignal>
+#include <atomic>
 
 #include "Types.hpp"
-#include "DdsUtils.hpp"
+
+using namespace DdsEntities::Constants;
+
+static std::atomic<bool> g_shutdown{false};
+
+static void handle_signal(int) { g_shutdown = true; }
 
 class PatientSensor {
 public:
@@ -41,33 +48,33 @@ public:
 
         dds::domain::DomainParticipant participant =
                 default_provider.extensions().create_participant_from_config(
-                        DdsUtils::patient_sensor_dp_fqn);
+                        PATIENT_SENSOR_DP);
 
         // Initialize DataWriters
         dds::pub::DataWriter<PatientMonitor::Vitals> vitals_writer =
                 rti::pub::find_datawriter_by_name<
                         dds::pub::DataWriter<PatientMonitor::Vitals>>(
                         participant,
-                        DdsUtils::vitals_dw_fqn);
+                        VITALS_DW);
 
         dds::pub::DataWriter<Common::DeviceStatus> status_writer =
                 rti::pub::find_datawriter_by_name<
                         dds::pub::DataWriter<Common::DeviceStatus>>(
                         participant,
-                        DdsUtils::status_dw_fqn);
+                        STATUS_DW);
 
         dds::pub::DataWriter<Common::DeviceHeartbeat> hb_writer =
                 rti::pub::find_datawriter_by_name<
                         dds::pub::DataWriter<Common::DeviceHeartbeat>>(
                         participant,
-                        DdsUtils::hb_dw_fqn);
+                        HB_DW);
 
         // Initialize DataReader
         dds::sub::DataReader<Orchestrator::DeviceCommand> cmd_reader =
                 rti::sub::find_datareader_by_name<
                         dds::sub::DataReader<Orchestrator::DeviceCommand>>(
                         participant,
-                        DdsUtils::device_command_dr_fqn);
+                        DEVICE_COMMAND_DR);
 
         current_status.device(Common::DeviceType::PATIENT_SENSOR);
         current_status.status(Common::DeviceStatuses::ON);
@@ -90,9 +97,19 @@ public:
         write_status(status_writer);
 
         // Main loop
-        while (current_status.status() != Common::DeviceStatuses::OFF) {
-            waitset_command.dispatch(dds::core::Duration(1));
+        while (!g_shutdown && current_status.status() != Common::DeviceStatuses::OFF) {
+            try {
+                waitset_command.dispatch(dds::core::Duration(1));
+            } catch (const dds::core::Error &) {
+                break;
+            }
             write_vitals(vitals_writer);
+        }
+
+        if (g_shutdown) {
+            std::cout << "Shutting Down Patient Sensor (signal)" << std::endl;
+            current_status.status(Common::DeviceStatuses::OFF);
+            write_status(status_writer);
         }
 
         hb_thread.join();
@@ -165,6 +182,8 @@ private:
 // Main function creates an instance of PatientMonitor and runs it
 int main(int argc, char const *argv[])
 {
+    std::signal(SIGINT, handle_signal);
+    std::signal(SIGTERM, handle_signal);
     PatientSensor patient_sensor;
     patient_sensor.run();
     return 0;

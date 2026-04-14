@@ -14,6 +14,7 @@ import sys
 import math
 import time
 import threading
+import signal
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QFrame,
@@ -26,8 +27,8 @@ from PySide6.QtGui import (
 )
 
 import rti.connextdds as dds
-from Types import Common, SurgicalRobot, Orchestrator
-import DdsUtils
+from Types import Common, SurgicalRobot, Orchestrator, DdsEntities
+from DdsUtils import register_type
 
 # ─── RTI Brand Colors ────────────────────────────────────────────────────
 RTI_BLUE   = "#004C97"
@@ -375,7 +376,7 @@ class ArmWindow(QMainWindow):
         self.setWindowTitle("RTI Connext — Surgical Arm Monitor")
         self.setMinimumSize(640, 650)
         self.setStyleSheet(f"background-color: {BG_MAIN};")
-        _icon_px = QPixmap("../../resource/images/rti_logo.ico")
+        _icon_px = QPixmap("../../resource/images/rti_logo.png")
         if not _icon_px.isNull():
             self.setWindowIcon(QIcon(_icon_px))
 
@@ -398,7 +399,7 @@ class ArmWindow(QMainWindow):
         h_layout = QHBoxLayout(header)
         h_layout.setContentsMargins(20, 0, 20, 0)
 
-        _logo_px = QPixmap("../../resource/images/rti_logo.ico")
+        _logo_px = QPixmap("../../resource/images/rti_logo.png")
         if not _logo_px.isNull():
             logo_lbl = QLabel()
             logo_lbl.setStyleSheet("background: transparent;")
@@ -543,21 +544,25 @@ class ArmApp:
                 QApplication.quit()
             self.status_writer.write(self.arm_status)
 
+    def _cleanup(self):
+        print("Shutting down Arm")
+
     # ── Connext setup ─────────────────────────────────────────────────
     def connext_setup(self):
-        DdsUtils.register_type(Common.DeviceStatus)
-        DdsUtils.register_type(Common.DeviceHeartbeat)
-        DdsUtils.register_type(Orchestrator.DeviceCommand)
-        DdsUtils.register_type(SurgicalRobot.MotorControl)
+        entities = DdsEntities.Constants
+        register_type(Common.DeviceStatus)
+        register_type(Common.DeviceHeartbeat)
+        register_type(Orchestrator.DeviceCommand)
+        register_type(SurgicalRobot.MotorControl)
 
         qos_provider = dds.QosProvider.default
-        participant = qos_provider.create_participant_from_config(DdsUtils.arm_dp_fqn)
+        participant = qos_provider.create_participant_from_config(entities.ARM_DP)
 
         self.status_writer = dds.DataWriter(
-            participant.find_datawriter(DdsUtils.status_dw_fqn)
+            participant.find_datawriter(entities.STATUS_DW)
         )
         self.hb_writer = dds.DataWriter(
-            participant.find_datawriter(DdsUtils.device_hb_dw_fqn)
+            participant.find_datawriter(entities.HB_DW)
         )
         self.arm_status = Common.DeviceStatus(
             device=Common.DeviceType.ARM, status=Common.DeviceStatuses.ON
@@ -565,16 +570,19 @@ class ArmApp:
         self.status_writer.write(self.arm_status)
 
         self.motor_control_reader = dds.DataReader(
-            participant.find_datareader(DdsUtils.motor_control_dr_fqn)
+            participant.find_datareader(entities.MOTOR_CONTROL_DR)
         )
         self.cmd_reader = dds.DataReader(
-            participant.find_datareader(DdsUtils.device_command_dr_fqn)
+            participant.find_datareader(entities.DEVICE_COMMAND_DR)
         )
 
     # ── Entry point ───────────────────────────────────────────────────
     def run(self):
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
+        _icon = QIcon(QPixmap("../../resource/images/rti_logo.png"))
+        if not _icon.isNull():
+            app.setWindowIcon(_icon)
 
         self.window = ArmWindow()
         self.connext_setup()
@@ -590,12 +598,20 @@ class ArmApp:
         )
         hb_thread.start()
 
+        # Allow Ctrl+C to cleanly quit the Qt event loop.
+        # The QTimer is needed so the event loop periodically yields control
+        # back to Python, enabling signal delivery.
+        signal.signal(signal.SIGINT, lambda *_: app.quit())
+        _sig_timer = QTimer()
+        _sig_timer.timeout.connect(lambda: None)
+        _sig_timer.start(300)
+        app.aboutToQuit.connect(self._cleanup)
+
         self.window.show()
         print("Started Arm")
 
         app.exec()
 
-        print("Shutting down Arm")
         self.arm_status.status = Common.DeviceStatuses.OFF
 
 

@@ -1,13 +1,16 @@
 .vscode/
 .venv/
 build/
+__pycache__/
 Types.py
 builtin_logging_type.py
+ThreatTypes.py
 *_timestamp.cmake
 *.pyc
 *.pem
 *.p7s
 *.csr
-*.srl
 *.glade~
+*.srl
+*.psk
 or_recording/

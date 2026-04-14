@@ -10,10 +10,14 @@
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
 
+from __future__ import annotations
+
 import sys
 import math
 import time
 import threading
+import signal
+from pathlib import Path
 
 import numpy as np
 
@@ -28,13 +32,18 @@ from PySide6.QtGui import QFont, QColor, QPalette, QPixmap, QIcon
 import pyqtgraph as pg
 
 import rti.connextdds as dds
-import DdsUtils
 import PySide6.QtAsyncio as QtAsyncio
 
-# Import OR types (path added by DdsUtils)
-from Types import PatientMonitor
+# Import OR types
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
+if str(PROJECT_ROOT / "modules" / "01-operating-room" / "src") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "modules" / "01-operating-room" / "src"))
+import DdsUtils
+from Types import PatientMonitor, DdsEntities
+from ThreatTypes import ThreatEntities
+threat_entities = ThreatEntities.Constants
+entities = DdsEntities.Constants
 
-# ─── RTI Brand Colors ────────────────────────────────────────────────────
 RTI_BLUE    = "#004C97"
 RTI_ORANGE  = "#ED8B00"
 BG_MAIN     = "#0A0E17"
@@ -91,11 +100,11 @@ MODE_ROGUE_CA     = "ROGUE CA"
 MODE_FORGED_PERMS = "FORGED PERMS"
 MODE_EXPIRED_CERT = "EXPIRED CERT"
 
-MODE_TO_FQN = {
-    MODE_UNSECURE:     DdsUtils.exfiltrator_unsecure_dp_fqn,
-    MODE_ROGUE_CA:     DdsUtils.exfiltrator_rogue_ca_dp_fqn,
-    MODE_FORGED_PERMS: DdsUtils.exfiltrator_forged_perms_dp_fqn,
-    MODE_EXPIRED_CERT: DdsUtils.exfiltrator_expired_cert_dp_fqn,
+MODE_TO_DP_NAME = {
+    MODE_UNSECURE:     threat_entities.EXFILTRATOR_UNSECURE_DP,
+    MODE_ROGUE_CA:     threat_entities.EXFILTRATOR_ROGUE_CA_DP,
+    MODE_FORGED_PERMS: threat_entities.EXFILTRATOR_FORGED_PERMS_DP,
+    MODE_EXPIRED_CERT: threat_entities.EXFILTRATOR_EXPIRED_CERT_DP,
 }
 
 SAMPLE_RATE  = 200
@@ -311,7 +320,7 @@ class ThreatExfiltratorWindow(QMainWindow):
         self.resize(1200, 760)
         self.setStyleSheet(f"background-color: {BG_MAIN};")
 
-        _icon_px = QPixmap("../../resource/images/rti_logo.ico")
+        _icon_px = QPixmap("../../resource/images/rti_logo.png")
         if not _icon_px.isNull():
             self.setWindowIcon(QIcon(_icon_px))
 
@@ -352,7 +361,7 @@ class ThreatExfiltratorWindow(QMainWindow):
         h = QHBoxLayout(header)
         h.setContentsMargins(20, 0, 20, 0)
 
-        _logo_px = QPixmap("../../resource/images/rti_logo.ico")
+        _logo_px = QPixmap("../../resource/images/rti_logo.png")
         if not _logo_px.isNull():
             logo = QLabel()
             logo.setStyleSheet("background: transparent;")
@@ -596,12 +605,12 @@ class ThreatExfiltratorApp:
                 self._current_mode = None
                 self._prev_matched = None
 
-            fqn = MODE_TO_FQN.get(mode, DdsUtils.exfiltrator_unsecure_dp_fqn)
+            dp_name = MODE_TO_DP_NAME.get(mode, threat_entities.EXFILTRATOR_UNSECURE_DP)
             try:
                 qos_provider = dds.QosProvider.default
-                self._participant = qos_provider.create_participant_from_config(fqn)
+                self._participant = qos_provider.create_participant_from_config(dp_name)
                 self._vitals_reader = dds.DataReader(
-                    self._participant.find_datareader(DdsUtils.vitals_dr_fqn)
+                    self._participant.find_datareader(entities.VITALS_DR)
                 )
                 self.window.log("INFO", f"Participant created — {mode}")
 
@@ -754,6 +763,16 @@ class ThreatExfiltratorApp:
     def run(self) -> None:
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
+        _icon = QIcon(QPixmap("../../resource/images/rti_logo.png"))
+        if not _icon.isNull():
+            app.setWindowIcon(_icon)
+        # Allow Ctrl+C to cleanly quit the Qt event loop.
+        # The QTimer is needed so the event loop periodically yields control
+        # back to Python, enabling signal delivery.
+        signal.signal(signal.SIGINT, lambda *_: app.quit())
+        _sig_timer = QTimer()
+        _sig_timer.timeout.connect(lambda: None)
+        _sig_timer.start(300)
         QtAsyncio.run(self._async_main(app), keep_running=True)
 
 

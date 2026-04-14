@@ -14,36 +14,24 @@
 # the Software.
 #
 
-cmake_minimum_required(VERSION 3.7)
-project(MedicalRefArch)
+# Use the package PkgConfig to detect GTK headers/library files.
+# gtkmm-3.0 is optional: when not found the C++ GUI applications
+# (ArmController, Orchestrator) are skipped; PatientSensor and the
+# Python GUIs still build/run normally.
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(GTKMM gtkmm-3.0)
+endif()
 
-# Set the C++ standard to C++17
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(GTKMM_FOUND)
+    link_directories(${GTKMM_LIBRARY_DIRS})
+    include_directories(${GTKMM_INCLUDE_DIRS})
+    message(STATUS "gtkmm-3.0 found — ArmController and Orchestrator will be built")
+else()
+    message(STATUS "gtkmm-3.0 not found — skipping ArmController and Orchestrator (Python GUIs still available)")
+endif()
 
-# Use the package PkgConfig to detect GTK+ headers/library files
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(GTKMM REQUIRED gtkmm-3.0)
-
-# link GTK UI libraries
-link_directories(
-    ${GTKMM_LIBRARY_DIRS})
-
-include_directories(
-    ${GTKMM_INCLUDE_DIRS})
-
-# Find RTI Connext dependencies
-set(CMAKE_MODULE_PATH
-    ${CMAKE_MODULE_PATH}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../resource/cmake/rticonnextdds-cmake-utils/cmake/Modules
-)
-
-find_package(
-    RTIConnextDDS "7.3.0"
-    REQUIRED
-    COMPONENTS
-    core
-)
+# RTI Connext DDS is found by the project-level CMakeLists.txt.
 
 # Run Codegen to generate the C++11 source code files for the types
 include(ConnextDdsCodegen)
@@ -66,37 +54,52 @@ connextdds_rtiddsgen_run(
     LANG Python
 )
 
-# Generate C++ types for DDS Security builtin logging topic.
+# If RTI Security Plugins are installed, builtin_logging_type.idl exists
+# under the Connext installation. Generate C++ and Python types from it.
 set(BUILTIN_LOGGING_IDL "${CONNEXTDDS_DIR}/resource/idl/builtin_logging_type.idl")
-connextdds_rtiddsgen_run(
-    IDL_FILE
-    "${BUILTIN_LOGGING_IDL}"
-    OUTPUT_DIRECTORY
-    "${CMAKE_CURRENT_BINARY_DIR}/src/"
-    LANG C++11
-    UNBOUNDED
-)
+set(RTI_SECURITY_AVAILABLE FALSE)
 
-# Generate Python types for DDS Security builtin logging topic (used by module 04
-# SecureLogUtils.py via the same _OR_SRC import path as Types.py)
-connextdds_rtiddsgen_run(
-    IDL_FILE
-    "${BUILTIN_LOGGING_IDL}"
-    OUTPUT_DIRECTORY
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/"
-    LANG Python
-)
+if(EXISTS "${BUILTIN_LOGGING_IDL}")
+    set(RTI_SECURITY_AVAILABLE TRUE)
+    message(STATUS "Security Plugins IDL found — generating builtin_logging_type types")
+
+    connextdds_rtiddsgen_run(
+        IDL_FILE
+        "${BUILTIN_LOGGING_IDL}"
+        OUTPUT_DIRECTORY
+        "${CMAKE_CURRENT_BINARY_DIR}/src/"
+        LANG C++11
+        UNBOUNDED
+    )
+
+    # Python types for DDS Security builtin logging topic (used by module 04
+    # SecureLogUtils.py via the same _OR_SRC import path as Types.py)
+    connextdds_rtiddsgen_run(
+        IDL_FILE
+        "${BUILTIN_LOGGING_IDL}"
+        OUTPUT_DIRECTORY
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/"
+        LANG Python
+    )
+endif()
+
+set(SECURITY_PYTHON_SOURCES "")
+set(SECURITY_CXX_SOURCES "")
+if(RTI_SECURITY_AVAILABLE)
+    set(SECURITY_PYTHON_SOURCES ${builtin_logging_type_PYTHON_SOURCES})
+    set(SECURITY_CXX_SOURCES ${builtin_logging_type_CXX11_GENERATED_SOURCES})
+endif()
 
 add_custom_target(refArchTypesPy ALL
     DEPENDS
         ${Types_PYTHON_SOURCES}
-        ${builtin_logging_type_PYTHON_SOURCES}
+        ${SECURITY_PYTHON_SOURCES}
 )
 
 # Build object library with types
 add_library(refArchTypes OBJECT 
     ${Types_CXX11_GENERATED_SOURCES}
-    ${builtin_logging_type_CXX11_GENERATED_SOURCES}
+    ${SECURITY_CXX_SOURCES}
 )
 target_link_libraries(refArchTypes
     PRIVATE
@@ -104,26 +107,58 @@ target_link_libraries(refArchTypes
 )
 
 # Build Applications
-set(APPLICATIONS ArmController Orchestrator PatientSensor)
 
-foreach(application ${APPLICATIONS})
-    add_executable(${application}
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/${application}.cxx"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/DdsUtils.hpp"
-    )
+# PatientSensor is headless (no GTK dependency)
+add_executable(PatientSensor
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/PatientSensor.cxx"
+)
+target_link_libraries(PatientSensor
+    PRIVATE
+    RTIConnextDDS::cpp2_api
+    refArchTypes
+)
+target_include_directories(PatientSensor
+    PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_BINARY_DIR}/src"
+)
+set_property(TARGET PatientSensor PROPERTY CXX_STANDARD 17)
 
-    target_link_libraries(${application}
-        PRIVATE
-        ${GTKMM_LIBRARIES}
-        RTIConnextDDS::cpp2_api
-        refArchTypes
-    )
-    target_include_directories(${application}
-        PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/src"
-        "${CMAKE_CURRENT_BINARY_DIR}/src"
-    )
-    set_property(TARGET ${application}
-        PROPERTY
-        CXX_STANDARD 17)
-endforeach()
+# GTK applications (ArmController, Orchestrator) require gtkmm
+set(GTK_APPLICATIONS "")
+
+if(GTKMM_FOUND)
+    set(GTK_APPLICATIONS ArmController Orchestrator)
+
+    foreach(application ${GTK_APPLICATIONS})
+        add_executable(${application}
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/${application}.cxx"
+        )
+
+        target_link_libraries(${application}
+            PRIVATE
+            ${GTKMM_LIBRARIES}
+            RTIConnextDDS::cpp2_api
+            refArchTypes
+        )
+        if(APPLE)
+            target_link_libraries(${application} PRIVATE "-framework AppKit")
+        endif()
+        target_include_directories(${application}
+            PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/src"
+            "${CMAKE_CURRENT_BINARY_DIR}/src"
+        )
+        set_property(TARGET ${application}
+            PROPERTY
+            CXX_STANDARD 17)
+    endforeach()
+
+    if(RTI_SECURITY_AVAILABLE)
+        target_compile_definitions(Orchestrator PRIVATE RTI_SECURITY_AVAILABLE)
+    endif()
+endif()
+
+# Convenience target: build all Module 01 executables
+set(APPLICATIONS PatientSensor ${GTK_APPLICATIONS})
+add_custom_target(module-01 DEPENDS ${APPLICATIONS})

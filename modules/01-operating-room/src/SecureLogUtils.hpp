@@ -20,7 +20,9 @@
 #include <dds/sub/DataReader.hpp>
 #include <dds/sub/find.hpp>
 #include <rti/sub/SampleProcessor.hpp>
-#include "DdsUtils.hpp"
+#include "Types.hpp"
+
+using namespace DdsEntities::Constants;
 #include "builtin_logging_type.hpp"
 
 
@@ -53,7 +55,7 @@ SecureLogReader setup_secure_log_reader(
     // Initialize Participant
     dds::domain::DomainParticipant securelog_participant =
         qos_provider.extensions().create_participant_from_config(
-                DdsUtils::securelog_reader_dp_fqn);
+                SECURELOG_READER_DP);
     if (securelog_participant == dds::core::null) {
         throw std::runtime_error("Failed to lookup secure log reader participant");
     }
@@ -63,7 +65,7 @@ SecureLogReader setup_secure_log_reader(
         rti::sub::find_datareader_by_name<
             dds::sub::DataReader<SecureLogType>>(
                 securelog_participant,
-                DdsUtils::securelog_dr_fqn);
+                SECURELOG_DR);
     if (securelog_reader == dds::core::null) {
         throw std::runtime_error("Failed to lookup secure log reader datareader");
     }

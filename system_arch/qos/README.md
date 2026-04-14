@@ -20,7 +20,7 @@ This README describes how we've approached QoS in this reference architecture. F
 
 ## QoS Profile Configuration
 
-The heirarchy of components configured in a QoS profile are as follows:
+The hierarchy of components configured in a QoS profile are as follows:
 
 ```text
 QoS Profile
@@ -66,9 +66,9 @@ Subelements:
 
 This reference architecture defines the following QoS Libraries in [Qos.xml](./Qos.xml):
 
-| Qos Library       | Intended Use
-| -----------       | ------------
-| [*SystemLibrary*](#systemlibrary)   | Characterize the *system* (e.g. transport, network interfaces, discovery, thread priorities, etc.). Profiles in this library configure the DomainParticipant QoS. **It is typical to define 1-2 profiles of this kind for any system.**
+| Qos Library                           | Intended Use
+| -----------                           | ------------
+| [*SystemLibrary*](#systemlibrary)     | Characterize the *system* (e.g. transport, network interfaces, discovery, thread priorities, etc.). Profiles in this library configure the DomainParticipant QoS. **It is typical to define 1-2 profiles of this kind for any system.**
 | [*DataFlowLibrary*](#dataflowlibrary) | Characterize the *dataflows* or *data patterns* (e.g. reliability history, durability, deadline, etc.). Profiles in this library configure DataWriter and DataReader (endpoint) QoS. **It is typical to define 3-5 profiles of this kind for any system.**
 
 ### ***SystemLibrary***
@@ -92,7 +92,7 @@ This QoS profile acts as a common base configuration for all DomainParticipants 
 | [*Streaming*](#dataflowlibrarystreaming-profile) | *BEST_EFFORT* | *KEEP_LAST 1* | *VOLATILE* | -- | Periodic Topics that are published at a high frequency (i.e. frequencies <1 second).
 | [*Status*](#dataflowlibrarystatus-profile) | *RELIABLE* | *KEEP_LAST 1* | *TRANSIENT_LOCAL* | -- | "Current status"-like Topics, sent once at the beginning of operation and again only upon change to the status.
 | [*Command*](#dataflowlibrarycommand-profile) | *RELIABLE* | *KEEP_LAST 1* | *VOLATILE* | -- | Topics that transmit commands or trigger some action in the system.
-| [*Heartbeat*](#dataflowlibraryheartbeat-profile) | *BEST_EFFORT* | *KEEP_LAST 1* | *VOLATILE* | *200 ms* | To assert and detect the presense of system components.
+| [*Heartbeat*](#dataflowlibraryheartbeat-profile) | *BEST_EFFORT* | *KEEP_LAST 1* | *VOLATILE* | *200 ms* | To assert and detect the presence of system components.
 
 #### ***DataFlowLibrary::Streaming* profile**
 
@@ -129,7 +129,7 @@ It inherits from the *BuiltinQosLib::Generic.Common* profile in addition to buil
 
 #### ***DataFlowLibrary::Heartbeat* profile**
 
-This QoS profile is used to implement a lightweight mechanism to assert and detect the presense of system components.
+This QoS profile is used to implement a lightweight mechanism to assert and detect the presence of system components.
 
 It inherits from the *Streaming* QoS profile and sets:
 

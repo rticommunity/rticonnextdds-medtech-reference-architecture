@@ -25,8 +25,19 @@
 #include <gdkmm/screen.h>
 
 #include "Types.hpp"
-#include "DdsUtils.hpp"
+
+#ifdef __APPLE__
+#include "MacOsDockIcon.h"
+#endif
+
+#ifndef _WIN32
+#include <glib-unix.h>
+#endif
+
+using namespace DdsEntities::Constants;
+#ifdef RTI_SECURITY_AVAILABLE
 #include "SecureLogUtils.hpp"
+#endif
 
 // Heartbeat listener to automatically monitor other applications
 class HeartbeatListener
@@ -85,23 +96,23 @@ public:
 
         participant =
                 default_provider.extensions().create_participant_from_config(
-                        DdsUtils::orchestrator_dp_fqn);
+                        ORCHESTRATOR_DP);
 
         // Initialize DataWriter
         command_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<Orchestrator::DeviceCommand>>(
                 participant,
-                DdsUtils::device_command_dw_fqn);
+                DEVICE_COMMAND_DW);
 
         // Initialize DataReaders
         status_reader = rti::sub::find_datareader_by_name<
                 dds::sub::DataReader<Common::DeviceStatus>>(
                 participant,
-                DdsUtils::status_dr_fqn);
+                STATUS_DR);
         hb_reader = rti::sub::find_datareader_by_name<
                 dds::sub::DataReader<Common::DeviceHeartbeat>>(
                 participant,
-                DdsUtils::hb_dr_fqn);
+                HB_DR);
 
         hb_listener = std::make_shared<HeartbeatListener>(
                 stat_map,
@@ -115,12 +126,14 @@ public:
 
         waitset_status += status_read_condition;
 
+#ifdef RTI_SECURITY_AVAILABLE
         if (SecureLogUtils::is_secure(participant)) {
             securelog_reader = SecureLogUtils::setup_secure_log_reader(
                 std::bind(&OrchestratorApp::process_secure_log, this, std::placeholders::_1),
                 default_provider
             );
         }
+#endif
 
         app = Gtk::Application::create("orchestrator.orchestrator");
         app->signal_activate().connect([this]() { ui_setup(); });
@@ -128,7 +141,28 @@ public:
 
     void run()
     {
+#ifndef _WIN32
+        // Route SIGINT/SIGTERM through the GLib main loop so GTK functions
+        // can be called safely from the callback.
+        g_unix_signal_add(SIGINT, [](gpointer data) -> gboolean {
+            static_cast<OrchestratorApp *>(data)->window_close_from_signal();
+            return G_SOURCE_REMOVE;
+        }, this);
+        g_unix_signal_add(SIGTERM, [](gpointer data) -> gboolean {
+            static_cast<OrchestratorApp *>(data)->window_close_from_signal();
+            return G_SOURCE_REMOVE;
+        }, this);
+#endif
         app->run();
+    }
+
+    // Close the window from within the GLib main loop (e.g. on SIGINT).
+    void window_close_from_signal()
+    {
+        if (window)
+            window->close();
+        else if (app)
+            app->quit();
     }
 
 private:
@@ -157,8 +191,10 @@ private:
     rti::core::cond::AsyncWaitSet waitset_status;
     std::shared_ptr<HeartbeatListener> hb_listener;
 
+#ifdef RTI_SECURITY_AVAILABLE
     // Connext secure logging entities
     SecureLogUtils::SecureLogReader securelog_reader = {dds::core::null, dds::core::null};
+#endif
 
     void log_alert(std::string msg)
     {
@@ -271,6 +307,7 @@ private:
         });
     }
 
+#ifdef RTI_SECURITY_AVAILABLE
     bool is_security_threat(const DDSSecurity::BuiltinLoggingTypeV2 &sample)
     {
         return static_cast<int32_t>(sample.severity())
@@ -287,6 +324,7 @@ private:
             trigger_security_flash();
         }
     }
+#endif
 
     void process_status()
     {
@@ -344,25 +382,32 @@ private:
         auto builder = Gtk::Builder::create_from_file("ui/orchestrator.glade");
         builder->get_widget<Gtk::Window>("window", window);
 
-        // Load RTI logo into header
+        // Load RTI logo into header and set as dock/taskbar icon
         {
             Gtk::Box *hdr = nullptr;
             builder->get_widget<Gtk::Box>("header_bar", hdr);
-            if (hdr) {
-                try {
-                    auto pb = Gdk::Pixbuf::create_from_file("../../resource/images/rti_logo.ico");
+            try {
+                auto pb = Gdk::Pixbuf::create_from_file("../../resource/images/rti_logo.png");
+                window->set_icon(pb);
+#ifdef __APPLE__
+                set_macos_dock_icon(pb);
+#endif
+                if (hdr) {
                     auto scaled = pb->scale_simple(56, 56, Gdk::INTERP_BILINEAR);
                     auto *logo = Gtk::manage(new Gtk::Image(scaled));
                     logo->set_visible(true);
                     logo->set_margin_end(8);
                     hdr->pack_start(*logo, false, false, 0);
                     hdr->reorder_child(*logo, 0);
-                } catch (...) {}
+                }
+            } catch (...) {}
 
+            if (hdr) {
                 security_indicator = Gtk::manage(new Gtk::Label(""));
                 {
                     auto ctx = security_indicator->get_style_context();
                     ctx->add_class("security-indicator");
+#ifdef RTI_SECURITY_AVAILABLE
                     if (SecureLogUtils::is_secure(participant)) {
                         ctx->add_class("security-ok");
                         security_indicator->set_text("SECURITY: OK");
@@ -370,6 +415,10 @@ private:
                         ctx->add_class("security-unsecure");
                         security_indicator->set_text("UNSECURE MODE");
                     }
+#else
+                    ctx->add_class("security-unsecure");
+                    security_indicator->set_text("UNSECURE MODE");
+#endif
                 }
                 security_indicator->set_margin_start(10);
                 security_indicator->set_margin_end(4);

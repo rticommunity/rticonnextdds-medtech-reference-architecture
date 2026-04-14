@@ -1,0 +1,17 @@
+[ req ]
+prompt              = no
+distinguished_name  = req_distinguished_name
+
+[ req_distinguished_name ]
+countryName          = {{ country }}
+stateOrProvinceName  = {{ state }}
+organizationName     = {{ org_name }}
+emailAddress         = {{ email }}
+commonName           = {{ common_name }}
+
+[ usr_cert ]
+# End-entity certificate extensions
+basicConstraints       = critical, CA:false
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage               = critical, digitalSignature, keyEncipherment

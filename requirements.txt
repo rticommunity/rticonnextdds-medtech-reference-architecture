@@ -1,0 +1,23 @@
+# RTI MedTech Reference Architecture — Python Dependencies
+#
+# Install with:  pip install -r requirements.txt
+#
+# NOTE: The RTI Connext DDS Python API (rti.connextdds, rti.idl) is NOT
+# listed here.  It should be installed from the .whl bundled with your
+# Connext DDS installation — not from PyPI — to use your local license:
+#
+#   pip install rti.connext.activated -f $NDDSHOME/resource/python_api
+#
+# See the Connext documentation for details.
+
+# GUI and data visualization
+PySide6
+numpy
+pyqtgraph
+
+# NAT type checker utility (resource/nat_type_checker/) — optional
+requests
+pystun3
+
+# Shell tab-completion for launch.py — optional
+argcomplete

@@ -11,7 +11,7 @@
 # inability to use the software.
 
 import rti.connextdds as dds
-from Types import DdsEntities, idl
+from Types import idl
 
 
 # Simplifying how to register a type since we're using the same name
@@ -19,32 +19,3 @@ def register_type(type):
     dds.DomainParticipant.register_idl_type(
         type, idl.get_type_support(type).type_name
     )
-
-
-constants = DdsEntities.Constants
-
-# DPs
-arm_dp_fqn = (
-    constants.DP_LIBRARY_NAME + constants.SEPARATOR + constants.DP_ARM_NAME
-)
-patient_monitor_dp_fqn = (
-    constants.DP_LIBRARY_NAME
-    + constants.SEPARATOR
-    + constants.DP_PATIENT_MONITOR_NAME
-)
-
-# DW / DR prefixes
-dw_prefix = (
-    constants.PUBLISHER_NAME + constants.SEPARATOR + constants.DW_PREFIX
-)
-dr_prefix = (
-    constants.SUBSCRIBER_NAME + constants.SEPARATOR + constants.DR_PREFIX
-)
-
-# DWs / DRs names
-status_dw_fqn = dw_prefix + constants.ENDPOINT_DEVICE_STATUS_NAME
-device_hb_dw_fqn = dw_prefix + constants.ENDPOINT_DEVICE_HEARTBEAT_NAME
-
-motor_control_dr_fqn = dr_prefix + constants.ENDPOINT_MOTOR_CONTROL_NAME
-device_command_dr_fqn = dr_prefix + constants.ENDPOINT_DEVICE_COMMAND_NAME
-vitals_dr_fqn = dr_prefix + constants.ENDPOINT_VITALS_NAME

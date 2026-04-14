@@ -25,7 +25,16 @@
 #include <gdkmm/screen.h>
 
 #include "Types.hpp"
-#include "DdsUtils.hpp"
+
+#ifdef __APPLE__
+#include "MacOsDockIcon.h"
+#endif
+
+#ifndef _WIN32
+#include <glib-unix.h>
+#endif
+
+using namespace DdsEntities::Constants;
 
 class SurgicalArmController {
 public:
@@ -50,6 +59,22 @@ public:
         app = Gtk::Application::create("armcontroller.armcontroller");
         app->signal_activate().connect(
                 sigc::mem_fun(*this, &SurgicalArmController::ui_setup));
+
+#ifndef _WIN32
+        // Route SIGINT/SIGTERM through the GLib main loop so GTK functions
+        // can be called safely from the callback.
+        g_unix_signal_add(SIGINT, [](gpointer data) -> gboolean {
+            static_cast<SurgicalArmController *>(data)
+                    ->window_close_from_signal();
+            return G_SOURCE_REMOVE;
+        }, this);
+        g_unix_signal_add(SIGTERM, [](gpointer data) -> gboolean {
+            static_cast<SurgicalArmController *>(data)
+                    ->window_close_from_signal();
+            return G_SOURCE_REMOVE;
+        }, this);
+#endif
+
         app->run(argc, const_cast<char **>(argv));
 
         // Join threads before exiting
@@ -92,27 +117,27 @@ private:
 
         dds::domain::DomainParticipant participant =
                 default_provider.extensions().create_participant_from_config(
-                        DdsUtils::arm_controller_dp_fqn);
+                        ARM_CONTROLLER_DP);
 
         // Initialize DataWriters
         status_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<Common::DeviceStatus>>(
                 participant,
-                DdsUtils::status_dw_fqn);
+                STATUS_DW);
         hb_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<Common::DeviceHeartbeat>>(
                 participant,
-                DdsUtils::hb_dw_fqn);
+                HB_DW);
         arm_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<SurgicalRobot::MotorControl>>(
                 participant,
-                DdsUtils::motor_control_dw_fqn);
+                MOTOR_CONTROL_DW);
 
         // Initialize DataReader
         cmd_reader = rti::sub::find_datareader_by_name<
                 dds::sub::DataReader<Orchestrator::DeviceCommand>>(
                 participant,
-                DdsUtils::device_command_dr_fqn);
+                DEVICE_COMMAND_DR);
 
         // Setup command handling with a WaitSet
         dds::sub::cond::ReadCondition command_read_condition(
@@ -227,21 +252,25 @@ private:
         auto builder = Gtk::Builder::create_from_file("ui/armcontroller.glade");
         builder->get_widget<Gtk::Window>("window", window);
 
-        // Load RTI logo into header
+        // Load RTI logo into header and set as dock/taskbar icon
         {
             Gtk::Box *hdr = nullptr;
             builder->get_widget<Gtk::Box>("header_bar", hdr);
-            if (hdr) {
-                try {
-                    auto pb = Gdk::Pixbuf::create_from_file("../../resource/images/rti_logo.ico");
+            try {
+                auto pb = Gdk::Pixbuf::create_from_file("../../resource/images/rti_logo.png");
+                window->set_icon(pb);
+#ifdef __APPLE__
+                set_macos_dock_icon(pb);
+#endif
+                if (hdr) {
                     auto scaled = pb->scale_simple(56, 56, Gdk::INTERP_BILINEAR);
                     auto *logo = Gtk::manage(new Gtk::Image(scaled));
                     logo->set_visible(true);
                     logo->set_margin_end(8);
                     hdr->pack_start(*logo, false, false, 0);
                     hdr->reorder_child(*logo, 0);
-                } catch (...) {}
-            }
+                }
+            } catch (...) {}
         }
 
         window->signal_delete_event().connect(
@@ -291,6 +320,15 @@ private:
         std::cout << "Arm Controller UI closed, shutting down" << std::endl;
         current_status.status(Common::DeviceStatuses::OFF);
         return false;
+    }
+
+    // Close the window from within the GLib main loop (e.g. on SIGINT).
+    void window_close_from_signal()
+    {
+        if (window)
+            window->close();
+        else if (app)
+            app->quit();
     }
 
     // Connect buttons to their respective signal handlers.
