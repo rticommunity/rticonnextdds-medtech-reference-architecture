@@ -53,6 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `FetchContent` dependency
 - Comprehensive documentation refresh across all module READMEs,
   scenario guides, and system architecture docs
+- Python 3.9 compatibility across `build.py`, `launch.py`,
+  `module_runner.py`, `platform_setup.py`, `dds_security.py`,
+  `security_tree.py`, `setup_security.py`, and
+  `setup_threat_security.py` — required for macOS default Python
 
 ### Removed
 
