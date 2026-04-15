@@ -43,15 +43,15 @@ works of the software solely for use with RTI Connext DDS. -->
           <value>
             <element>
               <name>dds.sec.auth.identity_ca</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/rogue_ca/RogueCaIdentity.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/ca/RogueCa/certs/RogueCa/RogueCa.crt</value>
             </element>
             <element>
               <name>dds.sec.access.permissions_ca</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/rogue_ca/RogueCaIdentity.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/ca/RogueCa/certs/RogueCa/RogueCa.crt</value>
             </element>
             <element>
               <name>dds.sec.access.governance</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/xml/signed/SignedGovernanceDomain0RogueCA.p7s</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/domain_scope/ThreatDomain/governance/ThreatDomain/signed/RogueCa/ThreatDomain.p7s</value>
             </element>
           </value>
         </property>
@@ -74,18 +74,18 @@ works of the software solely for use with RTI Connext DDS. -->
           <value>
             <element>
               <name>dds.sec.auth.identity_ca</name>
-              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/ca/CaIdentity.pem</value>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/ca/TrustedIdentityCa/certs/TrustedRootCa/TrustedIdentityCa.crt</value>
             </element>
             <element>
               <!-- permissions_ca and governance must both be signed by the rogue CA;
                    remote OR participants (trusted CA) will reject the rogue-signed permissions
                    during the DDS handshake — that is the intended attack failure point. -->
               <name>dds.sec.access.permissions_ca</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/rogue_ca/RogueCaIdentity.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/ca/RogueCa/certs/RogueCa/RogueCa.crt</value>
             </element>
             <element>
               <name>dds.sec.access.governance</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/xml/signed/SignedGovernanceDomain0RogueCA.p7s</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/domain_scope/ThreatDomain/governance/ThreatDomain/signed/RogueCa/ThreatDomain.p7s</value>
             </element>
           </value>
         </property>
@@ -106,15 +106,15 @@ works of the software solely for use with RTI Connext DDS. -->
           <value>
             <element>
               <name>dds.sec.auth.identity_ca</name>
-              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/ca/CaIdentity.pem</value>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/ca/TrustedIdentityCa/certs/TrustedRootCa/TrustedIdentityCa.crt</value>
             </element>
             <element>
               <name>dds.sec.access.permissions_ca</name>
-              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/ca/CaIdentity.pem</value>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/ca/TrustedPermissionsCa/certs/TrustedRootCa/TrustedPermissionsCa.crt</value>
             </element>
             <element>
               <name>dds.sec.access.governance</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/xml/signed/SignedGovernanceDomain0.p7s</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/domain_scope/ThreatDomain/governance/ThreatDomain/signed/TrustedPermissionsCa/ThreatDomain.p7s</value>
             </element>
           </value>
         </property>
@@ -129,16 +129,16 @@ works of the software solely for use with RTI Connext DDS. -->
           <value>
             <element>
               <name>dds.sec.auth.identity_certificate</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identities/ThreatInjector/ThreatInjectorIdentity.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identity/security-threat/ThreatInjector/ThreatInjector/certs/RogueCa/ThreatInjector.chain.pem</value>
             </element>
             <element>
               <name>dds.sec.auth.private_key</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identities/ThreatInjector/ThreatInjectorPrivateKey.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identity/security-threat/ThreatInjector/ThreatInjector/private/ThreatInjector.key</value>
             </element>
-            <!-- Permissions signed by rogue CA with rogue-org subject name -->
+            <!-- Permissions signed by rogue CA -->
             <element>
               <name>dds.sec.access.permissions</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identities/ThreatInjector/SignedPermissionsRogueCAInjector.p7s</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/domain_scope/ThreatDomain/permissions/ThreatInjector/signed/RogueCa/ThreatInjector.p7s</value>
             </element>
           </value>
         </property>
@@ -151,16 +151,16 @@ works of the software solely for use with RTI Connext DDS. -->
           <value>
             <element>
               <name>dds.sec.auth.identity_certificate</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/forged_perms/ThreatInjector/ThreatInjectorIdentity.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identity/security-threat/ThreatInjector/ThreatInjector/certs/TrustedIdentityCa/ThreatInjector.chain.pem</value>
             </element>
             <element>
               <name>dds.sec.auth.private_key</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/forged_perms/ThreatInjector/ThreatInjectorPrivateKey.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identity/security-threat/ThreatInjector/ThreatInjector/private/ThreatInjector.key</value>
             </element>
             <!-- Permissions signed by ROGUE CA — this is what triggers the access control failure -->
             <element>
               <name>dds.sec.access.permissions</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/forged_perms/ThreatInjector/SignedPermissionsThreatInjector.p7s</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/domain_scope/ThreatDomain/permissions/ThreatInjector/signed/RogueCa/ThreatInjector.p7s</value>
             </element>
           </value>
         </property>
@@ -173,16 +173,15 @@ works of the software solely for use with RTI Connext DDS. -->
           <value>
             <element>
               <name>dds.sec.auth.identity_certificate</name>
-              <!-- Expired certificate — notAfter is in the past -->
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/expired/ThreatInjector/ThreatInjectorExpiredIdentity.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identity/security-threat/ThreatInjector/ThreatInjector/certs/TrustedIdentityCa/expired/ThreatInjector.chain.pem</value>
             </element>
             <element>
               <name>dds.sec.auth.private_key</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/expired/ThreatInjector/ThreatInjectorPrivateKey.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identity/security-threat/ThreatInjector/ThreatInjector/private/ThreatInjector.key</value>
             </element>
             <element>
               <name>dds.sec.access.permissions</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/expired/ThreatInjector/SignedPermissionsThreatInjector.p7s</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/domain_scope/ThreatDomain/permissions/ThreatInjector/signed/TrustedPermissionsCa/ThreatInjector.p7s</value>
             </element>
           </value>
         </property>
@@ -197,16 +196,16 @@ works of the software solely for use with RTI Connext DDS. -->
           <value>
             <element>
               <name>dds.sec.auth.identity_certificate</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identities/ThreatExfiltrator/ThreatExfiltratorIdentity.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identity/security-threat/ThreatExfiltrator/ThreatExfiltrator/certs/RogueCa/ThreatExfiltrator.chain.pem</value>
             </element>
             <element>
               <name>dds.sec.auth.private_key</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identities/ThreatExfiltrator/ThreatExfiltratorPrivateKey.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identity/security-threat/ThreatExfiltrator/ThreatExfiltrator/private/ThreatExfiltrator.key</value>
             </element>
-            <!-- Permissions signed by rogue CA with rogue-org subject name -->
+            <!-- Permissions signed by rogue CA -->
             <element>
               <name>dds.sec.access.permissions</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identities/ThreatExfiltrator/SignedPermissionsRogueCAExfiltrator.p7s</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/domain_scope/ThreatDomain/permissions/ThreatExfiltrator/signed/RogueCa/ThreatExfiltrator.p7s</value>
             </element>
           </value>
         </property>
@@ -219,16 +218,16 @@ works of the software solely for use with RTI Connext DDS. -->
           <value>
             <element>
               <name>dds.sec.auth.identity_certificate</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/forged_perms/ThreatExfiltrator/ThreatExfiltratorIdentity.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identity/security-threat/ThreatExfiltrator/ThreatExfiltrator/certs/TrustedIdentityCa/ThreatExfiltrator.chain.pem</value>
             </element>
             <element>
               <name>dds.sec.auth.private_key</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/forged_perms/ThreatExfiltrator/ThreatExfiltratorPrivateKey.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identity/security-threat/ThreatExfiltrator/ThreatExfiltrator/private/ThreatExfiltrator.key</value>
             </element>
             <!-- Permissions signed by ROGUE CA -->
             <element>
               <name>dds.sec.access.permissions</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/forged_perms/ThreatExfiltrator/SignedPermissionsThreatExfiltrator.p7s</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/domain_scope/ThreatDomain/permissions/ThreatExfiltrator/signed/RogueCa/ThreatExfiltrator.p7s</value>
             </element>
           </value>
         </property>
@@ -241,16 +240,15 @@ works of the software solely for use with RTI Connext DDS. -->
           <value>
             <element>
               <name>dds.sec.auth.identity_certificate</name>
-              <!-- Expired certificate — notAfter is in the past -->
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/expired/ThreatExfiltrator/ThreatExfiltratorExpiredIdentity.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identity/security-threat/ThreatExfiltrator/ThreatExfiltrator/certs/TrustedIdentityCa/expired/ThreatExfiltrator.chain.pem</value>
             </element>
             <element>
               <name>dds.sec.auth.private_key</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/expired/ThreatExfiltrator/ThreatExfiltratorPrivateKey.pem</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/identity/security-threat/ThreatExfiltrator/ThreatExfiltrator/private/ThreatExfiltrator.key</value>
             </element>
             <element>
               <name>dds.sec.access.permissions</name>
-              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/expired/ThreatExfiltrator/SignedPermissionsThreatExfiltrator.p7s</value>
+              <value>file:$(THREAT_SECURITY_ARTIFACTS_DIR)/domain_scope/ThreatDomain/permissions/ThreatExfiltrator/signed/TrustedPermissionsCa/ThreatExfiltrator.p7s</value>
             </element>
           </value>
         </property>

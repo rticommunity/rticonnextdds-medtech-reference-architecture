@@ -25,9 +25,11 @@ inability to use the software. -->
     <qos_profile name="RecordingService" base_name="SystemLibrary::DefaultParticipant"/>
     <qos_profile name="ReplayService" base_name="SystemLibrary::DefaultParticipant"/>
 
-    <qos_profile name="RsActive" base_name="SystemLibrary::WanConfig"/>
-    <qos_profile name="RsCloud" base_name="SystemLibrary::WanConfig"/>
-    <qos_profile name="RsPassive" base_name="SystemLibrary::WanConfig"/>
+    <qos_profile name="RsActiveLan" base_name="SystemLibrary::DefaultParticipant"/>
+    <qos_profile name="RsActiveWan" base_name="SystemLibrary::WanConfig"/>
+    <qos_profile name="RsCloudWan" base_name="SystemLibrary::WanConfig"/>
+    <qos_profile name="RsPassiveLan" base_name="SystemLibrary::DefaultParticipant"/>
+    <qos_profile name="RsPassiveWan" base_name="SystemLibrary::WanConfig"/>
   </qos_library>
 
 </dds>

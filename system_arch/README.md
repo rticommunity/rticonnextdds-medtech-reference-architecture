@@ -91,7 +91,7 @@ QoS is applied to DDS Entities, as a way to configure how they should behave.
 
 #### QoS elements
 
-The heirarchy of components configured in a QoS Profile are as follows:
+The hierarchy of components configured in a QoS Profile are as follows:
 
 ```text
 QoS Profile
@@ -105,7 +105,7 @@ QoS Profile
 
 QoS is configured in XML via QoS Libraries, QoS Profiles, and QoS Snippets.
 
-*Note, QoS can be confired across one or multiple XML files and reference configuration content by name across files. Given that Connext applications load all relevant files, Connext interprets all files as one cohesive configuration.*
+*Note, QoS can be configured across one or multiple XML files and reference configuration content by name across files. Given that Connext applications load all relevant files, Connext interprets all files as one cohesive configuration.*
 
 ##### QoS Libraries
 
@@ -138,11 +138,11 @@ Connext provides a set of usable Builtin QoS Libraries, Profiles, and QoS.
 
 #### How have we approached QoS in this reference architecture?
 
-| Folder                    | File                                  | Description
-| ------                    | ----                                  | -----------
-| [system_arch/qos](./qos/) | [Qos.xml](./qos/Qos.xml)              | Contains all base QoS Profiles.
+| Folder                    | File                                               | Description
+| ------                    | ----                                               | -----------
+| [system_arch/qos](./qos/) | [Qos.xml](./qos/Qos.xml)                           | Contains all base QoS Profiles.
 | [system_arch/qos](./qos/) | [NonSecureAppsQos.xml](./qos/NonSecureAppsQos.xml) | Contains all QoS Profiles for non-secure DomainParticipants.
-| [system_arch/qos](./qos/) | [SecureAppsQos.xml](./qos/SecureAppsQos.xml)    | Contains all QoS Profiles for secure DomainParticipants.
+| [system_arch/qos](./qos/) | [SecureAppsQos.xml](./qos/SecureAppsQos.xml)       | Contains all QoS Profiles for secure DomainParticipants.
 
 #### QoS References
 
@@ -167,7 +167,7 @@ A Domain represents a data space where data can be shared by means of reading an
 
 #### Domains & Topics elements
 
-The heirarchy of the components configured in a Domain are as follows:
+The hierarchy of the components configured in a Domain are as follows:
 
 ```text
 Domain → Domain ID
@@ -180,7 +180,7 @@ Legend:
 
 Domains and Topics are configured in XML via Domain Libraries and Domains.  
 
-*Note, Domains can be confired across one or multiple XML files and reference configuration content by name across files. Given that Connext applications load all relevant files, Connext interprets all files as one cohesive configuration.*
+*Note, Domains can be configured across one or multiple XML files and reference configuration content by name across files. Given that Connext applications load all relevant files, Connext interprets all files as one cohesive configuration.*
 
 ##### Domain Libraries
 
@@ -236,7 +236,7 @@ This is where the entire system architecture is tied together:
 
 #### DomainParticipants & DDS Entities elements
 
-The heirarchy of DDS entities and components configured in a DomainParticipant are as follows:
+The hierarchy of DDS entities and components configured in a DomainParticipant are as follows:
 
 ```text
 DomainParticipant → Domain
@@ -309,7 +309,7 @@ Content Filters are configured with a name, an expression, and expression parame
 When deciding how a Content Filter should be designed, consider:
 
 - Filter expressions and expression parameters can be changed at runtime.
-- Filter expressions and expression parameters are shared with matching DataWriters upon discovery and modification of the Content Filter at runtime.
+- Filter expressions and expression parameters are propagated to matching DataWriters upon discovery and modification of the Content Filter at runtime.
 - Filtering is optimized for filter expressions that evaluate only and all of the *keyed* Data Type field values.
 
 *Why filter data with Connext as opposed to in application logic?*  
@@ -336,20 +336,17 @@ When deciding how a Content Filter should be designed, consider:
 
 ```text
 Connext Security
-├── Governance
-├── Certificates
-└── Permissions
+├── Certificate Authority Hierarchy (Root → Intermediate CAs)
+├── Governance (per-domain access rules)
+├── Permissions (per-participant topic grants)
+└── Identity Certificates (per-participant, with cert chains)
 ```
-
-A well-designed Connext Data Model is critical to a system's ability to share data amongst applications in real time, at scale.
-
-A Data Model alone, does not fully capture a Connext Architecture. While adhering to an architected Data Model, applications would have to implement integrated applications separately. Those separately-implemented applications would have to adhere to a common design that states what Domains and Topics should be allowed, and with what QoS.
-
-RTI XML-Based Application Creation allows for the definition of the remaining Connext Architecture, that insures implemented applications adhere to the architecture as it is defined. It allows for the extraction of a common system definition from the application logic and behavior - a must-have for designing integrated systems with multiple developer teams.
 
 Data in a Connext Architecture can be protected against DDS system threats with the use of the RTI Security Plugins.
 
 RTI Security Plugins provide configurable capability to prevent unauthorized actions in the system through authentication and encryption.
+
+See the [Security README](./security/README.md) for artifact generation instructions and directory layout details.
 
 >**Best Practice:** Use separate Domains for secure and unsecure DomainParticipants. [[more info](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/best_practices.html)]
 >

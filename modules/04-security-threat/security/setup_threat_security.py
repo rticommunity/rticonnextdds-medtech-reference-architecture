@@ -1,269 +1,225 @@
 #!/usr/bin/env python3
 """Generate security artifacts for Module 04 — Security Threat.
 
-Must be run from the ``modules/04-security-threat/security/`` directory::
+Usage::
 
-    cd modules/04-security-threat/security
+    # Generate all threat-module security artifacts
     python3 setup_threat_security.py
+
+    # Re-generate even if artifacts already exist
+    python3 setup_threat_security.py --force
+
+    # (Maintainer-only) Scaffold directory tree from templates
+    python3 setup_threat_security.py --scaffold
 
 Prerequisite: ``system_arch/security/setup_security.py`` must have been run
 first so that the trusted CA artifacts exist.
 """
 
-import os
+import argparse
+import logging
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-TRUSTED_CA_DIR = SCRIPT_DIR / ".." / ".." / ".." / "system_arch" / "security"
+MODULE_DIR = Path(__file__).parent.parent.resolve()
+PROJECT_ROOT = MODULE_DIR.parent.parent.resolve()
+MAIN_SECURITY_DIR = PROJECT_ROOT / "system_arch" / "security"
+MODULE_SECURITY_DIR = MODULE_DIR / "security"
 
-# Add system_arch/scripts/ to the import path for platform_setup
-sys.path.insert(0, str(SCRIPT_DIR / ".." / ".." / ".." / "system_arch" / "scripts"))
-import platform_setup
+# Add the main security dir to the import path
+sys.path.insert(0, str(MAIN_SECURITY_DIR))
 
-
-def _run(cmd: "list[str]", env: dict) -> None:
-    subprocess.run(cmd, env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
+from security_tree import (
+    CA,
+    App,
+    DomainScope,
+    Governance,
+    Identity,
+    Module,
+    Permissions,
+    SecurityTree,
+    TopicRule,
+    scaffold_tree,
+)
+from dds_security import generate_expired_identity
 
 # ---------------------------------------------------------------------------
-# Main
+# Certificate authorities
 # ---------------------------------------------------------------------------
 
-def main() -> None:
-    openssl, env = platform_setup.find_openssl()
-    # Export TRUSTED_CA_DIR for expired/ca.cnf which uses relative paths
-    env["TRUSTED_CA_DIR"] = str(TRUSTED_CA_DIR)
+# Self-signed CA representing an untrusted adversary (local to this module)
+ROGUE_CA = CA(name="RogueCa")
 
-    # Verify trusted CA artifacts exist
-    ca_cert = TRUSTED_CA_DIR / "ca" / "CaIdentity.pem"
-    ca_key = TRUSTED_CA_DIR / "ca" / "private" / "CaPrivateKey.pem"
-    if not ca_cert.is_file() or not ca_key.is_file():
-        print(
-            f"ERROR: Trusted CA artifacts not found at {TRUSTED_CA_DIR / 'ca'}/\n"
-            "Please run system_arch/security/setup_security.py first.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+# Reference the main project's trusted CAs by absolute path so generate_artifacts
+# finds their existing key/cert without re-generating them.
+TRUSTED_ROOT_CA = CA(
+    name="TrustedRootCa",
+    path=MAIN_SECURITY_DIR / "ca" / "TrustedRootCa",
+)
+TRUSTED_PERMISSIONS_CA = CA(
+    name="TrustedPermissionsCa",
+    issuer=TRUSTED_ROOT_CA,
+    path=MAIN_SECURITY_DIR / "ca" / "TrustedPermissionsCa",
+)
+TRUSTED_IDENTITY_CA = CA(
+    name="TrustedIdentityCa",
+    issuer=TRUSTED_ROOT_CA,
+    path=MAIN_SECURITY_DIR / "ca" / "TrustedIdentityCa",
+)
 
-    # Temporary extensions file for identity certs
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".cnf", delete=False
-    ) as ext_file:
-        ext_file.write("keyUsage = critical, digitalSignature\n")
-        identity_ext = ext_file.name
+# ---------------------------------------------------------------------------
+# Domain scopes
+#
+# The same ThreatDomain XML is signed by two CAs to enable the four threat
+# demonstrations:
+#   Threat 1 — Unauthorized subscriber  (TrustedIdentityCa identity  + TrustedPermissionsCa permissions)
+#   Threat 2 — Unauthorized publisher   (TrustedIdentityCa identity  + TrustedPermissionsCa permissions)
+#   Threat 3 — Tampered permissions     (TrustedIdentityCa identity  + RogueCa-signed permissions)
+#   Threat 4 — Tampered governance      (TrustedIdentityCa identity  + RogueCa-signed governance)
+# ---------------------------------------------------------------------------
 
-    try:
-        print("=== Generating Module 04 Security Artifacts ===")
+# Governance overrides for the threat module: no LogTopicV2 rule (threat apps
+# don't use the security log topic) and protection kinds set to NONE to match
+# the project's previous configuration.
+_THREAT_GOV_KWARGS = dict(
+    name="ThreatDomain",
+    discovery_protection_kind="NONE",
+    liveliness_protection_kind="NONE",
+    topic_rules=[TopicRule(topic_expression="*")],
+)
 
-        # ─── 1. Rogue CA (self-signed) ────────────────────────────────
-        print("--- Generating Rogue CA...")
-        Path("rogue_ca/private").mkdir(parents=True, exist_ok=True)
-        _run(
-            [
-                openssl, "ecparam", "-name", "prime256v1",
-                "-genkey", "-noout",
-                "-out", "rogue_ca/private/RogueCaPrivateKey.pem",
-            ],
-            env,
-        )
-        _run(
-            [
-                openssl, "req", "-new", "-x509", "-days", "1825",
-                "-text", "-sha256",
-                "-key", "rogue_ca/private/RogueCaPrivateKey.pem",
-                "-out", "rogue_ca/RogueCaIdentity.pem",
-                "-config", "rogue_ca/RogueCa.cnf",
-            ],
-            env,
-        )
+THREAT_DOMAIN_TRUSTED = DomainScope(
+    name="ThreatDomain",
+    governance=Governance(issuer=TRUSTED_PERMISSIONS_CA, **_THREAT_GOV_KWARGS),
+    permissions=[
+        Permissions(
+            name="ThreatInjector", issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=["t/MotorControl", "t/DeviceCommand"],
+            subscribe_topics=["t/MotorControl", "t/DeviceCommand"],
+        ),
+        Permissions(
+            name="ThreatExfiltrator", issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=[],
+            subscribe_topics=["t/Vitals"],
+        ),
+    ],
+)
 
-        # ─── 2. RogueCA identities (signed by rogue CA) ───────────────
-        print("--- Generating Rogue CA identities...")
-        for participant in ("ThreatInjector", "ThreatExfiltrator"):
-            base = f"identities/{participant}/{participant}"
-            _run(
-                [
-                    openssl, "req", "-nodes", "-new", "-newkey", "rsa:2048",
-                    "-config", f"{base}.cnf",
-                    "-keyout", f"{base}PrivateKey.pem",
-                    "-out", f"{base}.csr",
-                ],
-                env,
-            )
-            _run(
-                [
-                    openssl, "x509", "-req", "-days", "730", "-text",
-                    "-extfile", identity_ext,
-                    "-CA", "rogue_ca/RogueCaIdentity.pem",
-                    "-CAkey", "rogue_ca/private/RogueCaPrivateKey.pem",
-                    "-CAcreateserial",
-                    "-in", f"{base}.csr",
-                    "-out", f"{base}Identity.pem",
-                ],
-                env,
-            )
-            Path(f"{base}.csr").unlink(missing_ok=True)
+THREAT_DOMAIN_ROGUE = DomainScope(
+    name="ThreatDomain",
+    governance=Governance(issuer=ROGUE_CA, **_THREAT_GOV_KWARGS),
+    permissions=[
+        Permissions(
+            name="ThreatInjector", issuer=ROGUE_CA,
+            publish_topics=["t/MotorControl", "t/DeviceCommand"],
+            subscribe_topics=["t/MotorControl", "t/DeviceCommand"],
+        ),
+        Permissions(
+            name="ThreatExfiltrator", issuer=ROGUE_CA,
+            publish_topics=[],
+            subscribe_topics=["t/Vitals"],
+        ),
+    ],
+)
 
-        # Sign rogue-org permissions with rogue CA
-        _run(
-            [
-                openssl, "smime", "-sign",
-                "-in", "xml/PermissionsRogueCAInjector.xml",
-                "-text",
-                "-out", "identities/ThreatInjector/SignedPermissionsRogueCAInjector.p7s",
-                "-signer", "rogue_ca/RogueCaIdentity.pem",
-                "-inkey", "rogue_ca/private/RogueCaPrivateKey.pem",
-            ],
-            env,
-        )
-        _run(
-            [
-                openssl, "smime", "-sign",
-                "-in", "xml/PermissionsRogueCAExfiltrator.xml",
-                "-text",
-                "-out", "identities/ThreatExfiltrator/SignedPermissionsRogueCAExfiltrator.p7s",
-                "-signer", "rogue_ca/RogueCaIdentity.pem",
-                "-inkey", "rogue_ca/private/RogueCaPrivateKey.pem",
-            ],
-            env,
-        )
+# ---------------------------------------------------------------------------
+# Modules — each identity is signed by both CAs
+# ---------------------------------------------------------------------------
 
-        # Sign governance with rogue CA
-        Path("xml/signed").mkdir(parents=True, exist_ok=True)
-        _run(
-            [
-                openssl, "smime", "-sign",
-                "-in", "xml/GovernanceDomain0.xml",
-                "-text",
-                "-out", "xml/signed/SignedGovernanceDomain0RogueCA.p7s",
-                "-signer", "rogue_ca/RogueCaIdentity.pem",
-                "-inkey", "rogue_ca/private/RogueCaPrivateKey.pem",
-            ],
-            env,
-        )
+SECURITY_THREAT = Module(
+    name="security-threat",
+    apps=[
+        App(name="ThreatInjector", identities=[
+            Identity(name="ThreatInjector", issuer=TRUSTED_IDENTITY_CA),
+            Identity(name="ThreatInjector", issuer=ROGUE_CA),
+        ]),
+        App(name="ThreatExfiltrator", identities=[
+            Identity(name="ThreatExfiltrator", issuer=TRUSTED_IDENTITY_CA),
+            Identity(name="ThreatExfiltrator", issuer=ROGUE_CA),
+        ]),
+    ],
+)
 
-        # ─── 3. ForgedPerms identities (signed by TRUSTED CA) ─────────
-        print("--- Generating ForgedPerms identities (trusted CA signed)...")
-        for participant in ("ThreatInjector", "ThreatExfiltrator"):
-            base = f"forged_perms/{participant}/{participant}"
-            _run(
-                [
-                    openssl, "req", "-nodes", "-new", "-newkey", "rsa:2048",
-                    "-config", f"{base}.cnf",
-                    "-keyout", f"{base}PrivateKey.pem",
-                    "-out", f"{base}.csr",
-                ],
-                env,
-            )
-            _run(
-                [
-                    openssl, "x509", "-req", "-days", "730", "-text",
-                    "-extfile", identity_ext,
-                    "-CA", str(ca_cert),
-                    "-CAkey", str(ca_key),
-                    "-CAcreateserial",
-                    "-in", f"{base}.csr",
-                    "-out", f"{base}Identity.pem",
-                ],
-                env,
-            )
-            Path(f"{base}.csr").unlink(missing_ok=True)
+# ---------------------------------------------------------------------------
+# Security tree
+# ---------------------------------------------------------------------------
 
-        # Sign permissions with ROGUE CA (this is the "forged" part)
-        for participant in ("ThreatInjector", "ThreatExfiltrator"):
-            _run(
-                [
-                    openssl, "smime", "-sign",
-                    "-in", f"xml/Permissions{participant}.xml",
-                    "-text",
-                    "-out", f"forged_perms/{participant}/SignedPermissions{participant}.p7s",
-                    "-signer", "rogue_ca/RogueCaIdentity.pem",
-                    "-inkey", "rogue_ca/private/RogueCaPrivateKey.pem",
-                ],
-                env,
-            )
+SECURITY_TREE = SecurityTree(
+    # Only ROGUE_CA is generated here; trusted CAs are resolved via their path.
+    certificate_authorities=[ROGUE_CA],
+    domain_scopes=[THREAT_DOMAIN_TRUSTED, THREAT_DOMAIN_ROGUE],
+    modules=[SECURITY_THREAT],
+    org_name="Malicious Company Name",
+    country="US",
+    state="CA",
+    email_domain="malicious_company_name.com",
+)
 
-        # ─── 4. Expired cert identities ───────────────────────────────
-        print("--- Generating Expired Certificate identities...")
-        for f in ("expired/index.txt", "expired/index.txt.attr", "expired/serial"):
-            Path(f).unlink(missing_ok=True)
-        Path("expired/index.txt").touch()
-        Path("expired/serial").write_text("1000\n")
-        Path("expired/newcerts").mkdir(parents=True, exist_ok=True)
 
-        for participant in ("ThreatInjector", "ThreatExfiltrator"):
-            base = f"expired/{participant}/{participant}Expired"
-            _run(
-                [
-                    openssl, "req", "-nodes", "-new", "-newkey", "rsa:2048",
-                    "-config", f"{base}.cnf",
-                    "-keyout", f"expired/{participant}/{participant}PrivateKey.pem",
-                    "-out", f"{base}.csr",
-                ],
-                env,
-            )
-            _run(
-                [
-                    openssl, "ca", "-batch",
-                    "-config", "expired/ca.cnf",
-                    "-startdate", "20200101000000Z",
-                    "-enddate", "20220101000000Z",
-                    "-in", f"{base}.csr",
-                    "-out", f"{base}Identity.pem",
-                ],
-                env,
-            )
-            Path(f"{base}.csr").unlink(missing_ok=True)
+def main():
+    parser = argparse.ArgumentParser(
+        description="Generate security artifacts for the security threat module.")
+    parser.add_argument("--scaffold", action="store_true",
+                        help="(Maintainer-only) Scaffold the directory tree from templates.")
+    parser.add_argument("--force", action="store_true",
+                        help="Re-generate artifacts even if they already exist.")
+    parser.add_argument("--strict", action="store_true",
+                        help="Promote warnings to fatal errors.")
+    parser.add_argument("--status", action="store_true",
+                        help="Report certificate expiry status and exit.")
+    parser.add_argument("--warn-days", type=int, default=30,
+                        help="Days-to-expiry warning threshold for --status (default: 30).")
+    parser.add_argument("-v", "--verbose", action="count", default=0,
+                        help="Increase logging verbosity (-v=INFO, -vv=DEBUG).")
+    args = parser.parse_args()
 
-        # Sign permissions with trusted CA for ExpiredCert mode
-        for participant in ("ThreatInjector", "ThreatExfiltrator"):
-            _run(
-                [
-                    openssl, "smime", "-sign",
-                    "-in", f"xml/Permissions{participant}.xml",
-                    "-text",
-                    "-out", f"expired/{participant}/SignedPermissions{participant}.p7s",
-                    "-signer", str(ca_cert),
-                    "-inkey", str(ca_key),
-                ],
-                env,
+    level = (logging.WARNING, logging.INFO, logging.DEBUG)[min(args.verbose, 2)]
+    logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
+
+    if args.status:
+        SECURITY_TREE.check_status(root=MODULE_SECURITY_DIR, warn_days=args.warn_days)
+    elif args.scaffold:
+        scaffold_tree(SECURITY_TREE, root=MODULE_SECURITY_DIR,
+                      templates_dir=MAIN_SECURITY_DIR / "templates",
+                      strict=args.strict)
+        print(f"Security directory tree scaffolded under {MODULE_SECURITY_DIR}")
+    else:
+        SECURITY_TREE.generate_artifacts(
+            root=MODULE_SECURITY_DIR, force=args.force, strict=args.strict)
+
+        # Generate expired identity certs for the ExpiredCert attack mode.
+        # These are signed by the TrustedIdentityCa (so the CA chain is
+        # valid) but have notAfter in the past, causing Connext to reject
+        # them at participant creation time.
+        for app_name in ("ThreatInjector", "ThreatExfiltrator"):
+            id_dir = (MODULE_SECURITY_DIR / "identity" / "security-threat"
+                      / app_name / app_name)
+            expired_cert = (id_dir / "certs" / "TrustedIdentityCa"
+                            / "expired" / f"{app_name}.crt")
+            generate_expired_identity(
+                key_path=id_dir / "private" / f"{app_name}.key",
+                cnf=id_dir / f"{app_name}.cnf",
+                out_cert=expired_cert,
+                issuer_cnf=(MAIN_SECURITY_DIR / "ca" / "TrustedIdentityCa"
+                            / "TrustedIdentityCa.cnf"),
+                issuer_key=(MAIN_SECURITY_DIR / "ca" / "TrustedIdentityCa"
+                            / "private" / "TrustedIdentityCa.key"),
+                issuer_cert=(MAIN_SECURITY_DIR / "ca" / "TrustedIdentityCa"
+                             / "certs" / "TrustedRootCa"
+                             / "TrustedIdentityCa.crt"),
+                issuer_cwd=MAIN_SECURITY_DIR / "ca" / "TrustedIdentityCa",
+                force=args.force,
             )
 
-        # Sign governance with trusted CA (for ForgedPerms and ExpiredCert modes)
-        _run(
-            [
-                openssl, "smime", "-sign",
-                "-in", "xml/GovernanceDomain0.xml",
-                "-text",
-                "-out", "xml/signed/SignedGovernanceDomain0.p7s",
-                "-signer", str(ca_cert),
-                "-inkey", str(ca_key),
-            ],
-            env,
-        )
-
-        print("=== Security artifact generation complete ===")
-        print()
-        print("Generated artifacts:")
-        print("  rogue_ca/RogueCaIdentity.pem                          (self-signed rogue CA)")
-        print("  identities/ThreatInjector/ThreatInjectorIdentity.pem  (rogue-CA-signed)")
-        print("  identities/ThreatExfiltrator/ThreatExfiltratorIdentity.pem (rogue-CA-signed)")
-        print("  forged_perms/ThreatInjector/ThreatInjectorIdentity.pem     (trusted-CA-signed)")
-        print("  forged_perms/ThreatInjector/SignedPermissionsThreatInjector.p7s (rogue-CA-signed!)")
-        print("  expired/ThreatInjector/ThreatInjectorExpiredIdentity.pem    (trusted-CA-signed, EXPIRED)")
-        print("  xml/signed/SignedGovernanceDomain0.p7s                (trusted-CA-signed)")
-        print("  xml/signed/SignedGovernanceDomain0RogueCA.p7s         (rogue-CA-signed)")
-
-    finally:
-        os.unlink(identity_ext)
+        print(f"Threat security artifacts generated!")
 
 
 if __name__ == "__main__":
     try:
         main()
-    except subprocess.CalledProcessError as exc:
-        print(f"OpenSSL command failed (exit code {exc.returncode})", file=sys.stderr)
-        sys.exit(exc.returncode)
+    except subprocess.CalledProcessError as e:
+        print(f"Command failed with exit code {e.returncode}")
+        print("STDOUT:", e.stdout.decode() if e.stdout else "")
+        print("STDERR:", e.stderr.decode() if e.stderr else "")
+        raise

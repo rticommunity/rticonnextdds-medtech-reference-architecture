@@ -13,6 +13,8 @@ This module reuses the operating room applications from [Module 01](../01-operat
 
 RTI Recording Service and RTI Replay Service can be run on any [officially supported platform](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/release_notes/pam_table.html#rti-infrastructure-services), provided the machine is directly discoverable by the machine the operating room applications are launched from.
 
+All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
+
 ## Contents
 
 - [Module Description](#module-description)
@@ -33,57 +35,36 @@ RTI Recording Service is used in this module to record the `t/MotorControl` and 
 
 ### RTI Replay Service
 
-RTI Recording Service is used in this module to replay recorded data from the `t/MotorControl` and `t/Vitals` Topics from [Module 01: Digital Operating Room](../01-operating-room/).
+RTI Replay Service is used in this module to replay recorded data from the `t/MotorControl` and `t/Vitals` Topics from [Module 01: Digital Operating Room](../01-operating-room/).
 
 ## Setup and Installation
 
-### 1. See Module 01 Setup and Installation
+Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. This module reuses the operating room applications from Module 01, so make sure that workflow is built and working before you start record/playback.
 
-[Installation and build steps from Module 01: Digital Operating Room](../01-operating-room/README.md#setup-and-installation) satisfy prerequisites for this module.
+Module-specific notes:
 
-### 2. Security (optional)
-
-Generate the security artifacts for RTI Recording Service and RTI Replay Service using OpenSSL.
-This includes identity certificates, private keys, and the signing of DDS Security XML permissions & governance files located in [system_arch/security](../../system_arch/security).
-
-```bash
-cd system_arch/security
-python3 setup_security.py
-```
+- If you plan to use secure mode, make sure the security artifacts from the root README have been generated.
 
 ## Run the Demo
 
+> Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+
 ### 1. Run Operating Room Applications
 
-In its own terminal, launch the operating room applications from [Module 01](../01-operating-room/README.md#run-the-demo) (use `-s` option for security):
+In its own terminal, launch the operating room applications from [Module 01](../01-operating-room/README.md#run-the-demo) using the project-level launcher (use `-s` option for security):
 
 ```bash
-cd 01-operating-room
-python3 scripts/launch_all.py [-s]
+# From the repository root
+python3 launch.py 01-operating-room [-s]
 ```
 
 ### 2. Run RTI Recording Service
 
-Configure the Connnext environment with [NonSecureAppsQos.xml](../../system_arch/NonSecureAppsQos.xml):
+In a new terminal, launch RTI Recording Service from the repository root (use `-s` option for security):
 
 ```bash
-cd 02-record-playback
-source <connext installation directory>/resource/scripts/rtisetenv_x64Linux4gcc7.3.0.bash
-export NDDS_QOS_PROFILES="../../system_arch/qos/Qos.xml;../../system_arch/qos/NonSecureAppsQos.xml"
-```
-
-Alternatively, if using security, configure with [SecureAppsQos.xml](../../system_arch/SecureAppsQos.xml):
-
-```bash
-cd 02-record-playback
-source <connext installation directory>/resource/scripts/rtisetenv_x64Linux4gcc7.3.0.bash
-export NDDS_QOS_PROFILES="../../system_arch/qos/Qos.xml;../../system_arch/qos/SecureAppsQos.xml"
-```
-
-Run RTI Recording Service:
-
-```bash
-$NDDSHOME/bin/rtirecordingservice -cfgFile RecordingServiceConfiguration.xml -cfgName RecServCfg
+# From the repository root
+python3 launch.py 02-record-playback RecordingService [-s]
 ```
 
 Let RTI Recording Service run for some time (e.g. 10-20 seconds) before initiating shutdown with `Ctrl-C`.
@@ -96,27 +77,24 @@ Inspect [RecordingServiceConfiguration.xml](RecordingServiceConfiguration.xml) t
 
 ### 3. Shutdown Operating Room Applications / Restart GUI Applications
 
-Kill all running operating room application processes:
-
-```bash
-../01-operating-room/scripts/kill_all.py
-```
+Press `Ctrl-C` in the terminal where Module 01's `launch.py` is running to terminate the operating room applications.
 
 Relaunch the Digital Operating Room Arm and Patient Monitor GUI applications only (use `-s` option for security):
 
 ```bash
-cd 01-operating-room
-python3 scripts/launch_arm_and_patient_monitor.py [-s]
+# From the repository root
+python3 launch.py 01-operating-room Arm PatientMonitor [-s]
 ```
 
 >**Observe:** You should see the GUI applications are not receiving data.
 
 ### 4. Run RTI Replay Service
 
-In the terminal RTI Recording Service was launched and shutdown from [Step 2](#2-run-rti-recording-service), launch RTI Replay Service (to reuse the previously configured environment):
+In a new terminal, launch RTI Replay Service from the repository root (use `-s` option for security):
 
 ```bash
-$NDDSHOME/bin/rtireplayservice -cfgFile ReplayServiceConfiguration.xml -cfgName RepServCfg
+# From the repository root
+python3 launch.py 02-record-playback ReplayService [-s]
 ```
 
 >**Observe:** You should see the Arm and Patient Monitor applications are receiving data previously recorded.
@@ -125,11 +103,7 @@ The Replay Service configuration has `<enable_looping>` set to `true`, so the re
 
 ### 5. Kill the applications
 
-Kill all active operating room applications:
-
-```bash
-python3 ../01-operating-room/scripts/kill_all.py
-```
+Press `Ctrl-C` in each terminal to terminate the running applications.
 
 #### Further Learning: Replay Service
 

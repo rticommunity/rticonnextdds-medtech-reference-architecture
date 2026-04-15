@@ -1,0 +1,12 @@
+{
+    "description": "Security Threat Demonstration",
+    "env": {
+        "NDDS_QOS_PROFILES": "system_arch/qos/Qos.xml;system_arch/xml_app_creation/DomainLibrary.xml;xml_config/ThreatQos.xml;xml_config/ThreatParticipants.xml",
+        "THREAT_SECURITY_ARTIFACTS_DIR": "${MODULE_DIR}/security",
+        "RTI_SECURITY_ARTIFACTS_DIR": "${SYSTEM_ARCH}/security"
+    },
+    "apps": {
+        "ThreatInjector":     ["${PYTHON:ThreatInjector}"],
+        "ThreatExfiltrator":  ["${PYTHON:ThreatExfiltrator}"]
+    }
+}
