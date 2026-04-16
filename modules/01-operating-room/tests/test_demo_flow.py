@@ -32,12 +32,15 @@ from conftest import (
     create_reader,
     create_writer,
     wait_for_data,
+    wait_for_device_status,
+    wait_for_process_ready,
 )
 
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 QT_ENV = {"QT_QPA_PLATFORM": "offscreen"}
+GTK_ENV = {"GDK_BACKEND": "x11"}
 
 
 # ---------------------------------------------------------------------------
@@ -53,8 +56,8 @@ class TestCrashDetection:
     def test_orchestrator_detects_patient_sensor_crash(self, proc_manager, dds_participant):
         from Types import Common, Common_DeviceHeartbeat
 
-        patient_sensor = proc_manager.start_cpp("PatientSensor")
-        proc_manager.start_cpp("Orchestrator")
+        patient_sensor = proc_manager.start_app("PatientSensor")
+        proc_manager.start_app("Orchestrator", extra_env=GTK_ENV)
 
         hb_reader = create_reader(
             dds_participant,
@@ -107,7 +110,7 @@ class TestPauseAndResume:
             PatientMonitor_Vitals,
         )
 
-        proc_manager.start_cpp("PatientSensor")
+        proc_manager.start_app("PatientSensor")
 
         status_reader = create_reader(
             dds_participant,
@@ -197,13 +200,13 @@ class TestGracefulShutdown:
         )
 
         procs = {
-            Common.DeviceType.PATIENT_SENSOR: proc_manager.start_cpp("PatientSensor"),
-            Common.DeviceType.ARM_CONTROLLER: proc_manager.start_cpp("ArmController"),
-            Common.DeviceType.ARM: proc_manager.start_python("Arm.py", extra_env=QT_ENV),
-            Common.DeviceType.PATIENT_MONITOR: proc_manager.start_python("PatientMonitor.py", extra_env=QT_ENV),
+            Common.DeviceType.PATIENT_SENSOR: proc_manager.start_app("PatientSensor"),
+            Common.DeviceType.ARM_CONTROLLER: proc_manager.start_app("ArmController", extra_env=GTK_ENV),
+            Common.DeviceType.ARM: proc_manager.start_app("Arm", extra_env=QT_ENV),
+            Common.DeviceType.PATIENT_MONITOR: proc_manager.start_app("PatientMonitor", extra_env=QT_ENV),
         }
 
-        create_reader(
+        status_reader = create_reader(
             dds_participant,
             "t/DeviceStatus",
             Common_DeviceStatus,
@@ -216,8 +219,13 @@ class TestGracefulShutdown:
             "DataFlowLibrary::Command",
         )
 
-        # Wait for at least some devices to come online
-        time.sleep(5)
+        # Wait until all devices have published a DeviceStatus (up to 30s)
+        expected = set(procs.keys())
+        seen = wait_for_device_status(status_reader, expected, timeout_sec=30)
+        assert seen == expected, (
+            f"Timed out waiting for devices. Missing: "
+            f"{set(d.name for d in expected - seen)}"
+        )
 
         # Send SHUTDOWN to each device
         for device_type in procs:
@@ -252,10 +260,10 @@ class TestSecurePatientSensor:
 
     def test_vitals_flow_with_security(self, proc_manager_secure, dds_env_secure):
         """PatientSensor starts and runs with DDS Security enabled."""
-        ps = proc_manager_secure.start_cpp("PatientSensor")
+        ps = proc_manager_secure.start_app("PatientSensor")
 
-        # Give security handshake and publishing time
-        time.sleep(5)
+        # Wait for security handshake and DDS initialization
+        wait_for_process_ready(ps, timeout_sec=15)
 
         if ps.poll() is not None:
             stdout = ps.stdout.read().decode(errors="replace") if ps.stdout else ""
@@ -273,13 +281,14 @@ class TestSecureAllApps:
     def test_secure_launch(self, proc_manager_secure, dds_env_secure):
         """All C++ apps start and keep running with DDS Security enabled."""
         apps = {
-            "PatientSensor": proc_manager_secure.start_cpp("PatientSensor"),
-            "Orchestrator": proc_manager_secure.start_cpp("Orchestrator"),
-            "ArmController": proc_manager_secure.start_cpp("ArmController"),
+            "PatientSensor": proc_manager_secure.start_app("PatientSensor"),
+            "Orchestrator": proc_manager_secure.start_app("Orchestrator", extra_env=GTK_ENV),
+            "ArmController": proc_manager_secure.start_app("ArmController", extra_env=GTK_ENV),
         }
 
-        # Give apps time to start and complete security handshake
-        time.sleep(5)
+        # Wait for security handshake and DDS initialization
+        for p in apps.values():
+            wait_for_process_ready(p, timeout_sec=15)
 
         crashed = {}
         for name, p in apps.items():

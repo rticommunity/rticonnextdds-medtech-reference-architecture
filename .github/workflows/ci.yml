@@ -15,7 +15,9 @@ on:
 
 env:
   CONNEXT_VERSION: "7.3.1"
+  CONNEXTDDS_ARCH: x64Linux4gcc7.3.0
   NDDSHOME: /opt/rti.com/rti_connext_dds-7.3.1
+  PYTHON_VERSION: "3.9"
   QT_QPA_PLATFORM: offscreen
   DISPLAY: ":99"
 
@@ -30,7 +32,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.9"
 
       - name: Install ruff
         run: pip install ruff clang-format==18.1.8
@@ -56,8 +58,8 @@ jobs:
         id: cache-connext
         uses: actions/cache@v5
         with:
-          path: /opt/rti.com/rti_connext_dds-7.3.1
-          key: connext-7.3.1-${{ runner.arch }}-apt-v3
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
 
       - name: Add RTI apt repository
         if: steps.cache-connext.outputs.cache-hit != 'true'
@@ -75,9 +77,9 @@ jobs:
       - name: Install Connext via apt
         if: steps.cache-connext.outputs.cache-hit != 'true'
         run: |
-          echo "rti-connext-dds-7.3.1-common rti-connext-dds-7.3.1/license/accepted select true" | \
+          echo "rti-connext-dds-${{ env.CONNEXT_VERSION }}-common rti-connext-dds-${{ env.CONNEXT_VERSION }}/license/accepted select true" | \
             sudo debconf-set-selections
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y rti-connext-dds-7.3.1
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y rti-connext-dds-${{ env.CONNEXT_VERSION }}
           echo "--- Available RTI packages ---"
           apt-cache search rti-connext 2>/dev/null || true
           echo "--- Installed RTI packages ---"
@@ -88,13 +90,13 @@ jobs:
 
       - name: Verify installation
         run: |
-          test -d /opt/rti.com/rti_connext_dds-7.3.1
-          test -f $NDDSHOME/lib/x64Linux4gcc7.3.0/libnddssecurity.so
-          ls $NDDSHOME/third_party/openssl-*/x64Linux4gcc7.3.0/release/lib/libssl.so* | head -1
+          test -d $NDDSHOME
+          test -f $NDDSHOME/lib/$CONNEXTDDS_ARCH/libnddssecurity.so
+          ls $NDDSHOME/third_party/openssl-*/$CONNEXTDDS_ARCH/release/lib/libssl.so* | head -1
 
   # ── Build ───────────────────────────────────────────────────────────────
   build:
-    name: Build Module 01
+    name: Build
     needs: install-connext
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -106,8 +108,8 @@ jobs:
       - name: Restore Connext cache
         uses: actions/cache/restore@v5
         with:
-          path: /opt/rti.com/rti_connext_dds-7.3.1
-          key: connext-7.3.1-${{ runner.arch }}-apt-v3
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
 
       - name: Write license file
         run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
@@ -120,35 +122,79 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.9"
           cache: pip
 
       - name: Install Python dependencies
-        run: pip install rti.connext==7.3.1
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }}
 
       - name: CMake configure & build
-        working-directory: modules/01-operating-room
         run: |
-          export LD_LIBRARY_PATH="$NDDSHOME/lib/x64Linux4gcc7.3.0:${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
           export PATH="$NDDSHOME/bin:$PATH"
-          cmake -B build -S .
-          cmake --build build
+          python build.py
 
       - name: Verify binaries
         run: |
-          test -f modules/01-operating-room/build/PatientSensor
-          test -f modules/01-operating-room/build/Orchestrator
-          test -f modules/01-operating-room/build/ArmController
+          test -f build/$CONNEXTDDS_ARCH/modules/01-operating-room/PatientSensor
+          test -f build/$CONNEXTDDS_ARCH/modules/01-operating-room/Orchestrator
+          test -f build/$CONNEXTDDS_ARCH/modules/01-operating-room/ArmController
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: module01-build
+          name: project-build
           path: |
-            modules/01-operating-room/build/
-            modules/01-operating-room/src/Types.py
-            modules/01-operating-room/src/builtin_logging_type.py
+            build/${{ env.CONNEXTDDS_ARCH }}/
+            modules/*/src/
           retention-days: 1
+
+  # ── Project-level Tests ─────────────────────────────────────────────────
+  test-project:
+    name: Project-level Tests
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Restore Connext cache
+        uses: actions/cache/restore@v5
+        with:
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
+
+      - name: Write license file
+        run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: project-build
+
+      - name: Fix binary permissions
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
+
+      - name: Run project-level tests
+        run: |
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
+          export PATH="$NDDSHOME/bin:$PATH"
+          python -m pytest tests/ -v -k "not cmake" --junitxml=results-project.xml
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-project
+          path: results-project.xml
 
   # ── Unit Tests (fast, headless) ─────────────────────────────────────────
   test-unit:
@@ -164,36 +210,35 @@ jobs:
       - name: Restore Connext cache
         uses: actions/cache/restore@v5
         with:
-          path: /opt/rti.com/rti_connext_dds-7.3.1
-          key: connext-7.3.1-${{ runner.arch }}-apt-v3
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
 
       - name: Write license file
         run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.9"
           cache: pip
 
       - name: Install Python dependencies
-        run: pip install rti.connext==7.3.1 pytest PySide6 pyqtgraph numpy
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest PySide6 pyqtgraph numpy
 
       - name: Download build artifacts
         uses: actions/download-artifact@v7
         with:
-          name: module01-build
-          path: modules/01-operating-room/
+          name: project-build
 
       - name: Fix binary permissions
-        run: chmod +x modules/01-operating-room/build/{PatientSensor,Orchestrator,ArmController}
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
 
       - name: Run unit tests
         working-directory: modules/01-operating-room
         run: |
-          export LD_LIBRARY_PATH="$NDDSHOME/lib/x64Linux4gcc7.3.0:${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
           export PATH="$NDDSHOME/bin:$PATH"
-          python -m pytest tests/test_build.py tests/test_xml_qos.py tests/test_scripts.py \
-            -v -k "not cmake" --junitxml=results-unit.xml
+          python -m pytest tests/test_types.py tests/test_xml_qos.py tests/test_scripts.py \
+            -v --junitxml=results-unit.xml
 
       - name: Upload results
         if: always()
@@ -216,8 +261,8 @@ jobs:
       - name: Restore Connext cache
         uses: actions/cache/restore@v5
         with:
-          path: /opt/rti.com/rti_connext_dds-7.3.1
-          key: connext-7.3.1-${{ runner.arch }}-apt-v3
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
 
       - name: Write license file
         run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
@@ -229,25 +274,24 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.9"
           cache: pip
 
       - name: Install Python dependencies
-        run: pip install rti.connext==7.3.1 pytest PySide6 pyqtgraph numpy
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest PySide6 pyqtgraph numpy
 
       - name: Download build artifacts
         uses: actions/download-artifact@v7
         with:
-          name: module01-build
-          path: modules/01-operating-room/
+          name: project-build
 
       - name: Fix binary permissions
-        run: chmod +x modules/01-operating-room/build/{PatientSensor,Orchestrator,ArmController}
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
 
       - name: Run DDS tests (non-GUI)
         working-directory: modules/01-operating-room
         run: |
-          export LD_LIBRARY_PATH="$NDDSHOME/lib/x64Linux4gcc7.3.0:${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
           export PATH="$NDDSHOME/bin:$PATH"
           python -m pytest tests/test_launch.py tests/test_dds_communication.py \
             -v -m "not gui and not slow" --junitxml=results-dds.xml
@@ -273,8 +317,8 @@ jobs:
       - name: Restore Connext cache
         uses: actions/cache/restore@v5
         with:
-          path: /opt/rti.com/rti_connext_dds-7.3.1
-          key: connext-7.3.1-${{ runner.arch }}-apt-v3
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
 
       - name: Write license file
         run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
@@ -286,20 +330,19 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.9"
           cache: pip
 
       - name: Install Python dependencies
-        run: pip install rti.connext==7.3.1 pytest PySide6 pyqtgraph numpy
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest PySide6 pyqtgraph numpy
 
       - name: Download build artifacts
         uses: actions/download-artifact@v7
         with:
-          name: module01-build
-          path: modules/01-operating-room/
+          name: project-build
 
       - name: Fix binary permissions
-        run: chmod +x modules/01-operating-room/build/{PatientSensor,Orchestrator,ArmController}
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
 
       - name: Start Xvfb
         run: |
@@ -309,7 +352,7 @@ jobs:
       - name: Run slow tests
         working-directory: modules/01-operating-room
         run: |
-          export LD_LIBRARY_PATH="$NDDSHOME/lib/x64Linux4gcc7.3.0:${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
           export PATH="$NDDSHOME/bin:$PATH"
           python -m pytest tests/test_demo_flow.py \
             -v -m "slow and not gui and not secure" --junitxml=results-integration.xml
@@ -335,8 +378,8 @@ jobs:
       - name: Restore Connext cache
         uses: actions/cache/restore@v5
         with:
-          path: /opt/rti.com/rti_connext_dds-7.3.1
-          key: connext-7.3.1-${{ runner.arch }}-apt-v3
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
 
       - name: Write license file
         run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
@@ -350,20 +393,19 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.9"
           cache: pip
 
       - name: Install Python dependencies
-        run: pip install rti.connext==7.3.1 pytest PySide6 pyqtgraph numpy
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest PySide6 pyqtgraph numpy
 
       - name: Download build artifacts
         uses: actions/download-artifact@v7
         with:
-          name: module01-build
-          path: modules/01-operating-room/
+          name: project-build
 
       - name: Fix binary permissions
-        run: chmod +x modules/01-operating-room/build/{PatientSensor,Orchestrator,ArmController}
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
 
       - name: Start Xvfb
         run: |
@@ -373,7 +415,7 @@ jobs:
       - name: Run GUI tests
         working-directory: modules/01-operating-room
         run: |
-          export LD_LIBRARY_PATH="$NDDSHOME/lib/x64Linux4gcc7.3.0:${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
           export PATH="$NDDSHOME/bin:$PATH"
           python -m pytest tests/ \
             -v -m "gui and not secure" --junitxml=results-gui.xml
@@ -399,8 +441,8 @@ jobs:
       - name: Restore Connext cache
         uses: actions/cache/restore@v5
         with:
-          path: /opt/rti.com/rti_connext_dds-7.3.1
-          key: connext-7.3.1-${{ runner.arch }}-apt-v3
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
 
       - name: Write license file
         run: |
@@ -427,24 +469,23 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.9"
           cache: pip
 
       - name: Install Python dependencies
-        run: pip install rti.connext==7.3.1 pytest PySide6 pyqtgraph numpy
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest PySide6 pyqtgraph numpy
 
       - name: Download build artifacts
         uses: actions/download-artifact@v7
         with:
-          name: module01-build
-          path: modules/01-operating-room/
+          name: project-build
 
       - name: Fix binary permissions
-        run: chmod +x modules/01-operating-room/build/{PatientSensor,Orchestrator,ArmController}
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
 
       - name: Generate security artifacts
         run: |
-          export LD_LIBRARY_PATH="$NDDSHOME/lib/x64Linux4gcc7.3.0:${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
           export PATH="$NDDSHOME/bin:$PATH"
           cd system_arch/security && python3 setup_security.py
 
@@ -453,10 +494,11 @@ jobs:
           echo "=== License ==="
           ls -la $NDDSHOME/rti_license.dat 2>/dev/null || echo "MISSING: $NDDSHOME/rti_license.dat"
           echo "=== Security plugin ==="
-          ls $NDDSHOME/lib/x64Linux4gcc7.3.0/libnddssecurity.so 2>/dev/null && echo "OK" || echo "MISSING"
+          ls $NDDSHOME/lib/$CONNEXTDDS_ARCH/libnddssecurity.so 2>/dev/null && echo "OK" || echo "MISSING"
           echo "=== Security artifacts ==="
-          ls -la system_arch/security/ca/CaIdentity.pem || echo "CA cert missing"
-          ls system_arch/security/xml/signed/*.p7s | wc -l || echo "no p7s files"
+          p7s_count=$(find system_arch/security/domain_scope -name "*.p7s" 2>/dev/null | wc -l)
+          echo "  Signed artifacts (.p7s): $p7s_count"
+          test "$p7s_count" -gt 0 || { echo "ERROR: No security artifacts found"; exit 1; }
 
       - name: Start Xvfb
         run: |
@@ -468,7 +510,7 @@ jobs:
         env:
           RTI_SECURITY_ARTIFACTS_DIR: ${{ github.workspace }}/system_arch/security
         run: |
-          export LD_LIBRARY_PATH="$NDDSHOME/lib/x64Linux4gcc7.3.0:${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
           export PATH="$NDDSHOME/bin:$PATH"
           echo "RTI_SECURITY_ARTIFACTS_DIR=$RTI_SECURITY_ARTIFACTS_DIR"
           python -m pytest tests/ \
@@ -495,33 +537,32 @@ jobs:
       - name: Restore Connext cache
         uses: actions/cache/restore@v5
         with:
-          path: /opt/rti.com/rti_connext_dds-7.3.1
-          key: connext-7.3.1-${{ runner.arch }}-apt-v3
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
 
       - name: Write license file
         run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.9"
           cache: pip
 
       - name: Install Python dependencies
-        run: pip install rti.connext==7.3.1 pytest
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest
 
       - name: Download build artifacts
         uses: actions/download-artifact@v7
         with:
-          name: module01-build
-          path: modules/01-operating-room/
+          name: project-build
 
       - name: Fix binary permissions
-        run: chmod +x modules/01-operating-room/build/{PatientSensor,Orchestrator,ArmController}
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
 
       - name: Run Module 02 tests
         working-directory: modules/02-record-playback
         run: |
-          export LD_LIBRARY_PATH="$NDDSHOME/lib/x64Linux4gcc7.3.0:${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
           export PATH="$NDDSHOME/bin:$PATH"
           python -m pytest tests/ -v --junitxml=results-module02.xml
 
@@ -546,8 +587,8 @@ jobs:
       - name: Restore Connext cache
         uses: actions/cache/restore@v5
         with:
-          path: /opt/rti.com/rti_connext_dds-7.3.1
-          key: connext-7.3.1-${{ runner.arch }}-apt-v3
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
 
       - name: Write license file
         run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
@@ -559,24 +600,23 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.9"
           cache: pip
 
       - name: Install Python dependencies
-        run: pip install rti.connext==7.3.1 pytest PySide6 pyqtgraph numpy
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest PySide6 pyqtgraph numpy
 
       - name: Download build artifacts
         uses: actions/download-artifact@v7
         with:
-          name: module01-build
-          path: modules/01-operating-room/
+          name: project-build
 
       - name: Fix binary permissions
-        run: chmod +x modules/01-operating-room/build/{PatientSensor,Orchestrator,ArmController}
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
 
       - name: Generate security artifacts
         run: |
-          export LD_LIBRARY_PATH="$NDDSHOME/lib/x64Linux4gcc7.3.0:${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
           export PATH="$NDDSHOME/bin:$PATH"
           cd system_arch/security && python3 setup_security.py
           cd ../../modules/04-security-threat/security && python3 setup_threat_security.py
@@ -584,7 +624,7 @@ jobs:
       - name: Run Module 04 tests
         working-directory: modules/04-security-threat
         run: |
-          export LD_LIBRARY_PATH="$NDDSHOME/lib/x64Linux4gcc7.3.0:${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
           export PATH="$NDDSHOME/bin:$PATH"
           python -m pytest tests/ -v --junitxml=results-module04.xml
 

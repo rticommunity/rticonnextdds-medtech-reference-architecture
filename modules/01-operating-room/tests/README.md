@@ -46,7 +46,7 @@ python -m pytest tests/ -v -m "not secure"
 
 | File | What it tests | Markers |
 |---|---|---|
-| `test_build.py` | CMake build, binary existence, Python type imports | — |
+| `test_types.py` | Python type imports, field/enum validation | — |
 | `test_launch.py` | Each app starts without crashing | `gui` for GTK/Qt apps |
 | `test_dds_communication.py` | DDS topics carry correct data (vitals, heartbeats, statuses, commands) | `gui` for Arm tests |
 | `test_demo_flow.py` | End-to-end README scenarios (crash detection, pause/resume, shutdown) | `gui`, `slow`, `secure` |

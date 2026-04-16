@@ -34,12 +34,10 @@ REPO_ROOT = MODULE_DIR.parent.parent  # repo root
 MODULE_01_DIR = MODULE_DIR.parent / "01-operating-room"
 SYSTEM_ARCH_DIR = REPO_ROOT / "system_arch"
 
-# Reuse Module 01's scripts for environment setup and platform detection
-sys.path.insert(0, str(MODULE_01_DIR / "scripts"))
-sys.path.insert(0, str(SYSTEM_ARCH_DIR / "scripts"))
+# Reuse centralized scripts package for platform detection and module config
+sys.path.insert(0, str(REPO_ROOT / "resource" / "python"))
 
-import platform_setup  # noqa: E402
-import xml_setup  # noqa: E402
+from scripts import module_runner  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Service detection
@@ -82,8 +80,9 @@ def pytest_collection_modifyitems(config, items):
 class ProcessManager:
     """Launch and track child processes, ensuring cleanup on teardown."""
 
-    def __init__(self, env: dict, cwd: Path):
+    def __init__(self, env: dict, apps: dict[str, list[str]], cwd: Path):
         self.env = env
+        self.apps = apps
         self.cwd = cwd
         self._children: list[subprocess.Popen] = []
 
@@ -99,11 +98,9 @@ class ProcessManager:
         self._children.append(proc)
         return proc
 
-    def start_module01_cpp(self, name: str) -> subprocess.Popen:
-        return self.start(
-            [platform_setup.find_executable(name)],
-            cwd=MODULE_01_DIR,
-        )
+    def start_app(self, name: str, **kwargs) -> subprocess.Popen:
+        """Start an application by its module.json name."""
+        return self.start(self.apps[name], **kwargs)
 
     def shutdown_all(self):
         for p in self._children:
@@ -120,6 +117,15 @@ class ProcessManager:
         self._children.clear()
 
 
+def wait_for_process_ready(proc, timeout_sec: float = 5.0):
+    """Wait until *proc* survives for *timeout_sec* or exits early."""
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            return
+        time.sleep(0.25)
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -127,19 +133,22 @@ class ProcessManager:
 
 @pytest.fixture(scope="session")
 def dds_env():
-    """Non-secure DDS environment configured from Module 01's xml_setup."""
-    original_cwd = os.getcwd()
-    os.chdir(MODULE_01_DIR)
-    try:
-        env = xml_setup.setup_env(security=False)
-    finally:
-        os.chdir(original_cwd)
+    """Non-secure DDS environment configured from Module 01's module.json."""
+    env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": False})
+    return env, apps
+
+
+@pytest.fixture(scope="session")
+def dds_env_dict(dds_env):
+    """Just the env dict (no apps) for passing to subprocess.run(env=...)."""
+    env, _apps = dds_env
     return env
 
 
 @pytest.fixture()
 def proc_manager(dds_env):
-    pm = ProcessManager(dds_env, cwd=MODULE_DIR)
+    env, apps = dds_env
+    pm = ProcessManager(env, apps, cwd=MODULE_DIR)
     yield pm
     pm.shutdown_all()
 

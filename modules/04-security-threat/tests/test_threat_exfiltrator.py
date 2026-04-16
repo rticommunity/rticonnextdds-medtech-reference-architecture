@@ -28,6 +28,7 @@ from conftest import (
     MODULE_DIR,
     OR_SRC_DIR,
     THREAT_SRC_DIR,
+    wait_for_process_ready,
 )
 
 
@@ -108,11 +109,12 @@ class TestExfiltratorUnsecure:
 
     def test_unsecure_exfiltration_succeeds(self, or_pm_nonsecure, or_env_nonsecure, threat_env):
         """Unsecured exfiltrator should receive vitals from unsecured OR apps."""
-        or_pm_nonsecure.start_module01_cpp("PatientSensor")
-        time.sleep(3)
+        ps = or_pm_nonsecure.start_app("PatientSensor")
+        wait_for_process_ready(ps, timeout_sec=10)
+        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         result = _run_exfiltrator_probe(
-            threat_env,
+            threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/Unsecure",
         )
         assert result["created"], f"Participant creation failed: {result.get('error')}"
@@ -146,11 +148,12 @@ class TestExfiltratorSecure:
         To fully block unauthenticated readers, set
         data_protection_kind=ENCRYPT in the governance.
         """
-        or_pm_secure.start_module01_cpp("PatientSensor")
-        time.sleep(5)
+        ps = or_pm_secure.start_app("PatientSensor")
+        wait_for_process_ready(ps, timeout_sec=15)
+        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         result = _run_exfiltrator_probe(
-            threat_env,
+            threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/Unsecure",
             timeout_sec=15,
         )
@@ -163,11 +166,12 @@ class TestExfiltratorSecure:
 
     def test_rogue_ca_exfiltrator_blocked(self, or_pm_secure, or_env_secure, threat_env):
         """Rogue CA exfiltrator should NOT receive vitals from secured OR apps."""
-        or_pm_secure.start_module01_cpp("PatientSensor")
-        time.sleep(3)
+        ps = or_pm_secure.start_app("PatientSensor")
+        wait_for_process_ready(ps, timeout_sec=15)
+        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         result = _run_exfiltrator_probe(
-            threat_env,
+            threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/RogueCA",
             timeout_sec=10,
         )
@@ -175,11 +179,12 @@ class TestExfiltratorSecure:
 
     def test_forged_perms_exfiltrator_blocked(self, or_pm_secure, or_env_secure, threat_env):
         """Forged permissions exfiltrator should NOT receive vitals from secured OR apps."""
-        or_pm_secure.start_module01_cpp("PatientSensor")
-        time.sleep(3)
+        ps = or_pm_secure.start_app("PatientSensor")
+        wait_for_process_ready(ps, timeout_sec=15)
+        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         result = _run_exfiltrator_probe(
-            threat_env,
+            threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/ForgedPerms",
             timeout_sec=10,
         )
@@ -187,11 +192,12 @@ class TestExfiltratorSecure:
 
     def test_expired_cert_exfiltrator_blocked(self, or_pm_secure, or_env_secure, threat_env):
         """Expired certificate exfiltrator should fail to create participant or receive data."""
-        or_pm_secure.start_module01_cpp("PatientSensor")
-        time.sleep(3)
+        ps = or_pm_secure.start_app("PatientSensor")
+        wait_for_process_ready(ps, timeout_sec=15)
+        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         result = _run_exfiltrator_probe(
-            threat_env,
+            threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/ExpiredCert",
             timeout_sec=10,
         )

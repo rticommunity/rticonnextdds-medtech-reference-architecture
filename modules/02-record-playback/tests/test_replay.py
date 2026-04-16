@@ -28,6 +28,7 @@ from conftest import (
     RECORDING_DIR,
     RECORDING_SERVICE,
     REPLAY_SERVICE,
+    wait_for_process_ready,
 )
 
 SRC_DIR = MODULE_01_DIR / "src"
@@ -40,11 +41,12 @@ class TestReplay:
     RECORDING_CONFIG = str(MODULE_DIR / "RecordingServiceConfiguration.xml")
     REPLAY_CONFIG = str(MODULE_DIR / "ReplayServiceConfiguration.xml")
 
-    def test_replay_produces_vitals(self, proc_manager, dds_env, clean_recording_dir):
+    def test_replay_produces_vitals(self, proc_manager, dds_env_dict, clean_recording_dir):
         """Replay Service should publish t/Vitals from a recording."""
         # ── Phase 1: Record some data ─────────────────────────────────
-        proc_manager.start_module01_cpp("PatientSensor")
-        time.sleep(2)
+        ps = proc_manager.start_app("PatientSensor")
+        wait_for_process_ready(ps, timeout_sec=10)
+        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         rec_proc = proc_manager.start(
             [RECORDING_SERVICE, "-cfgFile", self.RECORDING_CONFIG, "-cfgName", "RecServCfg"],
@@ -68,11 +70,11 @@ class TestReplay:
 
         # ── Phase 2: Replay and verify data arrives ───────────────────
         # Start Replay Service
-        proc_manager.start(
+        replay_proc = proc_manager.start(
             [REPLAY_SERVICE, "-cfgFile", self.REPLAY_CONFIG, "-cfgName", "RepServCfg"],
             cwd=MODULE_DIR,
         )
-        time.sleep(2)
+        wait_for_process_ready(replay_proc, timeout_sec=10)
 
         # Run a short subscriber in a subprocess to capture replayed data
         subscriber_script = f"""\
@@ -106,7 +108,7 @@ print(json.dumps(collected))
 """
         result = subprocess.run(
             [sys.executable, "-c", subscriber_script],
-            env=dds_env,
+            env=dds_env_dict,
             cwd=MODULE_01_DIR,
             capture_output=True,
             text=True,

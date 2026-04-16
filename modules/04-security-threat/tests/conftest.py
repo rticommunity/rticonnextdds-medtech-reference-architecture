@@ -35,27 +35,12 @@ REPO_ROOT = MODULE_DIR.parent.parent
 MODULE_01_DIR = MODULE_DIR.parent / "01-operating-room"
 SYSTEM_ARCH_DIR = REPO_ROOT / "system_arch"
 THREAT_SRC_DIR = MODULE_DIR / "src"
-THREAT_SCRIPTS_DIR = MODULE_DIR / "scripts"
 OR_SRC_DIR = MODULE_01_DIR / "src"
 
-# Add scripts to import path
-sys.path.insert(0, str(SYSTEM_ARCH_DIR / "scripts"))
+# Add centralized scripts package to import path
+sys.path.insert(0, str(REPO_ROOT / "resource" / "python"))
 
-import importlib.util  # noqa: E402
-
-import platform_setup  # noqa: E402
-
-
-def _import_module_from_path(name: str, path: Path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-or_xml_setup = _import_module_from_path("or_xml_setup", MODULE_01_DIR / "scripts" / "xml_setup.py")
-threat_xml_setup = _import_module_from_path("threat_xml_setup", THREAT_SCRIPTS_DIR / "xml_setup.py")
-
+from scripts import module_runner  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Auto-skip logic
@@ -64,13 +49,13 @@ threat_xml_setup = _import_module_from_path("threat_xml_setup", THREAT_SCRIPTS_D
 
 def _or_security_artifacts_exist() -> bool:
     """Check that Module 01 security artifacts exist."""
-    signed_dir = SYSTEM_ARCH_DIR / "security" / "xml" / "signed"
-    return signed_dir.is_dir() and any(signed_dir.glob("*.p7s"))
+    domain_scope_dir = SYSTEM_ARCH_DIR / "security" / "domain_scope"
+    return domain_scope_dir.is_dir() and any(domain_scope_dir.rglob("*.p7s"))
 
 
 def _threat_artifacts_exist() -> bool:
     """Check that Module 04 threat security artifacts exist."""
-    rogue_ca = MODULE_DIR / "security" / "rogue_ca" / "RogueCaIdentity.pem"
+    rogue_ca = MODULE_DIR / "security" / "ca" / "RogueCa" / "certs" / "RogueCa" / "RogueCa.crt"
     return rogue_ca.is_file()
 
 
@@ -104,8 +89,9 @@ def pytest_collection_modifyitems(config, items):
 class ProcessManager:
     """Launch and track child processes, ensuring cleanup on teardown."""
 
-    def __init__(self, env: dict, cwd: Path):
+    def __init__(self, env: dict, apps: dict[str, list[str]], cwd: Path):
         self.env = env
+        self.apps = apps
         self.cwd = cwd
         self._children: list[subprocess.Popen] = []
 
@@ -122,11 +108,9 @@ class ProcessManager:
         self._children.append(proc)
         return proc
 
-    def start_module01_cpp(self, name: str) -> subprocess.Popen:
-        return self.start(
-            [platform_setup.find_executable(name)],
-            cwd=MODULE_01_DIR,
-        )
+    def start_app(self, name: str, **kwargs) -> subprocess.Popen:
+        """Start an application by its module.json name."""
+        return self.start(self.apps[name], **kwargs)
 
     def shutdown_all(self):
         for p in self._children:
@@ -143,6 +127,15 @@ class ProcessManager:
         self._children.clear()
 
 
+def wait_for_process_ready(proc, timeout_sec: float = 5.0):
+    """Wait until *proc* survives for *timeout_sec* or exits early."""
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            return
+        time.sleep(0.25)
+
+
 # ---------------------------------------------------------------------------
 # Environment fixtures
 # ---------------------------------------------------------------------------
@@ -151,25 +144,15 @@ class ProcessManager:
 @pytest.fixture(scope="session")
 def or_env_nonsecure():
     """Module 01 OR env — non-secure mode."""
-    original_cwd = os.getcwd()
-    os.chdir(MODULE_01_DIR)
-    try:
-        env = or_xml_setup.setup_env(security=False)
-    finally:
-        os.chdir(original_cwd)
-    return env
+    env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": False})
+    return env, apps
 
 
 @pytest.fixture(scope="session")
 def or_env_secure():
     """Module 01 OR env — secure mode."""
-    original_cwd = os.getcwd()
-    os.chdir(MODULE_01_DIR)
-    try:
-        env = or_xml_setup.setup_env(security=True)
-    finally:
-        os.chdir(original_cwd)
-    return env
+    env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": True})
+    return env, apps
 
 
 @pytest.fixture(scope="session")
@@ -178,33 +161,26 @@ def threat_env():
 
     Prepends Types.xml to NDDS_QOS_PROFILES so that type definitions are
     available to the XML parser when creating participants from config.
-    Also ensures native library paths are set.
     """
-    original_cwd = os.getcwd()
-    os.chdir(MODULE_DIR)
-    try:
-        env = threat_xml_setup.setup_env()
-    finally:
-        os.chdir(original_cwd)
+    env, apps = module_runner.load_module_config(MODULE_DIR)
     # Types.xml is required for create_participant_from_config to resolve type_ref
     types_xml = str(SYSTEM_ARCH_DIR / "Types.xml")
     env["NDDS_QOS_PROFILES"] = types_xml + ";" + env["NDDS_QOS_PROFILES"]
-    # Ensure Connext native libraries are on the dynamic library path
-    nddshome = platform_setup.check_nddshome()
-    platform_setup.setup_library_env(env, nddshome)
-    return env
+    return env, apps
 
 
 @pytest.fixture()
 def or_pm_nonsecure(or_env_nonsecure):
-    pm = ProcessManager(or_env_nonsecure, cwd=MODULE_01_DIR)
+    env, apps = or_env_nonsecure
+    pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
     yield pm
     pm.shutdown_all()
 
 
 @pytest.fixture()
 def or_pm_secure(or_env_secure):
-    pm = ProcessManager(or_env_secure, cwd=MODULE_01_DIR)
+    env, apps = or_env_secure
+    pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
     yield pm
     pm.shutdown_all()
 

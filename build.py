@@ -43,18 +43,20 @@ def _windows_cmake_platform() -> str | None:
     return None
 
 
-def _configure_command() -> list[str]:
+def configure_command(extra_args: list[str] | None = None) -> list[str]:
+    args = extra_args if extra_args is not None else sys.argv[1:]
     command = ["cmake", "-S", str(PROJECT_ROOT), "-B", str(BUILD_DIR)]
 
     platform_arg = _windows_cmake_platform()
-    if platform_arg and not any(argument in ("-A", "--platform") for argument in sys.argv[1:]):
+    if platform_arg and not any(argument in ("-A", "--platform") for argument in args):
         command.extend(["-A", platform_arg])
 
     return command
 
 
-def _build_command() -> list[str]:
-    command = ["cmake", "--build", str(BUILD_DIR)] + sys.argv[1:]
+def build_command(extra_args: list[str] | None = None) -> list[str]:
+    args = extra_args if extra_args is not None else sys.argv[1:]
+    command = ["cmake", "--build", str(BUILD_DIR)] + args
 
     if platform.system() == "Windows" and "--config" not in command:
         command.extend(["--config", "Release"])
@@ -65,10 +67,9 @@ def _build_command() -> list[str]:
 def main() -> None:
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
 
-    subprocess.run(_configure_command(), check=True)
-    subprocess.run(_build_command(), check=True)
+    subprocess.run(configure_command(), check=True)
+    subprocess.run(build_command(), check=True)
 
 
 if __name__ == "__main__":
     main()
-

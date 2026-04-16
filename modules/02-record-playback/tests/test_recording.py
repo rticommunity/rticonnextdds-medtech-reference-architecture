@@ -23,6 +23,7 @@ from conftest import (
     MODULE_DIR,
     RECORDING_DIR,
     RECORDING_SERVICE,
+    wait_for_process_ready,
 )
 
 
@@ -35,8 +36,9 @@ class TestRecording:
     def test_recording_creates_database(self, proc_manager, clean_recording_dir):
         """Recording Service should create or_recording_database.dat."""
         # Start PatientSensor to produce t/Vitals data
-        proc_manager.start_module01_cpp("PatientSensor")
-        time.sleep(2)  # let sensor start publishing
+        ps = proc_manager.start_app("PatientSensor")
+        wait_for_process_ready(ps, timeout_sec=10)
+        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         # Start Recording Service
         rec_proc = proc_manager.start(

@@ -26,6 +26,7 @@ from conftest import (
     create_reader,
     create_writer,
     wait_for_data,
+    wait_for_process_ready,
 )
 
 # Ensure generated types are importable
@@ -44,7 +45,7 @@ class TestPatientSensorVitals:
     def test_vitals_arrive(self, proc_manager, dds_participant):
         from Types import PatientMonitor_Vitals
 
-        proc_manager.start_cpp("PatientSensor")
+        proc_manager.start_app("PatientSensor")
         reader = create_reader(
             dds_participant,
             "t/Vitals",
@@ -58,7 +59,7 @@ class TestPatientSensorVitals:
     def test_vitals_values_in_range(self, proc_manager, dds_participant):
         from Types import PatientMonitor_Vitals
 
-        proc_manager.start_cpp("PatientSensor")
+        proc_manager.start_app("PatientSensor")
         reader = create_reader(
             dds_participant,
             "t/Vitals",
@@ -83,7 +84,7 @@ class TestPatientSensorHeartbeat:
     def test_heartbeat_rate(self, proc_manager, dds_participant):
         from Types import Common_DeviceHeartbeat
 
-        proc_manager.start_cpp("PatientSensor")
+        proc_manager.start_app("PatientSensor")
         reader = create_reader(
             dds_participant,
             "t/DeviceHeartbeat",
@@ -112,7 +113,7 @@ class TestPatientSensorStatus:
     def test_status_on(self, proc_manager, dds_participant):
         from Types import Common, Common_DeviceStatus
 
-        proc_manager.start_cpp("PatientSensor")
+        proc_manager.start_app("PatientSensor")
         reader = create_reader(
             dds_participant,
             "t/DeviceStatus",
@@ -137,7 +138,7 @@ class TestPatientSensorCommands:
             Orchestrator_DeviceCommand,
         )
 
-        proc_manager.start_cpp("PatientSensor")
+        proc_manager.start_app("PatientSensor")
 
         status_reader = create_reader(
             dds_participant,
@@ -182,7 +183,7 @@ class TestPatientSensorCommands:
             Orchestrator_DeviceCommand,
         )
 
-        proc = proc_manager.start_cpp("PatientSensor")
+        proc = proc_manager.start_app("PatientSensor")
 
         status_reader = create_reader(
             dds_participant,
@@ -228,8 +229,9 @@ class TestArmMotorControl:
     def test_arm_receives_motor_control(self, proc_manager, dds_participant):
         from Types import SurgicalRobot, SurgicalRobot_MotorControl
 
-        proc = proc_manager.start_python("Arm.py", extra_env=self.QT_ENV)
-        time.sleep(3)  # let Qt init
+        proc = proc_manager.start_app("Arm", extra_env=self.QT_ENV)
+        wait_for_process_ready(proc, timeout_sec=10)
+        assert proc.poll() is None, f"Arm exited early with code {proc.returncode}"
 
         writer = create_writer(
             dds_participant,
@@ -259,6 +261,7 @@ class TestAllAppsStatus:
     """All five apps should report DeviceStatus ON when running."""
 
     QT_ENV = {"QT_QPA_PLATFORM": "offscreen"}
+    GTK_ENV = {"GDK_BACKEND": "x11"}
 
     EXPECTED_DEVICES = {
         "PATIENT_SENSOR",
@@ -272,11 +275,11 @@ class TestAllAppsStatus:
     def test_all_apps_report_status_on(self, proc_manager, dds_participant):
         from Types import Common, Common_DeviceStatus
 
-        proc_manager.start_cpp("PatientSensor")
-        proc_manager.start_cpp("Orchestrator")
-        proc_manager.start_cpp("ArmController")
-        proc_manager.start_python("PatientMonitor.py", extra_env=self.QT_ENV)
-        proc_manager.start_python("Arm.py", extra_env=self.QT_ENV)
+        proc_manager.start_app("PatientSensor")
+        proc_manager.start_app("Orchestrator", extra_env=self.GTK_ENV)
+        proc_manager.start_app("ArmController", extra_env=self.GTK_ENV)
+        proc_manager.start_app("PatientMonitor", extra_env=self.QT_ENV)
+        proc_manager.start_app("Arm", extra_env=self.QT_ENV)
 
         reader = create_reader(
             dds_participant,
@@ -319,7 +322,7 @@ class TestContentFilter:
             Orchestrator_DeviceCommand,
         )
 
-        proc_manager.start_cpp("PatientSensor")
+        proc_manager.start_app("PatientSensor")
 
         status_reader = create_reader(
             dds_participant,
@@ -368,7 +371,7 @@ class TestContentFilter:
             PatientMonitor_Vitals,
         )
 
-        proc_manager.start_cpp("PatientSensor")
+        proc_manager.start_app("PatientSensor")
 
         status_reader = create_reader(
             dds_participant,

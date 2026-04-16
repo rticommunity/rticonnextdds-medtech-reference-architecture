@@ -9,36 +9,17 @@
 # under no obligation to maintain or support the software.  RTI shall not be
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
-"""Build verification tests for Module 01.
+"""Type verification tests for Module 01.
 
-Ensures the CMake build succeeds, expected binaries are produced,
-and the generated Python types are importable.
+Ensures the generated Python types are importable and have the expected
+fields and enum members that this module's applications depend on.
 """
 
-import subprocess
 import sys
 from pathlib import Path
 
 import pytest
-from conftest import MODULE_DIR, SRC_DIR
-
-sys.path.insert(0, str(MODULE_DIR.parent.parent / "resource" / "python"))
-from scripts import platform_setup
-
-# ---------------------------------------------------------------------------
-# Build
-# ---------------------------------------------------------------------------
-
-
-class TestBuild:
-    """Validate that the project-level CMake build produced expected binaries."""
-
-    @pytest.mark.parametrize("binary", ["PatientSensor", "Orchestrator", "ArmController"])
-    def test_binary_exists(self, binary: str):
-        """Compiled C++ binary exists and can be located."""
-        exe = platform_setup.find_executable(binary)
-        assert Path(exe).is_file(), f"Binary not found: {exe}"
-
+from conftest import SRC_DIR
 
 # ---------------------------------------------------------------------------
 # Generated types
