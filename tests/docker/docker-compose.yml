@@ -1,0 +1,37 @@
+# ==========================================================================
+# Docker Compose for RTI MedTech Reference Architecture
+#
+# Prerequisites:
+#   Set RTI_LICENSE_FILE to the path of your rti_license.dat:
+#     export RTI_LICENSE_FILE=/path/to/rti_license.dat
+#
+#   Or, if the license is at the standard $NDDSHOME location on your host,
+#   e.g. /opt/rti.com/rti_connext_dds-7.3.1/rti_license.dat, point to it.
+#
+# Usage:
+#   docker compose -f tests/docker/docker-compose.yml build        # build both images
+#   docker compose -f tests/docker/docker-compose.yml run test      # run all tests
+#   docker compose -f tests/docker/docker-compose.yml run test \
+#       python -m pytest modules/01-operating-room/tests/test_types.py -v
+# ==========================================================================
+
+services:
+  build:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile
+      target: build
+    image: medtech-build
+
+  test:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile
+      target: test
+    image: medtech-test
+    stdin_open: false
+    tty: false
+    environment:
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ${RTI_LICENSE_FILE:?Set RTI_LICENSE_FILE to the path of your rti_license.dat}:/opt/rti.com/rti_connext_dds-7.3.1/rti_license.dat:ro
