@@ -34,8 +34,14 @@ jobs:
         with:
           python-version: "3.9"
 
-      - name: Install ruff
-        run: pip install ruff clang-format==18.1.8
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Install lint dependencies
+        run: |
+          pip install ruff clang-format==18.1.8 pytest
+          npm install -g markdownlint-cli
 
       - name: Python lint (ruff)
         run: ruff check .
@@ -47,6 +53,9 @@ jobs:
         run: |
           find modules/01-operating-room/src -name '*.cxx' -o -name '*.hpp' | \
             xargs clang-format --dry-run --Werror
+
+      - name: Markdown lint (pytest)
+        run: python -m pytest tests/test_markdown_lint.py -v
 
   # ── Install Connext (reusable via cache) ────────────────────────────────
   install-connext:

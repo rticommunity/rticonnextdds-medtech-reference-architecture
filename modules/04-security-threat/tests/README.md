@@ -7,7 +7,7 @@ injector and exfiltrator participants depending on the attack mode.
 ## Prerequisites
 
 | Requirement | Notes |
-|---|---|
+| --- | --- |
 | RTI Connext DDS 7.3.0+ | `NDDSHOME` must be set |
 | Python 3.9+ | With the Connext Python API (`rti.connextdds`) |
 | pytest | `pip install pytest` |
@@ -39,7 +39,7 @@ python -m pytest tests/ -v -k "Unsecure"
 ## Test Structure
 
 | File | What it tests | Markers |
-|---|---|---|
+| --- | --- | --- |
 | `test_threat_injector.py` | Injector matching against unsecured / secured OR apps | `slow` |
 | `test_threat_exfiltrator.py` | Exfiltrator data access against unsecured / secured OR apps | `slow` |
 
@@ -61,7 +61,7 @@ loaded into the same process.
 ### Test Matrix
 
 | Test | Attack mode | OR mode | Expected result |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `test_unsecure_injection_succeeds` | Unsecure | Unsecure | Matched |
 | `test_rogue_ca_injection_blocked` | Rogue CA | Secure | Not matched |
 | `test_forged_perms_injection_blocked` | Forged Permissions | Secure | Not matched |

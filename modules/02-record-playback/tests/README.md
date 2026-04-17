@@ -7,7 +7,7 @@ and that RTI Replay Service re-publishes recorded samples.
 ## Prerequisites
 
 | Requirement | Notes |
-|---|---|
+| --- | --- |
 | RTI Connext DDS 7.3.0+ | `NDDSHOME` must be set |
 | Python 3.9+ | With the Connext Python API (`rti.connextdds`) |
 | pytest | `pip install pytest` |
@@ -36,7 +36,7 @@ python -m pytest tests/test_replay.py -v
 ## Test Structure
 
 | File | What it tests | Markers |
-|---|---|---|
+| --- | --- | --- |
 | `test_recording.py` | Recording Service creates a database from live PatientSensor data | `slow` |
 | `test_replay.py` | Replay Service re-publishes recorded vitals to a DDS subscriber | `slow` |
 

@@ -8,9 +8,9 @@ applications as end-user runtime containers.
 ## Images
 
 | Image | Target | Purpose |
-|-------|--------|--------|
+| --- | --- | --- |
 | `medtech-build` | `build` | Ubuntu 22.04 + Connext 7.3.1 + CMake build of C++ modules + security artifacts |
-| `medtech-test`  | `test`  | Extends build with Python deps, pytest, Xvfb for headless tests |
+| `medtech-test` | `test` | Extends build with Python deps, pytest, Xvfb for headless tests |
 
 ## Prerequisites
 

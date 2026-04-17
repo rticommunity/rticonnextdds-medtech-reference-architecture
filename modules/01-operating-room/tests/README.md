@@ -7,7 +7,7 @@ behave as described in the module README.
 ## Prerequisites
 
 | Requirement | Notes |
-|---|---|
+| --- | --- |
 | RTI Connext DDS 7.3.0+ | `NDDSHOME` must be set |
 | Python 3.9+ | With the Connext Python API (`rti.connextdds`) |
 | pytest | `pip install pytest` |
@@ -45,7 +45,7 @@ python -m pytest tests/ -v -m "not secure"
 ## Test Structure
 
 | File | What it tests | Markers |
-|---|---|---|
+| --- | --- | --- |
 | `test_types.py` | Python type imports, field/enum validation | — |
 | `test_launch.py` | Each app starts without crashing | `gui` for GTK/Qt apps |
 | `test_dds_communication.py` | DDS topics carry correct data (vitals, heartbeats, statuses, commands) | `gui` for Arm tests |
