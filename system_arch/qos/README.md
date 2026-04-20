@@ -66,9 +66,9 @@ Subelements:
 
 This reference architecture defines the following QoS Libraries in [Qos.xml](./Qos.xml):
 
-| Qos Library                           | Intended Use
-| -----------                           | ------------
-| [*SystemLibrary*](#systemlibrary)     | Characterize the *system* (e.g. transport, network interfaces, discovery, thread priorities, etc.). Profiles in this library configure the DomainParticipant QoS. **It is typical to define 1-2 profiles of this kind for any system.**
+| Qos Library | Intended Use
+| ----------- | ------------
+| [*SystemLibrary*](#systemlibrary) | Characterize the *system* (e.g. transport, network interfaces, discovery, thread priorities, etc.). Profiles in this library configure the DomainParticipant QoS. **It is typical to define 1-2 profiles of this kind for any system.**
 | [*DataFlowLibrary*](#dataflowlibrary) | Characterize the *dataflows* or *data patterns* (e.g. reliability history, durability, deadline, etc.). Profiles in this library configure DataWriter and DataReader (endpoint) QoS. **It is typical to define 3-5 profiles of this kind for any system.**
 
 ### ***SystemLibrary***

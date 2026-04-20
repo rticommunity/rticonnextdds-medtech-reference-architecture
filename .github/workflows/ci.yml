@@ -1,0 +1,652 @@
+# CI pipeline for RTI MedTech Reference Architecture
+#
+# Uses GitHub-hosted Ubuntu runners with RTI Connext installed via apt.
+# The RTI license file must be stored as a repository secret named
+# RTI_LICENSE_FILE (base64-encoded contents of rti_license.dat).
+#
+# Connext installation is cached across runs to avoid repeated downloads.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [main, develop]
+
+env:
+  CONNEXT_VERSION: "7.3.1"
+  CONNEXTDDS_ARCH: x64Linux4gcc7.3.0
+  NDDSHOME: /opt/rti.com/rti_connext_dds-7.3.1
+  PYTHON_VERSION: "3.9"
+  QT_QPA_PLATFORM: offscreen
+  DISPLAY: ":99"
+
+jobs:
+  # ── Lint ────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Install lint dependencies
+        run: |
+          pip install ruff clang-format==18.1.8 pytest
+          npm install -g markdownlint-cli
+
+      - name: Python lint (ruff)
+        run: ruff check .
+
+      - name: Python format check (ruff)
+        run: ruff format --check .
+
+      - name: C++ format check (clang-format)
+        run: |
+          find modules/01-operating-room/src -name '*.cxx' -o -name '*.hpp' | \
+            xargs clang-format --dry-run --Werror
+
+      - name: Markdown lint (pytest)
+        run: python -m pytest tests/test_markdown_lint.py -v
+
+  # ── Install Connext (reusable via cache) ────────────────────────────────
+  install-connext:
+    name: Install Connext
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Cache Connext installation
+        id: cache-connext
+        uses: actions/cache@v5
+        with:
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
+
+      - name: Add RTI apt repository
+        if: steps.cache-connext.outputs.cache-hit != 'true'
+        run: |
+          sudo curl -sSL -o /usr/share/keyrings/rti-official-archive.gpg \
+            https://packages.rti.com/deb/official/repo.key
+          printf "deb [arch=%s, signed-by=%s] %s %s main\n" \
+            $(dpkg --print-architecture) \
+            /usr/share/keyrings/rti-official-archive.gpg \
+            https://packages.rti.com/deb/official \
+            $(. /etc/os-release && echo ${VERSION_CODENAME}) | \
+            sudo tee /etc/apt/sources.list.d/rti-official.list >/dev/null
+          sudo apt-get update
+
+      - name: Install Connext via apt
+        if: steps.cache-connext.outputs.cache-hit != 'true'
+        run: |
+          echo "rti-connext-dds-${{ env.CONNEXT_VERSION }}-common rti-connext-dds-${{ env.CONNEXT_VERSION }}/license/accepted select true" | \
+            sudo debconf-set-selections
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y rti-connext-dds-${{ env.CONNEXT_VERSION }}
+          echo "--- Available RTI packages ---"
+          apt-cache search rti-connext 2>/dev/null || true
+          echo "--- Installed RTI packages ---"
+          dpkg -l 'rti-*' 2>/dev/null | grep '^ii' || true
+          echo "--- Check for librti_activation ---"
+          find /opt/rti.com -name 'librti_activation*' 2>/dev/null || echo "librti_activation NOT in installation"
+          dpkg -S librti_activation 2>/dev/null || echo "librti_activation not in any installed package"
+
+      - name: Verify installation
+        run: |
+          test -d $NDDSHOME
+          test -f $NDDSHOME/lib/$CONNEXTDDS_ARCH/libnddssecurity.so
+          ls $NDDSHOME/third_party/openssl-*/$CONNEXTDDS_ARCH/release/lib/libssl.so* | head -1
+
+  # ── Build ───────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    needs: install-connext
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Restore Connext cache
+        uses: actions/cache/restore@v5
+        with:
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
+
+      - name: Write license file
+        run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
+
+      - name: Install system dependencies
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/{microsoft-prod,azure-cli}.*
+          sudo apt-get update
+          sudo apt-get install -y cmake libgtkmm-3.0-dev
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }}
+
+      - name: CMake configure & build
+        run: |
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
+          export PATH="$NDDSHOME/bin:$PATH"
+          python build.py
+
+      - name: Verify binaries
+        run: |
+          test -f build/$CONNEXTDDS_ARCH/modules/01-operating-room/PatientSensor
+          test -f build/$CONNEXTDDS_ARCH/modules/01-operating-room/Orchestrator
+          test -f build/$CONNEXTDDS_ARCH/modules/01-operating-room/ArmController
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: project-build
+          path: |
+            build/${{ env.CONNEXTDDS_ARCH }}/
+            modules/*/src/
+          retention-days: 1
+
+  # ── Project-level Tests ─────────────────────────────────────────────────
+  test-project:
+    name: Project-level Tests
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Restore Connext cache
+        uses: actions/cache/restore@v5
+        with:
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
+
+      - name: Write license file
+        run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: pip
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Install Python dependencies
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest
+
+      - name: Install markdownlint
+        run: npm install -g markdownlint-cli
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: project-build
+
+      - name: Fix binary permissions
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
+
+      - name: Run project-level tests
+        run: |
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
+          export PATH="$NDDSHOME/bin:$PATH"
+          python -m pytest tests/ -v -k "not cmake" --junitxml=results-project.xml
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-project
+          path: results-project.xml
+
+  # ── Unit Tests (fast, headless) ─────────────────────────────────────────
+  test-unit:
+    name: Unit Tests
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Restore Connext cache
+        uses: actions/cache/restore@v5
+        with:
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
+
+      - name: Write license file
+        run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest PySide6 pyqtgraph numpy
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: project-build
+
+      - name: Fix binary permissions
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
+
+      - name: Run unit tests
+        working-directory: modules/01-operating-room
+        run: |
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
+          export PATH="$NDDSHOME/bin:$PATH"
+          python -m pytest tests/test_types.py tests/test_xml_qos.py tests/test_scripts.py \
+            -v --junitxml=results-unit.xml
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-unit
+          path: modules/01-operating-room/results-unit.xml
+
+  # ── DDS Communication Tests (headless, not slow) ────────────────────────
+  test-dds:
+    name: DDS Communication Tests
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Restore Connext cache
+        uses: actions/cache/restore@v5
+        with:
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
+
+      - name: Write license file
+        run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
+
+      - name: Install system dependencies
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/{microsoft-prod,azure-cli}.*
+          sudo apt-get update && sudo apt-get install -y libgtkmm-3.0-1v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest PySide6 pyqtgraph numpy
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: project-build
+
+      - name: Fix binary permissions
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
+
+      - name: Run DDS tests (non-GUI)
+        working-directory: modules/01-operating-room
+        run: |
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
+          export PATH="$NDDSHOME/bin:$PATH"
+          python -m pytest tests/test_launch.py tests/test_dds_communication.py \
+            -v -m "not gui and not slow" --junitxml=results-dds.xml
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-dds
+          path: modules/01-operating-room/results-dds.xml
+
+  # ── Integration Tests (slow, headless) ──────────────────────────────────
+  test-integration:
+    name: Integration Tests (slow)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Restore Connext cache
+        uses: actions/cache/restore@v5
+        with:
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
+
+      - name: Write license file
+        run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
+
+      - name: Install system dependencies
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/{microsoft-prod,azure-cli}.*
+          sudo apt-get update && sudo apt-get install -y libgtkmm-3.0-1v5 xvfb
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest PySide6 pyqtgraph numpy
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: project-build
+
+      - name: Fix binary permissions
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
+
+      - name: Start Xvfb
+        run: |
+          Xvfb :99 -screen 0 1024x768x24 &
+          sleep 1
+
+      - name: Run slow tests
+        working-directory: modules/01-operating-room
+        run: |
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
+          export PATH="$NDDSHOME/bin:$PATH"
+          python -m pytest tests/test_demo_flow.py \
+            -v -m "slow and not gui and not secure" --junitxml=results-integration.xml
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-integration
+          path: modules/01-operating-room/results-integration.xml
+
+  # ── GUI Tests ───────────────────────────────────────────────────────────
+  test-gui:
+    name: GUI Tests
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Restore Connext cache
+        uses: actions/cache/restore@v5
+        with:
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
+
+      - name: Write license file
+        run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
+
+      - name: Install system dependencies
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/{microsoft-prod,azure-cli}.*
+          sudo apt-get update
+          sudo apt-get install -y libgtkmm-3.0-1v5 xvfb \
+            libegl1 libxkbcommon0 libgl1 libglib2.0-0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest PySide6 pyqtgraph numpy
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: project-build
+
+      - name: Fix binary permissions
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
+
+      - name: Start Xvfb
+        run: |
+          Xvfb :99 -screen 0 1024x768x24 &
+          sleep 1
+
+      - name: Run GUI tests
+        working-directory: modules/01-operating-room
+        run: |
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
+          export PATH="$NDDSHOME/bin:$PATH"
+          python -m pytest tests/ \
+            -v -m "gui and not secure" --junitxml=results-gui.xml
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-gui
+          path: modules/01-operating-room/results-gui.xml
+
+  # ── Security Tests ──────────────────────────────────────────────────────
+  test-secure:
+    name: Security Tests
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Restore Connext cache
+        uses: actions/cache/restore@v5
+        with:
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
+
+      - name: Write license file
+        run: |
+          echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
+          echo "License file check:"
+          if [ ! -f "$NDDSHOME/rti_license.dat" ]; then
+            echo "  ERROR: License file was not created"
+            exit 1
+          elif [ ! -s "$NDDSHOME/rti_license.dat" ]; then
+            echo "  ERROR: License file is empty (secret RTI_LICENSE_FILE may not be set)"
+            exit 1
+          else
+            echo "  Path: $NDDSHOME/rti_license.dat"
+            echo "  Size: $(wc -c < $NDDSHOME/rti_license.dat) bytes"
+            echo "  Contains 'Security': $(grep -ci 'security' $NDDSHOME/rti_license.dat || echo 0) matches"
+          fi
+
+      - name: Install system dependencies
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/{microsoft-prod,azure-cli}.*
+          sudo apt-get update
+          sudo apt-get install -y libgtkmm-3.0-1v5 xvfb \
+            libegl1 libxkbcommon0 libgl1 libglib2.0-0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest PySide6 pyqtgraph numpy
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: project-build
+
+      - name: Fix binary permissions
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
+
+      - name: Generate security artifacts
+        run: |
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
+          export PATH="$NDDSHOME/bin:$PATH"
+          cd system_arch/security && python3 setup_security.py
+
+      - name: Verify security prerequisites
+        run: |
+          echo "=== License ==="
+          ls -la $NDDSHOME/rti_license.dat 2>/dev/null || echo "MISSING: $NDDSHOME/rti_license.dat"
+          echo "=== Security plugin ==="
+          ls $NDDSHOME/lib/$CONNEXTDDS_ARCH/libnddssecurity.so 2>/dev/null && echo "OK" || echo "MISSING"
+          echo "=== Security artifacts ==="
+          p7s_count=$(find system_arch/security/domain_scope -name "*.p7s" 2>/dev/null | wc -l)
+          echo "  Signed artifacts (.p7s): $p7s_count"
+          test "$p7s_count" -gt 0 || { echo "ERROR: No security artifacts found"; exit 1; }
+
+      - name: Start Xvfb
+        run: |
+          Xvfb :99 -screen 0 1024x768x24 &
+          sleep 1
+
+      - name: Run secure tests
+        working-directory: modules/01-operating-room
+        env:
+          RTI_SECURITY_ARTIFACTS_DIR: ${{ github.workspace }}/system_arch/security
+        run: |
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
+          export PATH="$NDDSHOME/bin:$PATH"
+          echo "RTI_SECURITY_ARTIFACTS_DIR=$RTI_SECURITY_ARTIFACTS_DIR"
+          python -m pytest tests/ \
+            -v -s -m "secure" --junitxml=results-secure.xml
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-secure
+          path: modules/01-operating-room/results-secure.xml
+
+  # ── Module 02: Record/Playback ──────────────────────────────────────────
+  test-module02:
+    name: "Module 02: Record/Playback"
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Restore Connext cache
+        uses: actions/cache/restore@v5
+        with:
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
+
+      - name: Write license file
+        run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: project-build
+
+      - name: Fix binary permissions
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
+
+      - name: Run Module 02 tests
+        working-directory: modules/02-record-playback
+        run: |
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
+          export PATH="$NDDSHOME/bin:$PATH"
+          python -m pytest tests/ -v --junitxml=results-module02.xml
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-module02
+          path: modules/02-record-playback/results-module02.xml
+
+  # ── Module 04: Security Threat ──────────────────────────────────────────
+  test-module04:
+    name: "Module 04: Security Threat"
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Restore Connext cache
+        uses: actions/cache/restore@v5
+        with:
+          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
+
+      - name: Write license file
+        run: echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
+
+      - name: Install system dependencies
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/{microsoft-prod,azure-cli}.*
+          sudo apt-get update && sudo apt-get install -y libgtkmm-3.0-1v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest PySide6 pyqtgraph numpy
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: project-build
+
+      - name: Fix binary permissions
+        run: chmod +x build/$CONNEXTDDS_ARCH/modules/01-operating-room/{PatientSensor,Orchestrator,ArmController}
+
+      - name: Generate security artifacts
+        run: |
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
+          export PATH="$NDDSHOME/bin:$PATH"
+          cd system_arch/security && python3 setup_security.py
+          cd ../../modules/04-security-threat/security && python3 setup_threat_security.py
+
+      - name: Run Module 04 tests
+        working-directory: modules/04-security-threat
+        run: |
+          export LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}"
+          export PATH="$NDDSHOME/bin:$PATH"
+          python -m pytest tests/ -v --junitxml=results-module04.xml
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-module04
+          path: modules/04-security-threat/results-module04.xml

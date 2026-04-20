@@ -41,11 +41,11 @@ The shared trusted security artifacts are covered in the root [Quick Start](../.
 
 On the *Active* sides and on your cloud instance, set the following environment variables before running the scenario. `NDDSHOME` must already be set from your Connext installation (see [Module 01 Setup](../01-operating-room/README.md#setup-and-installation)).
 
-| Variable         | Value                                                                                  | Default        |
-|------------------|----------------------------------------------------------------------------------------|--------------|
-| `PUBLIC_ADDRESS` | Publicly accessible IP address of the cloud instance.                                  | ***(required)*** |
-| `PUBLIC_PORT`    | Publicly accessible/forwarded port of the cloud instance.                              | 10777        |
-| `INTERNAL_PORT`  | Internal/forwarded port of the cloud instance. This may be the same as `PUBLIC_PORT`. | 10777        |
+| Variable | Value | Default |
+| --- | --- | --- |
+| `PUBLIC_ADDRESS` | Publicly accessible IP address of the cloud instance. | ***(required)*** |
+| `PUBLIC_PORT` | Publicly accessible/forwarded port of the cloud instance. | 10777 |
+| `INTERNAL_PORT` | Internal/forwarded port of the cloud instance. This may be the same as `PUBLIC_PORT`. | 10777 |
 
 `PUBLIC_PORT` and `INTERNAL_PORT` default to `10777` in the XML configuration and only need to be set if you are forwarding a different port. `PUBLIC_ADDRESS` has no default and **must** be set, or the service will fail to start.
 

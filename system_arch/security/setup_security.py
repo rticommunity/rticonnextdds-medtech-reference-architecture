@@ -86,6 +86,9 @@ OPERATIONAL_DOMAIN = DomainScope(
         Permissions(name="SecureLogReader", issuer=TRUSTED_PERMISSIONS_CA,
                     publish_topics=[],
                     subscribe_topics=["DDS:Security:LogTopicV2"]),
+        Permissions(name="Test", issuer=TRUSTED_PERMISSIONS_CA,
+                    publish_topics=[],
+                    subscribe_topics=["t/Vitals", "t/DeviceStatus"]),
         Permissions(name="RecordingService", issuer=TRUSTED_PERMISSIONS_CA),
         Permissions(name="ReplayService", issuer=TRUSTED_PERMISSIONS_CA),
         Permissions(name="RsActiveLan", issuer=TRUSTED_PERMISSIONS_CA),
@@ -132,6 +135,8 @@ OPERATING_ROOM = Module(
             identities=[Identity(name="PatientMonitor",  issuer=TRUSTED_IDENTITY_CA)]),
         App(name="PatientSensor",
             identities=[Identity(name="PatientSensor",   issuer=TRUSTED_IDENTITY_CA)]),
+        App(name="Test",
+            identities=[Identity(name="Test",            issuer=TRUSTED_IDENTITY_CA)]),
     ],
 )
 

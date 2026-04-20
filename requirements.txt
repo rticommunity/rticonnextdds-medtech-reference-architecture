@@ -11,13 +11,13 @@
 # See the Connext documentation for details.
 
 # GUI and data visualization
-PySide6
-numpy
-pyqtgraph
+PySide6>=6.5
+numpy>=1.24
+pyqtgraph>=0.13
 
 # NAT type checker utility (resource/nat_type_checker/) — optional
-requests
-pystun3
+requests>=2.31
+pystun3>=2.0
 
 # Shell tab-completion for launch.py — optional
-argcomplete
+argcomplete>=3.1

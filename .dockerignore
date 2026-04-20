@@ -1,0 +1,27 @@
+# Build artifacts and caches
+build/
+.venv*/
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+.github/
+
+# Security artifacts (generated at build time)
+*.pem
+*.p7s
+*.csr
+*.srl
+*.psk
+
+# Recordings
+or_recording/
+
+# OS files
+.DS_Store
+Thumbs.db

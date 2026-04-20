@@ -27,16 +27,16 @@
 #include "Types.hpp"
 
 #ifdef __APPLE__
-#include "MacOsDockIcon.h"
+    #include "MacOsDockIcon.h"
 #endif
 
 #ifndef _WIN32
-#include <glib-unix.h>
+    #include <glib-unix.h>
 #endif
 
 using namespace DdsEntities::Constants;
 #ifdef RTI_SECURITY_AVAILABLE
-#include "SecureLogUtils.hpp"
+    #include "SecureLogUtils.hpp"
 #endif
 
 // Heartbeat listener to automatically monitor other applications
@@ -129,9 +129,11 @@ public:
 #ifdef RTI_SECURITY_AVAILABLE
         if (SecureLogUtils::is_secure(participant)) {
             securelog_reader = SecureLogUtils::setup_secure_log_reader(
-                std::bind(&OrchestratorApp::process_secure_log, this, std::placeholders::_1),
-                default_provider
-            );
+                    std::bind(
+                            &OrchestratorApp::process_secure_log,
+                            this,
+                            std::placeholders::_1),
+                    default_provider);
         }
 #endif
 
@@ -144,14 +146,22 @@ public:
 #ifndef _WIN32
         // Route SIGINT/SIGTERM through the GLib main loop so GTK functions
         // can be called safely from the callback.
-        g_unix_signal_add(SIGINT, [](gpointer data) -> gboolean {
-            static_cast<OrchestratorApp *>(data)->window_close_from_signal();
-            return G_SOURCE_REMOVE;
-        }, this);
-        g_unix_signal_add(SIGTERM, [](gpointer data) -> gboolean {
-            static_cast<OrchestratorApp *>(data)->window_close_from_signal();
-            return G_SOURCE_REMOVE;
-        }, this);
+        g_unix_signal_add(
+                SIGINT,
+                [](gpointer data) -> gboolean {
+                    static_cast<OrchestratorApp *>(data)
+                            ->window_close_from_signal();
+                    return G_SOURCE_REMOVE;
+                },
+                this);
+        g_unix_signal_add(
+                SIGTERM,
+                [](gpointer data) -> gboolean {
+                    static_cast<OrchestratorApp *>(data)
+                            ->window_close_from_signal();
+                    return G_SOURCE_REMOVE;
+                },
+                this);
 #endif
         app->run();
     }
@@ -193,7 +203,8 @@ private:
 
 #ifdef RTI_SECURITY_AVAILABLE
     // Connext secure logging entities
-    SecureLogUtils::SecureLogReader securelog_reader = {dds::core::null, dds::core::null};
+    SecureLogUtils::SecureLogReader securelog_reader = { dds::core::null,
+                                                         dds::core::null };
 #endif
 
     void log_alert(std::string msg)
@@ -311,11 +322,12 @@ private:
     bool is_security_threat(const DDSSecurity::BuiltinLoggingTypeV2 &sample)
     {
         return static_cast<int32_t>(sample.severity())
-        // return sample.value<int32_t>("severity")
-                <= static_cast<int32_t>(DDSSecurity::LoggingLevel::WARNING_LEVEL);
+                // return sample.value<int32_t>("severity")
+                <= static_cast<int32_t>(
+                        DDSSecurity::LoggingLevel::WARNING_LEVEL);
     }
 
-    void process_secure_log(const SecureLogUtils::SecureLogType& log)
+    void process_secure_log(const SecureLogUtils::SecureLogType &log)
     {
         if (is_security_threat(log)) {
             std::stringstream ss;
@@ -372,7 +384,8 @@ private:
         try {
             css_provider->load_from_path("ui/orchestrator.css");
         } catch (const Glib::Error &e) {
-            std::cerr << "Warning: could not load orchestrator.css: " << e.what() << std::endl;
+            std::cerr << "Warning: could not load orchestrator.css: "
+                      << e.what() << std::endl;
         }
         Gtk::StyleContext::add_provider_for_screen(
                 Gdk::Screen::get_default(),
@@ -387,20 +400,23 @@ private:
             Gtk::Box *hdr = nullptr;
             builder->get_widget<Gtk::Box>("header_bar", hdr);
             try {
-                auto pb = Gdk::Pixbuf::create_from_file("../../resource/images/rti_logo.png");
+                auto pb = Gdk::Pixbuf::create_from_file(
+                        "../../resource/images/rti_logo.png");
                 window->set_icon(pb);
 #ifdef __APPLE__
                 set_macos_dock_icon(pb);
 #endif
                 if (hdr) {
-                    auto scaled = pb->scale_simple(56, 56, Gdk::INTERP_BILINEAR);
+                    auto scaled =
+                            pb->scale_simple(56, 56, Gdk::INTERP_BILINEAR);
                     auto *logo = Gtk::manage(new Gtk::Image(scaled));
                     logo->set_visible(true);
                     logo->set_margin_end(8);
                     hdr->pack_start(*logo, false, false, 0);
                     hdr->reorder_child(*logo, 0);
                 }
-            } catch (...) {}
+            } catch (...) {
+            }
 
             if (hdr) {
                 security_indicator = Gtk::manage(new Gtk::Label(""));

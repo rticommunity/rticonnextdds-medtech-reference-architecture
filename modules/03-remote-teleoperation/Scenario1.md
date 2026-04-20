@@ -32,11 +32,11 @@ The shared trusted security artifacts are covered in the root [Quick Start](../.
 
 On both *Passive* and *Active* sides, set the following environment variables before running the scenario. `NDDSHOME` must already be set from your Connext installation (see [Module 01 Setup](../01-operating-room/README.md#setup-and-installation)).
 
-| Variable         | Value                                                                                  | Default        |
-|------------------|----------------------------------------------------------------------------------------|----------------|
-| `PUBLIC_ADDRESS` | Publicly accessible IP address of the *Passive* side.                                  | ***(required)*** |
-| `PUBLIC_PORT`    | Publicly accessible/forwarded port of the *Passive* side.                              | 10777          |
-| `INTERNAL_PORT`  | Internal/forwarded port of the *Passive* side. This may be the same as `PUBLIC_PORT`. | 10777          |
+| Variable | Value | Default |
+| --- | --- | --- |
+| `PUBLIC_ADDRESS` | Publicly accessible IP address of the *Passive* side. | ***(required)*** |
+| `PUBLIC_PORT` | Publicly accessible/forwarded port of the *Passive* side. | 10777 |
+| `INTERNAL_PORT` | Internal/forwarded port of the *Passive* side. This may be the same as `PUBLIC_PORT`. | 10777 |
 
 `PUBLIC_PORT` and `INTERNAL_PORT` default to `10777` in the XML configuration and only need to be set if you are forwarding a different port. `PUBLIC_ADDRESS` has no default and **must** be set, or the service will fail to start.
 

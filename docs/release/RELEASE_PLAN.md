@@ -30,11 +30,11 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/) (SemVer):
 MAJOR.MINOR.PATCH
 ```
 
-| Component | Meaning                                                        |
+| Component | Meaning |
 | --------- | -------------------------------------------------------------- |
-| **MAJOR** | Incompatible changes that break existing usage or integration  |
-| **MINOR** | New functionality added in a backward-compatible manner        |
-| **PATCH** | Backward-compatible bug fixes, corrections, and small updates  |
+| **MAJOR** | Incompatible changes that break existing usage or integration |
+| **MINOR** | New functionality added in a backward-compatible manner |
+| **PATCH** | Backward-compatible bug fixes, corrections, and small updates |
 
 The initial release of this project is **v1.0.0** (Modules 01–03). Prior to that,
 development versions may use **v0.x.y** to signal that the API and architecture
@@ -50,18 +50,18 @@ with, or understood by users and downstream consumers.
 
 ### Examples that warrant a version change
 
-| Change                                                        | Version Impact |
-| ------------------------------------------------------------- | -------------- |
-| New module added (e.g., `04-security-threat/`)                | MINOR          |
-| Breaking change to DDS topic types in `Types.xml`             | MAJOR          |
-| QoS profile restructured in a non-backward-compatible way     | MAJOR          |
-| Bug fix in `PatientSensor.cxx` that corrects data publishing  | PATCH          |
-| New QoS profile added (existing profiles unchanged)           | MINOR          |
-| Security configuration updated to fix a vulnerability         | PATCH          |
-| Upgrade from RTI Connext DDS 7.3.0 to 8.0.0                  | MAJOR          |
-| New launch script for an existing module                      | MINOR          |
-| Fix to CMakeLists.txt that resolves a build failure           | PATCH          |
-| Removal of a deprecated module or feature                     | MAJOR          |
+| Change | Version Impact |
+| --- | --- |
+| New module added (e.g., `04-security-threat/`) | MINOR |
+| Breaking change to DDS topic types in `Types.xml` | MAJOR |
+| QoS profile restructured in a non-backward-compatible way | MAJOR |
+| Bug fix in `PatientSensor.cxx` that corrects data publishing | PATCH |
+| New QoS profile added (existing profiles unchanged) | MINOR |
+| Security configuration updated to fix a vulnerability | PATCH |
+| Upgrade from RTI Connext DDS 7.3.0 to 8.0.0 | MAJOR |
+| New launch script for an existing module | MINOR |
+| Fix to CMakeLists.txt that resolves a build failure | PATCH |
+| Removal of a deprecated module or feature | MAJOR |
 
 ---
 
@@ -112,7 +112,7 @@ behavior. Everything that worked before continues to work.
 
 **Examples:**
 
-```
+```markdown
 v1.0.0 → v1.1.0
   - Added Module 04: Security Threat Demonstration
   - Added new QoS profile "HighThroughputStream" to Qos.xml
@@ -135,7 +135,7 @@ features or break compatibility.
 
 **Examples:**
 
-```
+```markdown
 v1.3.0 → v1.3.1
   - Fixed PatientSensor publishing incorrect units for heart rate
   - Fixed CMakeLists.txt failing on Ubuntu 24.04
@@ -174,10 +174,10 @@ naturally.
 
 **Version** and **release** are related but distinct concepts:
 
-| Concept     | Definition                                                              |
-|-------------|-------------------------------------------------------------------------|
-| **Version** | A label (e.g., `v1.3.1`) that identifies a specific state of the code  |
-| **Release** | The published artifact on GitHub that packages a version for consumers  |
+| Concept | Definition |
+| --- | --- |
+| **Version** | A label (e.g., `v1.3.1`) that identifies a specific state of the code |
+| **Release** | The published artifact on GitHub that packages a version for consumers |
 
 ### Key Principles
 
@@ -201,7 +201,7 @@ naturally.
 
 ### Version Lifecycle
 
-```
+```markdown
 Development ─→ Version Bump ─→ Git Tag ─→ GitHub Release
     │                │              │             │
     │                │              │             └─ Published artifact with
@@ -339,27 +339,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 Use these section headers within each version entry:
 
-| Category      | Use For                                                    |
-|---------------|------------------------------------------------------------|
-| **Added**     | New features, modules, scripts, configurations             |
-| **Changed**   | Changes to existing functionality                          |
-| **Deprecated**| Features that will be removed in a future release          |
-| **Removed**   | Features removed in this release                           |
-| **Fixed**     | Bug fixes                                                  |
-| **Security**  | Vulnerability fixes or security-related changes            |
+| Category | Use For |
+| --- | --- |
+| **Added** | New features, modules, scripts, configurations |
+| **Changed** | Changes to existing functionality |
+| **Deprecated** | Features that will be removed in a future release |
+| **Removed** | Features removed in this release |
+| **Fixed** | Bug fixes |
+| **Security** | Vulnerability fixes or security-related changes |
 
 ---
 
 ## Branch Strategy
 
-| Branch         | Purpose                                                     |
-|----------------|-------------------------------------------------------------|
-| `main`         | Stable, release-ready code. All releases are tagged here.   |
-| `develop`      | Integration branch for ongoing work (optional).             |
-| `feature/*`    | New features — branched from and merged back to `main` (or `develop`). |
-| `bugfix/*`     | Bug fixes — branched from and merged back to `main` (or `develop`).   |
-| `hotfix/*`     | Urgent fixes for released versions — branched from a release tag, merged back to `main`. |
-| `release/*`    | Release preparation (optional) — branched from `develop`, merged to `main` and tagged. |
+| Branch | Purpose |
+| --- | --- |
+| `main` | Stable, release-ready code. All releases are tagged here. |
+| `develop` | Integration branch for ongoing work (optional). |
+| `feature/*` | New features — branched from and merged back to `main` (or `develop`). |
+| `bugfix/*` | Bug fixes — branched from and merged back to `main` (or `develop`). |
+| `hotfix/*` | Urgent fixes for released versions — branched from a release tag, merged back to `main`. |
+| `release/*` | Release preparation (optional) — branched from `develop`, merged to `main` and tagged. |
 
 > For a project of this size, a simplified flow using `main` + `feature/*`
 > branches is sufficient. Adopt `develop` and `release/*` branches only when
@@ -373,11 +373,11 @@ Use these section headers within each version entry:
 This project depends on external software. Document minimum supported versions
 and update them as part of the release process.
 
-| Dependency              | Current Minimum Version | Tracked In                  |
-|-------------------------|-------------------------|-----------------------------|
-| RTI Connext DDS         | 7.3.0                   | CMakeLists.txt, README.md   |
-| RTI Code Generator      | 4.3.0                   | Generated source headers    |
-| CMake                   | 3.17                    | CMakeLists.txt              |
+| Dependency | Current Minimum Version | Tracked In |
+| --- | --- | --- |
+| RTI Connext DDS | 7.3.0 | CMakeLists.txt, README.md |
+| RTI Code Generator | 4.3.0 | Generated source headers |
+| CMake | 3.17 | CMakeLists.txt |
 
 **When a dependency version changes:**
 
@@ -392,7 +392,7 @@ and update them as part of the release process.
 For significant releases (especially MAJOR), use pre-release versions to gather
 feedback before the final release:
 
-```
+```markdown
 v2.0.0-alpha.1   → Early preview, may be incomplete
 v2.0.0-beta.1    → Feature-complete, may have known issues
 v2.0.0-rc.1      → Release candidate, believed ready for release
@@ -423,7 +423,7 @@ Before removing a feature or making a breaking change:
 
 **Example timeline:**
 
-```
+```markdown
 v1.3.0 — Module 01 legacy launch scripts deprecated (still functional)
 v1.4.0 — Deprecation warning remains; scripts still work
 v2.0.0 — Legacy launch scripts removed
@@ -445,7 +445,7 @@ v2.0.0 — Legacy launch scripts removed
 
 ## Quick Decision Reference
 
-```
+```markdown
 Is the change functional, structural, or behavioral?
 ├── NO  → Do not release (commit to main, include in next release)
 └── YES → Does it break backward compatibility?

@@ -189,13 +189,13 @@ DDS is a **data-centric** communication standard that understands user-defined D
 
 This reference architecture defines the following Data Types in [Types.xml](./system_arch/Types.xml):
 
-| Data Type       | Intended Use
-| ---------       | -----------
-| DeviceStatus    | Describes a status (e.g. `ON`, `PAUSED`) for a unique device
+| Data Type | Intended Use
+| --------- | -----------
+| DeviceStatus | Describes a status (e.g. `ON`, `PAUSED`) for a unique device
 | DeviceHeartbeat | Asserts that a unique device is alive
-| MotorControl    | Commands the direction of motion for an arm motor (e.g. `SHOULDER`, `ELBOW`)
-| DeviceCommand   | Commands initiating a status (e.g. `START`, `SHUTDOWN`) to a unique device
-| Vitals          | Describes data representative of a unique patient's collected vital signs
+| MotorControl | Commands the direction of motion for an arm motor (e.g. `SHOULDER`, `ELBOW`)
+| DeviceCommand | Commands initiating a status (e.g. `START`, `SHUTDOWN`) to a unique device
+| Vitals | Describes data representative of a unique patient's collected vital signs
 
 ### Quality of Service (QoS)
 
@@ -215,13 +215,13 @@ QoS Profile
 
 This reference architecture defines the following QoS Profiles in [Qos.xml](./system_arch/qos/Qos.xml):
 
-| Qos Library | Qos Profile         | Intended Use
-| ----------- | ---------           | -----------
-| System      | DefaultParticipant  | Common, or base, *system configuration* (e.g. transport, network interfaces, discovery, thread priorities, etc.)
-| DataFlow    | Streaming           | Periodic data that is published at a high frequency (i.e. frequencies <1 second)
-| DataFlow    | Status              | "Current status"-like data, sent once at the beginning of operation and again only upon change to the status
-| DataFlow    | Command             | Data that represents commands or trigger some action in the system
-| DataFlow    | Heartbeat           | Assert and detect the presence of system devices
+| Qos Library | Qos Profile | Intended Use
+| ----------- | --------- | -----------
+| System | DefaultParticipant | Common, or base, *system configuration* (e.g. transport, network interfaces, discovery, thread priorities, etc.)
+| DataFlow | Streaming | Periodic data that is published at a high frequency (i.e. frequencies <1 second)
+| DataFlow | Status | "Current status"-like data, sent once at the beginning of operation and again only upon change to the status
+| DataFlow | Command | Data that represents commands or trigger some action in the system
+| DataFlow | Heartbeat | Assert and detect the presence of system devices
 
 ### Domains & Topics
 
@@ -240,21 +240,21 @@ Legend:
 
 This reference architecture defines the following Domains in [DomainLibrary.xml](./system_arch/xml_app_creation/DomainLibrary.xml):
 
-| Domain                  | Intended Use
-| ------                  | -----------
-| OperationalDataDomain   | Real-time operational medical device data
+| Domain | Intended Use
+| ------ | -----------
+| OperationalDataDomain | Real-time operational medical device data
 
 *Note, this reference architecture defines just a single Domain. As a Connext system design scales over time, additional domains could be defined for monitoring, logging, etc. Those additional domains should not affect the performance of our operational data, and therefore should belong to a different domain.*
 
 This reference architecture defines the following Topics in [DomainLibrary.xml](./system_arch/xml_app_creation/DomainLibrary.xml):
 
-| Domain                | Topic               | Intended Use
-| ------                | -----               | -----------
-| OperationalDataDomain | `t/MotorControl`    | Command the direction of motion for a motor kind (e.g. `SHOULDER`, `ELBOW`)
-| OperationalDataDomain | `t/DeviceStatus`    | Status (e.g. `ON`, `PAUSED`) for a unique system component
+| Domain | Topic | Intended Use
+| ------ | ----- | -----------
+| OperationalDataDomain | `t/MotorControl` | Command the direction of motion for a motor kind (e.g. `SHOULDER`, `ELBOW`)
+| OperationalDataDomain | `t/DeviceStatus` | Status (e.g. `ON`, `PAUSED`) for a unique system component
 | OperationalDataDomain | `t/DeviceHeartbeat` | Assert that a unique system component is alive
-| OperationalDataDomain | `t/DeviceCommand`   | Command initiating a status (e.g. `START`, `SHUTDOWN`) to a unique system component
-| OperationalDataDomain | `t/Vitals`          | Data representative of a unique patient's collected vital signs
+| OperationalDataDomain | `t/DeviceCommand` | Command initiating a status (e.g. `START`, `SHUTDOWN`) to a unique system component
+| OperationalDataDomain | `t/Vitals` | Data representative of a unique patient's collected vital signs
 
 *Note, this reference architecture defines a unique Topic for each Data Type defined. While a Topic may only reference a single Data Type, a multi-purpose Data Type can be associated with multiple Topics. It is a **best practice** to limit the number of defined Topics, but in doing so, it may be feasible to re-use a Data Type for several Topics.*
 
@@ -276,9 +276,9 @@ The hierarchy of DDS entities and components configured in a DomainParticipant a
 DomainParticipant → Domain
 ├── DomainParticipant QoS → QoS Profile
 ├── Publisher
-|   ├── Publisher QoS → QoS Profile
+| ├── Publisher QoS → QoS Profile
 │   └── DataWriter → Topic
-|       └── DataWriter QoS → QoS Profile
+| └── DataWriter QoS → QoS Profile
 └── Subscriber
     ├── Subscriber QoS → QoS Profile
     └── DataReader → Topic
@@ -293,13 +293,13 @@ Legend:
 
 This reference architecture defines the following DomainParticipants in [ParticipantLibrary.xml](./system_arch/xml_app_creation/ParticipantLibrary.xml):
 
-| Domain                | DomainParticipant | Subscriptions                         | Publications                                       | Intended Use
+| Domain | DomainParticipant | Subscriptions | Publications | Intended Use
 | --------------------- | ----------------- | ------------------------------------- | -------------------------------------------------- | ------------
-| OperationalDataDomain | Arm               | `t/DeviceCommand`, `t/MotorControl`   | `t/DeviceStatus`, `t/DeviceHeartbeat`              | Operate a robotic surgery arm with 5 motors: Base, Shoulder, Elbow, Wrist, and Hand.
-| OperationalDataDomain | ArmController     | `t/DeviceCommand`                     | `t/MotorControl`, `t/DeviceHeartbeat`              | Administer commands to an Arm device to control its motors.
-| OperationalDataDomain | Orchestrator      | `t/DeviceStatus`, `t/DeviceHeartbeat` | `t/DeviceCommand`                                  | Administer device-level commands and monitor presence and status of all devices.
-| OperationalDataDomain | PatientSensor     | `t/DeviceCommand`                     | `t/Vitals`, `t/DeviceStatus`, `t/DeviceHeartbeat`  | Stream simulated patient vitals.
-| OperationalDataDomain | PatientMonitor    | `t/DeviceCommand`, `t/Vitals`         | `t/DeviceStatus`, `t/DeviceHeartbeat`              | Process and display patient vitals.
+| OperationalDataDomain | Arm | `t/DeviceCommand`, `t/MotorControl` | `t/DeviceStatus`, `t/DeviceHeartbeat` | Operate a robotic surgery arm with 5 motors: Base, Shoulder, Elbow, Wrist, and Hand.
+| OperationalDataDomain | ArmController | `t/DeviceCommand` | `t/MotorControl`, `t/DeviceHeartbeat` | Administer commands to an Arm device to control its motors.
+| OperationalDataDomain | Orchestrator | `t/DeviceStatus`, `t/DeviceHeartbeat` | `t/DeviceCommand` | Administer device-level commands and monitor presence and status of all devices.
+| OperationalDataDomain | PatientSensor | `t/DeviceCommand` | `t/Vitals`, `t/DeviceStatus`, `t/DeviceHeartbeat` | Stream simulated patient vitals.
+| OperationalDataDomain | PatientMonitor | `t/DeviceCommand`, `t/Vitals` | `t/DeviceStatus`, `t/DeviceHeartbeat` | Process and display patient vitals.
 
 *Note, this reference architecture utilizes one DomainParticipant for each device application. It is a **best practice** to define one DomainParticipant per application. However, in more complex systems, an application may be required to operate on multiple Domains. This requires defining multiple DomainParticipants for those applications that run in parallel.*
 
@@ -311,11 +311,11 @@ DDS Security is meant to be a pluggable component to the system architecture. Th
 
 The reference architecture configures security in [SecureAppsQos.xml](./system_arch/qos/SecureAppsQos.xml) with:
 
-| Component              | Security Features
+| Component | Security Features
 | ---------------------- | -----------------
 | **LAN Communications** | Domain 0 governance, participant-specific certificates and permissions
 | **WAN Communications** | Domain 1 governance for WAN connections
-| **RTI Services**       | Dedicated security profiles for Recording/Replay Services and Routing Services
+| **RTI Services** | Dedicated security profiles for Recording/Replay Services and Routing Services
 
 Security Artifacts Structure in [security](./system_arch/security/):
 

@@ -156,17 +156,17 @@ Subelements:
 
 This reference architecture defines the following Domain Library in [DomainLibrary.xml](DomainLibrary.xml):
 
-| Domain Library                          | Intended Use
-| --------------                          | ------------
+| Domain Library | Intended Use
+| -------------- | ------------
 | [*ConnextDomainLib*](#connextdomainlib) | Contain all defined MedTech Domains
 
 #### ***ConnextDomainLib***
 
 This Domain Library will hold all Domains defined as part of this reference architecture for simplicity. *ConnextDomainLib* contains the following Domain (`<domain>`):
 
-| Domain                                                            | Domain ID | Intended Use
-| ------                                                            | --------- | ------------
-| [*OperationalDataDomain*](#connextdomainliboperationaldatadomain) | 0         | Real-time operational medical device data
+| Domain | Domain ID | Intended Use
+| ------ | --------- | ------------
+| [*OperationalDataDomain*](#connextdomainliboperationaldatadomain) | 0 | Real-time operational medical device data
 
 ##### ***ConnextDomainLib::OperationalDataDomain***
 
@@ -200,9 +200,9 @@ The hierarchy of DDS entities and components configured in a DomainParticipant a
 DomainParticipant → Domain
 ├── DomainParticipant QoS → QoS Profile
 ├── Publisher
-|   ├── Publisher QoS → QoS Profile
+| ├── Publisher QoS → QoS Profile
 │   └── DataWriter → Topic
-|       └── DataWriter QoS → QoS Profile
+| └── DataWriter QoS → QoS Profile
 └── Subscriber
     ├── Subscriber QoS → QoS Profile
     └── DataReader → Topic
@@ -312,8 +312,8 @@ Subelements:
 
 This reference architecture defines the following DomainParticipant library in [ParticipantLibrary.xml](ParticipantLibrary.xml):
 
-| DomainParticipant Library                                         | Intended Use
-| -------------------------                                         | ------------
+| DomainParticipant Library | Intended Use
+| ------------------------- | ------------
 | [*MedicalDemoParticipantLibrary*](#medicaldemoparticipantlibrary) | Contains all defined module DomainParticipants
 
 #### ***MedicalDemoParticipantLibrary***

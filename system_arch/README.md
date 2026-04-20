@@ -62,19 +62,19 @@ Data Types allow for capabilities in Connext such as:
 
 #### How have we approached the Data Model in this reference architecture?
 
-| Folder                    | File                              | Description
-| ------                    | ----                              | -----------
-| [system_arch](./)         | [Types.xml](./Types.xml)          | Contains all Data Types, defined in XML format
+| Folder | File | Description
+| ------ | ---- | -----------
+| [system_arch](./) | [Types.xml](./Types.xml) | Contains all Data Types, defined in XML format
 
 This reference architecture defines the following Data Types in [Types.xml](./Types.xml):
 
-| Data type                     | Intended Use
-| ---------                     | -----------
-| *Common::DeviceStatus*        | Describes a status (e.g. `ON`, `PAUSED`) for a unique system component
-| *Common::DeviceHeartbeat*     | Asserts that a unique system component is alive
+| Data type | Intended Use
+| --------- | -----------
+| *Common::DeviceStatus* | Describes a status (e.g. `ON`, `PAUSED`) for a unique system component
+| *Common::DeviceHeartbeat* | Asserts that a unique system component is alive
 | *SurgicalRobot::MotorControl* | Commands the direction of motion for a motor kind (e.g. `SHOULDER`, `ELBOW`)
 | *Orchestrator::DeviceCommand* | Commands initiating a status (e.g. `START`, `SHUTDOWN`) to a unique system component
-| *PatientMonitor::Vitals*      | Describes data representative of a unique patient's collected vital signs
+| *PatientMonitor::Vitals* | Describes data representative of a unique patient's collected vital signs
 
 #### Data Model References
 
@@ -138,11 +138,11 @@ Connext provides a set of usable Builtin QoS Libraries, Profiles, and QoS.
 
 #### How have we approached QoS in this reference architecture?
 
-| Folder                    | File                                               | Description
-| ------                    | ----                                               | -----------
-| [system_arch/qos](./qos/) | [Qos.xml](./qos/Qos.xml)                           | Contains all base QoS Profiles.
+| Folder | File | Description
+| ------ | ---- | -----------
+| [system_arch/qos](./qos/) | [Qos.xml](./qos/Qos.xml) | Contains all base QoS Profiles.
 | [system_arch/qos](./qos/) | [NonSecureAppsQos.xml](./qos/NonSecureAppsQos.xml) | Contains all QoS Profiles for non-secure DomainParticipants.
-| [system_arch/qos](./qos/) | [SecureAppsQos.xml](./qos/SecureAppsQos.xml)       | Contains all QoS Profiles for secure DomainParticipants.
+| [system_arch/qos](./qos/) | [SecureAppsQos.xml](./qos/SecureAppsQos.xml) | Contains all QoS Profiles for secure DomainParticipants.
 
 #### QoS References
 
@@ -211,8 +211,8 @@ Endpoints (DataWriters and DataReaders) operating on a Topic require compatible 
 
 #### How have we approached Domains & Topics in this reference architecture?
 
-| Folder                                              | File                                                      | Description
-| ------                                              | ----                                                      | -----------
+| Folder | File | Description
+| ------ | ---- | -----------
 | [system_arch/xml_app_creation](./xml_app_creation/) | [DomainLibrary.xml](./xml_app_creation/DomainLibrary.xml) | Contains all Domains and Topics.
 
 #### Domains & Topics References
@@ -242,9 +242,9 @@ The hierarchy of DDS entities and components configured in a DomainParticipant a
 DomainParticipant → Domain
 ├── DomainParticipant QoS → QoS Profile
 ├── Publisher
-|   ├── Publisher QoS → QoS Profile
+| ├── Publisher QoS → QoS Profile
 │   └── DataWriter → Topic
-|       └── DataWriter QoS → QoS Profile
+| └── DataWriter QoS → QoS Profile
 └── Subscriber
     ├── Subscriber QoS → QoS Profile
     └── DataReader → Topic
@@ -322,8 +322,8 @@ When deciding how a Content Filter should be designed, consider:
 
 #### How have we approached DDS entities in this reference architecture?
 
-| Folder                                              | File                                                                | Description
-| ------                                              | ----                                                                | -----------
+| Folder | File | Description
+| ------ | ---- | -----------
 | [system_arch/xml_app_creation](./xml_app_creation/) | [ParticipantLibrary.xml](./xml_app_creation/ParticipantLibrary.xml) | Contains all DomainParticipants, Publishers, Subscribers, DataWriters, DataReaders, and Content Filters.
 
 #### DDS Entities References

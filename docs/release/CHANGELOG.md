@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Docker-based test infrastructure under `tests/docker/`: multi-stage
+  `Dockerfile`, `docker-compose.yml`, and `medtech-build`/`medtech-test`
+  images for reproducible build+test runs with runtime license mounting
+- `tests/test_markdown_lint.py` + `.markdownlint.json` enforcement for
+  repository markdown quality checks in local and CI workflows
+- `tests/test_config_parsing.py` — module.json contract validation (required
+  field shapes, type checks, `${args:X}` cross-reference) and negative
+  `load_module_config` parsing tests (missing flags, unknown placeholders,
+  undefined args references)
+- `tests/test_security_status.py` — validates `system_arch/security/` certificate
+  chain via `setup_security.py --status`; fails on any EXPIRED artifact
+- `modules/04-security-threat/tests/test_threat_security_status.py` — same
+  status check for the Module 04 threat security tree via `setup_threat_security.py --status`
+- Node.js 18 LTS (via NodeSource) to the Docker test image for `markdownlint-cli`
+  compatibility; replaces the outdated system `nodejs` package
+- `tests/README.md` guidance on when to use `pytest`, `run_tests.sh`, or the
+  Docker test image
+- **Module 01 pytest test suite** (`modules/01-operating-room/tests/`) with
+  build, launch, DDS communication, and end-to-end demo-flow tests; includes
+  shared fixtures, custom markers (`gui`, `secure`, `slow`), and pytest
+  configuration
+- **Module 02 pytest test suite** (`modules/02-record-playback/tests/`) with
+  Recording Service and
+  Replay Service integration tests, plus XML configuration validation
+- **Module 04 pytest test suite** (`modules/04-security-threat/tests/`) with threat injector and
+  exfiltrator tests across all four attack modes (Unsecure, Rogue CA,
+  Forged Permissions, Expired Certificate), plus XML configuration validation
+- **GitHub Actions CI pipeline** (`.github/workflows/ci.yml`) with 10 jobs:
+  lint, C++ build, Module 01 unit/integration/secure/GUI tests, Module 02
+  tests, Module 04 tests, and artifact upload — runs on every push and PRs
+  to main/develop
+- `pyproject.toml` (root) with ruff linter/formatter configuration
+- `requirements-dev.txt` with development/testing dependencies
+- `.pre-commit-config.yaml` for ruff and clang-format hooks
+- Per-module `pyproject.toml` files with pytest configuration
+- DDS Security and QoS infrastructure for the test participant (`Test` QoS
+  profile, identity, and permissions)
+- 2026 copyright headers on all new test files
+
 ## [1.2.0] - 2026-04-14
 
 ### Added
@@ -34,6 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Per-participant identity configs organized by module
   (operating-room, record-playback, remote-teleop, security-threat)
 - `.markdownlint.json` for consistent Markdown linting across contributors
+- macOS Dock icon support for C++ apps via Objective-C runtime (`MacOsDockIcon.h`)
+- RTI logo window icon for all Python GUI apps (Arm, PatientMonitor, Threat apps)
 
 ### Changed
 

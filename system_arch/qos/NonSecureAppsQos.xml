@@ -17,6 +17,7 @@ inability to use the software. -->
     <qos_profile name="Orchestrator" base_name="SystemLibrary::DefaultParticipant"/>
     <qos_profile name="PatientSensor" base_name="SystemLibrary::DefaultParticipant"/>
     <qos_profile name="PatientMonitor" base_name="SystemLibrary::DefaultParticipant"/>
+    <qos_profile name="Test" base_name="SystemLibrary::DefaultParticipant"/>
     <qos_profile name="SecureLogReader" base_name="SystemLibrary::DefaultParticipant"/>
   </qos_library>
 
