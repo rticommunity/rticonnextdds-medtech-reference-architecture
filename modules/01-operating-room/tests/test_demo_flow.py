@@ -222,10 +222,7 @@ class TestGracefulShutdown:
         # Wait until all devices have published a DeviceStatus (up to 30s)
         expected = set(procs.keys())
         seen = wait_for_device_status(status_reader, expected, timeout_sec=30)
-        assert seen == expected, (
-            f"Timed out waiting for devices. Missing: "
-            f"{set(d.name for d in expected - seen)}"
-        )
+        assert seen == expected, f"Timed out waiting for devices. Missing: {set(d.name for d in expected - seen)}"
 
         # Send SHUTDOWN to each device
         for device_type in procs:

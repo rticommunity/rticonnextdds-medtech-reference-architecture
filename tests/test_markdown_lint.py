@@ -26,7 +26,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 def _git_markdown_files() -> list[str]:
     """Return all markdown files in the project, excluding generated/cache directories.
-    
+
     Uses recursive glob instead of git ls-files for consistency across environments
     (local, CI, Docker) where .git may or may not be present.
     """
@@ -59,8 +59,4 @@ def test_markdownlint_clean() -> None:
         text=True,
     )
 
-    assert result.returncode == 0, (
-        "markdownlint found violations:\n"
-        f"stdout:\n{result.stdout}\n"
-        f"stderr:\n{result.stderr}"
-    )
+    assert result.returncode == 0, f"markdownlint found violations:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"

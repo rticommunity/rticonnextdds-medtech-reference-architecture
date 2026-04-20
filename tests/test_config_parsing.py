@@ -17,6 +17,7 @@ and parser failure modes in ``module_runner.load_module_config``.
 
 from __future__ import annotations
 
+import importlib
 import json
 import re
 import sys
@@ -26,7 +27,7 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "resource" / "python"))
-from scripts import module_runner
+module_runner = importlib.import_module("scripts.module_runner")
 
 ARGS_REF_RE = re.compile(r"\$\{args:([^}]+)\}")
 
@@ -89,9 +90,7 @@ class TestModuleJsonContract:
             apps = raw.get("apps")
             assert isinstance(apps, dict) and apps, f"{module_name}: apps must be a non-empty object"
             for app_name, command in apps.items():
-                assert isinstance(app_name, str) and app_name, (
-                    f"{module_name}: app name must be non-empty string"
-                )
+                assert isinstance(app_name, str) and app_name, f"{module_name}: app name must be non-empty string"
                 assert isinstance(command, list) and command, (
                     f"{module_name}: app '{app_name}' command must be a non-empty list"
                 )
@@ -109,9 +108,7 @@ class TestModuleJsonContract:
             defined = set(raw.get("args", {}).keys())
             referenced = _collect_args_refs({"env": raw.get("env", {}), "apps": raw.get("apps", {})})
             missing = sorted(referenced - defined)
-            assert not missing, (
-                f"{module_name}: undefined args placeholders referenced: {', '.join(missing)}"
-            )
+            assert not missing, f"{module_name}: undefined args placeholders referenced: {', '.join(missing)}"
 
 
 class TestLoadModuleConfigNegativeParsing:

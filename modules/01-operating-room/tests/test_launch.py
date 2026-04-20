@@ -127,9 +127,7 @@ class TestAllApps:
             Common.DeviceType.PATIENT_MONITOR,
         }
         seen = wait_for_device_status(status_reader, expected, timeout_sec=30)
-        assert seen == expected, (
-            f"Not all apps came online. Missing: {set(d.name for d in expected - seen)}"
-        )
+        assert seen == expected, f"Not all apps came online. Missing: {set(d.name for d in expected - seen)}"
 
         for name, proc in procs.items():
             assert proc.poll() is None, f"{name} crashed on startup (exit code {proc.returncode})"
