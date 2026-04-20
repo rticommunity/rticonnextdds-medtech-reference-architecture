@@ -25,15 +25,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _git_markdown_files() -> list[str]:
-    """Return all non-ignored markdown files according to git."""
-    result = subprocess.run(
-        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "--", "*.md"],
-        cwd=PROJECT_ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return [line for line in result.stdout.splitlines() if line.strip()]
+    """Return all markdown files in the project, excluding generated/cache directories.
+    
+    Uses recursive glob instead of git ls-files for consistency across environments
+    (local, CI, Docker) where .git may or may not be present.
+    """
+    exclude_patterns = {".venv", "build", ".pytest_cache", "__pycache__", ".git"}
+    files = []
+    for p in PROJECT_ROOT.rglob("*.md"):
+        # Skip if any path component is in exclude_patterns or is hidden
+        if not any(part in exclude_patterns or part.startswith(".") for part in p.relative_to(PROJECT_ROOT).parts):
+            files.append(str(p.relative_to(PROJECT_ROOT)))
+    return sorted(files)
 
 
 def test_markdownlint_clean() -> None:

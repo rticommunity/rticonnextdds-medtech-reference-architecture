@@ -99,6 +99,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends software-proper
         libegl1 libxkbcommon0 libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Node.js 18 LTS from NodeSource (system nodejs is too old)
+RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create venv and install dependencies from requirements-dev.txt
 ENV VIRTUAL_ENV=/workspace/.venv
 RUN python3.9 -m venv ${VIRTUAL_ENV}
@@ -108,6 +114,8 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir \
         rti.connext==${CONNEXT_VERSION} \
         -r requirements-dev.txt
+
+RUN npm install -g markdownlint-cli
 
 # Runtime library paths: Connext libs + bundled OpenSSL (for security plugin)
 ENV LD_LIBRARY_PATH=${NDDSHOME}/lib/${CONNEXTDDS_ARCH}:${NDDSHOME}/third_party/openssl-${OPENSSL_VERSION}/${CONNEXTDDS_ARCH}/release/lib

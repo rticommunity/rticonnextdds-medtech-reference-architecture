@@ -10,7 +10,7 @@ applications as end-user runtime containers.
 | Image | Target | Purpose |
 | --- | --- | --- |
 | `medtech-build` | `build` | Ubuntu 22.04 + Connext 7.3.1 + CMake build of C++ modules + security artifacts |
-| `medtech-test` | `test` | Extends build with Python deps, pytest, Xvfb for headless tests |
+| `medtech-test` | `test` | Extends build with Python deps, pytest, markdownlint, and Xvfb for headless tests |
 
 ## Prerequisites
 
@@ -68,7 +68,7 @@ docker run --rm -it \
 
 - **`medtech-build`** contains the compiled C++ binaries and all system-level
   dependencies. It can be used standalone if you only need the build artifacts.
-- **`medtech-test`** adds Python packages, pytest, and Xvfb on top. Keeping
+- **`medtech-test`** adds Python packages, pytest, markdownlint, and Xvfb on top. Keeping
   them separate means faster rebuilds when only Python deps change.
 
 ## Notes
