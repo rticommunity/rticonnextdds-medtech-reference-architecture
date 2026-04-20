@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-04-20
+
 ### Added
 
 - Docker-based test infrastructure under `tests/docker/`: multi-stage
