@@ -181,8 +181,15 @@ jobs:
           python-version: "3.9"
           cache: pip
 
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
       - name: Install Python dependencies
         run: pip install rti.connext==${{ env.CONNEXT_VERSION }} pytest
+
+      - name: Install markdownlint
+        run: npm install -g markdownlint-cli
 
       - name: Download build artifacts
         uses: actions/download-artifact@v7
