@@ -9,10 +9,12 @@
 #   e.g. /opt/rti.com/rti_connext_dds-7.3.1/rti_license.dat, point to it.
 #
 # Usage:
-#   docker compose -f tests/docker/docker-compose.yml build        # build both images
-#   docker compose -f tests/docker/docker-compose.yml run test      # run all tests
-#   docker compose -f tests/docker/docker-compose.yml run test \
+#   docker compose -f tests/docker/docker-compose.yml run --rm --build test
+#       # one command: build image as needed, run all tests, auto-remove container
+#   docker compose -f tests/docker/docker-compose.yml run --rm --build test \
 #       python -m pytest modules/01-operating-room/tests/test_types.py -v
+#   docker compose -f tests/docker/docker-compose.yml up --build --abort-on-container-exit --exit-code-from test test
+#   docker compose -f tests/docker/docker-compose.yml down --remove-orphans
 # ==========================================================================
 
 services:

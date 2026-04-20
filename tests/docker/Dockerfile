@@ -126,5 +126,8 @@ ENV DISPLAY=:99
 
 WORKDIR /workspace
 
+COPY tests/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["entrypoint.sh"]
+
 # Default: run all tests headlessly
-CMD ["bash", "-lc", "Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp & xvfb_pid=$!; trap 'kill ${xvfb_pid}' EXIT; tests/run_tests.sh -v"]
+CMD ["tests/run_tests.sh", "-v"]

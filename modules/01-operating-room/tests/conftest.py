@@ -39,6 +39,9 @@ SECURITY_DIR = SYSTEM_ARCH_DIR / "security"
 # module_runner (centralized since origin/main).
 sys.path.insert(0, str(REPO_ROOT / "resource" / "python"))
 
+# Make src/ importable so tests can use generated Types module directly.
+sys.path.insert(0, str(SRC_DIR))
+
 from scripts import module_runner  # noqa: E402
 
 # ---------------------------------------------------------------------------

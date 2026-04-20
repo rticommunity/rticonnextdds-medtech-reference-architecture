@@ -30,12 +30,16 @@ export RTI_LICENSE_FILE=/path/to/rti_license.dat
 ### Using Docker Compose (recommended)
 
 ```bash
-docker compose -f tests/docker/docker-compose.yml build
-docker compose -f tests/docker/docker-compose.yml run test
+# One command: build image (if needed), run tests, and remove container
+docker compose -f tests/docker/docker-compose.yml run --rm --build test
 
 # Run specific tests
-docker compose -f tests/docker/docker-compose.yml run test \
+docker compose -f tests/docker/docker-compose.yml run --rm --build test \
     python -m pytest modules/01-operating-room/tests/test_types.py -v
+
+# Optional: compose up style (then clean up service container)
+docker compose -f tests/docker/docker-compose.yml up --build --abort-on-container-exit --exit-code-from test test
+docker compose -f tests/docker/docker-compose.yml down --remove-orphans
 ```
 
 ### Using Docker directly
@@ -78,3 +82,5 @@ docker run --rm -it \
 - GUI tests run headlessly via `QT_QPA_PLATFORM=offscreen` and Xvfb.
 - Security artifacts (certificates, signed governance) are generated during the
   build stage so secure tests can run.
+- `docker compose run --rm ...` avoids leftover one-off containers after test
+  completion.
