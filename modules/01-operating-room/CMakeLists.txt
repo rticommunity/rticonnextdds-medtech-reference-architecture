@@ -137,7 +137,6 @@ if(GTKMM_FOUND)
         target_link_libraries(${application}
             PRIVATE
             ${GTKMM_LIBRARIES}
-            RTIConnextDDS::cpp2_api
             refArchTypes
         )
         if(APPLE)
