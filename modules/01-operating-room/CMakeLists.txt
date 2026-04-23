@@ -102,7 +102,7 @@ add_library(refArchTypes OBJECT
     ${SECURITY_CXX_SOURCES}
 )
 target_link_libraries(refArchTypes
-    PRIVATE
+    PUBLIC
     RTIConnextDDS::cpp2_api
 )
 
@@ -114,7 +114,6 @@ add_executable(PatientSensor
 )
 target_link_libraries(PatientSensor
     PRIVATE
-    RTIConnextDDS::cpp2_api
     refArchTypes
 )
 target_include_directories(PatientSensor
