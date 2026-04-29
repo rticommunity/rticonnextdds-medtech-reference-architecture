@@ -9,10 +9,12 @@ This repository contains documentation and module demo applications showcasing d
 - [Introduction](#introduction)
 - [Quick Start](#quick-start)
 - [Hands-On: Modules](#hands-on-modules)
-  - [Module 01: Digital Operating Room](#module-01--digital-operating-room)
-  - [Module 02: RTI Recording Service & RTI Replay Service](#module-02--rti-recording-service--rti-replay-service)
-  - [Module 03: Remote Teleoperation with RTI Real-Time WAN Transport](#module-03--remote-teleoperation-with-rti-real-time-wan-transport)
-  - [Module 04: Security Threat Demonstration](#module-04--security-threat-demonstration)
+  - [Module 01: Digital Operating Room](#module-01-digital-operating-room)
+  - [Module 02: RTI Recording Service & RTI Replay Service](#module-02-rti-recording-service--rti-replay-service)
+  - [Module 03: Remote Teleoperation with RTI Real-Time WAN Transport](#module-03-remote-teleoperation-with-rti-real-time-wan-transport)
+  - [Module 04: Security Threat Demonstration](#module-04-security-threat-demonstration)
+- [Hands-On: Architecture](#hands-on-architecture)
+- [Architecture Overview](#architecture-overview)
 - [Hands-On: Architecture](#hands-on-architecture)
 - [Architecture Overview](#architecture-overview)
   - [Data Types](#data-types)
@@ -137,13 +139,13 @@ The RTI MedTech Reference Architecture demonstrates use cases and capabilities o
 
 Use the module-specific READMEs when you want to run a demo. They describe what each workflow launches, why it exists, and the exact `launch.py` commands to use from the repository root.
 
-- ### [Module 01](./modules/01-operating-room/) : Digital Operating Room
+### [Module 01: Digital Operating Room](./modules/01-operating-room/)
 
-- ### [Module 02](./modules/02-record-playback/) : RTI Recording Service & RTI Replay Service
+### [Module 02: RTI Recording Service & RTI Replay Service](./modules/02-record-playback/)
 
-- ### [Module 03](./modules/03-remote-teleoperation/) : Remote Teleoperation with RTI Real-Time WAN Transport
+### [Module 03: Remote Teleoperation with RTI Real-Time WAN Transport](./modules/03-remote-teleoperation/)
 
-- ### [Module 04](./modules/04-security-threat/) : Security Threat Demonstration
+### [Module 04: Security Threat Demonstration](./modules/04-security-threat/)
 
 ## Hands-On: Architecture
 
@@ -152,16 +154,16 @@ RTI System Designer allows you to graphically design, configure, examine, and sh
 *RTI recommends using the provided RTI System Designer project file ([RefArch.rtisdproj](./system_arch/RefArch.rtisdproj)) to follow along with the next section, [Architecture Overview](#architecture-overview).*
 
 1. Launch RTI System Designer.
-    - From RTI Launcher:
-        1. Open *RTI Launcher*.
-        2. Navigate to the **Tools** tab.
-        3. Click the *System Designer* button.
-    - From a terminal:
-        1. Launch the `rtisystemdesigner[.bat]` script found in the *$NDDSHOME/bin* folder. *Where *$NDDSHOME* is the folder where Connext is installed.*
+   - From RTI Launcher:
+      1. Open *RTI Launcher*.
+      2. Navigate to the **Tools** tab.
+      3. Click the *System Designer* button.
+   - From a terminal:
+      1. Launch the `rtisystemdesigner[.bat]` script found in the *$NDDSHOME/bin* folder. *Where *$NDDSHOME* is the folder where Connext is installed.*
 2. Open the Project File.
-    1. Select **Projects** in the toolbar.
-    2. Click **Open** in the dropdown.
-    3. In the file browser popup, navigate to *system_arch/RefArch.rtisdproj* and open.
+   1. Select **Projects** in the toolbar.
+   2. Click **Open** in the dropdown.
+   3. In the file browser popup, navigate to *system_arch/RefArch.rtisdproj* and open.
 
 *Please refer to [Project Management](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/tools/system_designer/project_mgmt.html) documentation for more detailed instructions on working with RTI System Designer projects.*
 

@@ -69,7 +69,7 @@ python3 launch.py 02-record-playback RecordingService [-s]
 
 Let RTI Recording Service run for some time (e.g. 10-20 seconds) before initiating shutdown with `Ctrl-C`.
 
->**Observe:** Once finished, a new folder should be created - [or_recording](./or_recording/) - containing the recording files.
+>**Observe:** Once finished, a new folder should be created - `or_recording` - containing the recording files.
 
 #### Further Learning: Recording Service
 
@@ -121,7 +121,7 @@ Let's try replaying just `t/Vitals`, while still recording both Topics.
 
 1. Kill all active operating room applications and RTI Recording/Replay Services.
 
-2. Comment out the `<topic>` tag  and contained content within it, for `t/MotorControl` in [RecordingServiceConfiguration.xml](./RecordingServiceConfiguration.xml).
+2. Comment out the `<topic>` tag and contained content within it, for `t/MotorControl` in [RecordingServiceConfiguration.xml](./RecordingServiceConfiguration.xml).
 
     *Note, you should undo this configuration change after completing this demonstration.*
 
@@ -145,11 +145,11 @@ Let's try using RTI Admin Console to administer RTI Recording Service.
 
 1. Launch RTI Admin Console.
 
-    - From RTI Launcher:
+   - From RTI Launcher:
         1. Open *RTI Launcher*.
         2. Navigate to the **Tools** tab.
         3. Click the *Admin Console* button.
-    - From a terminal:
+   - From a terminal:
         1. Launch the `rtiadminconsole[.bat]` script found in the *$NDDSHOME/bin* folder. *Where *$NDDSHOME* is the folder where Connext is installed.*
 
 2. In RTI Admin Console, join Domains 0 (Operational Data) and 99 (RTI Recording Service Administration).

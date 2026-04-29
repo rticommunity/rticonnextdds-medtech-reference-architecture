@@ -32,31 +32,31 @@ To leverage RTI XML-Based Application Creation, your application code simply ind
 Applications can be implemented via any supported Connext Professional API language, while ensuring adherence to the common system design expressed in XML.
 
 1. Register Types
-    To use generated Type-Support code (via [RTI Code Generator](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/code_generator/users_manual/code_generator/users_manual/UsersManual_Title.htm)), named *types* in the XML configuration must be registered with the DomainParticipant. This is necessary for the DomainParticipant to serialize and deserialize the data using the generated code.
+   To use generated Type-Support code (via [RTI Code Generator](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/code_generator/users_manual/code_generator/users_manual/UsersManual_Title.htm)), named *types* in the XML configuration must be registered with the DomainParticipant. This is necessary for the DomainParticipant to serialize and deserialize the data using the generated code.
 
     Documentation:
-    - [Using User-Generated Types](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/UsingGeneratingTypes.htm#4.7.5_Using_User-Generated_Types)
+   - [Using User-Generated Types](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/UsingGeneratingTypes.htm#4.7.5_Using_User-Generated_Types)
 
 2. Load XML Configuration
-    One or multiple XML files should be loaded by an application to understand the complete configuration for a single DomainParticipant.
+   One or multiple XML files should be loaded by an application to understand the complete configuration for a single DomainParticipant.
 
     In this reference architecture, it is recommended to use `NDDS_QOS_PROFILES` environment variable to point to the defined XML files.
 
     For example, this bash statement will allow Connext to load the following files:
-    - [Qos.xml](../qos/Qos.xml)
-    - [NonSecureAppsQos.xml](../qos/NonSecureAppsQos.xml)
-    - [DomainLibrary.xml](./DomainLibrary.xml)
-    - [ParticipantLibrary.xml](./ParticipantLibrary.xml)
+   - [Qos.xml](../qos/Qos.xml)
+   - [NonSecureAppsQos.xml](../qos/NonSecureAppsQos.xml)
+   - [DomainLibrary.xml](./DomainLibrary.xml)
+   - [ParticipantLibrary.xml](./ParticipantLibrary.xml)
 
-    ```bash
-    export NDDS_QOS_PROFILES="system_arch/qos/Qos.xml;system_arch/qos/NonSecureAppsQos.xml;system_arch/xml_app_creation/DomainLibrary.xml;system_arch/xml_app_creation/ParticipantLibrary.xml"
-    ```
+     ```bash
+     export NDDS_QOS_PROFILES="system_arch/qos/Qos.xml;system_arch/qos/NonSecureAppsQos.xml;system_arch/xml_app_creation/DomainLibrary.xml;system_arch/xml_app_creation/ParticipantLibrary.xml"
+     ```
 
-    Documentation:
-    - [Loading XML Configuration Files](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/LoadingXMLFiles.htm#4.2_Loading_XML_Configuration_Files)
+     Documentation:
+   - [Loading XML Configuration Files](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/LoadingXMLFiles.htm#4.2_Loading_XML_Configuration_Files)
 
 3. Create Defined DDS Entities
-    DomainParticipants, and all underlying entities configured (Topics, Publishers, DataWriters, Subscribers, DataReaders), can be created with an API-specific implementation of the `create_participant_from_config()`.
+   DomainParticipants, and all underlying entities configured (Topics, Publishers, DataWriters, Subscribers, DataReaders), can be created with an API-specific implementation of the `create_participant_from_config()`.
 
     DomainParticipants are referred to by their fully-qualified name in configuration. Please see the referred documentation for more details.
 
@@ -72,11 +72,11 @@ Applications can be implemented via any supported Connext Professional API langu
     ```
 
     Documentation:
-    - [Creating and Retrieving Entities Configured in an XML File](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/CreatingEntities.htm)
-    - [Referring to Entities and Other Elements within XML Files](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ReferringToEntitiesElements.htm#4.6.1_Referring_to_Entities_and_Other_Elements_within_XML_Files)
+   - [Creating and Retrieving Entities Configured in an XML File](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/CreatingEntities.htm)
+   - [Referring to Entities and Other Elements within XML Files](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ReferringToEntitiesElements.htm#4.6.1_Referring_to_Entities_and_Other_Elements_within_XML_Files)
 
 4. Retrieve Created Entities by Name
-    Commonly, configured named DDS entities must be retrieved for use (e.g. publishing to or subscribing to data) or preconfiguration before enabling (e.g. runtime QoS configuration).
+   Commonly, configured named DDS entities must be retrieved for use (e.g. publishing to or subscribing to data) or preconfiguration before enabling (e.g. runtime QoS configuration).
 
     DDS entities can be retrieved by name via API-specific "find" or "lookup" functions. Entities are referred to by their fully-qualified name in configuration. Please see the referred documentation for entity-specifics.
 
@@ -89,8 +89,8 @@ Applications can be implemented via any supported Connext Professional API langu
     ```
 
     Documentation:
-    - [Accessing Entities Defined in XML Configuration from an Application](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/Accessing_Entit.htm#4.4_Accessing_Entities_Defined_in_XML_Configuration_from_an_Application)
-    - [Referring to Entities and Other Elements within XML Files](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ReferringToEntitiesElements.htm#4.6.1_Referring_to_Entities_and_Other_Elements_within_XML_Files)
+   - [Accessing Entities Defined in XML Configuration from an Application](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/Accessing_Entit.htm#4.4_Accessing_Entities_Defined_in_XML_Configuration_from_an_Application)
+   - [Referring to Entities and Other Elements within XML Files](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ReferringToEntitiesElements.htm#4.6.1_Referring_to_Entities_and_Other_Elements_within_XML_Files)
 
 ### XML-Based Application Creation References
 
@@ -336,15 +336,15 @@ The *Arm* DomainParticipant is intended to demonstrate a Robotic Surgery Arm wit
 
 | DataWriter | Topic | QoS Profile | Intended Use
 | ---------- | ----- | ----------- | ------------
-| *dw/DeviceStatus* | *t/DeviceStatus* | [*DataFlowLibrary::Status*](../qos/README.md#dataflowlibrarystatus) | Publish Arm device status
-| *dw/DeviceHeartbeat* | *t/DeviceHeartbeat* | [*DataFlowLibrary::Heartbeat*](../qos/README.md#dataflowlibraryheartbeat) | Assert Arm device is alive
+| *dw/DeviceStatus* | *t/DeviceStatus* | [*DataFlowLibrary::Status*](../qos/README.md#dataflowlibrarystatus-profile) | Publish Arm device status
+| *dw/DeviceHeartbeat* | *t/DeviceHeartbeat* | [*DataFlowLibrary::Heartbeat*](../qos/README.md#dataflowlibraryheartbeat-profile) | Assert Arm device is alive
 
 *dp/Arm* contains the following DataReaders (`<data_reader>`):
 
 | DataReader | Topic | QoS Profile | Content Filter | Intended Use
 | ---------- | ----- | ----------- | -------------- | ------------
-| *dr/MotorControl* | *t/MotorControl* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | -- | Receive and process motor control commands
-| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | `device = 'ARM'` | Receive and process device commands targeting this Arm
+| *dr/MotorControl* | *t/MotorControl* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand-profile) | -- | Receive and process motor control commands
+| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand-profile) | `device = 'ARM'` | Receive and process device commands targeting this Arm
 
 ##### ***MedicalDemoParticipantLibrary::dp/ArmController***
 
@@ -354,15 +354,15 @@ The *ArmController* DomainParticipant is intended to administer commands to the 
 
 | DataWriter | Topic | QoS Profile | Intended Use
 | ---------- | ----- | ----------- | ------------
-| *dw/MotorControl* | *t/MotorControl* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | Publish Motor commands to Arm devices
-| *dw/DeviceStatus* | *t/DeviceStatus* | [*DataFlowLibrary::Status*](../qos/README.md#dataflowlibrarystatus) | Publish ArmController device status
-| *dw/DeviceHeartbeat* | *t/DeviceHeartbeat* | [*DataFlowLibrary::Heartbeat*](../qos/README.md#dataflowlibraryheartbeat) | Assert ArmController device is alive
+| *dw/MotorControl* | *t/MotorControl* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand-profile) | Publish Motor commands to Arm devices
+| *dw/DeviceStatus* | *t/DeviceStatus* | [*DataFlowLibrary::Status*](../qos/README.md#dataflowlibrarystatus-profile) | Publish ArmController device status
+| *dw/DeviceHeartbeat* | *t/DeviceHeartbeat* | [*DataFlowLibrary::Heartbeat*](../qos/README.md#dataflowlibraryheartbeat-profile) | Assert ArmController device is alive
 
 *dp/ArmController* contains the following DataReaders (`<data_reader>`):
 
 | DataReader | Topic | QoS Profile | Content Filter | Intended Use
 | ---------- | ----- | ----------- | -------------- | ------------
-| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | `device = 'ARM_CONTROLLER'` | Receive and process device commands targeting this Arm Controller
+| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand-profile) | `device = 'ARM_CONTROLLER'` | Receive and process device commands targeting this Arm Controller
 
 ##### ***MedicalDemoParticipantLibrary::dp/Orchestrator***
 
@@ -372,14 +372,14 @@ The *Orchestrator* DomainParticipant is intended to administer device-level comm
 
 | DataWriter | Topic | QoS Profile | Intended Use
 | ---------- | ----- | ----------- | ------------
-| *dw/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | Publish Device commands to all devices
+| *dw/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand-profile) | Publish Device commands to all devices
 
 *dp/Orchestrator* contains the following DataReaders (`<data_reader>`):
 
 | DataReader | Topic | QoS Profile | Content Filter | Intended Use
 | ---------- | ----- | ----------- | -------------- | ------------
-| *dr/DeviceStatus* | *t/DeviceStatus* | [*DataFlowLibrary::Status*](../qos/README.md#dataflowlibrarystatus) | -- | Receive and process device statuses from all devices
-| *dr/DeviceHeartbeat* | *t/DeviceHeartbeat* | [*DataFlowLibrary::Heartbeat*](../qos/README.md#dataflowlibraryheartbeat) | -- | Detect (loss of) presence of all devices
+| *dr/DeviceStatus* | *t/DeviceStatus* | [*DataFlowLibrary::Status*](../qos/README.md#dataflowlibrarystatus-profile) | -- | Receive and process device statuses from all devices
+| *dr/DeviceHeartbeat* | *t/DeviceHeartbeat* | [*DataFlowLibrary::Heartbeat*](../qos/README.md#dataflowlibraryheartbeat-profile) | -- | Detect (loss of) presence of all devices
 
 ##### ***MedicalDemoParticipantLibrary::dp/PatientSensor***
 
@@ -389,15 +389,15 @@ The *PatientSensor* DomainParticipant is intended to simulate a streaming source
 
 | DataWriter | Topic | QoS Profile | Intended Use
 | ---------- | ----- | ----------- | ------------
-| *dw/Vitals* | *t/Vitals* | [*DataFlowLibrary::Streaming*](../qos/README.md#dataflowlibrarystreaming) | Publish simulated patient vitals data stream
-| *dw/DeviceStatus* | *t/DeviceStatus* | [*DataFlowLibrary::Status*](../qos/README.md#dataflowlibrarystatus) | Publish PatientSensor device status
-| *dw/DeviceHeartbeat* | *t/DeviceHeartbeat* | [*DataFlowLibrary::Heartbeat*](../qos/README.md#dataflowlibraryheartbeat) | Assert PatientSensor device is alive
+| *dw/Vitals* | *t/Vitals* | [*DataFlowLibrary::Streaming*](../qos/README.md#dataflowlibrarystreaming-profile) | Publish simulated patient vitals data stream
+| *dw/DeviceStatus* | *t/DeviceStatus* | [*DataFlowLibrary::Status*](../qos/README.md#dataflowlibrarystatus-profile) | Publish PatientSensor device status
+| *dw/DeviceHeartbeat* | *t/DeviceHeartbeat* | [*DataFlowLibrary::Heartbeat*](../qos/README.md#dataflowlibraryheartbeat-profile) | Assert PatientSensor device is alive
 
 *dp/PatientSensor* contains the following DataReaders (`<data_reader>`):
 
 | DataReader | Topic | QoS Profile | Content Filter | Intended Use
 | ---------- | ----- | ----------- | -------------- | ------------
-| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | `device = 'PATIENT_SENSOR'` | Receive and process device commands targeting this PatientSensor
+| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand-profile) | `device = 'PATIENT_SENSOR'` | Receive and process device commands targeting this PatientSensor
 
 ##### ***MedicalDemoParticipantLibrary::dp/PatientMonitor***
 
@@ -407,15 +407,15 @@ The *PatientMonitor* DomainParticipant is intended to process (display) patient 
 
 | DataWriter | Topic | QoS Profile | Intended Use
 | ---------- | ----- | ----------- | ------------
-| *dw/DeviceStatus* | *t/DeviceStatus* | [*DataFlowLibrary::Status*](../qos/README.md#dataflowlibrarystatus) | Publish PatientMonitor device status
-| *dw/DeviceHeartbeat* | *t/DeviceHeartbeat* | [*DataFlowLibrary::Heartbeat*](../qos/README.md#dataflowlibraryheartbeat) | Assert PatientMonitor device is alive
+| *dw/DeviceStatus* | *t/DeviceStatus* | [*DataFlowLibrary::Status*](../qos/README.md#dataflowlibrarystatus-profile) | Publish PatientMonitor device status
+| *dw/DeviceHeartbeat* | *t/DeviceHeartbeat* | [*DataFlowLibrary::Heartbeat*](../qos/README.md#dataflowlibraryheartbeat-profile) | Assert PatientMonitor device is alive
 
 *dp/PatientMonitor* contains the following DataReaders (`<data_reader>`):
 
 | DataReader | Topic | QoS Profile | Content Filter | Intended Use
 | ---------- | ----- | ----------- | -------------- | ------------
-| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | `device = 'PATIENT_MONITOR'` | Receive and process device commands targeting this PatientMonitor
-| *dr/Vitals* | *t/Vitals* | [*DataFlowLibrary::Streaming*](../qos/README.md#dataflowlibrarystreaming) | -- | Receive and process patient vitals data stream
+| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand-profile) | `device = 'PATIENT_MONITOR'` | Receive and process device commands targeting this PatientMonitor
+| *dr/Vitals* | *t/Vitals* | [*DataFlowLibrary::Streaming*](../qos/README.md#dataflowlibrarystreaming-profile) | -- | Receive and process patient vitals data stream
 
 ### DomainParticipant Library Best Practices
 

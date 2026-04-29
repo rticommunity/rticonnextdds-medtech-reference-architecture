@@ -1,7 +1,7 @@
 # Project-level Tests
 
 Tests that validate the project-wide build pipeline and cross-module
-concerns.  Module-specific tests live under each module's own `tests/`
+concerns. Module-specific tests live under each module's own `tests/`
 directory.
 
 ## Prerequisites
