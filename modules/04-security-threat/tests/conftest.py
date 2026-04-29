@@ -28,7 +28,9 @@ from pathlib import Path
 import pytest
 
 # Add centralized scripts package to import path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python"))
+sys.path.insert(
+    0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python")
+)
 
 from scripts import module_runner
 
@@ -55,7 +57,9 @@ def _or_security_artifacts_exist() -> bool:
 
 def _threat_artifacts_exist() -> bool:
     """Check that Module 04 threat security artifacts exist."""
-    rogue_ca = MODULE_DIR / "security" / "ca" / "RogueCa" / "certs" / "RogueCa" / "RogueCa.crt"
+    rogue_ca = (
+        MODULE_DIR / "security" / "ca" / "RogueCa" / "certs" / "RogueCa" / "RogueCa.crt"
+    )
     return rogue_ca.is_file()
 
 
@@ -95,7 +99,9 @@ class ProcessManager:
         self.cwd = cwd
         self._children: list[subprocess.Popen] = []
 
-    def start(self, cmd, cwd: Path | None = None, extra_env: dict | None = None, **kwargs) -> subprocess.Popen:
+    def start(
+        self, cmd, cwd: Path | None = None, extra_env: dict | None = None, **kwargs
+    ) -> subprocess.Popen:
         run_env = {**self.env, **(extra_env or {})}
         proc = subprocess.Popen(
             cmd if isinstance(cmd, list) else [cmd],
@@ -144,14 +150,18 @@ def wait_for_process_ready(proc, timeout_sec: float = 5.0):
 @pytest.fixture(scope="session")
 def or_env_nonsecure():
     """Module 01 OR env — non-secure mode."""
-    env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": False})
+    env, apps = module_runner.load_module_config(
+        MODULE_01_DIR, flags={"security": False}
+    )
     return env, apps
 
 
 @pytest.fixture(scope="session")
 def or_env_secure():
     """Module 01 OR env — secure mode."""
-    env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": True})
+    env, apps = module_runner.load_module_config(
+        MODULE_01_DIR, flags={"security": True}
+    )
     return env, apps
 
 
@@ -241,5 +251,7 @@ print(json.dumps(collected))
         timeout=int(timeout_sec) + 10,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"DDS observer failed (exit {result.returncode}):\n{result.stderr}")
+        raise RuntimeError(
+            f"DDS observer failed (exit {result.returncode}):\n{result.stderr}"
+        )
     return json.loads(result.stdout.strip())

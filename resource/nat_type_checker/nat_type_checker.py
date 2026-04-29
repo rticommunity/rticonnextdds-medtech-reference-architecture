@@ -2,14 +2,16 @@ import requests
 import stun
 import time
 
+
 def get_public_ip():
     try:
-        response = requests.get('https://api.ipify.org?format=json')
+        response = requests.get("https://api.ipify.org?format=json")
         response.raise_for_status()
-        return response.json()['ip']
+        return response.json()["ip"]
     except requests.RequestException as e:
         print(f"Error fetching public IP: {e}")
         return None
+
 
 def get_stun_info(retries=3, delay=2):
     for attempt in range(retries):
@@ -21,6 +23,7 @@ def get_stun_info(retries=3, delay=2):
             print(f"Error fetching STUN info (attempt {attempt + 1}): {e}")
         time.sleep(delay)
     return None, None, None
+
 
 def check_cone_nat():
 
@@ -47,6 +50,7 @@ def check_cone_nat():
             print("You do not have a Cone NAT")
     except Exception as e:
         print(f"Error checking NAT type: {e}")
+
 
 if __name__ == "__main__":
     check_cone_nat()

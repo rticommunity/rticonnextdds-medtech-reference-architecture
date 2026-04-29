@@ -1,6 +1,6 @@
-# 
+#
 # (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
-# 
+#
 # RTI grants Licensee a license to use, modify, compile, and create derivative
 # works of the software solely for use with RTI Connext DDS.  Licensee may
 # redistribute copies of the software provided that all such copies are
@@ -17,13 +17,25 @@ import threading
 import signal
 
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QLabel, QFrame,
-    QHBoxLayout, QVBoxLayout, QSizePolicy
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QLabel,
+    QFrame,
+    QHBoxLayout,
+    QVBoxLayout,
+    QSizePolicy,
 )
 from PySide6.QtCore import Qt, QTimer, QRectF, QPointF
 from PySide6.QtGui import (
-    QPainter, QColor, QPen, QBrush, QFont, QPainterPath,
-    QPixmap, QIcon
+    QPainter,
+    QColor,
+    QPen,
+    QBrush,
+    QFont,
+    QPainterPath,
+    QPixmap,
+    QIcon,
 )
 
 import rti.connextdds as dds
@@ -31,40 +43,40 @@ from Types import Common, SurgicalRobot, Orchestrator, DdsEntities
 from DdsUtils import register_type
 
 # ─── RTI Brand Colors ────────────────────────────────────────────────────
-RTI_BLUE   = "#004C97"
+RTI_BLUE = "#004C97"
 RTI_ORANGE = "#ED8B00"
-BG_MAIN    = "#0A0E17"
-BG_PANEL   = "#0F1822"
+BG_MAIN = "#0A0E17"
+BG_PANEL = "#0F1822"
 BG_ROW_ALT = "#0D1520"
-BG_HEADER  = "#071020"
+BG_HEADER = "#071020"
 BORDER_DIM = "#1A2A3A"
 
 # Per-joint color palette
 JOINT_COLORS = {
-    SurgicalRobot.Motors.BASE:     "#004C97",   # RTI Blue
-    SurgicalRobot.Motors.SHOULDER: "#ED8B00",   # RTI Orange
-    SurgicalRobot.Motors.ELBOW:    "#00BFFF",   # Electric blue
-    SurgicalRobot.Motors.WRIST:    "#7CFC00",   # Lime green
-    SurgicalRobot.Motors.HAND:     "#DA70D6",   # Orchid
+    SurgicalRobot.Motors.BASE: "#004C97",  # RTI Blue
+    SurgicalRobot.Motors.SHOULDER: "#ED8B00",  # RTI Orange
+    SurgicalRobot.Motors.ELBOW: "#00BFFF",  # Electric blue
+    SurgicalRobot.Motors.WRIST: "#7CFC00",  # Lime green
+    SurgicalRobot.Motors.HAND: "#DA70D6",  # Orchid
 }
 
 JOINT_NAMES = {
-    SurgicalRobot.Motors.BASE:     "BASE",
+    SurgicalRobot.Motors.BASE: "BASE",
     SurgicalRobot.Motors.SHOULDER: "SHOULDER",
-    SurgicalRobot.Motors.ELBOW:    "ELBOW",
-    SurgicalRobot.Motors.WRIST:    "WRIST",
-    SurgicalRobot.Motors.HAND:     "HAND",
+    SurgicalRobot.Motors.ELBOW: "ELBOW",
+    SurgicalRobot.Motors.WRIST: "WRIST",
+    SurgicalRobot.Motors.HAND: "HAND",
 }
 
-UPDATE_MS   = 100  # refresh rate ms (~10 fps)
+UPDATE_MS = 100  # refresh rate ms (~10 fps)
 
 # Starting joint angles shown before the first DDS sample arrives
 INITIAL_ANGLES = {
-    SurgicalRobot.Motors.BASE:     204.0,
+    SurgicalRobot.Motors.BASE: 204.0,
     SurgicalRobot.Motors.SHOULDER: 176.0,
-    SurgicalRobot.Motors.ELBOW:    156.0,
-    SurgicalRobot.Motors.WRIST:    165.0,
-    SurgicalRobot.Motors.HAND:     151.0,
+    SurgicalRobot.Motors.ELBOW: 156.0,
+    SurgicalRobot.Motors.WRIST: 165.0,
+    SurgicalRobot.Motors.HAND: 151.0,
 }
 
 
@@ -88,14 +100,14 @@ class ArcGauge(QWidget):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         side = min(self.width(), self.height()) - 10
-        rect = QRectF((self.width() - side) / 2,
-                      (self.height() - side) / 2,
-                      side, side)
+        rect = QRectF((self.width() - side) / 2, (self.height() - side) / 2, side, side)
 
         # ── Background track ──────────────────────────────────────
-        pen_bg = QPen(QColor("#1A2A40"), 8, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap)
+        pen_bg = QPen(
+            QColor("#1A2A40"), 8, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap
+        )
         p.setPen(pen_bg)
-        p.drawArc(rect, 225 * 16, -270 * 16)   # 270° arc, starts at 225°
+        p.drawArc(rect, 225 * 16, -270 * 16)  # 270° arc, starts at 225°
 
         # ── Foreground arc (value / 360 × 270°) ───────────────────
         span = int((self._value / 360.0) * 270 * 16)
@@ -106,23 +118,28 @@ class ArcGauge(QWidget):
 
         # ── Needle ────────────────────────────────────────────────
         import math as _math
+
         cx, cy = self.width() / 2, self.height() / 2
         needle_r = (side / 2) * 0.72
-        hub_r    = (side / 2) * 0.12
+        hub_r = (side / 2) * 0.12
         # Qt arc: 0°=east, positive=CCW; our arc starts at 225° spanning -270°
         angle_deg = 225.0 - (self._value / 360.0) * 270.0
         angle_rad = _math.radians(angle_deg)
-        tip_x  = cx + needle_r * _math.cos(angle_rad)
-        tip_y  = cy - needle_r * _math.sin(angle_rad)
+        tip_x = cx + needle_r * _math.cos(angle_rad)
+        tip_y = cy - needle_r * _math.sin(angle_rad)
         # Back stub in opposite direction
         back_x = cx - hub_r * _math.cos(angle_rad)
         back_y = cy + hub_r * _math.sin(angle_rad)
         # Draw shadow
-        pen_shadow = QPen(QColor("#000000"), 4, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+        pen_shadow = QPen(
+            QColor("#000000"), 4, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap
+        )
         p.setPen(pen_shadow)
         p.drawLine(QPointF(back_x + 1, back_y + 1), QPointF(tip_x + 1, tip_y + 1))
         # Draw needle
-        pen_needle = QPen(grad_color, 2.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+        pen_needle = QPen(
+            grad_color, 2.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap
+        )
         p.setPen(pen_needle)
         p.drawLine(QPointF(back_x, back_y), QPointF(tip_x, tip_y))
 
@@ -143,15 +160,19 @@ class DirectionBadge(QLabel):
 
     def set_direction(self, direction: str):
         self._dir = direction
-        symbols = {"INCREMENT": "  ▲  INC", "DECREMENT": "  ▼  DEC", "STATIONARY": "  —  "}
+        symbols = {
+            "INCREMENT": "  ▲  INC",
+            "DECREMENT": "  ▼  DEC",
+            "STATIONARY": "  —  ",
+        }
         self.setText(symbols.get(direction, "  —  "))
         self._update_style()
 
     def _update_style(self):
         colors = {
-            "INCREMENT":  (RTI_ORANGE, "#1A0F00"),
-            "DECREMENT":  ("#FF4444",  "#1A0505"),
-            "STATIONARY": ("#445566",  "#0F151C"),
+            "INCREMENT": (RTI_ORANGE, "#1A0F00"),
+            "DECREMENT": ("#FF4444", "#1A0505"),
+            "STATIONARY": ("#445566", "#0F151C"),
         }
         fg, bg = colors.get(self._dir, ("#445566", "#0F151C"))
         self.setStyleSheet(
@@ -166,7 +187,7 @@ class JointRow(QFrame):
         super().__init__(parent)
         self.motor = motor
         self.color = JOINT_COLORS[motor]
-        self.name  = JOINT_NAMES[motor]
+        self.name = JOINT_NAMES[motor]
         self._angle = 180.0
 
         self.setFrameShape(QFrame.Shape.Box)
@@ -245,11 +266,11 @@ class ArmVizWidget(QWidget):
     segment direction, so at 180° all segments are collinear (straight up).
     """
 
-    SEGMENT_LEN = 70   # px — length of each arm link (scaled dynamically)
-    JOINT_R     = 12   # px — radius of joint circles
-    EE_SIZE     = 16   # px — half-size of end-effector marker
-    GROUND_W    = 80   # px — half-width of ground hatch
-    GROUND_LINES = 6   # number of hatch lines under base
+    SEGMENT_LEN = 70  # px — length of each arm link (scaled dynamically)
+    JOINT_R = 12  # px — radius of joint circles
+    EE_SIZE = 16  # px — half-size of end-effector marker
+    GROUND_W = 80  # px — half-width of ground hatch
+    GROUND_LINES = 6  # number of hatch lines under base
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -261,7 +282,7 @@ class ArmVizWidget(QWidget):
     def update_angles(self, angles: dict):
         """Receive updated angle dict and schedule a repaint."""
         self._angles = dict(angles)
-        self.update()   # schedules paintEvent on next event-loop iteration
+        self.update()  # schedules paintEvent on next event-loop iteration
 
     # ── painting ──────────────────────────────────────────────────────────
     def paintEvent(self, event):
@@ -279,7 +300,7 @@ class ArmVizWidget(QWidget):
 
         # Scale segment length so the full arm (5 links) fills ~90 % of the
         # widget height, leaving room for the title at top and ground at bottom.
-        usable_h = h - 70   # subtract top title space + bottom ground space
+        usable_h = h - 70  # subtract top title space + bottom ground space
         seg = int(usable_h * 0.90 / len(_MOTORS_ORDERED))
         seg = max(seg, 40)
 
@@ -303,7 +324,7 @@ class ArmVizWidget(QWidget):
         cumul_dir = math.pi / 2.0
         x, y = bx, by
 
-        points = [(x, y)]   # joint positions
+        points = [(x, y)]  # joint positions
 
         for motor in _MOTORS_ORDERED:
             angle = self._angles.get(motor, 180.0)
@@ -320,7 +341,9 @@ class ArmVizWidget(QWidget):
             color = QColor(JOINT_COLORS[motor])
             x0, y0 = points[i]
             x1, y1 = points[i + 1]
-            pen = QPen(color, link_pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+            pen = QPen(
+                color, link_pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap
+            )
             p.setPen(pen)
             p.drawLine(QPointF(x0, y0), QPointF(x1, y1))
 
@@ -332,9 +355,9 @@ class ArmVizWidget(QWidget):
         # Small diamond
         es = self.EE_SIZE
         diamond = QPainterPath()
-        diamond.moveTo(ex,      ey - es)
+        diamond.moveTo(ex, ey - es)
         diamond.lineTo(ex + es, ey)
-        diamond.lineTo(ex,      ey + es)
+        diamond.lineTo(ex, ey + es)
         diamond.lineTo(ex - es, ey)
         diamond.closeSubpath()
         p.setBrush(QBrush(ee_color.darker(180)))
@@ -403,7 +426,14 @@ class ArmWindow(QMainWindow):
         if not _logo_px.isNull():
             logo_lbl = QLabel()
             logo_lbl.setStyleSheet("background: transparent;")
-            logo_lbl.setPixmap(_logo_px.scaled(56, 56, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            logo_lbl.setPixmap(
+                _logo_px.scaled(
+                    56,
+                    56,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
             h_layout.addWidget(logo_lbl)
 
         rti_lbl = QLabel("RTI Connext")
@@ -478,11 +508,11 @@ class ArmWindow(QMainWindow):
 class ArmApp:
     def __init__(self):
         self.angles = {
-            SurgicalRobot.Motors.BASE:     204.0,
+            SurgicalRobot.Motors.BASE: 204.0,
             SurgicalRobot.Motors.SHOULDER: 176.0,
-            SurgicalRobot.Motors.ELBOW:    156.0,
-            SurgicalRobot.Motors.WRIST:    165.0,
-            SurgicalRobot.Motors.HAND:     151.0,
+            SurgicalRobot.Motors.ELBOW: 156.0,
+            SurgicalRobot.Motors.WRIST: 165.0,
+            SurgicalRobot.Motors.HAND: 151.0,
         }
         self.directions = {
             SurgicalRobot.Motors.BASE: "STATIONARY",
@@ -492,13 +522,13 @@ class ArmApp:
             SurgicalRobot.Motors.HAND: "STATIONARY",
         }
 
-        self.arm_status        = None
-        self.status_writer     = None
-        self.hb_writer         = None
+        self.arm_status = None
+        self.status_writer = None
+        self.hb_writer = None
         self.motor_control_reader = None
-        self.cmd_reader        = None
-        self.window            = None
-        self.cmd_waitset       = None
+        self.cmd_reader = None
+        self.window = None
+        self.cmd_waitset = None
 
     # ── DDS heartbeat thread ─────────────────────────────────────────
     def write_hb(self, hb_writer):
@@ -561,9 +591,7 @@ class ArmApp:
         self.status_writer = dds.DataWriter(
             participant.find_datawriter(entities.STATUS_DW)
         )
-        self.hb_writer = dds.DataWriter(
-            participant.find_datawriter(entities.HB_DW)
-        )
+        self.hb_writer = dds.DataWriter(participant.find_datawriter(entities.HB_DW))
         self.arm_status = Common.DeviceStatus(
             device=Common.DeviceType.ARM, status=Common.DeviceStatuses.ON
         )
@@ -618,4 +646,3 @@ class ArmApp:
 if __name__ == "__main__":
     arm = ArmApp()
     arm.run()
-

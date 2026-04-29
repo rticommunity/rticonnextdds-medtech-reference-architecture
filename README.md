@@ -233,7 +233,7 @@ The hierarchy of the components configured in a Domain are as follows:
 Domain → Domain ID
 ├── Type Name → Data Type
 └── Topic → Type Name
- 
+
 Legend:
  → references
 ```

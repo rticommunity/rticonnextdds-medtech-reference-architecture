@@ -54,41 +54,74 @@ TRUSTED_IDENTITY_CA = CA(name="TrustedIdentityCa", issuer=TRUSTED_ROOT_CA)
 OPERATIONAL_DOMAIN = DomainScope(
     name="OperationalDomain",
     governance=Governance(
-        name="OperationalDomain", issuer=TRUSTED_PERMISSIONS_CA,
+        name="OperationalDomain",
+        issuer=TRUSTED_PERMISSIONS_CA,
         # Explicitly NONE: the reference architecture does not protect
         # discovery or liveliness metadata (RTPS payload is encrypted).
         discovery_protection_kind="NONE",
         liveliness_protection_kind="NONE",
     ),
     permissions=[
-        Permissions(name="Arm", issuer=TRUSTED_PERMISSIONS_CA,
-                    publish_topics=["t/DeviceStatus", "t/DeviceHeartbeat",
-                                    "DDS:Security:LogTopicV2"],
-                    subscribe_topics=["t/MotorControl", "t/DeviceCommand"]),
-        Permissions(name="ArmController", issuer=TRUSTED_PERMISSIONS_CA,
-                    publish_topics=["t/MotorControl", "t/DeviceStatus",
-                                    "t/DeviceHeartbeat",
-                                    "DDS:Security:LogTopicV2"],
-                    subscribe_topics=["t/DeviceCommand"]),
-        Permissions(name="Orchestrator", issuer=TRUSTED_PERMISSIONS_CA,
-                    publish_topics=["t/DeviceCommand",
-                                    "DDS:Security:LogTopicV2"],
-                    subscribe_topics=["t/DeviceStatus", "t/DeviceHeartbeat"]),
-        Permissions(name="PatientMonitor", issuer=TRUSTED_PERMISSIONS_CA,
-                    publish_topics=["t/DeviceStatus", "t/DeviceHeartbeat",
-                                    "DDS:Security:LogTopicV2"],
-                    subscribe_topics=["t/DeviceCommand", "t/Vitals"]),
-        Permissions(name="PatientSensor", issuer=TRUSTED_PERMISSIONS_CA,
-                    publish_topics=["t/Vitals", "t/DeviceStatus",
-                                    "t/DeviceHeartbeat",
-                                    "DDS:Security:LogTopicV2"],
-                    subscribe_topics=["t/DeviceCommand"]),
-        Permissions(name="SecureLogReader", issuer=TRUSTED_PERMISSIONS_CA,
-                    publish_topics=[],
-                    subscribe_topics=["DDS:Security:LogTopicV2"]),
-        Permissions(name="Test", issuer=TRUSTED_PERMISSIONS_CA,
-                    publish_topics=[],
-                    subscribe_topics=["t/Vitals", "t/DeviceStatus"]),
+        Permissions(
+            name="Arm",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=[
+                "t/DeviceStatus",
+                "t/DeviceHeartbeat",
+                "DDS:Security:LogTopicV2",
+            ],
+            subscribe_topics=["t/MotorControl", "t/DeviceCommand"],
+        ),
+        Permissions(
+            name="ArmController",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=[
+                "t/MotorControl",
+                "t/DeviceStatus",
+                "t/DeviceHeartbeat",
+                "DDS:Security:LogTopicV2",
+            ],
+            subscribe_topics=["t/DeviceCommand"],
+        ),
+        Permissions(
+            name="Orchestrator",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=["t/DeviceCommand", "DDS:Security:LogTopicV2"],
+            subscribe_topics=["t/DeviceStatus", "t/DeviceHeartbeat"],
+        ),
+        Permissions(
+            name="PatientMonitor",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=[
+                "t/DeviceStatus",
+                "t/DeviceHeartbeat",
+                "DDS:Security:LogTopicV2",
+            ],
+            subscribe_topics=["t/DeviceCommand", "t/Vitals"],
+        ),
+        Permissions(
+            name="PatientSensor",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=[
+                "t/Vitals",
+                "t/DeviceStatus",
+                "t/DeviceHeartbeat",
+                "DDS:Security:LogTopicV2",
+            ],
+            subscribe_topics=["t/DeviceCommand"],
+        ),
+        Permissions(
+            name="SecureLogReader",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=[],
+            subscribe_topics=["DDS:Security:LogTopicV2"],
+        ),
+        Permissions(
+            name="Test",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=[],
+            subscribe_topics=["t/Vitals", "t/DeviceStatus"],
+        ),
         Permissions(name="RecordingService", issuer=TRUSTED_PERMISSIONS_CA),
         Permissions(name="ReplayService", issuer=TRUSTED_PERMISSIONS_CA),
         Permissions(name="RsActiveLan", issuer=TRUSTED_PERMISSIONS_CA),
@@ -99,14 +132,15 @@ OPERATIONAL_DOMAIN = DomainScope(
 TELEOP_WAN_DOMAIN = DomainScope(
     name="TeleopWanDomain",
     governance=Governance(
-        name="TeleopWanDomain", issuer=TRUSTED_PERMISSIONS_CA,
+        name="TeleopWanDomain",
+        issuer=TRUSTED_PERMISSIONS_CA,
         discovery_protection_kind="NONE",
         liveliness_protection_kind="NONE",
     ),
     permissions=[
-        Permissions(name="RsActiveWan",  issuer=TRUSTED_PERMISSIONS_CA),
+        Permissions(name="RsActiveWan", issuer=TRUSTED_PERMISSIONS_CA),
         Permissions(name="RsPassiveWan", issuer=TRUSTED_PERMISSIONS_CA),
-        Permissions(name="RsCloudWan",   issuer=TRUSTED_PERMISSIONS_CA),
+        Permissions(name="RsCloudWan", issuer=TRUSTED_PERMISSIONS_CA),
     ],
     psk_seeds=[
         # PSK seed for the WAN (TeleopWanDomain) domain.
@@ -124,45 +158,69 @@ TELEOP_WAN_DOMAIN = DomainScope(
 OPERATING_ROOM = Module(
     name="operating-room",
     apps=[
-        App(name="Arm",
-            identities=[Identity(name="Arm",             issuer=TRUSTED_IDENTITY_CA)]),
-        App(name="ArmController",
-            identities=[Identity(name="ArmController",   issuer=TRUSTED_IDENTITY_CA)]),
-        App(name="Orchestrator",
-            identities=[Identity(name="Orchestrator",    issuer=TRUSTED_IDENTITY_CA),
-                        Identity(name="SecureLogReader", issuer=TRUSTED_IDENTITY_CA)]),
-        App(name="PatientMonitor",
-            identities=[Identity(name="PatientMonitor",  issuer=TRUSTED_IDENTITY_CA)]),
-        App(name="PatientSensor",
-            identities=[Identity(name="PatientSensor",   issuer=TRUSTED_IDENTITY_CA)]),
-        App(name="Test",
-            identities=[Identity(name="Test",            issuer=TRUSTED_IDENTITY_CA)]),
+        App(name="Arm", identities=[Identity(name="Arm", issuer=TRUSTED_IDENTITY_CA)]),
+        App(
+            name="ArmController",
+            identities=[Identity(name="ArmController", issuer=TRUSTED_IDENTITY_CA)],
+        ),
+        App(
+            name="Orchestrator",
+            identities=[
+                Identity(name="Orchestrator", issuer=TRUSTED_IDENTITY_CA),
+                Identity(name="SecureLogReader", issuer=TRUSTED_IDENTITY_CA),
+            ],
+        ),
+        App(
+            name="PatientMonitor",
+            identities=[Identity(name="PatientMonitor", issuer=TRUSTED_IDENTITY_CA)],
+        ),
+        App(
+            name="PatientSensor",
+            identities=[Identity(name="PatientSensor", issuer=TRUSTED_IDENTITY_CA)],
+        ),
+        App(
+            name="Test", identities=[Identity(name="Test", issuer=TRUSTED_IDENTITY_CA)]
+        ),
     ],
 )
 
 RECORD_PLAYBACK = Module(
     name="record-playback",
     apps=[
-        App(name="RecordingService",
-            identities=[Identity(name="RecordingService", issuer=TRUSTED_IDENTITY_CA)]),
-        App(name="ReplayService",
-            identities=[Identity(name="ReplayService",    issuer=TRUSTED_IDENTITY_CA)]),
+        App(
+            name="RecordingService",
+            identities=[Identity(name="RecordingService", issuer=TRUSTED_IDENTITY_CA)],
+        ),
+        App(
+            name="ReplayService",
+            identities=[Identity(name="ReplayService", issuer=TRUSTED_IDENTITY_CA)],
+        ),
     ],
 )
 
 REMOTE_TELEOP = Module(
     name="remote-teleop",
     apps=[
-        App(name="RsActiveLan",
-            identities=[Identity(name="RsActiveLan",  issuer=TRUSTED_IDENTITY_CA)]),
-        App(name="RsActiveWan",
-            identities=[Identity(name="RsActiveWan",  issuer=TRUSTED_IDENTITY_CA)]),
-        App(name="RsPassiveLan",
-            identities=[Identity(name="RsPassiveLan", issuer=TRUSTED_IDENTITY_CA)]),
-        App(name="RsPassiveWan",
-            identities=[Identity(name="RsPassiveWan", issuer=TRUSTED_IDENTITY_CA)]),
-        App(name="RsCloudWan",
-            identities=[Identity(name="RsCloudWan",   issuer=TRUSTED_IDENTITY_CA)]),
+        App(
+            name="RsActiveLan",
+            identities=[Identity(name="RsActiveLan", issuer=TRUSTED_IDENTITY_CA)],
+        ),
+        App(
+            name="RsActiveWan",
+            identities=[Identity(name="RsActiveWan", issuer=TRUSTED_IDENTITY_CA)],
+        ),
+        App(
+            name="RsPassiveLan",
+            identities=[Identity(name="RsPassiveLan", issuer=TRUSTED_IDENTITY_CA)],
+        ),
+        App(
+            name="RsPassiveWan",
+            identities=[Identity(name="RsPassiveWan", issuer=TRUSTED_IDENTITY_CA)],
+        ),
+        App(
+            name="RsCloudWan",
+            identities=[Identity(name="RsCloudWan", issuer=TRUSTED_IDENTITY_CA)],
+        ),
     ],
 )
 
@@ -171,7 +229,11 @@ REMOTE_TELEOP = Module(
 # ---------------------------------------------------------------------------
 
 SECURITY_TREE = SecurityTree(
-    certificate_authorities=[TRUSTED_ROOT_CA, TRUSTED_PERMISSIONS_CA, TRUSTED_IDENTITY_CA],
+    certificate_authorities=[
+        TRUSTED_ROOT_CA,
+        TRUSTED_PERMISSIONS_CA,
+        TRUSTED_IDENTITY_CA,
+    ],
     domain_scopes=[OPERATIONAL_DOMAIN, TELEOP_WAN_DOMAIN],
     modules=[OPERATING_ROOM, RECORD_PLAYBACK, REMOTE_TELEOP],
     org_name="Company Name",
@@ -183,22 +245,44 @@ SECURITY_TREE = SecurityTree(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate DDS Security artifacts for the reference architecture.")
-    parser.add_argument("--scaffold", action="store_true",
-                        help="(Maintainer-only) Scaffold the directory tree from templates.")
-    parser.add_argument("--force", action="store_true",
-                        help="Re-generate artifacts even if they already exist.")
-    parser.add_argument("--strict", action="store_true",
-                        help="Promote warnings to fatal errors.")
-    parser.add_argument("--status", action="store_true",
-                        help="Report certificate expiry status and exit.")
-    parser.add_argument("--warn-days", type=int, default=30,
-                        help="Days-to-expiry warning threshold for --status (default: 30).")
-    parser.add_argument("-v", "--verbose", action="count", default=0,
-                        help="Increase logging verbosity (-v=INFO, -vv=DEBUG).")
-    parser.add_argument("--connext-version",
-                        help="Override Connext version (e.g. '7.5.0'). "
-                             "Auto-detected from rti.connextdds if not set.")
+        description="Generate DDS Security artifacts for the reference architecture."
+    )
+    parser.add_argument(
+        "--scaffold",
+        action="store_true",
+        help="(Maintainer-only) Scaffold the directory tree from templates.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-generate artifacts even if they already exist.",
+    )
+    parser.add_argument(
+        "--strict", action="store_true", help="Promote warnings to fatal errors."
+    )
+    parser.add_argument(
+        "--status",
+        action="store_true",
+        help="Report certificate expiry status and exit.",
+    )
+    parser.add_argument(
+        "--warn-days",
+        type=int,
+        default=30,
+        help="Days-to-expiry warning threshold for --status (default: 30).",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Increase logging verbosity (-v=INFO, -vv=DEBUG).",
+    )
+    parser.add_argument(
+        "--connext-version",
+        help="Override Connext version (e.g. '7.5.0'). "
+        "Auto-detected from rti.connextdds if not set.",
+    )
     args = parser.parse_args()
 
     level = (logging.WARNING, logging.INFO, logging.DEBUG)[min(args.verbose, 2)]
@@ -206,14 +290,15 @@ def main():
 
     if args.connext_version:
         SECURITY_TREE.connext_version = tuple(
-            int(x) for x in args.connext_version.split("."))
+            int(x) for x in args.connext_version.split(".")
+        )
     else:
         detected = detect_connext_version()
         if detected:
             SECURITY_TREE.connext_version = detected
             logging.getLogger(__name__).info(
-                "Detected Connext version: %s",
-                ".".join(str(x) for x in detected))
+                "Detected Connext version: %s", ".".join(str(x) for x in detected)
+            )
 
     if args.status:
         SECURITY_TREE.check_status(root=SECURITY_DIR, warn_days=args.warn_days)
@@ -222,7 +307,8 @@ def main():
         print(f"Security directory tree scaffolded under {SECURITY_DIR}")
     else:
         SECURITY_TREE.generate_artifacts(
-            root=SECURITY_DIR, force=args.force, strict=args.strict)
+            root=SECURITY_DIR, force=args.force, strict=args.strict
+        )
         print("Security artifacts generated!")
 
 

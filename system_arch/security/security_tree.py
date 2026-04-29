@@ -43,6 +43,7 @@ def detect_connext_version() -> tuple[int, ...] | None:
     """
     try:
         import rti.connextdds as dds
+
         v = dds.ProductVersion.current
         return (v.major_version, v.minor_version, v.release_version)
     except Exception:
@@ -64,9 +65,9 @@ def _version_str(version: tuple[int, ...] | None) -> str:
 @dataclass
 class CA:
     name: str
-    issuer: Optional['CA'] = None
+    issuer: Optional["CA"] = None
     path: Optional[Path] = None
-    alternatives: list['CA'] = field(default_factory=list)
+    alternatives: list["CA"] = field(default_factory=list)
 
     @property
     def self_signed(self) -> bool:
@@ -76,6 +77,7 @@ class CA:
 @dataclass
 class TopicRule:
     """A single ``<topic_rule>`` entry in a DDS governance document."""
+
     topic_expression: str
     enable_discovery_protection: bool = False
     enable_liveliness_protection: bool = False
@@ -89,24 +91,26 @@ class TopicRule:
 class Governance:
     name: str
     issuer: CA
-    template: Optional[Path] = None       # override default governance.xml.j2
+    template: Optional[Path] = None  # override default governance.xml.j2
     domain_id_min: int = 0
-    domain_id_max: Optional[int] = None   # None = no upper bound
+    domain_id_max: Optional[int] = None  # None = no upper bound
     allow_unauthenticated_participants: bool = False
     enable_join_access_control: bool = True
     discovery_protection_kind: str = "SIGN"
     liveliness_protection_kind: str = "SIGN"
     rtps_protection_kind: str = "ENCRYPT"
     enable_key_revision: bool = True
-    topic_rules: list[TopicRule] = field(default_factory=lambda: [
-        TopicRule(topic_expression="*"),
-        TopicRule(
-            topic_expression="DDS:Security:LogTopicV2",
-            enable_write_access_control=False,
-            metadata_protection_kind="SIGN",
-            data_protection_kind="ENCRYPT",
-        ),
-    ])
+    topic_rules: list[TopicRule] = field(
+        default_factory=lambda: [
+            TopicRule(topic_expression="*"),
+            TopicRule(
+                topic_expression="DDS:Security:LogTopicV2",
+                enable_write_access_control=False,
+                metadata_protection_kind="SIGN",
+                data_protection_kind="ENCRYPT",
+            ),
+        ]
+    )
 
 
 @dataclass
@@ -119,21 +123,26 @@ class Permissions:
     permissions XML.  Connext 7.x enforces permissions expiration at runtime
     via the ``enable_key_revision`` governance setting.
     """
+
     name: str
     issuer: CA
-    grant_name: str = ""                  # defaults to f"{name}Participant" at scaffold time
+    grant_name: str = ""  # defaults to f"{name}Participant" at scaffold time
     domain_id: int = 0
     not_before: str = "2024-06-01T13:00:00"
     not_after: str = "2037-06-01T13:00:00"
-    publish_topics: list[str] = field(default_factory=lambda: [
-        "t/DeviceStatus",
-        "t/DeviceHeartbeat",
-        "DDS:Security:LogTopicV2",
-    ])
-    subscribe_topics: list[str] = field(default_factory=lambda: [
-        "t/MotorControl",
-        "t/DeviceCommand",
-    ])
+    publish_topics: list[str] = field(
+        default_factory=lambda: [
+            "t/DeviceStatus",
+            "t/DeviceHeartbeat",
+            "DDS:Security:LogTopicV2",
+        ]
+    )
+    subscribe_topics: list[str] = field(
+        default_factory=lambda: [
+            "t/MotorControl",
+            "t/DeviceCommand",
+        ]
+    )
     subject_name_expression: Optional[str] = None
     # When set, emits <subject_name_expression> (Connext >= 7.4.0, POSIX
     # fnmatch case-sensitive pattern) instead of the auto-generated
@@ -153,7 +162,7 @@ class DomainScope:
     name: str
     governance: Governance = None
     permissions: list[Permissions] = field(default_factory=list)
-    psk_seeds: list['PskSeed'] = field(default_factory=list)
+    psk_seeds: list["PskSeed"] = field(default_factory=list)
 
 
 @dataclass
@@ -208,6 +217,7 @@ class PskSeed:
                   Connext 7.3.x. Increment on every rotation; never reuse.
         length:   Seed length in characters (passed to :func:`generate_psk_seed`).
     """
+
     filename: str
     id: int = 0
     length: int = 64
@@ -272,13 +282,16 @@ class SecurityTree:
     def _permissions_dir(self, root: Path, scope_name: str, perm_name: str) -> Path:
         return root / "domain_scope" / scope_name / "permissions" / perm_name
 
-    def _identity_dir(self, root: Path, module_name: str, app_name: str, id_name: str) -> Path:
+    def _identity_dir(
+        self, root: Path, module_name: str, app_name: str, id_name: str
+    ) -> Path:
         return root / "identity" / module_name / app_name / id_name
 
     # -- Artifact generation ------------------------------------------------
 
-    def generate_artifacts(self, root: Path, force: bool = False,
-                           strict: bool = False) -> None:
+    def generate_artifacts(
+        self, root: Path, force: bool = False, strict: bool = False
+    ) -> None:
         """Generate all keys, certificates, and signed XML files.
 
         Args:
@@ -378,10 +391,7 @@ class SecurityTree:
             """Validation B: check prerequisite files exist."""
             cnf = _ca_cnf(ca_def)
             if not cnf.is_file():
-                _warn(
-                    f"CA config not found: {cnf} — "
-                    "did you run --scaffold first?"
-                )
+                _warn(f"CA config not found: {cnf} — did you run --scaffold first?")
 
         def _check_key_perms(key_path: Path) -> None:
             """Validation C: warn if key file permissions are too open."""
@@ -394,8 +404,9 @@ class SecurityTree:
                         f"Run: chmod 600 {key_path}"
                     )
 
-        def _check_cert_validity(cert_path: Path, label: str,
-                                 issuer_cert: Path | None = None) -> None:
+        def _check_cert_validity(
+            cert_path: Path, label: str, issuer_cert: Path | None = None
+        ) -> None:
             """Validations D and #4: expired cert and leaf-outlives-CA."""
             try:
                 not_before, not_after = extract_cert_dates(cert_path)
@@ -403,8 +414,10 @@ class SecurityTree:
                 return
             now = datetime.now(timezone.utc)
             if not_after <= now:
-                _warn(f"{label} cert {cert_path.name} has already expired "
-                      f"(Not After: {not_after.isoformat()}).")
+                _warn(
+                    f"{label} cert {cert_path.name} has already expired "
+                    f"(Not After: {not_after.isoformat()})."
+                )
             if issuer_cert and issuer_cert.is_file():
                 try:
                     _, issuer_not_after = extract_cert_dates(issuer_cert)
@@ -428,7 +441,9 @@ class SecurityTree:
 
             if ca_def.self_signed:
                 cert = generate_root_ca(
-                    _ca_key(ca_def), _ca_cnf(ca_def), _ca_cert(ca_def),
+                    _ca_key(ca_def),
+                    _ca_cnf(ca_def),
+                    _ca_cert(ca_def),
                     force=force,
                 )
                 _check_cert_validity(cert, f"Root CA '{ca_def.name}'")
@@ -436,7 +451,8 @@ class SecurityTree:
                 issuer_cert = _resolve_ca(ca_def.issuer)
                 issuer_dir = self._ca_dir(root, ca_def.issuer)
                 cert = generate_intermediate_ca(
-                    _ca_key(ca_def), _ca_cnf(ca_def),
+                    _ca_key(ca_def),
+                    _ca_cnf(ca_def),
                     _ca_cert(ca_def, ca_def.issuer),
                     issuer_cnf=_ca_cnf(ca_def.issuer),
                     issuer_key=_ca_key(ca_def.issuer),
@@ -445,8 +461,9 @@ class SecurityTree:
                     days=CA_CERT_VALIDITY_DAYS,
                     force=force,
                 )
-                _check_cert_validity(cert, f"Intermediate CA '{ca_def.name}'",
-                                     issuer_cert)
+                _check_cert_validity(
+                    cert, f"Intermediate CA '{ca_def.name}'", issuer_cert
+                )
 
             ca_cert_cache[ca_def.name] = cert
 
@@ -454,13 +471,18 @@ class SecurityTree:
             ca_dir = self._ca_dir(root, ca_def)
             crl_path = ca_dir / "certs" / ca_def.name / f"{ca_def.name}.crl"
             generate_crl(
-                _ca_cnf(ca_def), _ca_key(ca_def), cert, crl_path,
+                _ca_cnf(ca_def),
+                _ca_key(ca_def),
+                cert,
+                crl_path,
                 cwd=ca_dir,
             )
 
             # Generate alternative CA bundle if alternatives are defined (#9)
             if ca_def.alternatives:
-                bundle_path = ca_dir / "certs" / ca_def.name / f"{ca_def.name}-bundle.pem"
+                bundle_path = (
+                    ca_dir / "certs" / ca_def.name / f"{ca_def.name}-bundle.pem"
+                )
                 parts = [cert.read_text()]
                 for alt in ca_def.alternatives:
                     alt_cert = _resolve_ca(alt)
@@ -490,7 +512,8 @@ class SecurityTree:
                 )
 
             sign_governance(
-                perm_ca_key, perm_ca_cert,
+                perm_ca_key,
+                perm_ca_cert,
                 gov_xml,
                 gov_dir / "signed" / gov.issuer.name / f"{gov.name}.p7s",
                 force=force,
@@ -510,7 +533,8 @@ class SecurityTree:
                     )
 
                 sign_permissions(
-                    p_ca_key, p_ca_cert,
+                    p_ca_key,
+                    p_ca_cert,
                     perm_xml,
                     perm_dir / "signed" / perm.issuer.name / f"{perm.name}.p7s",
                     force=force,
@@ -534,13 +558,16 @@ class SecurityTree:
             for app in module.apps:
                 for identity in app.identities:
                     id_dir = self._identity_dir(
-                        root, module.name, app.name, identity.name)
+                        root, module.name, app.name, identity.name
+                    )
                     id_ca_dir = self._ca_dir(root, identity.issuer)
                     id_ca_cert = _resolve_ca(identity.issuer)
 
                     id_cnf = id_dir / f"{identity.name}.cnf"
                     id_key = id_dir / "private" / f"{identity.name}.key"
-                    id_cert = id_dir / "certs" / identity.issuer.name / f"{identity.name}.crt"
+                    id_cert = (
+                        id_dir / "certs" / identity.issuer.name / f"{identity.name}.crt"
+                    )
 
                     # Validation B: check identity CNF exists
                     if not id_cnf.is_file():
@@ -552,7 +579,9 @@ class SecurityTree:
                     _check_key_perms(id_key)
 
                     generate_identity(
-                        id_key, id_cnf, id_cert,
+                        id_key,
+                        id_cnf,
+                        id_cert,
                         issuer_cnf=_ca_cnf(identity.issuer),
                         issuer_key=_ca_key(identity.issuer),
                         issuer_cert=id_ca_cert,
@@ -569,23 +598,32 @@ class SecurityTree:
 
                     # Validation #1: subject name mismatch
                     self._validate_subject_name(
-                        root, identity, module, app, _warn,
+                        root,
+                        identity,
+                        module,
+                        app,
+                        _warn,
                     )
 
                     # Validation #5: permissions vs cert validity
                     self._validate_permissions_validity(
-                        root, identity, module, app, id_cert, _warn,
+                        root,
+                        identity,
+                        module,
+                        app,
+                        id_cert,
+                        _warn,
                     )
 
         _check_strict()
 
     # -- Validation helpers -------------------------------------------------
 
-    def _validate_subject_name(self, root: Path, identity, module, app,
-                               warn_fn) -> None:
+    def _validate_subject_name(
+        self, root: Path, identity, module, app, warn_fn
+    ) -> None:
         """#1: Compare live cert DN against committed permissions XML."""
-        id_dir = self._identity_dir(
-            root, module.name, app.name, identity.name)
+        id_dir = self._identity_dir(root, module.name, app.name, identity.name)
         cert_path = None
         # Find the cert under certs/<issuer>/
         certs_dir = id_dir / "certs"
@@ -642,8 +680,9 @@ class SecurityTree:
                                 f"{perm_xml.name}."
                             )
 
-    def _validate_permissions_validity(self, root: Path, identity, module, app,
-                                       cert_path: Path, warn_fn) -> None:
+    def _validate_permissions_validity(
+        self, root: Path, identity, module, app, cert_path: Path, warn_fn
+    ) -> None:
         """#5: Compare permissions not_after against cert Not After."""
         if not cert_path.is_file():
             return
@@ -659,8 +698,7 @@ class SecurityTree:
                 try:
                     perm_not_after = datetime.fromisoformat(perm.not_after)
                     if perm_not_after.tzinfo is None:
-                        perm_not_after = perm_not_after.replace(
-                            tzinfo=timezone.utc)
+                        perm_not_after = perm_not_after.replace(tzinfo=timezone.utc)
                 except ValueError:
                     continue
 
@@ -676,7 +714,8 @@ class SecurityTree:
                     log.info(
                         "Identity '%s' cert expires before permissions "
                         "(%s < %s) — expected (safer model).",
-                        perm.name, cert_not_after.isoformat(),
+                        perm.name,
+                        cert_not_after.isoformat(),
                         perm.not_after,
                     )
 
@@ -710,20 +749,20 @@ class SecurityTree:
             for app in module.apps:
                 for identity in app.identities:
                     id_dir = self._identity_dir(
-                        root, module.name, app.name, identity.name)
-                    cert = (id_dir / "certs" / identity.issuer.name
-                            / f"{identity.name}.crt")
+                        root, module.name, app.name, identity.name
+                    )
+                    cert = (
+                        id_dir / "certs" / identity.issuer.name / f"{identity.name}.crt"
+                    )
                     _check(f"Identity: {identity.name}", cert)
 
         # Sort by days remaining
         results.sort(key=lambda r: r[2])
         for label, cert, days_left in results:
             if days_left < 0:
-                log.error("EXPIRED (%d days ago): %s — %s",
-                          -days_left, label, cert)
+                log.error("EXPIRED (%d days ago): %s — %s", -days_left, label, cert)
             elif days_left <= warn_days:
-                log.warning("Expiring in %d days: %s — %s",
-                            days_left, label, cert)
+                log.warning("Expiring in %d days: %s — %s", days_left, label, cert)
             else:
                 log.info("%d days remaining: %s", days_left, label)
 
@@ -744,9 +783,12 @@ def _normalize_dn(dn: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def scaffold_tree(tree: SecurityTree, root: Path,
-                  templates_dir: Path | None = None,
-                  strict: bool = False) -> None:
+def scaffold_tree(
+    tree: SecurityTree,
+    root: Path,
+    templates_dir: Path | None = None,
+    strict: bool = False,
+) -> None:
     """Create the directory scaffold and expand Jinja2 templates.
 
     **Maintainer-only.** Run this once when adding new CAs, identities, or
@@ -768,6 +810,7 @@ def scaffold_tree(tree: SecurityTree, root: Path,
     def _safe_render(template: Path, dest: Path, context: dict) -> None:
         """Render with Validation A: warn if hand-edits would be overwritten."""
         import jinja2 as _j2
+
         env = _j2.Environment(
             undefined=_j2.StrictUndefined,
             trim_blocks=True,
@@ -780,7 +823,9 @@ def scaffold_tree(tree: SecurityTree, root: Path,
             if old_content != new_content:
                 log.warning(
                     "Overwriting %s — file differs from template output "
-                    "(local edits will be lost).", dest)
+                    "(local edits will be lost).",
+                    dest,
+                )
                 if strict:
                     warnings.append(f"Would overwrite hand-edited file: {dest}")
                     return
@@ -867,8 +912,7 @@ def scaffold_tree(tree: SecurityTree, root: Path,
     for module in tree.modules:
         for app in module.apps:
             for identity in app.identities:
-                id_dir = tree._identity_dir(
-                    root, module.name, app.name, identity.name)
+                id_dir = tree._identity_dir(root, module.name, app.name, identity.name)
                 scaffold_identity(
                     id_dir / f"{identity.name}.cnf",
                     subdirs=["private", "certs"],

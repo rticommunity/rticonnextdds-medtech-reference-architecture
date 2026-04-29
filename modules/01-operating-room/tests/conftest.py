@@ -27,7 +27,9 @@ import pytest
 
 # Make resource/python/ importable — the `scripts` package contains
 # module_runner (centralized since origin/main).
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python"))
+sys.path.insert(
+    0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python")
+)
 
 # Make src/ importable so tests can use generated Types module directly.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -81,7 +83,10 @@ def _security_plugin_available() -> bool:
         return False
     nddshome_path = Path(nddshome)
     has_plugin = bool(list(nddshome_path.glob("lib/*/libnddssecurity.*")))
-    has_openssl = any((arch / "release" / "lib").is_dir() for arch in nddshome_path.glob("third_party/openssl-*/*"))
+    has_openssl = any(
+        (arch / "release" / "lib").is_dir()
+        for arch in nddshome_path.glob("third_party/openssl-*/*")
+    )
     has_license = (nddshome_path / "rti_license.dat").is_file() and (
         (nddshome_path / "rti_license.dat").stat().st_size > 0
     )
@@ -168,7 +173,9 @@ class ProcessManager:
         self._children.append(proc)
         return proc
 
-    def start_app(self, name: str, extra_env: dict | None = None, **kwargs) -> subprocess.Popen:
+    def start_app(
+        self, name: str, extra_env: dict | None = None, **kwargs
+    ) -> subprocess.Popen:
         """Start an application by its module.json name."""
         cmd = self.apps[name]
         return self.start(cmd, extra_env=extra_env, **kwargs)
@@ -317,9 +324,13 @@ print(json.dumps(collected))
 
     # DDS security may print warnings to stdout after our JSON line.
     # Extract only lines that look like JSON arrays.
-    lines = [line for line in result.stdout.strip().splitlines() if line.startswith("[")]
+    lines = [
+        line for line in result.stdout.strip().splitlines() if line.startswith("[")
+    ]
     if not lines:
-        raise RuntimeError(f"No JSON output from secure subscriber.\nstdout: {result.stdout}\nstderr: {result.stderr}")
+        raise RuntimeError(
+            f"No JSON output from secure subscriber.\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        )
     return json.loads(lines[0])
 
 

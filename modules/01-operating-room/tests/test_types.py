@@ -111,7 +111,14 @@ class TestEnumMembers:
     def test_device_type_enum(self):
         from Types import Common
 
-        expected = {"ARM_CONTROLLER", "ARM", "VIDEO_PUB", "VIDEO_SUB", "PATIENT_MONITOR", "PATIENT_SENSOR"}
+        expected = {
+            "ARM_CONTROLLER",
+            "ARM",
+            "VIDEO_PUB",
+            "VIDEO_SUB",
+            "PATIENT_MONITOR",
+            "PATIENT_SENSOR",
+        }
         actual = {e.name for e in Common.DeviceType}
         assert expected <= actual
 

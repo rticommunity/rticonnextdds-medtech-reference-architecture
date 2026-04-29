@@ -49,12 +49,16 @@ def _resolve_module(
     modules = module_runner.discover_modules()
     module_dir = modules[module_name]
 
-    env, all_apps = module_runner.load_module_config(module_dir, flags={"security": security})
+    env, all_apps = module_runner.load_module_config(
+        module_dir, flags={"security": security}
+    )
 
     if app_names:
         for name in app_names:
             if name not in all_apps:
-                raise ValueError(f"Unknown app '{name}' in module '{module_name}'. Available: {', '.join(all_apps)}")
+                raise ValueError(
+                    f"Unknown app '{name}' in module '{module_name}'. Available: {', '.join(all_apps)}"
+                )
         commands = [all_apps[app] for app in app_names]
     else:
         commands = list(all_apps.values())
@@ -68,7 +72,9 @@ def _list_scenarios() -> None:
     max_name = max(len(name) for name in SCENARIOS)
     for name, spec in SCENARIOS.items():
         desc = spec.get("description", "")
-        modules_str = ", ".join(f"{m} ({', '.join(apps) if apps else 'all'})" for m, apps in spec["modules"])
+        modules_str = ", ".join(
+            f"{m} ({', '.join(apps) if apps else 'all'})" for m, apps in spec["modules"]
+        )
         print(f"  {name:<{max_name}}  {desc}")
         print(f"  {'':<{max_name}}  -> {modules_str}")
         print()
@@ -159,7 +165,9 @@ def main() -> None:
         module_runner.launch_multi(specs)
 
     elif args.module:
-        cmds, mod_dir, env = _resolve_module(args.module, args.apps or None, args.security)
+        cmds, mod_dir, env = _resolve_module(
+            args.module, args.apps or None, args.security
+        )
         app_label = ", ".join(args.apps) if args.apps else "all"
         print(f"Launching from {args.module}: {app_label}")
         module_runner.launch(cmds, mod_dir, env)

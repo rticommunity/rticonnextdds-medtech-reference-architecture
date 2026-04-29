@@ -27,7 +27,9 @@ from pathlib import Path
 import pytest
 
 # Reuse centralized scripts package for platform detection and module config
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python"))
+sys.path.insert(
+    0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python")
+)
 
 from scripts import module_runner
 
@@ -67,7 +69,9 @@ def pytest_collection_modifyitems(config, items):
     """Auto-skip all tests if Recording/Replay Service is not available."""
     if RECORDING_SERVICE and REPLAY_SERVICE:
         return
-    skip = pytest.mark.skip(reason="RTI Recording/Replay Service not found in NDDSHOME/bin/")
+    skip = pytest.mark.skip(
+        reason="RTI Recording/Replay Service not found in NDDSHOME/bin/"
+    )
     for item in items:
         item.add_marker(skip)
 
@@ -134,7 +138,9 @@ def wait_for_process_ready(proc, timeout_sec: float = 5.0):
 @pytest.fixture(scope="session")
 def dds_env():
     """Non-secure DDS environment configured from Module 01's module.json."""
-    env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": False})
+    env, apps = module_runner.load_module_config(
+        MODULE_01_DIR, flags={"security": False}
+    )
     return env, apps
 
 

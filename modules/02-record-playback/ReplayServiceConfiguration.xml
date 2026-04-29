@@ -21,7 +21,7 @@ inability to use the software. -->
             <enabled>true</enabled>
             <domain_id>99</domain_id>
         </administration>
-        
+
         <!--  Storage settings -->
         <storage>
             <sqlite>
@@ -74,7 +74,7 @@ inability to use the software. -->
                 <!-- Using the same QoS profile we use in our applications -->
                 <datawriter_qos base_name="DataFlowLibrary::Command"/>
             </topic>
-            
+
             <topic name="t/Vitals" participant_ref="reps/dp/OperationalData">
                 <topic_name>t/Vitals</topic_name>
                 <registered_type_name>PatientMonitor::Vitals</registered_type_name>

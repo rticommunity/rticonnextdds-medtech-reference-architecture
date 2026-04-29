@@ -48,11 +48,7 @@ SYSTEM_ARCH = PROJECT_ROOT / "system_arch"
 
 def discover_modules() -> dict[str, Path]:
     """Return ``{dirname: absolute_path}`` for every ``modules/*/`` directory."""
-    return {
-        p.name: p
-        for p in sorted(MODULES_DIR.iterdir())
-        if p.is_dir()
-    }
+    return {p.name: p for p in sorted(MODULES_DIR.iterdir()) if p.is_dir()}
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +88,7 @@ def _expand_string(
     module_dir: Path,
 ) -> str:
     """Expand all ``${...}`` placeholders in a string value."""
+
     def _replace(m: re.Match) -> str:
         kind = m.group(1)
         arg = m.group(2) or ""
@@ -176,9 +173,7 @@ def load_module_config(
     resolved_args = _resolve_args(args_section, flags)
 
     # Warn about flags that are set but not consumed by this module
-    consumed_flags = {
-        spec.get("flag", name) for name, spec in args_section.items()
-    }
+    consumed_flags = {spec.get("flag", name) for name, spec in args_section.items()}
     for flag_name, flag_value in flags.items():
         if flag_value and flag_name not in consumed_flags:
             print(
@@ -231,6 +226,7 @@ def load_module_config(
 # ---------------------------------------------------------------------------
 # Launch helpers
 # ---------------------------------------------------------------------------
+
 
 def _shutdown(children: list[subprocess.Popen]) -> None:
     """Gracefully terminate then kill all children."""

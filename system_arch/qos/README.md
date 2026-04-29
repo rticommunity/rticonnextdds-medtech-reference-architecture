@@ -37,8 +37,8 @@ QoS Profile
 ```text
 Tag: <qos_profile>
 
-Main attributes:  
-  name:             Must be unique within the QoS library. 
+Main attributes:
+  name:             Must be unique within the QoS library.
   base_name:        The QoS profile to inherit from, and use as a base.
 
 Subelements:
@@ -51,7 +51,7 @@ Subelements:
 ```text
 Tag: <domain_participant_qos> <publisher_qos> <subscriber_qos> <datawriter_qos> <datareader_qos>
 
-Main attributes:  
+Main attributes:
   name:           Must be unique within the QoS profile for the entity kind.
   base_name:      The QoS profile to inherit from, and use as a base.
   topic_filter:   A Topic name expression, such that this QoS is used for matching Topics.
@@ -115,14 +115,14 @@ It inherits from the *BuiltinQosLib::Pattern.Status* profile. As a result, this 
 - Some optimizations to make repairs faster.
 
 #### ***DataFlowLibrary::Command* profile**
-  
+
 This QoS profile is used for command and event-related Topics. These are Topics that transmit commands or trigger some action in the system. They are not sent periodically. They should not be delivered to late-joining applications that joined after being published.
 
 It inherits from the *BuiltinQosLib::Generic.Common* profile in addition to builtin QoS snippets. As a result, this QoS profile applies the following:
 
 - *RELIABLE* Reliability QoS. Samples should be repaired if lost because the frequency of commands is unkown and irregular.
 - *KEEP_LAST, depth=1* History QoS. In this simplified demonstration, only the last command for a system component should be processed by subscribing applications, or cached by DataWriters to repair as needed.
-- *VOLATILE* Durability QoS. Late-joining DataReaders should **not** receive historical commands that were published before they joined.  
+- *VOLATILE* Durability QoS. Late-joining DataReaders should **not** receive historical commands that were published before they joined.
 - Some optimizations to make repairs faster.
 
 *Note, this QoS profile is nearly identical to the *Status* QoS profile, but uses *VOLATILE* durability, since late-joining DataReaders should not receive historical commands.*

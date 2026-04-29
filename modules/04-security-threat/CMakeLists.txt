@@ -43,7 +43,7 @@ add_custom_target(threatTypesPy ALL
 )
 
 # Build object library with types
-add_library(threatTypes OBJECT 
+add_library(threatTypes OBJECT
     ${ThreatTypes_CXX11_GENERATED_SOURCES}
 )
 target_link_libraries(threatTypes

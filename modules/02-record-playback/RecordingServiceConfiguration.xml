@@ -55,7 +55,7 @@ inability to use the software. -->
                 <!-- Using the same QoS profile we use in our applications -->
                 <datareader_qos base_name="DataFlowLibrary::Command"/>
             </topic>
-            
+
             <topic name="t/Vitals" participant_ref="recs/dp/OperationalData">
                 <topic_name>t/Vitals</topic_name>
                 <registered_type_name>PatientMonitor::Vitals</registered_type_name>

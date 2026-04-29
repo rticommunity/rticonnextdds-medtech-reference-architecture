@@ -113,7 +113,7 @@ QoS Libraries group QoS Profiles and Snippets. QoS Libraries can contain one or 
 
 ##### QoS Profiles
 
-A QoS Profile defines a set of QoS policy values for DDS entities - DomainParticipant, Publisher, Subscriber, DataWriter, and DataReader.  
+A QoS Profile defines a set of QoS policy values for DDS entities - DomainParticipant, Publisher, Subscriber, DataWriter, and DataReader.
 
 Examples of QoS policies include:
 
@@ -173,12 +173,12 @@ The hierarchy of the components configured in a Domain are as follows:
 Domain → Domain ID
 ├── Type Name → Data Type
 └── Topic → Type Name
- 
+
 Legend:
  → references
 ```
 
-Domains and Topics are configured in XML via Domain Libraries and Domains.  
+Domains and Topics are configured in XML via Domain Libraries and Domains.
 
 *Note, Domains can be configured across one or multiple XML files and reference configuration content by name across files. Given that Connext applications load all relevant files, Connext interprets all files as one cohesive configuration.*
 
@@ -203,7 +203,7 @@ Domains offer the highest level of separation of data and visibility in Connext.
 
 Topics describe a channel for which Connext applications can selectively publish and subscribe to. A Topic is associated with a well-known Data Type.
 
-Endpoints (DataWriters and DataReaders) operating on a Topic require compatible QoS.  
+Endpoints (DataWriters and DataReaders) operating on a Topic require compatible QoS.
 
 *Note, that while configured Topics can have explicit Topic QoS associated, it is extremely rare to have a valid use case for doing so. In almost all cases, not referencing explicit Topic QoS and therefore using the default Topic QoS, is sufficient.*
 
@@ -312,9 +312,9 @@ When deciding how a Content Filter should be designed, consider:
 - Filter expressions and expression parameters are propagated to matching DataWriters upon discovery and modification of the Content Filter at runtime.
 - Filtering is optimized for filter expressions that evaluate only and all of the *keyed* Data Type field values.
 
-*Why filter data with Connext as opposed to in application logic?*  
+*Why filter data with Connext as opposed to in application logic?*
 
-- Connext can perform Writer-side filtering to significantly reduce resource usage, under [certain circumstances](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Where_Filtering_is_Applied.htm).  
+- Connext can perform Writer-side filtering to significantly reduce resource usage, under [certain circumstances](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Where_Filtering_is_Applied.htm).
 - If filtering on *keyed* Data Type field values, Connext optimizes filtering logic by caching filter results. This means DataReaders can skip the step of deserializing incoming data for instances known to fail filter evaluation.
 - DataReaders maintain a configurable cache of samples it receives. Data filtered by Connext will not be stored in the cache. This not only has resource usage implications but implications of data delivery when a full DataReader cache contains potentially unwanted data affects the DataReaders ability to receive relevant data.
 

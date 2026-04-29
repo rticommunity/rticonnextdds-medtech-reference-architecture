@@ -1,6 +1,6 @@
 # Module 02 — Test Suite
 
-Automated tests for the **Record & Playback** module.  
+Automated tests for the **Record & Playback** module.
 Tests verify that RTI Recording Service captures DDS data to a database
 and that RTI Replay Service re-publishes recorded samples.
 

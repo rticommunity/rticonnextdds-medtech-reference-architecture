@@ -45,7 +45,9 @@ class TestCMakeBuild:
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 0, f"CMake configure failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"CMake configure failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
 
     def test_cmake_build_succeeds(self):
         """cmake --build build/<arch> exits cleanly."""
@@ -54,7 +56,9 @@ class TestCMakeBuild:
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 0, f"CMake build failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"CMake build failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -65,7 +69,9 @@ class TestCMakeBuild:
 class TestModule01Binaries:
     """Module 01 C++ binaries should be produced by the build."""
 
-    @pytest.mark.parametrize("binary", ["PatientSensor", "Orchestrator", "ArmController"])
+    @pytest.mark.parametrize(
+        "binary", ["PatientSensor", "Orchestrator", "ArmController"]
+    )
     def test_binary_exists(self, binary: str):
         """Compiled C++ binary exists and can be located."""
         exe = platform_setup.find_executable(binary)

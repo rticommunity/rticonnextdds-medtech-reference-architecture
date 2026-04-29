@@ -97,7 +97,7 @@ add_custom_target(refArchTypesPy ALL
 )
 
 # Build object library with types
-add_library(refArchTypes OBJECT 
+add_library(refArchTypes OBJECT
     ${Types_CXX11_GENERATED_SOURCES}
     ${SECURITY_CXX_SOURCES}
 )

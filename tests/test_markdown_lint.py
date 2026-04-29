@@ -34,7 +34,10 @@ def _git_markdown_files() -> list[str]:
     files = []
     for p in PROJECT_ROOT.rglob("*.md"):
         # Skip if any path component is in exclude_patterns or is hidden
-        if not any(part in exclude_patterns or part.startswith(".") for part in p.relative_to(PROJECT_ROOT).parts):
+        if not any(
+            part in exclude_patterns or part.startswith(".")
+            for part in p.relative_to(PROJECT_ROOT).parts
+        ):
             files.append(str(p.relative_to(PROJECT_ROOT)))
     return sorted(files)
 
@@ -59,4 +62,6 @@ def test_markdownlint_clean() -> None:
         text=True,
     )
 
-    assert result.returncode == 0, f"markdownlint found violations:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    assert result.returncode == 0, (
+        f"markdownlint found violations:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    )

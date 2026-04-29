@@ -31,13 +31,13 @@ To leverage RTI XML-Based Application Creation, your application code simply ind
 
 Applications can be implemented via any supported Connext Professional API language, while ensuring adherence to the common system design expressed in XML.
 
-1. Register Types  
+1. Register Types
     To use generated Type-Support code (via [RTI Code Generator](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/code_generator/users_manual/code_generator/users_manual/UsersManual_Title.htm)), named *types* in the XML configuration must be registered with the DomainParticipant. This is necessary for the DomainParticipant to serialize and deserialize the data using the generated code.
 
     Documentation:
     - [Using User-Generated Types](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/UsingGeneratingTypes.htm#4.7.5_Using_User-Generated_Types)
 
-2. Load XML Configuration  
+2. Load XML Configuration
     One or multiple XML files should be loaded by an application to understand the complete configuration for a single DomainParticipant.
 
     In this reference architecture, it is recommended to use `NDDS_QOS_PROFILES` environment variable to point to the defined XML files.
@@ -55,7 +55,7 @@ Applications can be implemented via any supported Connext Professional API langu
     Documentation:
     - [Loading XML Configuration Files](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/LoadingXMLFiles.htm#4.2_Loading_XML_Configuration_Files)
 
-3. Create Defined DDS Entities  
+3. Create Defined DDS Entities
     DomainParticipants, and all underlying entities configured (Topics, Publishers, DataWriters, Subscribers, DataReaders), can be created with an API-specific implementation of the `create_participant_from_config()`.
 
     DomainParticipants are referred to by their fully-qualified name in configuration. Please see the referred documentation for more details.
@@ -75,7 +75,7 @@ Applications can be implemented via any supported Connext Professional API langu
     - [Creating and Retrieving Entities Configured in an XML File](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/CreatingEntities.htm)
     - [Referring to Entities and Other Elements within XML Files](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ReferringToEntitiesElements.htm#4.6.1_Referring_to_Entities_and_Other_Elements_within_XML_Files)
 
-4. Retrieve Created Entities by Name  
+4. Retrieve Created Entities by Name
     Commonly, configured named DDS entities must be retrieved for use (e.g. publishing to or subscribing to data) or preconfiguration before enabling (e.g. runtime QoS configuration).
 
     DDS entities can be retrieved by name via API-specific "find" or "lookup" functions. Entities are referred to by their fully-qualified name in configuration. Please see the referred documentation for entity-specifics.
@@ -106,7 +106,7 @@ The hierarchy of the components configured in a Domain are as follows:
 Domain → Domain ID
 ├── Type Name → Data Type
 └── Topic → Type Name
- 
+
 Legend:
  → references
 ```
@@ -116,8 +116,8 @@ Legend:
 ```text
 Tag: <domain>
 
-Attributes:  
-  name:             Must be unique within the Domain Library. 
+Attributes:
+  name:             Must be unique within the Domain Library.
   domain_id:        The Domain ID to use.
 
 Subelements:
@@ -130,7 +130,7 @@ Subelements:
 ```text
 Tag: <register_type>
 
-Attributes:  
+Attributes:
   name:       The Data Type's *registered* name, which Topics must reference.
               (see <topic> tag's 'register_type_ref' attribute in section 'Topic')
               It is common to reuse the 'type_ref' attribute value.
@@ -142,7 +142,7 @@ Attributes:
 ```text
 Tag: <topic>
 
-Attributes:  
+Attributes:
   name:               The Topic name, which DataWriters and DataReaders must reference.
   register_type_ref:  Must be the name of the *registered* Data Type name.
                       (see <register_type> tag's 'name' attribute in section 'Data Type')
@@ -220,12 +220,12 @@ Legend:
 ```text
 Tag: <domain_participant>
 
-Attributes:  
+Attributes:
   name:         Must be unique within the DomainParticipant Library.
-                Applications use the 'create_participant_from_config()' API with this name 
+                Applications use the 'create_participant_from_config()' API with this name
                 to create the DomainParticipant and all underlying entities in code.
   domain_ref:   A reference to the Domain defined in a Domain Library.
-                This DomainParticipant will use the Domain ID, Topics and Data Types defined 
+                This DomainParticipant will use the Domain ID, Topics and Data Types defined
                 in that Domain.
 
 Subelements:
@@ -254,11 +254,11 @@ Tag: <data_writer>
 
 Attributes:
   name:             Must be unique within the Publisher.
-                    Applications use a 'find_datawriter_by_name()' API with this name to 
+                    Applications use a 'find_datawriter_by_name()' API with this name to
                     retrieve DataWriters in code.
-  topic_ref:        A reference to the Topic defined in the Domain the DomainParticipant is 
+  topic_ref:        A reference to the Topic defined in the Domain the DomainParticipant is
                     configured to operate on.
-                    This DataWriter must use the Data Type the Topic is configured to use in 
+                    This DataWriter must use the Data Type the Topic is configured to use in
                     that Domain.
 
 Subelements:
@@ -285,11 +285,11 @@ Tag: <data_reader>
 
 Attributes:
   name:             Must be unique within the Subscriber.
-                    Applications use a 'find_datareader_by_name()' API with this name to 
+                    Applications use a 'find_datareader_by_name()' API with this name to
                     retrieve DataReaders in code.
-  topic_ref:        A reference to the Topic defined in the Domain the DomainParticipant is 
+  topic_ref:        A reference to the Topic defined in the Domain the DomainParticipant is
                     configured to operate on.
-                    This DataReader must use the Data Type the Topic is configured to use in 
+                    This DataReader must use the Data Type the Topic is configured to use in
                     that Domain.
 
 Subelements:
@@ -303,7 +303,7 @@ Subelements:
 Tag: <content_filter>
 
 Subelements:
-  <expression>:             Uses the name of the fields defined in the Data Type and the 
+  <expression>:             Uses the name of the fields defined in the Data Type and the
                             contents of the field data.
   <expression_parameters>:  Defines initial values for expression parameter references.
 ```

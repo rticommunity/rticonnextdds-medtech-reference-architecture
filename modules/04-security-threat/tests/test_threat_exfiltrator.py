@@ -91,7 +91,12 @@ print(json.dumps(result))
     # Parse only the last line — DDS may print log messages to stdout
     lines = [line for line in proc.stdout.strip().splitlines() if line.startswith("{")]
     if not lines:
-        return {"created": False, "matched": False, "received": 0, "error": "No JSON output"}
+        return {
+            "created": False,
+            "matched": False,
+            "received": 0,
+            "error": "No JSON output",
+        }
     return json.loads(lines[-1])
 
 
@@ -104,18 +109,24 @@ print(json.dumps(result))
 class TestExfiltratorUnsecure:
     """Exfiltrator should read vitals from unsecured OR apps."""
 
-    def test_unsecure_exfiltration_succeeds(self, or_pm_nonsecure, or_env_nonsecure, threat_env):
+    def test_unsecure_exfiltration_succeeds(
+        self, or_pm_nonsecure, or_env_nonsecure, threat_env
+    ):
         """Unsecured exfiltrator should receive vitals from unsecured OR apps."""
         ps = or_pm_nonsecure.start_app("PatientSensor")
         wait_for_process_ready(ps, timeout_sec=10)
-        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
+        assert ps.poll() is None, (
+            f"PatientSensor exited early with code {ps.returncode}"
+        )
 
         result = _run_exfiltrator_probe(
             threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/Unsecure",
         )
         assert result["created"], f"Participant creation failed: {result.get('error')}"
-        assert result["matched"], "Unsecured exfiltrator did not match unsecured OR apps"
+        assert result["matched"], (
+            "Unsecured exfiltrator did not match unsecured OR apps"
+        )
         assert result["received"] >= 1, "Exfiltrator received no vitals"
 
 
@@ -132,7 +143,9 @@ class TestExfiltratorSecure:
         bool(os.environ.get("CI")),
         reason="Transport-dependent: unsecured discovery of secured participant may not work on CI",
     )
-    def test_unsecure_exfiltrator_vs_secure_or(self, or_pm_secure, or_env_secure, threat_env):
+    def test_unsecure_exfiltrator_vs_secure_or(
+        self, or_pm_secure, or_env_secure, threat_env
+    ):
         """Unsecured exfiltrator against secured OR apps.
 
         Note: The governance uses data_protection_kind=NONE (only
@@ -147,7 +160,9 @@ class TestExfiltratorSecure:
         """
         ps = or_pm_secure.start_app("PatientSensor")
         wait_for_process_ready(ps, timeout_sec=15)
-        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
+        assert ps.poll() is None, (
+            f"PatientSensor exited early with code {ps.returncode}"
+        )
 
         result = _run_exfiltrator_probe(
             threat_env[0],
@@ -161,37 +176,53 @@ class TestExfiltratorSecure:
             "Unsecured exfiltrator should match secured OR on loopback (data_protection_kind=NONE in governance)"
         )
 
-    def test_rogue_ca_exfiltrator_blocked(self, or_pm_secure, or_env_secure, threat_env):
+    def test_rogue_ca_exfiltrator_blocked(
+        self, or_pm_secure, or_env_secure, threat_env
+    ):
         """Rogue CA exfiltrator should NOT receive vitals from secured OR apps."""
         ps = or_pm_secure.start_app("PatientSensor")
         wait_for_process_ready(ps, timeout_sec=15)
-        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
+        assert ps.poll() is None, (
+            f"PatientSensor exited early with code {ps.returncode}"
+        )
 
         result = _run_exfiltrator_probe(
             threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/RogueCA",
             timeout_sec=10,
         )
-        assert result["received"] == 0, "Rogue CA exfiltrator should NOT receive vitals from secured OR"
+        assert result["received"] == 0, (
+            "Rogue CA exfiltrator should NOT receive vitals from secured OR"
+        )
 
-    def test_forged_perms_exfiltrator_blocked(self, or_pm_secure, or_env_secure, threat_env):
+    def test_forged_perms_exfiltrator_blocked(
+        self, or_pm_secure, or_env_secure, threat_env
+    ):
         """Forged permissions exfiltrator should NOT receive vitals from secured OR apps."""
         ps = or_pm_secure.start_app("PatientSensor")
         wait_for_process_ready(ps, timeout_sec=15)
-        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
+        assert ps.poll() is None, (
+            f"PatientSensor exited early with code {ps.returncode}"
+        )
 
         result = _run_exfiltrator_probe(
             threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/ForgedPerms",
             timeout_sec=10,
         )
-        assert result["received"] == 0, "Forged permissions exfiltrator should NOT receive vitals from secured OR"
+        assert result["received"] == 0, (
+            "Forged permissions exfiltrator should NOT receive vitals from secured OR"
+        )
 
-    def test_expired_cert_exfiltrator_blocked(self, or_pm_secure, or_env_secure, threat_env):
+    def test_expired_cert_exfiltrator_blocked(
+        self, or_pm_secure, or_env_secure, threat_env
+    ):
         """Expired certificate exfiltrator should fail to create participant or receive data."""
         ps = or_pm_secure.start_app("PatientSensor")
         wait_for_process_ready(ps, timeout_sec=15)
-        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
+        assert ps.poll() is None, (
+            f"PatientSensor exited early with code {ps.returncode}"
+        )
 
         result = _run_exfiltrator_probe(
             threat_env[0],
@@ -200,5 +231,7 @@ class TestExfiltratorSecure:
         )
         # Expired cert typically causes participant creation failure
         if result["created"]:
-            assert result["received"] == 0, "Expired cert exfiltrator should NOT receive vitals from secured OR"
+            assert result["received"] == 0, (
+                "Expired cert exfiltrator should NOT receive vitals from secured OR"
+            )
         # If not created, that's also a valid block

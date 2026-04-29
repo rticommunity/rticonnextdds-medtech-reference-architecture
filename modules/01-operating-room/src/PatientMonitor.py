@@ -1,6 +1,6 @@
-# 
+#
 # (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
-# 
+#
 # RTI grants Licensee a license to use, modify, compile, and create derivative
 # works of the software solely for use with RTI Connext DDS.  Licensee may
 # redistribute copies of the software provided that all such copies are
@@ -17,8 +17,15 @@ import signal
 import numpy as np
 
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QLabel, QFrame,
-    QGridLayout, QHBoxLayout, QVBoxLayout, QSizePolicy
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QLabel,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QVBoxLayout,
+    QSizePolicy,
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QObject
 from PySide6.QtGui import QPixmap, QIcon
@@ -30,38 +37,38 @@ from Types import Common, PatientMonitor, Orchestrator, DdsEntities
 from DdsUtils import register_type
 
 # ─── RTI Brand Colors ───────────────────────────────────────────────────────
-RTI_BLUE   = "#004C97"
+RTI_BLUE = "#004C97"
 RTI_ORANGE = "#ED8B00"
-BG_MAIN    = "#0A0E17"   # Very dark navy
-BG_PANEL   = "#0F1822"   # Panel background
-BG_HEADER  = "#071020"   # Header strip
-BORDER_DIM = "#1A2A3A"   # Subtle panel borders
+BG_MAIN = "#0A0E17"  # Very dark navy
+BG_PANEL = "#0F1822"  # Panel background
+BG_HEADER = "#071020"  # Header strip
+BORDER_DIM = "#1A2A3A"  # Subtle panel borders
 
 # Per-vital colour scheme (matches real ICU monitors)
-COLOR_HR    = "#00E676"   # Bright green   – ECG
-COLOR_SPO2  = "#00B0FF"   # Cyan-blue      – SpO2 / plethysmograph
-COLOR_ETCO2 = "#FFD600"   # Amber-yellow   – Capnography
-COLOR_NIBP  = "#FF7043"   # Warm orange    – NiBP
+COLOR_HR = "#00E676"  # Bright green   – ECG
+COLOR_SPO2 = "#00B0FF"  # Cyan-blue      – SpO2 / plethysmograph
+COLOR_ETCO2 = "#FFD600"  # Amber-yellow   – Capnography
+COLOR_NIBP = "#FF7043"  # Warm orange    – NiBP
 
 # ─── Waveform generators ────────────────────────────────────────────────────
-SAMPLE_RATE = 200          # samples / second for waveform buffer
-DISPLAY_SECS = 6           # seconds visible in the strip
-BUFFER_LEN   = SAMPLE_RATE * DISPLAY_SECS
+SAMPLE_RATE = 200  # samples / second for waveform buffer
+DISPLAY_SECS = 6  # seconds visible in the strip
+BUFFER_LEN = SAMPLE_RATE * DISPLAY_SECS
 
 
 def _ecg_template(n_pts: int = SAMPLE_RATE) -> np.ndarray:
     """One beat of a synthetic PQRST waveform (normalised 0-1)."""
     t = np.linspace(0, 1, n_pts)
     # P wave
-    p = 0.15 * np.exp(-((t - 0.12) ** 2) / (2 * 0.008 ** 2))
+    p = 0.15 * np.exp(-((t - 0.12) ** 2) / (2 * 0.008**2))
     # Q dip
-    q = -0.08 * np.exp(-((t - 0.22) ** 2) / (2 * 0.004 ** 2))
+    q = -0.08 * np.exp(-((t - 0.22) ** 2) / (2 * 0.004**2))
     # R spike
-    r = 1.00 * np.exp(-((t - 0.26) ** 2) / (2 * 0.003 ** 2))
+    r = 1.00 * np.exp(-((t - 0.26) ** 2) / (2 * 0.003**2))
     # S dip
-    s = -0.15 * np.exp(-((t - 0.30) ** 2) / (2 * 0.004 ** 2))
+    s = -0.15 * np.exp(-((t - 0.30) ** 2) / (2 * 0.004**2))
     # T wave
-    tw = 0.30 * np.exp(-((t - 0.42) ** 2) / (2 * 0.015 ** 2))
+    tw = 0.30 * np.exp(-((t - 0.42) ** 2) / (2 * 0.015**2))
     return p + q + r + s + tw
 
 
@@ -69,9 +76,10 @@ def _pleth_template(n_pts: int = SAMPLE_RATE) -> np.ndarray:
     """One beat of a plethysmograph waveform (smooth hill)."""
     t = np.linspace(0, 1, n_pts)
     return np.clip(
-        np.exp(-((t - 0.35) ** 2) / (2 * 0.05 ** 2))
-        + 0.25 * np.exp(-((t - 0.55) ** 2) / (2 * 0.04 ** 2)),
-        0, 1
+        np.exp(-((t - 0.35) ** 2) / (2 * 0.05**2))
+        + 0.25 * np.exp(-((t - 0.55) ** 2) / (2 * 0.04**2)),
+        0,
+        1,
     )
 
 
@@ -80,9 +88,9 @@ def _capno_template(n_pts: int = SAMPLE_RATE) -> np.ndarray:
     t = np.linspace(0, 1, n_pts)
     # rise phase (0.3-0.6), plateau (0.6-0.85), fall (0.85-0.95)
     w = np.zeros(n_pts)
-    rise   = (t >= 0.30) & (t < 0.60)
-    plat   = (t >= 0.60) & (t < 0.85)
-    fall   = (t >= 0.85) & (t < 0.95)
+    rise = (t >= 0.30) & (t < 0.60)
+    plat = (t >= 0.60) & (t < 0.85)
+    fall = (t >= 0.85) & (t < 0.95)
     w[rise] = (t[rise] - 0.30) / 0.30
     w[plat] = 1.0
     w[fall] = 1.0 - (t[fall] - 0.85) / 0.10
@@ -91,17 +99,26 @@ def _capno_template(n_pts: int = SAMPLE_RATE) -> np.ndarray:
 
 # ─── DDS → Qt bridge ────────────────────────────────────────────────────────
 class DdsBridge(QObject):
-    vitals_received = Signal(float, float, float, float, float)  # hr, spo2, etco2, nibp_s, nibp_d
+    vitals_received = Signal(
+        float, float, float, float, float
+    )  # hr, spo2, etco2, nibp_s, nibp_d
     shutdown_received = Signal()
-    status_changed = Signal(str)   # "ON" / "PAUSED"
+    status_changed = Signal(str)  # "ON" / "PAUSED"
 
 
 # ─── Waveform strip panel ─────────────────────────────────────────────────
 class VitalPanel(QFrame):
     """A self-contained vital-signs panel: large numeric + scrolling waveform."""
 
-    def __init__(self, vital_name: str, unit: str, color: str,
-                 y_min: float, y_max: float, parent=None):
+    def __init__(
+        self,
+        vital_name: str,
+        unit: str,
+        color: str,
+        y_min: float,
+        y_max: float,
+        parent=None,
+    ):
         super().__init__(parent)
         self.vital_name = vital_name
         self.unit = unit
@@ -111,9 +128,9 @@ class VitalPanel(QFrame):
 
         # Waveform state
         self.buf = np.zeros(BUFFER_LEN)
-        self.buf_ptr = 0          # write pointer (circular)
-        self.phase = 0.0          # current beat phase (0–1)
-        self.beat_rate = 1.0      # beats per second (driven by live value)
+        self.buf_ptr = 0  # write pointer (circular)
+        self.phase = 0.0  # current beat phase (0–1)
+        self.beat_rate = 1.0  # beats per second (driven by live value)
         self.live_value = 0.0
         self.amplitude = 1.0
 
@@ -139,20 +156,28 @@ class VitalPanel(QFrame):
         top.setSpacing(0)
 
         name_lbl = QLabel(self.vital_name)
-        name_lbl.setStyleSheet(f"color: {self.color}; font-size: 20px; font-weight: bold; background: transparent;")
+        name_lbl.setStyleSheet(
+            f"color: {self.color}; font-size: 20px; font-weight: bold; background: transparent;"
+        )
         top.addWidget(name_lbl)
 
         top.addStretch()
 
         self.unit_lbl = QLabel(self.unit)
-        self.unit_lbl.setStyleSheet(f"color: {self.color}88; font-size: 16px; background: transparent;")
-        self.unit_lbl.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight)
+        self.unit_lbl.setStyleSheet(
+            f"color: {self.color}88; font-size: 16px; background: transparent;"
+        )
+        self.unit_lbl.setAlignment(
+            Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight
+        )
         top.addWidget(self.unit_lbl)
         root.addLayout(top)
 
         # ── Numeric value ─────────────────────────────────────────────
         self.value_lbl = QLabel("---")
-        self.value_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.value_lbl.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
         self.value_lbl.setStyleSheet(
             f"color: {self.color}; font-size: 54px; font-weight: bold; "
             f"font-family: 'Courier New', monospace; background: transparent; "
@@ -163,7 +188,9 @@ class VitalPanel(QFrame):
         # ── Waveform plot ─────────────────────────────────────────────
         self.plot_widget = pg.PlotWidget(background=BG_PANEL)
         self.plot_widget.setMinimumHeight(150)
-        self.plot_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.plot_widget.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         self.plot_widget.hideAxis("left")
         self.plot_widget.hideAxis("bottom")
         self.plot_widget.setMouseEnabled(x=False, y=False)
@@ -217,11 +244,15 @@ class NiBPPanel(QFrame):
 
         top = QHBoxLayout()
         name_lbl = QLabel("NiBP")
-        name_lbl.setStyleSheet(f"color: {COLOR_NIBP}; font-size: 20px; font-weight: bold; background: transparent;")
+        name_lbl.setStyleSheet(
+            f"color: {COLOR_NIBP}; font-size: 20px; font-weight: bold; background: transparent;"
+        )
         top.addWidget(name_lbl)
         top.addStretch()
         unit_lbl = QLabel("mmHg")
-        unit_lbl.setStyleSheet(f"color: {COLOR_NIBP}88; font-size: 16px; background: transparent;")
+        unit_lbl.setStyleSheet(
+            f"color: {COLOR_NIBP}88; font-size: 16px; background: transparent;"
+        )
         top.addWidget(unit_lbl)
         root.addLayout(top)
 
@@ -239,7 +270,9 @@ class NiBPPanel(QFrame):
         bp_row.addWidget(self.sys_lbl)
 
         sep = QLabel("/")
-        sep.setStyleSheet(f"color: {COLOR_NIBP}88; font-size: 42px; background: transparent;")
+        sep.setStyleSheet(
+            f"color: {COLOR_NIBP}88; font-size: 42px; background: transparent;"
+        )
         bp_row.addWidget(sep)
 
         self.dia_lbl = QLabel("---")
@@ -253,7 +286,9 @@ class NiBPPanel(QFrame):
         sub_row = QHBoxLayout()
         sub_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sub_lbl = QLabel("Systolic  /  Diastolic")
-        sub_lbl.setStyleSheet(f"color: {COLOR_NIBP}66; font-size: 20px; background: transparent;")
+        sub_lbl.setStyleSheet(
+            f"color: {COLOR_NIBP}66; font-size: 20px; background: transparent;"
+        )
         sub_row.addWidget(sub_lbl)
         root.addLayout(sub_row)
 
@@ -284,23 +319,23 @@ class PatientMonitorWindow(QMainWindow):
         self._apply_global_style()
 
         # ── Build vitals panels ──────────────────────────────────────
-        self.hr_panel    = VitalPanel("ECG / Heart Rate", "bpm",  COLOR_HR,    -0.2, 1.1)
-        self.spo2_panel  = VitalPanel("SpO₂",             "%",    COLOR_SPO2,  -0.1, 1.1)
-        self.etco2_panel = VitalPanel("EtCO₂",            "mmHg", COLOR_ETCO2, -0.1, 1.1)
-        self.nibp_panel  = NiBPPanel()
+        self.hr_panel = VitalPanel("ECG / Heart Rate", "bpm", COLOR_HR, -0.2, 1.1)
+        self.spo2_panel = VitalPanel("SpO₂", "%", COLOR_SPO2, -0.1, 1.1)
+        self.etco2_panel = VitalPanel("EtCO₂", "mmHg", COLOR_ETCO2, -0.1, 1.1)
+        self.nibp_panel = NiBPPanel()
 
         # Waveform templates (precomputed once)
-        self._ecg_tpl   = _ecg_template(SAMPLE_RATE)
+        self._ecg_tpl = _ecg_template(SAMPLE_RATE)
         self._pleth_tpl = _pleth_template(SAMPLE_RATE)
         self._capno_tpl = _capno_template(SAMPLE_RATE)
 
         # DDS-driven values
-        self._hr     = 60.0
-        self._spo2   = 98.0
-        self._etco2  = 38.0
+        self._hr = 60.0
+        self._spo2 = 98.0
+        self._etco2 = 38.0
         self._nibp_s = 120.0
         self._nibp_d = 80.0
-        self.paused  = False
+        self.paused = False
 
         # Frames per tick derived from timer interval
         self._timer_ms = 40
@@ -312,7 +347,7 @@ class PatientMonitorWindow(QMainWindow):
         # ── Animation timer ──────────────────────────────────────────
         self.anim_timer = QTimer(self)
         self.anim_timer.timeout.connect(self._tick)
-        self.anim_timer.start(self._timer_ms)    # 25 fps
+        self.anim_timer.start(self._timer_ms)  # 25 fps
 
     # ── Window icon ─────────────────────────────────────────────────
     def _set_icon(self):
@@ -342,7 +377,9 @@ class PatientMonitorWindow(QMainWindow):
         # ── Header bar ───────────────────────────────────────────────
         header = QWidget()
         header.setFixedHeight(80)
-        header.setStyleSheet(f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};")
+        header.setStyleSheet(
+            f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};"
+        )
         h_layout = QHBoxLayout(header)
         h_layout.setContentsMargins(20, 0, 20, 0)
 
@@ -350,11 +387,20 @@ class PatientMonitorWindow(QMainWindow):
         if not _logo_px.isNull():
             logo_lbl = QLabel()
             logo_lbl.setStyleSheet("background: transparent;")
-            logo_lbl.setPixmap(_logo_px.scaled(56, 56, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            logo_lbl.setPixmap(
+                _logo_px.scaled(
+                    56,
+                    56,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
             h_layout.addWidget(logo_lbl)
 
         rti_lbl = QLabel("RTI Connext")
-        rti_lbl.setStyleSheet(f"color: {RTI_BLUE}; font-size: 34px; font-weight: bold; background: transparent;")
+        rti_lbl.setStyleSheet(
+            f"color: {RTI_BLUE}; font-size: 34px; font-weight: bold; background: transparent;"
+        )
         h_layout.addWidget(rti_lbl)
 
         bar = QLabel("|")
@@ -362,13 +408,17 @@ class PatientMonitorWindow(QMainWindow):
         h_layout.addWidget(bar)
 
         title_lbl = QLabel("Patient Monitor")
-        title_lbl.setStyleSheet("color: #E0E8F0; font-size: 34px; font-weight: bold; background: transparent;")
+        title_lbl.setStyleSheet(
+            "color: #E0E8F0; font-size: 34px; font-weight: bold; background: transparent;"
+        )
         h_layout.addWidget(title_lbl)
 
         h_layout.addStretch()
 
         self.status_lbl = QLabel("● CONNECTED — Streaming QoS")
-        self.status_lbl.setStyleSheet(f"color: {COLOR_HR}; font-size: 20px; background: transparent;")
+        self.status_lbl.setStyleSheet(
+            f"color: {COLOR_HR}; font-size: 20px; background: transparent;"
+        )
         h_layout.addWidget(self.status_lbl)
 
         self.state_lbl = QLabel("ON")
@@ -387,10 +437,10 @@ class PatientMonitorWindow(QMainWindow):
         grid.setContentsMargins(12, 12, 12, 12)
         grid.setSpacing(10)
 
-        grid.addWidget(self.hr_panel,    0, 0)
-        grid.addWidget(self.spo2_panel,  0, 1)
+        grid.addWidget(self.hr_panel, 0, 0)
+        grid.addWidget(self.spo2_panel, 0, 1)
         grid.addWidget(self.etco2_panel, 1, 0)
-        grid.addWidget(self.nibp_panel,  1, 1)
+        grid.addWidget(self.nibp_panel, 1, 1)
 
         grid.setRowStretch(0, 1)
         grid.setRowStretch(1, 1)
@@ -402,10 +452,14 @@ class PatientMonitorWindow(QMainWindow):
         # ── Footer bar ────────────────────────────────────────────────
         footer = QWidget()
         footer.setFixedHeight(44)
-        footer.setStyleSheet(f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};")
+        footer.setStyleSheet(
+            f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};"
+        )
         f_layout = QHBoxLayout(footer)
         f_layout.setContentsMargins(20, 0, 20, 0)
-        f_lbl = QLabel("Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture")
+        f_lbl = QLabel(
+            "Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture"
+        )
         f_lbl.setStyleSheet("color: #445566; font-size: 20px; background: transparent;")
         f_layout.addWidget(f_lbl)
         f_layout.addStretch()
@@ -416,14 +470,14 @@ class PatientMonitorWindow(QMainWindow):
         if self.paused:
             return
         # ECG — rate driven by HR (beats per minute → bps)
-        self.hr_panel.beat_rate    = self._hr / 60.0
+        self.hr_panel.beat_rate = self._hr / 60.0
         # SpO2 — same rate as HR (plethysmograph synced to cardiac cycle)
-        self.spo2_panel.beat_rate  = self._hr / 60.0
+        self.spo2_panel.beat_rate = self._hr / 60.0
         # EtCO2 — respiratory rate ≈ HR/4, capped 8-30 breaths/min
         rr = max(8.0, min(30.0, self._hr / 4.0))
         self.etco2_panel.beat_rate = rr / 60.0
 
-        self.hr_panel.advance_waveform(self._ecg_tpl,   self._new_per_tick)
+        self.hr_panel.advance_waveform(self._ecg_tpl, self._new_per_tick)
         self.spo2_panel.advance_waveform(self._pleth_tpl, self._new_per_tick)
         self.etco2_panel.advance_waveform(self._capno_tpl, self._new_per_tick)
         # EtCO2 - capnogram height, capped to 60 mmHg for stability in the UI
@@ -435,9 +489,9 @@ class PatientMonitorWindow(QMainWindow):
 
     # ── DDS value update (called from polling timer in main app) ─────
     def update_vitals(self, hr, spo2, etco2, nibp_s, nibp_d):
-        self._hr     = hr
-        self._spo2   = spo2
-        self._etco2  = etco2
+        self._hr = hr
+        self._spo2 = spo2
+        self._etco2 = etco2
         self._nibp_s = nibp_s
         self._nibp_d = nibp_d
 
@@ -447,7 +501,7 @@ class PatientMonitorWindow(QMainWindow):
         self.nibp_panel.set_values(nibp_s, nibp_d)
 
     def set_state(self, state: str):
-        self.paused = (state == "PAUSED")
+        self.paused = state == "PAUSED"
         colors = {"ON": COLOR_HR, "PAUSED": RTI_ORANGE, "OFF": "#FF4444"}
         c = colors.get(state, "#888")
         self.state_lbl.setText(state)
@@ -460,13 +514,13 @@ class PatientMonitorWindow(QMainWindow):
 # ─── Application class ────────────────────────────────────────────────────
 class PatientMonitorApp:
     def __init__(self):
-        self.pm_status      = None
-        self.status_writer  = None
-        self.hb_writer      = None
-        self.vitals_reader  = None
-        self.cmd_reader     = None
-        self.bridge         = DdsBridge()
-        self.window         = None
+        self.pm_status = None
+        self.status_writer = None
+        self.hb_writer = None
+        self.vitals_reader = None
+        self.cmd_reader = None
+        self.bridge = DdsBridge()
+        self.window = None
 
     # ── DDS heartbeat thread ─────────────────────────────────────────
     def write_hb(self):
@@ -523,9 +577,7 @@ class PatientMonitorApp:
         self.status_writer = dds.DataWriter(
             participant.find_datawriter(entities.STATUS_DW)
         )
-        self.hb_writer = dds.DataWriter(
-            participant.find_datawriter(entities.HB_DW)
-        )
+        self.hb_writer = dds.DataWriter(participant.find_datawriter(entities.HB_DW))
         self.vitals_reader = dds.DataReader(
             participant.find_datareader(entities.VITALS_DR)
         )

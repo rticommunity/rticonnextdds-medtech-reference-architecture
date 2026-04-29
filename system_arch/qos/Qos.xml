@@ -26,7 +26,7 @@ inability to use the software. -->
               <!-- message_size_max should be >= largest message over SHMEM -->
               <!-- receive_buffer_size and received_message_count_max should be modified accordingly -->
               <!-- As a general rule: receive_buffer_size = message_size_max * received_message_count_max -->
-              
+
               <!-- <message_size_max>262144</message_size_max>
               <receive_buffer_size>8388608</receive_buffer_size>
               <received_message_count_max>32</received_message_count_max> -->
@@ -71,7 +71,7 @@ inability to use the software. -->
       </domain_participant_qos>
         </qos_profile>
     </qos_library>
-  
+
     <qos_library name="DataFlowLibrary">
     <!-- For topics that are published at a high rate -->
       <qos_profile name="Streaming" base_name="BuiltinQosLib::Generic.Common">
@@ -140,5 +140,5 @@ inability to use the software. -->
         </datareader_qos>
       </qos_profile>
     </qos_library>
-     
+
 </dds>

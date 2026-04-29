@@ -15,6 +15,7 @@ from pathlib import Path
 
 # -- Connext environment variables and paths ------------------------------------------------
 
+
 def get_nddshome() -> Path:
     """Return the ``NDDSHOME`` path or exit with an error."""
     nddshome = os.environ.get("NDDSHOME")
@@ -22,17 +23,20 @@ def get_nddshome() -> Path:
         raise EnvironmentError("NDDSHOME environment variable is not set.")
     return Path(nddshome)
 
+
 def get_connextdds_arch() -> str:
     connextdds_arch = os.getenv("CONNEXTDDS_ARCH")
     if not connextdds_arch:
         raise EnvironmentError("CONNEXTDDS_ARCH environment variable is not set.")
     return connextdds_arch
 
+
 def build_path() -> Path:
     return Path("build") / get_connextdds_arch()
 
 
 # -- Library discovery -------------------------------------------------------
+
 
 def connext_lib(nddshome: "Path | None" = None) -> Path:
     """Return the first Connext lib/ directory that contains the core C lib."""
@@ -50,13 +54,19 @@ def openssl_lib(nddshome: "Path | None" = None) -> Path:
     if nddshome is None:
         nddshome = get_nddshome()
 
-    for crypto_lib in sorted(nddshome.glob(f"third_party/openssl-*/{get_connextdds_arch()}/release/lib/libcrypto*"), reverse=True):
+    for crypto_lib in sorted(
+        nddshome.glob(
+            f"third_party/openssl-*/{get_connextdds_arch()}/release/lib/libcrypto*"
+        ),
+        reverse=True,
+    ):
         if crypto_lib.is_file():
             return crypto_lib.parent
     raise FileNotFoundError("Could not find OpenSSL libraries.")
 
 
 # -- Executable / service binary location ------------------------------------
+
 
 def find_executable(name: str, build_dir: "Path | None" = None) -> str:
     """Locate a compiled C++ executable, accounting for platform differences.
@@ -113,10 +123,12 @@ def find_service_binary(name: str) -> Path:
     candidates = [bin_dir / name]
 
     if platform.system() == "Windows":
-        candidates.extend([
-            bin_dir / f"{name}.bat",
-            bin_dir / f"{name}.exe",
-        ])
+        candidates.extend(
+            [
+                bin_dir / f"{name}.bat",
+                bin_dir / f"{name}.exe",
+            ]
+        )
 
     for candidate in candidates:
         if candidate.exists():
@@ -130,6 +142,7 @@ def find_service_binary(name: str) -> Path:
 
 # -- Environment setup for launching applications ----------------------------
 
+
 def lib_path_var() -> str:
     """Return the platform-specific dynamic library path variable name."""
     system = platform.system()
@@ -138,6 +151,7 @@ def lib_path_var() -> str:
     elif system == "Windows":
         return "PATH"
     return "LD_LIBRARY_PATH"
+
 
 def prepend_path_var(env: os._Environ, var: str, path: Path) -> None:
     """Prepend *path* to the environment variable *var* in *env*."""
@@ -155,6 +169,9 @@ def setup_library_env(env: os._Environ, nddshome: Path) -> None:
     try:
         prepend_path_var(env, lib_path_var(), openssl_lib(nddshome))
     except FileNotFoundError:
-        print("Warning: Could not find OpenSSL libraries. Security features may not work.", file=sys.stderr)
+        print(
+            "Warning: Could not find OpenSSL libraries. Security features may not work.",
+            file=sys.stderr,
+        )
 
     prepend_path_var(env, lib_path_var(), connext_lib(nddshome))

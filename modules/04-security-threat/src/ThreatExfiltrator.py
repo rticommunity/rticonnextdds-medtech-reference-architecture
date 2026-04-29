@@ -1,6 +1,6 @@
-# 
+#
 # (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
-# 
+#
 # RTI grants Licensee a license to use, modify, compile, and create derivative
 # works of the software solely for use with RTI Connext DDS.  Licensee may
 # redistribute copies of the software provided that all such copies are
@@ -21,9 +21,17 @@ from pathlib import Path
 import numpy as np
 
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QLabel, QFrame,
-    QHBoxLayout, QVBoxLayout, QPushButton,
-    QTextEdit, QSizePolicy, QGridLayout
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QLabel,
+    QFrame,
+    QHBoxLayout,
+    QVBoxLayout,
+    QPushButton,
+    QTextEdit,
+    QSizePolicy,
+    QGridLayout,
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap, QIcon
@@ -34,7 +42,15 @@ import rti.connextdds as dds
 import PySide6.QtAsyncio as QtAsyncio
 
 # Import OR types
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.resolve() / "modules" / "01-operating-room" / "src"))
+sys.path.insert(
+    0,
+    str(
+        Path(__file__).parent.parent.parent.parent.resolve()
+        / "modules"
+        / "01-operating-room"
+        / "src"
+    ),
+)
 import DdsUtils
 from Types import PatientMonitor, DdsEntities
 from ThreatTypes import ThreatEntities
@@ -43,23 +59,23 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
 threat_entities = ThreatEntities.Constants
 entities = DdsEntities.Constants
 
-RTI_BLUE    = "#004C97"
-RTI_ORANGE  = "#ED8B00"
-BG_MAIN     = "#0A0E17"
-BG_PANEL    = "#0F1822"
-BG_HEADER   = "#071020"
-BORDER_DIM  = "#1A2535"
-COLOR_OK     = "#00E676"
-COLOR_WARN   = "#ED8B00"
-COLOR_BLOCKED    = "#FF4444"
-COLOR_IDLE       = "#445566"
+RTI_BLUE = "#004C97"
+RTI_ORANGE = "#ED8B00"
+BG_MAIN = "#0A0E17"
+BG_PANEL = "#0F1822"
+BG_HEADER = "#071020"
+BORDER_DIM = "#1A2535"
+COLOR_OK = "#00E676"
+COLOR_WARN = "#ED8B00"
+COLOR_BLOCKED = "#FF4444"
+COLOR_IDLE = "#445566"
 COLOR_ATTEMPTING = "#1E88E5"
-COLOR_GRANTED    = "#00C853"
+COLOR_GRANTED = "#00C853"
 
-COLOR_HR    = "#00E676"
-COLOR_SPO2  = "#00B0FF"
+COLOR_HR = "#00E676"
+COLOR_SPO2 = "#00B0FF"
 COLOR_ETCO2 = "#FFD600"
-COLOR_NIBP  = "#FF7043"
+COLOR_NIBP = "#FF7043"
 
 # ─── Left-panel button styles ─────────────────────────────────────────────
 _STYLE_MODE_INACTIVE = (
@@ -94,48 +110,49 @@ UPDATE_MS = 100
 DATA_TIMEOUT_S = 2.0
 
 # Attack mode constants
-MODE_UNSECURE     = "UNSECURE"
-MODE_ROGUE_CA     = "ROGUE CA"
+MODE_UNSECURE = "UNSECURE"
+MODE_ROGUE_CA = "ROGUE CA"
 MODE_FORGED_PERMS = "FORGED PERMS"
 MODE_EXPIRED_CERT = "EXPIRED CERT"
 
 MODE_TO_DP_NAME = {
-    MODE_UNSECURE:     threat_entities.EXFILTRATOR_UNSECURE_DP,
-    MODE_ROGUE_CA:     threat_entities.EXFILTRATOR_ROGUE_CA_DP,
+    MODE_UNSECURE: threat_entities.EXFILTRATOR_UNSECURE_DP,
+    MODE_ROGUE_CA: threat_entities.EXFILTRATOR_ROGUE_CA_DP,
     MODE_FORGED_PERMS: threat_entities.EXFILTRATOR_FORGED_PERMS_DP,
     MODE_EXPIRED_CERT: threat_entities.EXFILTRATOR_EXPIRED_CERT_DP,
 }
 
-SAMPLE_RATE  = 200
+SAMPLE_RATE = 200
 DISPLAY_SECS = 6
-BUFFER_LEN   = SAMPLE_RATE * DISPLAY_SECS
+BUFFER_LEN = SAMPLE_RATE * DISPLAY_SECS
 
 
 def _ecg_template(n_pts=SAMPLE_RATE):
     t = np.linspace(0, 1, n_pts)
-    p  = 0.15 * np.exp(-((t - 0.12) ** 2) / (2 * 0.008 ** 2))
-    q  = -0.08 * np.exp(-((t - 0.22) ** 2) / (2 * 0.004 ** 2))
-    r  = 1.00 * np.exp(-((t - 0.26) ** 2) / (2 * 0.003 ** 2))
-    s  = -0.15 * np.exp(-((t - 0.30) ** 2) / (2 * 0.004 ** 2))
-    tw = 0.30 * np.exp(-((t - 0.42) ** 2) / (2 * 0.015 ** 2))
+    p = 0.15 * np.exp(-((t - 0.12) ** 2) / (2 * 0.008**2))
+    q = -0.08 * np.exp(-((t - 0.22) ** 2) / (2 * 0.004**2))
+    r = 1.00 * np.exp(-((t - 0.26) ** 2) / (2 * 0.003**2))
+    s = -0.15 * np.exp(-((t - 0.30) ** 2) / (2 * 0.004**2))
+    tw = 0.30 * np.exp(-((t - 0.42) ** 2) / (2 * 0.015**2))
     return p + q + r + s + tw
 
 
 def _pleth_template(n_pts=SAMPLE_RATE):
     t = np.linspace(0, 1, n_pts)
     return np.clip(
-        np.exp(-((t - 0.35) ** 2) / (2 * 0.05 ** 2))
-        + 0.25 * np.exp(-((t - 0.55) ** 2) / (2 * 0.04 ** 2)),
-        0, 1
+        np.exp(-((t - 0.35) ** 2) / (2 * 0.05**2))
+        + 0.25 * np.exp(-((t - 0.55) ** 2) / (2 * 0.04**2)),
+        0,
+        1,
     )
 
 
 def _capno_template(n_pts=SAMPLE_RATE):
     t = np.linspace(0, 1, n_pts)
     w = np.zeros(n_pts)
-    rise  = (t >= 0.30) & (t < 0.60)
-    plat  = (t >= 0.60) & (t < 0.85)
-    fall  = (t >= 0.85) & (t < 0.95)
+    rise = (t >= 0.30) & (t < 0.60)
+    plat = (t >= 0.60) & (t < 0.85)
+    fall = (t >= 0.85) & (t < 0.95)
     w[rise] = (t[rise] - 0.30) / 0.30
     w[plat] = 1.0
     w[fall] = 1.0 - (t[fall] - 0.85) / 0.10
@@ -183,12 +200,16 @@ class VitalPanel(QFrame):
         unit_lbl.setStyleSheet(
             f"color: {self.color}88; font-size: 14px; background: transparent;"
         )
-        unit_lbl.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight)
+        unit_lbl.setAlignment(
+            Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight
+        )
         top.addWidget(unit_lbl)
         root.addLayout(top)
 
         self.value_lbl = QLabel("---")
-        self.value_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.value_lbl.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
         self.value_lbl.setStyleSheet(
             f"color: {self.color}; font-size: 48px; font-weight: bold; "
             f"font-family: 'Courier New', monospace; background: transparent; letter-spacing: -2px;"
@@ -197,7 +218,9 @@ class VitalPanel(QFrame):
 
         self.plot_widget = pg.PlotWidget(background=BG_PANEL)
         self.plot_widget.setMinimumHeight(120)
-        self.plot_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.plot_widget.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         self.plot_widget.hideAxis("left")
         self.plot_widget.hideAxis("bottom")
         self.plot_widget.setMouseEnabled(x=False, y=False)
@@ -276,7 +299,9 @@ class NiBPPanel(QFrame):
         )
         bp_row.addWidget(self.sys_lbl)
         sep = QLabel("/")
-        sep.setStyleSheet(f"color: {COLOR_NIBP}88; font-size: 36px; background: transparent;")
+        sep.setStyleSheet(
+            f"color: {COLOR_NIBP}88; font-size: 36px; background: transparent;"
+        )
         bp_row.addWidget(sep)
         self.dia_lbl = QLabel("---")
         self.dia_lbl.setStyleSheet(self.sys_lbl.styleSheet())
@@ -286,7 +311,9 @@ class NiBPPanel(QFrame):
         sub_row = QHBoxLayout()
         sub_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sub_lbl = QLabel("Systolic  /  Diastolic")
-        sub_lbl.setStyleSheet(f"color: {COLOR_NIBP}66; font-size: 18px; background: transparent;")
+        sub_lbl.setStyleSheet(
+            f"color: {COLOR_NIBP}66; font-size: 18px; background: transparent;"
+        )
         sub_row.addWidget(sub_lbl)
         root.addLayout(sub_row)
 
@@ -325,8 +352,6 @@ class ThreatExfiltratorWindow(QMainWindow):
 
         self._build_ui()
 
-
-
     def _build_ui(self):
         central = QWidget()
         central.setStyleSheet(f"background-color: {BG_MAIN};")
@@ -364,7 +389,14 @@ class ThreatExfiltratorWindow(QMainWindow):
         if not _logo_px.isNull():
             logo = QLabel()
             logo.setStyleSheet("background: transparent;")
-            logo.setPixmap(_logo_px.scaled(52, 52, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            logo.setPixmap(
+                _logo_px.scaled(
+                    52,
+                    52,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
             h.addWidget(logo)
 
         rti_lbl = QLabel("RTI Connext")
@@ -401,7 +433,9 @@ class ThreatExfiltratorWindow(QMainWindow):
         lbl = QLabel(
             "Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture"
         )
-        lbl.setStyleSheet(f"color: {COLOR_IDLE}; font-size: 18px; background: transparent;")
+        lbl.setStyleSheet(
+            f"color: {COLOR_IDLE}; font-size: 18px; background: transparent;"
+        )
         f.addWidget(lbl)
         f.addStretch()
         return footer
@@ -425,7 +459,12 @@ class ThreatExfiltratorWindow(QMainWindow):
         layout.addWidget(mode_lbl)
 
         self._mode_buttons: dict[str, QPushButton] = {}
-        for mode in [MODE_UNSECURE, MODE_ROGUE_CA, MODE_FORGED_PERMS, MODE_EXPIRED_CERT]:
+        for mode in [
+            MODE_UNSECURE,
+            MODE_ROGUE_CA,
+            MODE_FORGED_PERMS,
+            MODE_EXPIRED_CERT,
+        ]:
             btn = QPushButton(mode)
             btn.setFixedHeight(44)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -477,17 +516,17 @@ class ThreatExfiltratorWindow(QMainWindow):
         )
         v.addWidget(lbl)
 
-        self.hr_panel    = VitalPanel("ECG / Heart Rate", "bpm",  COLOR_HR,    -0.2, 1.1)
-        self.spo2_panel  = VitalPanel("SpO₂",             "%",    COLOR_SPO2,  -0.1, 1.1)
-        self.etco2_panel = VitalPanel("EtCO₂",            "mmHg", COLOR_ETCO2, -0.1, 1.1)
-        self.nibp_panel  = NiBPPanel()
+        self.hr_panel = VitalPanel("ECG / Heart Rate", "bpm", COLOR_HR, -0.2, 1.1)
+        self.spo2_panel = VitalPanel("SpO₂", "%", COLOR_SPO2, -0.1, 1.1)
+        self.etco2_panel = VitalPanel("EtCO₂", "mmHg", COLOR_ETCO2, -0.1, 1.1)
+        self.nibp_panel = NiBPPanel()
 
         grid = QGridLayout()
         grid.setSpacing(8)
-        grid.addWidget(self.hr_panel,    0, 0)
-        grid.addWidget(self.spo2_panel,  0, 1)
+        grid.addWidget(self.hr_panel, 0, 0)
+        grid.addWidget(self.spo2_panel, 0, 1)
         grid.addWidget(self.etco2_panel, 1, 0)
-        grid.addWidget(self.nibp_panel,  1, 1)
+        grid.addWidget(self.nibp_panel, 1, 1)
         v.addLayout(grid, 1)
         return outer
 
@@ -525,21 +564,27 @@ class ThreatExfiltratorWindow(QMainWindow):
     def highlight_mode_button(self, active_mode: str | None) -> None:
         for mode, btn in self._mode_buttons.items():
             if mode == active_mode:
-                style = _STYLE_MODE_ACTIVE_UNSECURE if mode == MODE_UNSECURE else _STYLE_MODE_ACTIVE_THREAT
+                style = (
+                    _STYLE_MODE_ACTIVE_UNSECURE
+                    if mode == MODE_UNSECURE
+                    else _STYLE_MODE_ACTIVE_THREAT
+                )
                 btn.setStyleSheet(style)
             else:
                 btn.setStyleSheet(_STYLE_MODE_INACTIVE)
         is_active = active_mode is not None
         self._stop_btn.setEnabled(is_active)
-        self._stop_btn.setStyleSheet(_STYLE_STOP_ENABLED if is_active else _STYLE_STOP_DISABLED)
+        self._stop_btn.setStyleSheet(
+            _STYLE_STOP_ENABLED if is_active else _STYLE_STOP_DISABLED
+        )
 
     def set_data_status(self, status: str):
         """status: 'IDLE', 'ACCESS GRANTED', 'NO ACCESS', 'ATTACK FAILED'"""
         colors = {
-            "IDLE":          (COLOR_IDLE,       "#fff"),
-            "ACCESS GRANTED":(COLOR_GRANTED,    "#000"),
-            "NO ACCESS":     (COLOR_WARN,       "#000"),
-            "ATTACK FAILED": (COLOR_BLOCKED,    "#fff"),
+            "IDLE": (COLOR_IDLE, "#fff"),
+            "ACCESS GRANTED": (COLOR_GRANTED, "#000"),
+            "NO ACCESS": (COLOR_WARN, "#000"),
+            "ATTACK FAILED": (COLOR_BLOCKED, "#fff"),
         }
         bg, fg = colors.get(status, (COLOR_IDLE, "#fff"))
         self.status_badge.setText(status)
@@ -550,10 +595,10 @@ class ThreatExfiltratorWindow(QMainWindow):
 
     def log(self, level: str, msg: str):
         colors = {
-            "OK":       COLOR_OK,
-            "WARN":     COLOR_WARN,
-            "BLOCKED":  COLOR_BLOCKED,
-            "INFO":     "#6699AA",
+            "OK": COLOR_OK,
+            "WARN": COLOR_WARN,
+            "BLOCKED": COLOR_BLOCKED,
+            "INFO": "#6699AA",
             "SECURITY": "#FF6D00",
         }
         c = colors.get(level, "#C0D0E0")
@@ -583,7 +628,7 @@ class ThreatExfiltratorApp:
         self._last_sample_time = 0.0
         self._cert_invalid = False
         self._prev_matched = None
-        self._ecg_tpl   = _ecg_template()
+        self._ecg_tpl = _ecg_template()
         self._pleth_tpl = _pleth_template()
         self._capno_tpl = _capno_template()
         self._prev_poll_time = time.monotonic()
@@ -617,7 +662,9 @@ class ThreatExfiltratorApp:
                 self.window.reset_vitals()
                 self._current_mode = mode
             except dds.Error as exc:
-                self.window.log("BLOCKED", f"Participant creation blocked by security: {exc}")
+                self.window.log(
+                    "BLOCKED", f"Participant creation blocked by security: {exc}"
+                )
                 self._cert_invalid = True
                 self.window.set_data_status("ATTACK FAILED")
                 self.window.highlight_mode_button(None)
@@ -654,7 +701,9 @@ class ThreatExfiltratorApp:
                     self.window.log("OK", "Subscription matched — receiving data")
                 else:
                     self.window.set_data_status("NO ACCESS")
-                    self.window.log("BLOCKED", "No subscription match — access denied by security")
+                    self.window.log(
+                        "BLOCKED", "No subscription match — access denied by security"
+                    )
 
             try:
                 samples = self._vitals_reader.take_data()
@@ -662,8 +711,8 @@ class ThreatExfiltratorApp:
                 samples = []
 
         for sample in samples:
-            hr    = float(sample.hr)
-            spo2  = float(sample.spo2)
+            hr = float(sample.hr)
+            spo2 = float(sample.spo2)
             etco2 = float(sample.etco2)
             nibp_s = float(sample.nibp_s)
             nibp_d = float(sample.nibp_d)
@@ -673,12 +722,12 @@ class ThreatExfiltratorApp:
             self.window.etco2_panel.set_value(etco2)
             self.window.nibp_panel.set_values(nibp_s, nibp_d)
 
-            self.window.hr_panel.beat_rate    = hr / 60.0
-            self.window.hr_panel.amplitude    = 1.0
-            self.window.spo2_panel.beat_rate  = hr / 60.0
-            self.window.spo2_panel.amplitude  = 1.0
-            self.window.etco2_panel.beat_rate  = 15 / 60.0
-            self.window.etco2_panel.amplitude  = 1.0
+            self.window.hr_panel.beat_rate = hr / 60.0
+            self.window.hr_panel.amplitude = 1.0
+            self.window.spo2_panel.beat_rate = hr / 60.0
+            self.window.spo2_panel.amplitude = 1.0
+            self.window.etco2_panel.beat_rate = 15 / 60.0
+            self.window.etco2_panel.amplitude = 1.0
 
             self._last_sample_time = time.monotonic()
             self.window.set_data_status("ACCESS GRANTED")
@@ -686,11 +735,14 @@ class ThreatExfiltratorApp:
                 "OK",
                 f"Received Vitals — patient_id: {sample.patient_id}, "
                 f"hr: {sample.hr}, spo2: {sample.spo2}, "
-                f"etco2: {sample.etco2}, nibp: {sample.nibp_s}/{sample.nibp_d}"
+                f"etco2: {sample.etco2}, nibp: {sample.nibp_s}/{sample.nibp_d}",
             )
 
         # Data timeout → reset panels to dashes
-        if self._last_sample_time > 0 and (now - self._last_sample_time) > DATA_TIMEOUT_S:
+        if (
+            self._last_sample_time > 0
+            and (now - self._last_sample_time) > DATA_TIMEOUT_S
+        ):
             self.window.reset_vitals()
             self._last_sample_time = 0.0
 

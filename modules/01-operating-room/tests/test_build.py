@@ -32,7 +32,9 @@ from scripts import platform_setup
 class TestBuild:
     """Validate that the project-level CMake build produced expected binaries."""
 
-    @pytest.mark.parametrize("binary", ["PatientSensor", "Orchestrator", "ArmController"])
+    @pytest.mark.parametrize(
+        "binary", ["PatientSensor", "Orchestrator", "ArmController"]
+    )
     def test_binary_exists(self, binary: str):
         """Compiled C++ binary exists and can be located."""
         exe = platform_setup.find_executable(binary)
@@ -130,7 +132,14 @@ class TestEnumMembers:
     def test_device_type_enum(self):
         from Types import Common
 
-        expected = {"ARM_CONTROLLER", "ARM", "VIDEO_PUB", "VIDEO_SUB", "PATIENT_MONITOR", "PATIENT_SENSOR"}
+        expected = {
+            "ARM_CONTROLLER",
+            "ARM",
+            "VIDEO_PUB",
+            "VIDEO_SUB",
+            "PATIENT_MONITOR",
+            "PATIENT_SENSOR",
+        }
         actual = {e.name for e in Common.DeviceType}
         assert expected <= actual
 

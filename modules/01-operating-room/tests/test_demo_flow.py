@@ -51,7 +51,9 @@ GTK_ENV = {"GDK_BACKEND": "x11"}
 class TestCrashDetection:
     """Killing an app should cause Orchestrator to detect the loss via heartbeat deadline."""
 
-    def test_orchestrator_detects_patient_sensor_crash(self, proc_manager, dds_participant):
+    def test_orchestrator_detects_patient_sensor_crash(
+        self, proc_manager, dds_participant
+    ):
         from Types import Common, Common_DeviceHeartbeat
 
         patient_sensor = proc_manager.start_app("PatientSensor")
@@ -87,7 +89,9 @@ class TestCrashDetection:
         time.sleep(1)  # wait longer than the 200ms deadline
         post_kill = hb_reader.take()
         post_kill_valid = [s for s in post_kill if s.info.valid]
-        assert len(post_kill_valid) == 0, f"Heartbeats still arriving after SIGKILL ({len(post_kill_valid)} samples)"
+        assert len(post_kill_valid) == 0, (
+            f"Heartbeats still arriving after SIGKILL ({len(post_kill_valid)} samples)"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +103,9 @@ class TestCrashDetection:
 class TestPauseAndResume:
     """Pausing PatientSensor should stop vitals; resuming should restart them."""
 
-    def test_pause_stops_vitals_then_resume_restarts(self, proc_manager, dds_participant):
+    def test_pause_stops_vitals_then_resume_restarts(
+        self, proc_manager, dds_participant
+    ):
         from Types import (
             Common,
             Common_DeviceStatus,
@@ -132,7 +138,9 @@ class TestPauseAndResume:
         # Wait for ON
         samples = wait_for_data(status_reader, timeout_sec=10)
         assert any(
-            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON for s in samples
+            s.device == Common.DeviceType.PATIENT_SENSOR
+            and s.status == Common.DeviceStatuses.ON
+            for s in samples
         ), "PatientSensor never reached ON"
 
         # Verify vitals are flowing
@@ -153,7 +161,9 @@ class TestPauseAndResume:
         while time.monotonic() < deadline:
             ss = wait_for_data(status_reader, timeout_sec=1)
             if any(
-                s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.PAUSED for s in ss
+                s.device == Common.DeviceType.PATIENT_SENSOR
+                and s.status == Common.DeviceStatuses.PAUSED
+                for s in ss
             ):
                 paused = True
                 break
@@ -164,7 +174,9 @@ class TestPauseAndResume:
         time.sleep(2)
         stale = vitals_reader.take()
         valid_stale = [s for s in stale if s.info.valid]
-        assert len(valid_stale) <= 1, f"Vitals still flowing while PAUSED ({len(valid_stale)} samples)"
+        assert len(valid_stale) <= 1, (
+            f"Vitals still flowing while PAUSED ({len(valid_stale)} samples)"
+        )
 
         # Send START
         cmd_writer.write(
@@ -199,9 +211,13 @@ class TestGracefulShutdown:
 
         procs = {
             Common.DeviceType.PATIENT_SENSOR: proc_manager.start_app("PatientSensor"),
-            Common.DeviceType.ARM_CONTROLLER: proc_manager.start_app("ArmController", extra_env=GTK_ENV),
+            Common.DeviceType.ARM_CONTROLLER: proc_manager.start_app(
+                "ArmController", extra_env=GTK_ENV
+            ),
             Common.DeviceType.ARM: proc_manager.start_app("Arm", extra_env=QT_ENV),
-            Common.DeviceType.PATIENT_MONITOR: proc_manager.start_app("PatientMonitor", extra_env=QT_ENV),
+            Common.DeviceType.PATIENT_MONITOR: proc_manager.start_app(
+                "PatientMonitor", extra_env=QT_ENV
+            ),
         }
 
         status_reader = create_reader(
@@ -220,7 +236,9 @@ class TestGracefulShutdown:
         # Wait until all devices have published a DeviceStatus (up to 30s)
         expected = set(procs.keys())
         seen = wait_for_device_status(status_reader, expected, timeout_sec=30)
-        assert seen == expected, f"Timed out waiting for devices. Missing: {set(d.name for d in expected - seen)}"
+        assert seen == expected, (
+            f"Timed out waiting for devices. Missing: {set(d.name for d in expected - seen)}"
+        )
 
         # Send SHUTDOWN to each device
         for device_type in procs:
@@ -241,7 +259,9 @@ class TestGracefulShutdown:
             except Exception:
                 still_alive[device_type.name] = proc
 
-        assert not still_alive, f"These devices did not exit after SHUTDOWN: {list(still_alive.keys())}"
+        assert not still_alive, (
+            f"These devices did not exit after SHUTDOWN: {list(still_alive.keys())}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -277,8 +297,12 @@ class TestSecureAllApps:
         """All C++ apps start and keep running with DDS Security enabled."""
         apps = {
             "PatientSensor": proc_manager_secure.start_app("PatientSensor"),
-            "Orchestrator": proc_manager_secure.start_app("Orchestrator", extra_env=GTK_ENV),
-            "ArmController": proc_manager_secure.start_app("ArmController", extra_env=GTK_ENV),
+            "Orchestrator": proc_manager_secure.start_app(
+                "Orchestrator", extra_env=GTK_ENV
+            ),
+            "ArmController": proc_manager_secure.start_app(
+                "ArmController", extra_env=GTK_ENV
+            ),
         }
 
         # Wait for security handshake and DDS initialization

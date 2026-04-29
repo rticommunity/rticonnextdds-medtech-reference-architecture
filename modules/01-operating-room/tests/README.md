@@ -1,6 +1,6 @@
 # Module 01 — Test Suite
 
-Automated tests for the **Digital Operating Room** module.  
+Automated tests for the **Digital Operating Room** module.
 Tests verify that applications build, launch, communicate via DDS, and
 behave as described in the module README.
 

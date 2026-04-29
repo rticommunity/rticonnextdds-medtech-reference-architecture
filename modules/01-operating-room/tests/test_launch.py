@@ -15,7 +15,6 @@ Verifies that each application starts without crashing.
 GUI applications are marked so they can be skipped on headless systems.
 """
 
-
 import pytest
 from conftest import (
     create_reader,
@@ -30,13 +29,19 @@ class TestPatientSensor:
     def test_starts_and_stays_alive(self, proc_manager):
         proc = proc_manager.start_app("PatientSensor")
         wait_for_process_ready(proc)
-        assert proc.poll() is None, f"PatientSensor exited early with code {proc.returncode}"
+        assert proc.poll() is None, (
+            f"PatientSensor exited early with code {proc.returncode}"
+        )
 
     def test_prints_launch_message(self, proc_manager):
         proc = proc_manager.start_app("PatientSensor")
         wait_for_process_ready(proc)
         # Read whatever is available, non-blocking
-        out = proc.stdout.read1(4096).decode(errors="replace") if hasattr(proc.stdout, "read1") else b""
+        out = (
+            proc.stdout.read1(4096).decode(errors="replace")
+            if hasattr(proc.stdout, "read1")
+            else b""
+        )
         # Fallback: terminate and capture
         if not out:
             proc.terminate()
@@ -54,7 +59,9 @@ class TestOrchestrator:
     def test_starts_and_stays_alive(self, proc_manager):
         proc = proc_manager.start_app("Orchestrator", extra_env=self.GTK_ENV)
         wait_for_process_ready(proc)
-        assert proc.poll() is None, f"Orchestrator exited early with code {proc.returncode}"
+        assert proc.poll() is None, (
+            f"Orchestrator exited early with code {proc.returncode}"
+        )
 
 
 @pytest.mark.gui
@@ -66,7 +73,9 @@ class TestArmController:
     def test_starts_and_stays_alive(self, proc_manager):
         proc = proc_manager.start_app("ArmController", extra_env=self.GTK_ENV)
         wait_for_process_ready(proc)
-        assert proc.poll() is None, f"ArmController exited early with code {proc.returncode}"
+        assert proc.poll() is None, (
+            f"ArmController exited early with code {proc.returncode}"
+        )
 
 
 @pytest.mark.gui
@@ -78,7 +87,9 @@ class TestPatientMonitor:
     def test_starts_and_stays_alive(self, proc_manager):
         proc = proc_manager.start_app("PatientMonitor", extra_env=self.QT_ENV)
         wait_for_process_ready(proc, timeout_sec=10)
-        assert proc.poll() is None, f"PatientMonitor exited early with code {proc.returncode}"
+        assert proc.poll() is None, (
+            f"PatientMonitor exited early with code {proc.returncode}"
+        )
 
 
 @pytest.mark.gui
@@ -105,9 +116,15 @@ class TestAllApps:
 
         procs = {}
         procs["PatientSensor"] = proc_manager.start_app("PatientSensor")
-        procs["Orchestrator"] = proc_manager.start_app("Orchestrator", extra_env=self.GTK_ENV)
-        procs["ArmController"] = proc_manager.start_app("ArmController", extra_env=self.GTK_ENV)
-        procs["PatientMonitor"] = proc_manager.start_app("PatientMonitor", extra_env=self.QT_ENV)
+        procs["Orchestrator"] = proc_manager.start_app(
+            "Orchestrator", extra_env=self.GTK_ENV
+        )
+        procs["ArmController"] = proc_manager.start_app(
+            "ArmController", extra_env=self.GTK_ENV
+        )
+        procs["PatientMonitor"] = proc_manager.start_app(
+            "PatientMonitor", extra_env=self.QT_ENV
+        )
         procs["Arm"] = proc_manager.start_app("Arm", extra_env=self.QT_ENV)
 
         # Wait for all 4 device-type apps to report DeviceStatus
@@ -125,7 +142,11 @@ class TestAllApps:
             Common.DeviceType.PATIENT_MONITOR,
         }
         seen = wait_for_device_status(status_reader, expected, timeout_sec=30)
-        assert seen == expected, f"Not all apps came online. Missing: {set(d.name for d in expected - seen)}"
+        assert seen == expected, (
+            f"Not all apps came online. Missing: {set(d.name for d in expected - seen)}"
+        )
 
         for name, proc in procs.items():
-            assert proc.poll() is None, f"{name} crashed on startup (exit code {proc.returncode})"
+            assert proc.poll() is None, (
+                f"{name} crashed on startup (exit code {proc.returncode})"
+            )

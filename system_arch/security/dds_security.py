@@ -79,8 +79,11 @@ def _openssl_env() -> dict | None:
         return None
     env = os.environ.copy()
     system = platform.system()
-    var = "DYLD_LIBRARY_PATH" if system == "Darwin" else (
-        "PATH" if system == "Windows" else "LD_LIBRARY_PATH")
+    var = (
+        "DYLD_LIBRARY_PATH"
+        if system == "Darwin"
+        else ("PATH" if system == "Windows" else "LD_LIBRARY_PATH")
+    )
     env[var] = str(lib_dir) + os.pathsep + env.get(var, "")
     return env
 
@@ -103,8 +106,7 @@ def openssl_run(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     return result
 
 
-def render_template(template: Path, dest: Path,
-                    context: dict | None = None) -> None:
+def render_template(template: Path, dest: Path, context: dict | None = None) -> None:
     """Render a Jinja2 template file to *dest* using *context*.
 
     Uses ``StrictUndefined`` so typos in variable names raise immediately
@@ -134,12 +136,19 @@ def generate_key(key_path: Path, *, ec_curve: str = EC_CURVE) -> Path:
     key_path.parent.mkdir(parents=True, exist_ok=True)
     if key_path.parent.name == "private":
         key_path.parent.chmod(0o700)
-    openssl_run([
-        "genpkey", "-algorithm", "EC",
-        "-pkeyopt", f"ec_paramgen_curve:{ec_curve}",
-        "-pkeyopt", "ec_param_enc:named_curve",
-        "-out", str(key_path),
-    ])
+    openssl_run(
+        [
+            "genpkey",
+            "-algorithm",
+            "EC",
+            "-pkeyopt",
+            f"ec_paramgen_curve:{ec_curve}",
+            "-pkeyopt",
+            "ec_param_enc:named_curve",
+            "-out",
+            str(key_path),
+        ]
+    )
     key_path.chmod(0o600)
     return key_path
 
@@ -147,39 +156,65 @@ def generate_key(key_path: Path, *, ec_curve: str = EC_CURVE) -> Path:
 def generate_csr(key_path: Path, cnf: Path, out_csr: Path) -> Path:
     """Generate a certificate signing request (CSR)."""
     out_csr.parent.mkdir(parents=True, exist_ok=True)
-    openssl_run([
-        "req", "-new",
-        "-config", str(cnf),
-        "-key", str(key_path),
-        "-out", str(out_csr),
-    ])
+    openssl_run(
+        [
+            "req",
+            "-new",
+            "-config",
+            str(cnf),
+            "-key",
+            str(key_path),
+            "-out",
+            str(out_csr),
+        ]
+    )
     return out_csr
 
 
-def self_sign(key_path: Path, cnf: Path, out_cert: Path, *,
-              days: int = CA_CERT_VALIDITY_DAYS,
-              extensions: str = "v3_ca") -> Path:
+def self_sign(
+    key_path: Path,
+    cnf: Path,
+    out_cert: Path,
+    *,
+    days: int = CA_CERT_VALIDITY_DAYS,
+    extensions: str = "v3_ca",
+) -> Path:
     """Self-sign a certificate from *key_path* using *cnf*."""
     out_cert.parent.mkdir(parents=True, exist_ok=True)
-    openssl_run([
-        "req", "-x509", "-new",
-        "-config", str(cnf),
-        "-key", str(key_path),
-        "-extensions", extensions,
-        "-days", str(days),
-        "-out", str(out_cert),
-    ])
+    openssl_run(
+        [
+            "req",
+            "-x509",
+            "-new",
+            "-config",
+            str(cnf),
+            "-key",
+            str(key_path),
+            "-extensions",
+            extensions,
+            "-days",
+            str(days),
+            "-out",
+            str(out_cert),
+        ]
+    )
     return out_cert
 
 
-def sign_csr(ca_cnf: Path, ca_key: Path, ca_cert: Path,
-             csr: Path, out_cert: Path, *,
-             extensions: str = "usr_cert",
-             extfile: Path | None = None,
-             days: int = IDENTITY_CERT_VALIDITY_DAYS,
-             startdate: str | None = None,
-             enddate: str | None = None,
-             cwd: Path | None = None) -> Path:
+def sign_csr(
+    ca_cnf: Path,
+    ca_key: Path,
+    ca_cert: Path,
+    csr: Path,
+    out_cert: Path,
+    *,
+    extensions: str = "usr_cert",
+    extfile: Path | None = None,
+    days: int = IDENTITY_CERT_VALIDITY_DAYS,
+    startdate: str | None = None,
+    enddate: str | None = None,
+    cwd: Path | None = None,
+) -> Path:
     """Sign *csr* with a CA and write the signed certificate to *out_cert*.
 
     Args:
@@ -203,13 +238,20 @@ def sign_csr(ca_cnf: Path, ca_key: Path, ca_cert: Path,
     out_cert.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
         "ca",
-        "-config", str(ca_cnf),
-        "-in", str(csr),
-        "-out", str(out_cert),
-        "-batch", "-notext",
-        "-cert", str(ca_cert),
-        "-keyfile", str(ca_key),
-        "-extensions", extensions,
+        "-config",
+        str(ca_cnf),
+        "-in",
+        str(csr),
+        "-out",
+        str(out_cert),
+        "-batch",
+        "-notext",
+        "-cert",
+        str(ca_cert),
+        "-keyfile",
+        str(ca_key),
+        "-extensions",
+        extensions,
     ]
     if enddate is not None:
         cmd += ["-enddate", enddate]
@@ -223,45 +265,72 @@ def sign_csr(ca_cnf: Path, ca_key: Path, ca_cert: Path,
     return out_cert
 
 
-def sign_xml(key_path: Path, cert_path: Path,
-             xml_path: Path, out_p7s: Path) -> Path:
+def sign_xml(key_path: Path, cert_path: Path, xml_path: Path, out_p7s: Path) -> Path:
     """Sign *xml_path* using S/MIME v3.2 (required by RTI Connext Security Plugins)."""
     out_p7s.parent.mkdir(parents=True, exist_ok=True)
-    openssl_run([
-        "smime", "-sign",
-        "-in", str(xml_path),
-        "-signer", str(cert_path),
-        "-inkey", str(key_path),
-        "-text",
-        "-out", str(out_p7s),
-    ])
+    openssl_run(
+        [
+            "smime",
+            "-sign",
+            "-in",
+            str(xml_path),
+            "-signer",
+            str(cert_path),
+            "-inkey",
+            str(key_path),
+            "-text",
+            "-out",
+            str(out_p7s),
+        ]
+    )
     return out_p7s
 
 
-def revoke_cert(ca_cnf: Path, ca_key: Path, ca_cert: Path,
-                cert_path: Path, *,
-                cwd: Path | None = None) -> None:
+def revoke_cert(
+    ca_cnf: Path,
+    ca_key: Path,
+    ca_cert: Path,
+    cert_path: Path,
+    *,
+    cwd: Path | None = None,
+) -> None:
     """Revoke *cert_path* in the CA's ``index.txt`` database."""
-    openssl_run([
-        "ca", "-revoke", str(cert_path),
-        "-config", str(ca_cnf),
-        "-cert", str(ca_cert),
-        "-keyfile", str(ca_key),
-    ], cwd=str(cwd) if cwd else None)
+    openssl_run(
+        [
+            "ca",
+            "-revoke",
+            str(cert_path),
+            "-config",
+            str(ca_cnf),
+            "-cert",
+            str(ca_cert),
+            "-keyfile",
+            str(ca_key),
+        ],
+        cwd=str(cwd) if cwd else None,
+    )
 
 
-def generate_crl(ca_cnf: Path, ca_key: Path, ca_cert: Path,
-                 out_crl: Path, *,
-                 cwd: Path | None = None) -> Path:
+def generate_crl(
+    ca_cnf: Path, ca_key: Path, ca_cert: Path, out_crl: Path, *, cwd: Path | None = None
+) -> Path:
     """Generate a Certificate Revocation List (CRL) from the CA database."""
     out_crl.parent.mkdir(parents=True, exist_ok=True)
-    openssl_run([
-        "ca", "-gencrl",
-        "-config", str(ca_cnf),
-        "-cert", str(ca_cert),
-        "-keyfile", str(ca_key),
-        "-out", str(out_crl),
-    ], cwd=str(cwd) if cwd else None)
+    openssl_run(
+        [
+            "ca",
+            "-gencrl",
+            "-config",
+            str(ca_cnf),
+            "-cert",
+            str(ca_cert),
+            "-keyfile",
+            str(ca_key),
+            "-out",
+            str(out_crl),
+        ],
+        cwd=str(cwd) if cwd else None,
+    )
     return out_crl
 
 
@@ -271,10 +340,17 @@ def extract_subject_dn(cert_path: Path) -> str:
     Useful for populating ``<subject_name>`` in DDS permissions files, where
     RTI Connext requires an exact string match with the certificate DN.
     """
-    result = openssl_run([
-        "x509", "-subject", "-nameopt", "RFC2253", "-noout",
-        "-in", str(cert_path),
-    ])
+    result = openssl_run(
+        [
+            "x509",
+            "-subject",
+            "-nameopt",
+            "RFC2253",
+            "-noout",
+            "-in",
+            str(cert_path),
+        ]
+    )
     # Output: "subject=CN=Arm,O=Company Name,ST=CA,C=US"
     line = result.stdout.decode().strip()
     return line.split("=", 1)[1] if "=" in line else line
@@ -285,10 +361,16 @@ def extract_cert_dates(cert_path: Path) -> tuple[datetime, datetime]:
 
     Returns ``(not_before, not_after)`` as timezone-aware UTC datetimes.
     """
-    result = openssl_run([
-        "x509", "-noout", "-startdate", "-enddate",
-        "-in", str(cert_path),
-    ])
+    result = openssl_run(
+        [
+            "x509",
+            "-noout",
+            "-startdate",
+            "-enddate",
+            "-in",
+            str(cert_path),
+        ]
+    )
     lines = result.stdout.decode().strip().splitlines()
     # notBefore=Apr  8 12:00:00 2024 GMT
     # notAfter=Apr  6 12:00:00 2044 GMT
@@ -307,11 +389,14 @@ def extract_cert_dates(cert_path: Path) -> tuple[datetime, datetime]:
 # ===========================================================================
 
 
-def scaffold_root_ca(ca_dir: Path, *,
-                     cnf: Path | None = None,
-                     subdirs: list[str] | None = None,
-                     index: Path | None = None,
-                     serial: Path | None = None) -> None:
+def scaffold_root_ca(
+    ca_dir: Path,
+    *,
+    cnf: Path | None = None,
+    subdirs: list[str] | None = None,
+    index: Path | None = None,
+    serial: Path | None = None,
+) -> None:
     """(a) Scaffold a root CA directory for use with ``openssl ca``.
 
     All keyword arguments are optional; ``None`` means skip that component.
@@ -330,8 +415,7 @@ def scaffold_root_ca(ca_dir: Path, *,
 
     if subdirs is not None:
         for d in subdirs:
-            (ca_dir / d).mkdir(
-                exist_ok=True, mode=0o700 if d == "private" else 0o755)
+            (ca_dir / d).mkdir(exist_ok=True, mode=0o700 if d == "private" else 0o755)
 
     if cnf is not None:
         cnf.parent.mkdir(parents=True, exist_ok=True)
@@ -344,9 +428,14 @@ def scaffold_root_ca(ca_dir: Path, *,
             serial.write_text("1000\n")
 
 
-def generate_root_ca(key_path: Path, cnf: Path, out_cert: Path, *,
-                     days: int = CA_CERT_VALIDITY_DAYS,
-                     force: bool = False) -> Path:
+def generate_root_ca(
+    key_path: Path,
+    cnf: Path,
+    out_cert: Path,
+    *,
+    days: int = CA_CERT_VALIDITY_DAYS,
+    force: bool = False,
+) -> Path:
     """(b) Generate a root CA private key and self-signed certificate."""
     if out_cert.is_file() and not force:
         log.info("Root CA cert exists, skipping: %s", out_cert)
@@ -355,11 +444,14 @@ def generate_root_ca(key_path: Path, cnf: Path, out_cert: Path, *,
     return self_sign(key_path, cnf, out_cert, days=days)
 
 
-def scaffold_intermediate_ca(ca_dir: Path, *,
-                              cnf: Path | None = None,
-                              subdirs: list[str] | None = None,
-                              index: Path | None = None,
-                              serial: Path | None = None) -> None:
+def scaffold_intermediate_ca(
+    ca_dir: Path,
+    *,
+    cnf: Path | None = None,
+    subdirs: list[str] | None = None,
+    index: Path | None = None,
+    serial: Path | None = None,
+) -> None:
     """(c) Scaffold an intermediate CA directory.
 
     Identical parameters to :func:`scaffold_root_ca`.
@@ -367,13 +459,18 @@ def scaffold_intermediate_ca(ca_dir: Path, *,
     scaffold_root_ca(ca_dir, cnf=cnf, subdirs=subdirs, index=index, serial=serial)
 
 
-def generate_intermediate_ca(key_path: Path, cnf: Path, out_cert: Path, *,
-                              issuer_cnf: Path,
-                              issuer_key: Path,
-                              issuer_cert: Path,
-                              issuer_cwd: Path | None = None,
-                              days: int = CA_CERT_VALIDITY_DAYS,
-                              force: bool = False) -> Path:
+def generate_intermediate_ca(
+    key_path: Path,
+    cnf: Path,
+    out_cert: Path,
+    *,
+    issuer_cnf: Path,
+    issuer_key: Path,
+    issuer_cert: Path,
+    issuer_cwd: Path | None = None,
+    days: int = CA_CERT_VALIDITY_DAYS,
+    force: bool = False,
+) -> Path:
     """(d-f) Generate an intermediate CA: private key, CSR, and signed certificate."""
     if out_cert.is_file() and not force:
         log.info("Intermediate CA cert exists, skipping: %s", out_cert)
@@ -381,14 +478,22 @@ def generate_intermediate_ca(key_path: Path, cnf: Path, out_cert: Path, *,
     generate_key(key_path)
     csr = out_cert.with_suffix(".csr")
     generate_csr(key_path, cnf, csr)
-    sign_csr(issuer_cnf, issuer_key, issuer_cert, csr, out_cert,
-             extensions="v3_ca", extfile=cnf, days=days, cwd=issuer_cwd)
+    sign_csr(
+        issuer_cnf,
+        issuer_key,
+        issuer_cert,
+        csr,
+        out_cert,
+        extensions="v3_ca",
+        extfile=cnf,
+        days=days,
+        cwd=issuer_cwd,
+    )
     csr.unlink(missing_ok=True)
     return out_cert
 
 
-def scaffold_identity(cnf_dest: Path, *,
-                      subdirs: list[str] | None = None) -> None:
+def scaffold_identity(cnf_dest: Path, *, subdirs: list[str] | None = None) -> None:
     """(g) Scaffold an identity directory.
 
     Creates the parent directory of *cnf_dest* and any *subdirs* within it.
@@ -399,17 +504,23 @@ def scaffold_identity(cnf_dest: Path, *,
     if subdirs is not None:
         for d in subdirs:
             (cnf_dest.parent / d).mkdir(
-                exist_ok=True, mode=0o700 if d == "private" else 0o755)
+                exist_ok=True, mode=0o700 if d == "private" else 0o755
+            )
 
 
-def generate_identity(key_path: Path, cnf: Path, out_cert: Path, *,
-                      issuer_cnf: Path,
-                      issuer_key: Path,
-                      issuer_cert: Path,
-                      issuer_cwd: Path | None = None,
-                      days: int = IDENTITY_CERT_VALIDITY_DAYS,
-                      chain: bool = True,
-                      force: bool = False) -> Path:
+def generate_identity(
+    key_path: Path,
+    cnf: Path,
+    out_cert: Path,
+    *,
+    issuer_cnf: Path,
+    issuer_key: Path,
+    issuer_cert: Path,
+    issuer_cwd: Path | None = None,
+    days: int = IDENTITY_CERT_VALIDITY_DAYS,
+    chain: bool = True,
+    force: bool = False,
+) -> Path:
     """(h-j) Generate an identity: private key, CSR, and signed certificate.
 
     When *chain* is ``True`` (default), also writes ``<name>.chain.pem``
@@ -424,24 +535,36 @@ def generate_identity(key_path: Path, cnf: Path, out_cert: Path, *,
     generate_key(key_path)
     csr = out_cert.with_suffix(".csr")
     generate_csr(key_path, cnf, csr)
-    sign_csr(issuer_cnf, issuer_key, issuer_cert, csr, out_cert,
-             extensions="usr_cert", extfile=cnf, days=days, cwd=issuer_cwd)
+    sign_csr(
+        issuer_cnf,
+        issuer_key,
+        issuer_cert,
+        csr,
+        out_cert,
+        extensions="usr_cert",
+        extfile=cnf,
+        days=days,
+        cwd=issuer_cwd,
+    )
     csr.unlink(missing_ok=True)
     if chain:
         chain_path = out_cert.with_suffix(".chain.pem")
-        chain_path.write_text(
-            out_cert.read_text() + issuer_cert.read_text()
-        )
+        chain_path.write_text(out_cert.read_text() + issuer_cert.read_text())
     return out_cert
 
 
-def generate_expired_identity(key_path: Path, cnf: Path, out_cert: Path, *,
-                              issuer_cnf: Path,
-                              issuer_key: Path,
-                              issuer_cert: Path,
-                              issuer_cwd: Path | None = None,
-                              chain: bool = True,
-                              force: bool = False) -> Path:
+def generate_expired_identity(
+    key_path: Path,
+    cnf: Path,
+    out_cert: Path,
+    *,
+    issuer_cnf: Path,
+    issuer_key: Path,
+    issuer_cert: Path,
+    issuer_cwd: Path | None = None,
+    chain: bool = True,
+    force: bool = False,
+) -> Path:
     """Generate an identity cert that is already expired (notAfter in the past).
 
     Uses the same private key as the normal identity (reuses *key_path* if it
@@ -457,49 +580,66 @@ def generate_expired_identity(key_path: Path, cnf: Path, out_cert: Path, *,
     generate_csr(key_path, cnf, csr)
     # One year ago → one day ago (YYMMDDHHMMSSZ)
     from datetime import datetime, timedelta, timezone
+
     one_year_ago = datetime.now(timezone.utc) - timedelta(days=365)
     one_day_ago = datetime.now(timezone.utc) - timedelta(days=1)
     startdate = one_year_ago.strftime("%y%m%d%H%M%SZ")
     enddate = one_day_ago.strftime("%y%m%d%H%M%SZ")
-    sign_csr(issuer_cnf, issuer_key, issuer_cert, csr, out_cert,
-             extensions="usr_cert", extfile=cnf,
-             startdate=startdate, enddate=enddate,
-             cwd=issuer_cwd)
+    sign_csr(
+        issuer_cnf,
+        issuer_key,
+        issuer_cert,
+        csr,
+        out_cert,
+        extensions="usr_cert",
+        extfile=cnf,
+        startdate=startdate,
+        enddate=enddate,
+        cwd=issuer_cwd,
+    )
     csr.unlink(missing_ok=True)
     if chain:
         chain_path = out_cert.with_suffix(".chain.pem")
-        chain_path.write_text(
-            out_cert.read_text() + issuer_cert.read_text()
-        )
+        chain_path.write_text(out_cert.read_text() + issuer_cert.read_text())
     return out_cert
 
 
-def revoke_certificate(cert_path: Path, *,
-                       issuer_cnf: Path,
-                       issuer_key: Path,
-                       issuer_cert: Path,
-                       out_crl: Path | None = None,
-                       issuer_cwd: Path | None = None) -> Path | None:
+def revoke_certificate(
+    cert_path: Path,
+    *,
+    issuer_cnf: Path,
+    issuer_key: Path,
+    issuer_cert: Path,
+    out_crl: Path | None = None,
+    issuer_cwd: Path | None = None,
+) -> Path | None:
     """(k) Revoke a certificate and optionally regenerate the CRL.
 
     Returns the CRL path if *out_crl* is provided, otherwise ``None``.
     """
     revoke_cert(issuer_cnf, issuer_key, issuer_cert, cert_path, cwd=issuer_cwd)
     if out_crl is not None:
-        return generate_crl(issuer_cnf, issuer_key, issuer_cert, out_crl,
-                            cwd=issuer_cwd)
+        return generate_crl(
+            issuer_cnf, issuer_key, issuer_cert, out_crl, cwd=issuer_cwd
+        )
     return None
 
 
-def scaffold_governance(template: Path, out_xml: Path,
-                        context: dict | None = None) -> None:
+def scaffold_governance(
+    template: Path, out_xml: Path, context: dict | None = None
+) -> None:
     """(l) Scaffold a governance XML file from *template*."""
     render_template(template, out_xml, context)
 
 
-def sign_governance(key_path: Path, cert_path: Path,
-                    xml_path: Path, out_p7s: Path, *,
-                    force: bool = False) -> Path:
+def sign_governance(
+    key_path: Path,
+    cert_path: Path,
+    xml_path: Path,
+    out_p7s: Path,
+    *,
+    force: bool = False,
+) -> Path:
     """(m) Sign a governance XML with S/MIME v3.2."""
     if out_p7s.is_file() and not force:
         log.info("Signed governance exists, skipping: %s", out_p7s)
@@ -507,15 +647,21 @@ def sign_governance(key_path: Path, cert_path: Path,
     return sign_xml(key_path, cert_path, xml_path, out_p7s)
 
 
-def scaffold_permissions(template: Path, out_xml: Path,
-                         context: dict | None = None) -> None:
+def scaffold_permissions(
+    template: Path, out_xml: Path, context: dict | None = None
+) -> None:
     """(n) Scaffold a permissions XML file from *template*."""
     render_template(template, out_xml, context)
 
 
-def sign_permissions(key_path: Path, cert_path: Path,
-                     xml_path: Path, out_p7s: Path, *,
-                     force: bool = False) -> Path:
+def sign_permissions(
+    key_path: Path,
+    cert_path: Path,
+    xml_path: Path,
+    out_p7s: Path,
+    *,
+    force: bool = False,
+) -> Path:
     """(o) Sign a permissions XML with S/MIME v3.2."""
     if out_p7s.is_file() and not force:
         log.info("Signed permissions exists, skipping: %s", out_p7s)

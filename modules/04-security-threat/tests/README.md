@@ -1,6 +1,6 @@
 # Module 04 — Test Suite
 
-Automated tests for the **Security Threat Demonstration** module.  
+Automated tests for the **Security Threat Demonstration** module.
 Tests verify that DDS Security correctly blocks (or allows) threat
 injector and exfiltrator participants depending on the attack mode.
 
