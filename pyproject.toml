@@ -1,6 +1,8 @@
 [tool.ruff]
+required-version = "==0.15.12"
 line-length = 120
 target-version = "py39"
+preview = true
 # Only lint test infrastructure and CI files; exclude pre-existing application source
 extend-exclude = [
     "modules/01-operating-room/src/",
@@ -19,16 +21,16 @@ select = [
     "W",   # pycodestyle warnings
     "I",   # isort
     "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "BLE", # flake8-blind-except
+    "ARG", # flake8-unused-arguments
+    "PLW1514", # explicit text encodings for cross-platform portability
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# E402: sys.path manipulation required before imports
-"build.py" = ["E402"]
-"launch.py" = ["E402"]
-"tests/test_build.py" = ["E402"]
-# Test files may have unused imports for readability
-"**/tests/*.py" = ["F401"]
-"**/tests/conftest.py" = ["E402"]
+# Tests that rely on pytest's discovery conventions import fixtures/plugins
+# for side effects.
+"tests/test_markdown_lint.py" = ["F401"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

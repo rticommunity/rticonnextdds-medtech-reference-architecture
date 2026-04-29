@@ -40,7 +40,7 @@ jobs:
 
       - name: Install lint dependencies
         run: |
-          pip install ruff clang-format==18.1.8 pytest
+          pip install ruff==0.15.12 clang-format==18.1.8 pytest
           npm install -g markdownlint-cli
 
       - name: Python lint (ruff)

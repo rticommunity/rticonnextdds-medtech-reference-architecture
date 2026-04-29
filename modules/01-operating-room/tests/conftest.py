@@ -26,6 +26,15 @@ from pathlib import Path
 
 import pytest
 
+# Make resource/python/ importable — the `scripts` package contains
+# module_runner (centralized since origin/main).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python"))
+
+# Make src/ importable so tests can use generated Types module directly.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+from scripts import module_runner
+
 # ---------------------------------------------------------------------------
 # Path bootstrapping — mirror what the launch scripts do
 # ---------------------------------------------------------------------------
@@ -34,15 +43,6 @@ REPO_ROOT = MODULE_DIR.parent.parent  # repo root
 SRC_DIR = MODULE_DIR / "src"
 SYSTEM_ARCH_DIR = REPO_ROOT / "system_arch"
 SECURITY_DIR = SYSTEM_ARCH_DIR / "security"
-
-# Make resource/python/ importable — the `scripts` package contains
-# module_runner (centralized since origin/main).
-sys.path.insert(0, str(REPO_ROOT / "resource" / "python"))
-
-# Make src/ importable so tests can use generated Types module directly.
-sys.path.insert(0, str(SRC_DIR))
-
-from scripts import module_runner  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Auto-skip helpers for custom markers
