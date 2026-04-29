@@ -1,4 +1,6 @@
 repos:
+  # Keep Ruff hook version pinned to the same release used in CI for deterministic lint results.
+  # When upgrading Ruff, bump this rev and the CI pin together.
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.12
     hooks:
@@ -12,6 +14,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        exclude: ^\.clang-format$  # uses multi-document YAML, valid for clang-format but not generic YAML
       - id: check-xml
       - id: check-added-large-files
         args: [--maxkb=500]
@@ -22,3 +25,9 @@ repos:
       - id: clang-format
         types_or: [c, c++]
         files: \.(cxx|cpp|hpp|h)$
+
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.17.2
+    hooks:
+      - id: markdownlint-cli2
+        args: [--config, .markdownlint.json]

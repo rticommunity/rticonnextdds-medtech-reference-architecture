@@ -1,5 +1,5 @@
 [tool.ruff]
-required-version = "==0.15.12"
+required-version = ">=0.15"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
