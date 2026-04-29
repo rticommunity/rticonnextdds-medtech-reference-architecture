@@ -28,9 +28,7 @@ select = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Tests that rely on pytest's discovery conventions import fixtures/plugins
-# for side effects.
-"tests/test_markdown_lint.py" = ["F401"]
+# (No per-file ignores currently needed)
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

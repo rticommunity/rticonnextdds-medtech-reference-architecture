@@ -26,6 +26,11 @@ from pathlib import Path
 
 import pytest
 
+# Reuse centralized scripts package for platform detection and module config
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python"))
+
+from scripts import module_runner
+
 # ---------------------------------------------------------------------------
 # Path bootstrapping
 # ---------------------------------------------------------------------------
@@ -33,11 +38,6 @@ MODULE_DIR = Path(__file__).resolve().parent.parent  # modules/02-record-playbac
 REPO_ROOT = MODULE_DIR.parent.parent  # repo root
 MODULE_01_DIR = MODULE_DIR.parent / "01-operating-room"
 SYSTEM_ARCH_DIR = REPO_ROOT / "system_arch"
-
-# Reuse centralized scripts package for platform detection and module config
-sys.path.insert(0, str(REPO_ROOT / "resource" / "python"))
-
-from scripts import module_runner  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Service detection

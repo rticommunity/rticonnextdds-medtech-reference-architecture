@@ -27,6 +27,11 @@ from pathlib import Path
 
 import pytest
 
+# Add centralized scripts package to import path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python"))
+
+from scripts import module_runner
+
 # ---------------------------------------------------------------------------
 # Path bootstrapping
 # ---------------------------------------------------------------------------
@@ -36,11 +41,6 @@ MODULE_01_DIR = MODULE_DIR.parent / "01-operating-room"
 SYSTEM_ARCH_DIR = REPO_ROOT / "system_arch"
 THREAT_SRC_DIR = MODULE_DIR / "src"
 OR_SRC_DIR = MODULE_01_DIR / "src"
-
-# Add centralized scripts package to import path
-sys.path.insert(0, str(REPO_ROOT / "resource" / "python"))
-
-from scripts import module_runner  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Auto-skip logic
