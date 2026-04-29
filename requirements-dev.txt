@@ -7,6 +7,11 @@
 
 # Runtime dependencies (inherited)
 -r requirements.txt
+codespell>=2.4
+
+# Security artifact scaffolding
+Jinja2>=3.1
+pre-commit>=3.0
 
 # Testing
 pytest>=7.0
@@ -14,8 +19,4 @@ pytest-cov>=4.0
 
 # Code quality
 ruff>=0.15
-pre-commit>=3.0
-codespell>=2.4
-
-# Security artifact scaffolding
-Jinja2>=3.1
+rumdl>=0.1.84

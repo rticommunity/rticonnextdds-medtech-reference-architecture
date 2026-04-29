@@ -25,21 +25,21 @@ inline void set_macos_dock_icon(const Glib::RefPtr<Gdk::Pixbuf> &pb)
     //       [NSData dataWithBytes:buf length:buf_size]];
     //   [[NSApplication sharedApplication] setApplicationIconImage:img];
 
-    id nsdata = ((id(*)(Class, SEL, const void *, unsigned long)) objc_msgSend)(
-            objc_getClass("NSData"),
-            sel_registerName("dataWithBytes:length:"),
-            buf,
-            (unsigned long) buf_size);
+    id nsdata =
+            ((id (*)(Class, SEL, const void *, unsigned long)) objc_msgSend)(
+                    objc_getClass("NSData"),
+                    sel_registerName("dataWithBytes:length:"),
+                    buf,
+                    (unsigned long) buf_size);
 
-    id nsimage = ((id(*)(id, SEL)) objc_msgSend)(
-            (id) objc_getClass("NSImage"),
-            sel_registerName("alloc"));
-    nsimage = ((id(*)(id, SEL, id)) objc_msgSend)(
+    id nsimage = ((id (*)(id, SEL)) objc_msgSend)((id) objc_getClass("NSImage"),
+                                                  sel_registerName("alloc"));
+    nsimage = ((id (*)(id, SEL, id)) objc_msgSend)(
             nsimage,
             sel_registerName("initWithData:"),
             nsdata);
 
-    id nsapp = ((id(*)(Class, SEL)) objc_msgSend)(
+    id nsapp = ((id (*)(Class, SEL)) objc_msgSend)(
             objc_getClass("NSApplication"),
             sel_registerName("sharedApplication"));
     ((void (*)(id, SEL, id)) objc_msgSend)(

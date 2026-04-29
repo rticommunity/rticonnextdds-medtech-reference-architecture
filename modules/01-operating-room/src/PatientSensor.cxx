@@ -62,9 +62,8 @@ public:
 
         dds::pub::DataWriter<Common::DeviceStatus> status_writer =
                 rti::pub::find_datawriter_by_name<
-                        dds::pub::DataWriter<Common::DeviceStatus>>(
-                        participant,
-                        STATUS_DW);
+                        dds::pub::DataWriter<Common::DeviceStatus>>(participant,
+                                                                    STATUS_DW);
 
         dds::pub::DataWriter<Common::DeviceHeartbeat> hb_writer =
                 rti::pub::find_datawriter_by_name<
@@ -168,9 +167,8 @@ private:
                     == Orchestrator::DeviceCommands::PAUSE) {
                     std::cout << "Pausing Patient Sensor" << std::endl;
                     current_status.status(Common::DeviceStatuses::PAUSED);
-                } else if (
-                        sample.data().command()
-                        == Orchestrator::DeviceCommands::START) {
+                } else if (sample.data().command()
+                           == Orchestrator::DeviceCommands::START) {
                     std::cout << "Starting Patient Sensor" << std::endl;
                     current_status.status(Common::DeviceStatuses::ON);
                 } else {  // shutdown

@@ -43,9 +43,8 @@ using namespace DdsEntities::Constants;
 class HeartbeatListener
         : public dds::sub::NoOpDataReaderListener<Common::DeviceHeartbeat> {
 public:
-    HeartbeatListener(
-            std::map<Common::DeviceType, Gtk::Label *> &statMap,
-            std::function<void(std::string)> logAlert)
+    HeartbeatListener(std::map<Common::DeviceType, Gtk::Label *> &statMap,
+                      std::function<void(std::string)> logAlert)
             : stat_map(statMap), log_alert(logAlert)
     {
     }
@@ -106,13 +105,11 @@ public:
 
         // Initialize DataReaders
         status_reader = rti::sub::find_datareader_by_name<
-                dds::sub::DataReader<Common::DeviceStatus>>(
-                participant,
-                STATUS_DR);
+                dds::sub::DataReader<Common::DeviceStatus>>(participant,
+                                                            STATUS_DR);
         hb_reader = rti::sub::find_datareader_by_name<
-                dds::sub::DataReader<Common::DeviceHeartbeat>>(
-                participant,
-                HB_DR);
+                dds::sub::DataReader<Common::DeviceHeartbeat>>(participant,
+                                                               HB_DR);
 
         hb_listener = std::make_shared<HeartbeatListener>(
                 stat_map,
@@ -129,10 +126,9 @@ public:
 #ifdef RTI_SECURITY_AVAILABLE
         if (SecureLogUtils::is_secure(participant)) {
             securelog_reader = SecureLogUtils::setup_secure_log_reader(
-                    std::bind(
-                            &OrchestratorApp::process_secure_log,
-                            this,
-                            std::placeholders::_1),
+                    std::bind(&OrchestratorApp::process_secure_log,
+                              this,
+                              std::placeholders::_1),
                     default_provider);
         }
 #endif
@@ -216,11 +212,10 @@ private:
             std::time_t now = std::time(nullptr);
             std::tm *local_time = std::localtime(&now);
             char time_str[100];
-            std::strftime(
-                    time_str,
-                    sizeof(time_str),
-                    "%Y-%m-%d %H:%M:%S",
-                    local_time);
+            std::strftime(time_str,
+                          sizeof(time_str),
+                          "%Y-%m-%d %H:%M:%S",
+                          local_time);
 
             // write to buffer
             std::stringstream ss;
@@ -229,8 +224,8 @@ private:
 
             // scroll window down
             auto v_adjustment = scroll->get_vadjustment();
-            v_adjustment->set_value(
-                    v_adjustment->get_upper() - v_adjustment->get_page_size());
+            v_adjustment->set_value(v_adjustment->get_upper()
+                                    - v_adjustment->get_page_size());
 
             return false;
         });
@@ -449,9 +444,8 @@ private:
             return false;
         });
 
-        builder->get_widget<Gtk::Label>(
-                "arm_label",
-                stat_map[Common::DeviceType::ARM]);
+        builder->get_widget<Gtk::Label>("arm_label",
+                                        stat_map[Common::DeviceType::ARM]);
         builder->get_widget<Gtk::Label>(
                 "armctrl_label",
                 stat_map[Common::DeviceType::ARM_CONTROLLER]);

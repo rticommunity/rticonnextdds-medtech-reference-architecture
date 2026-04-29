@@ -4,36 +4,56 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.12
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [--fix]
       - id: ruff-format
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
         exclude: ^\.clang-format$  # uses multi-document YAML, valid for clang-format but not generic YAML
+      - id: check-json
+      - id: check-toml
       - id: check-xml
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: detect-private-key
       - id: check-added-large-files
         args: [--maxkb=500]
+      - id: requirements-txt-fixer
+      - id: mixed-line-ending
+        name: mixed-line-ending-lf
+        args: [--fix=lf]
+        exclude_types: [batch]
+      - id: mixed-line-ending
+        name: mixed-line-ending-crlf
+        args: [--fix=crlf]
+        types_or: [batch]
+      - id: name-tests-test
+        args: [--pytest-test-first]
+      - id: check-illegal-windows-names
 
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
     hooks:
       - id: codespell
-        args: [--toml, pyproject.toml]
+        additional_dependencies:
+          - tomli
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v19.1.0
+    rev: v22.1.4
     hooks:
       - id: clang-format
         types_or: [c, c++]
         files: \.(cxx|cpp|hpp|h)$
 
-  - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.17.2
+  - repo: https://github.com/rvben/rumdl-pre-commit
+    rev: v0.1.84
     hooks:
-      - id: markdownlint-cli2
-        args: [--config, .markdownlint.json]
+      - id: rumdl
+      - id: rumdl-fmt

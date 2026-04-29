@@ -16,7 +16,6 @@ contributors working from a fork.
 - [Running Tests Locally](#running-tests-locally)
 - [Branch and PR Conventions](#branch-and-pr-conventions)
 - [Upgrading Ruff](#upgrading-ruff)
-- [Markdown Tooling Roadmap](#markdown-tooling-roadmap)
 
 ---
 
@@ -25,7 +24,6 @@ contributors working from a fork.
 | Tool | Minimum Version | Notes |
 | --- | --- | --- |
 | Python | 3.9 | Use `python3.9` explicitly if multiple versions are installed |
-| Node.js | 18 | Required for `markdownlint-cli` in CI |
 | RTI Connext DDS | 7.3.1 | See [README.md](../README.md) for install instructions |
 | CMake | 3.17 | Required for C++ module builds |
 | Docker | Any recent | Optional; required only for containerised test runs |
@@ -67,6 +65,10 @@ ruff format .
 # Spelling
 codespell --toml pyproject.toml
 
+# Markdown lint/format
+rumdl check .
+rumdl fmt .
+
 # Run all project test suites
 tests/run_tests.sh -v
 
@@ -91,7 +93,8 @@ the commit is recorded:
 | `check-added-large-files` | Blocks files larger than 500 KB |
 | `codespell` | Checks spelling for source and docs using `pyproject.toml` settings |
 | `clang-format` | Reformats C/C++ source files |
-| `markdownlint-cli2` | Lint all `.md` files against `.markdownlint.json` |
+| `rumdl` | Markdown lint + auto-fix |
+| `rumdl-fmt` | Markdown formatting pass |
 
 If a hook **modifies files**, the commit is aborted. Re-stage the modified
 files and commit again:
@@ -111,7 +114,7 @@ committing. In exceptional circumstances you can bypass hooks with
 
 | Event | Triggered by | What runs |
 | --- | --- | --- |
-| `git commit` | git hook (local) | All pre-commit hooks (lint, format, whitespace, clang-format, markdown) |
+| `git commit` | git hook (local) | All pre-commit hooks (lint, format, whitespace, clang-format, markdown via rumdl) |
 | `git push` / open PR | GitHub Actions | Full CI pipeline (see below) |
 | PR merge to `main` | Blocked until CI passes | — |
 
@@ -119,7 +122,7 @@ committing. In exceptional circumstances you can bypass hooks with
 
 | Job | What it does |
 | --- | --- |
-| Lint & Format | `ruff check .`, `ruff format --check .`, clang-format dry-run, markdownlint |
+| Lint & Format | `ruff check .`, `ruff format --check .`, codespell, clang-format dry-run, markdown lint via `rvben/rumdl` action |
 | Build | CMake configure + build all C++ modules |
 | Project-level Tests | `pytest tests/` |
 | Unit Tests | Fast Python type/script/QoS tests |
@@ -168,16 +171,16 @@ docker compose -f tests/docker/docker-compose.yml run --rm --build test \
 ```
 
 > **Note:** The Docker default command runs `tests/run_tests.sh`, which
-> executes functional/behavioral tests. It does **not** run Ruff lint or
-> clang-format; those are enforced by pre-commit (locally) and the CI lint
-> job (on push/PR).
+> executes functional/behavioral tests. It does **not** run Ruff lint,
+> rumdl markdown lint, or clang-format; those are enforced by pre-commit
+> (locally) and the CI lint job (on push/PR).
 
 ---
 
 ## Branch and PR Conventions
 
 Follow the branch strategy defined in
-[docs/release/RELEASE_PLAN.md](release/RELEASE_PLAN.md#branch-strategy).
+[docs/release/RELEASE_PLAN.md](release/RELEASE_PLAN.md).
 
 In summary:
 
@@ -238,24 +241,3 @@ pre-commit run --all-files
 git add .pre-commit-config.yaml .github/workflows/ci.yml pyproject.toml requirements-dev.txt
 git commit -m "chore: bump Ruff to <new-version>"
 ```
-
----
-
-## Markdown Tooling Roadmap
-
-The active, blocking markdown gate remains `markdownlint-cli2` for now.
-
-If maintainers decide to migrate to `rumdl` later, use this low-risk path:
-
-1. Add `rumdl` to development dependencies and pin its version in CI.
-2. Run `rumdl` in CI as advisory-only (non-blocking) for at least 1-2 weeks.
-3. Compare findings between `markdownlint-cli2` and `rumdl` and resolve major rule gaps.
-4. Add stable `rumdl` config under `pyproject.toml`.
-5. Switch pre-commit and CI blocking gates from `markdownlint-cli2` to `rumdl` in one commit.
-6. Update `tests/test_markdown_lint.py` to call the selected markdown tool and remove the old one.
-
-Acceptance criteria for migration:
-
-- No increase in markdown false positives in active docs.
-- Equivalent or better rule coverage for heading/list/link hygiene.
-- Consistent behavior in local runs, Docker, and CI.

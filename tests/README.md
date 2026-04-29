@@ -23,8 +23,8 @@ python -m pytest tests/ -v
 # Skip cmake configure/build (just verify binaries exist)
 python -m pytest tests/ -v -k "not cmake"
 
-# Markdown lint only (requires markdownlint-cli on PATH)
-python -m pytest tests/test_markdown_lint.py -v
+# Markdown lint (rumdl)
+rumdl check .
 
 # Full project test sweep (repo-level + module-level tests)
 tests/run_tests.sh -v
@@ -80,4 +80,3 @@ Prefer the Docker path when environment parity matters more than speed:
 | File | What it tests |
 | --- | --- |
 | `test_build.py` | CMake configure & build succeed; Module 01 C++ binaries exist |
-| `test_markdown_lint.py` | All non-ignored `.md` files pass `.markdownlint.json` rules |

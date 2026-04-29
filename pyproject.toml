@@ -10,9 +10,14 @@ check-hidden = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
-# Rumdl migration path (future):
-# - Keep markdownlint as the blocking gate for now.
-# - Add rumdl as non-blocking in CI first and compare findings.
-# - Once parity is confirmed, replace markdownlint in hooks/tests/CI.
-# [tool.rumdl]
-# # Add rumdl-specific settings here during pilot.
+[tool.rumdl]
+disable = ["MD013"]
+
+[tool.rumdl.MD024]
+siblings-only = true
+
+[tool.rumdl.MD033]
+allowed-elements = ["details", "summary", "strong"]
+
+[tool.rumdl.MD060]
+style = "compact"

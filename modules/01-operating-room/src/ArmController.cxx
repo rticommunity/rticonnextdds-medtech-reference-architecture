@@ -39,9 +39,8 @@ using namespace DdsEntities::Constants;
 class SurgicalArmController {
 public:
     SurgicalArmController()
-            : current_status(
-                      Common::DeviceType::ARM_CONTROLLER,
-                      Common::DeviceStatuses::ON)
+            : current_status(Common::DeviceType::ARM_CONTROLLER,
+                             Common::DeviceStatuses::ON)
     {
         // Initialize Connext entities
         initialize_connext();
@@ -127,13 +126,11 @@ private:
 
         // Initialize DataWriters
         status_writer = rti::pub::find_datawriter_by_name<
-                dds::pub::DataWriter<Common::DeviceStatus>>(
-                participant,
-                STATUS_DW);
+                dds::pub::DataWriter<Common::DeviceStatus>>(participant,
+                                                            STATUS_DW);
         hb_writer = rti::pub::find_datawriter_by_name<
-                dds::pub::DataWriter<Common::DeviceHeartbeat>>(
-                participant,
-                HB_DW);
+                dds::pub::DataWriter<Common::DeviceHeartbeat>>(participant,
+                                                               HB_DW);
         arm_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<SurgicalRobot::MotorControl>>(
                 participant,
@@ -171,9 +168,8 @@ private:
     }
 
     // Write motor command
-    void write_command(
-            SurgicalRobot::Motors motor,
-            SurgicalRobot::MotorDirections dir)
+    void write_command(SurgicalRobot::Motors motor,
+                       SurgicalRobot::MotorDirections dir)
     {
         if (current_status.status() == Common::DeviceStatuses::ON) {
             SurgicalRobot::MotorControl sample(motor, dir);
@@ -189,10 +185,9 @@ private:
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             for (const auto &btn : motor_play_btns) {
                 if (btn.second->get_active()) {
-                    write_command(
-                            btn.first,
-                            static_cast<SurgicalRobot::MotorDirections>(
-                                    rand() % 3));
+                    write_command(btn.first,
+                                  static_cast<SurgicalRobot::MotorDirections>(
+                                          rand() % 3));
                 }
             }
         }
@@ -210,9 +205,8 @@ private:
                     == Orchestrator::DeviceCommands::PAUSE) {
                     log_alert("Received PAUSE Command from Orchestrator");
                     current_status.status(Common::DeviceStatuses::PAUSED);
-                } else if (
-                        sample.data().command()
-                        == Orchestrator::DeviceCommands::START) {
+                } else if (sample.data().command()
+                           == Orchestrator::DeviceCommands::START) {
                     log_alert("Received START Command from Orchestrator");
                     current_status.status(Common::DeviceStatuses::ON);
                 } else {  // shutdown
@@ -350,11 +344,10 @@ private:
     //   - AUTO / PLAY ALL can re-enable automatic mode.
     void connect_buttons(const Glib::RefPtr<Gtk::Builder> &builder)
     {
-        auto connect_inc_dec = [this, &builder](
-                                       const std::string &btn_name,
-                                       SurgicalRobot::Motors motor,
-                                       SurgicalRobot::MotorDirections
-                                               direction) {
+        auto connect_inc_dec = [this, &builder](const std::string &btn_name,
+                                                SurgicalRobot::Motors motor,
+                                                SurgicalRobot::MotorDirections
+                                                        direction) {
             Gtk::Button *button = nullptr;
             builder->get_widget<Gtk::Button>(btn_name, button);
             if (!button)
@@ -395,46 +388,36 @@ private:
                     false);
         };
 
-        connect_inc_dec(
-                "base_inc",
-                SurgicalRobot::Motors::BASE,
-                SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec(
-                "base_dec",
-                SurgicalRobot::Motors::BASE,
-                SurgicalRobot::MotorDirections::DECREMENT);
-        connect_inc_dec(
-                "shoulder_inc",
-                SurgicalRobot::Motors::SHOULDER,
-                SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec(
-                "shoulder_dec",
-                SurgicalRobot::Motors::SHOULDER,
-                SurgicalRobot::MotorDirections::DECREMENT);
-        connect_inc_dec(
-                "elbow_inc",
-                SurgicalRobot::Motors::ELBOW,
-                SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec(
-                "elbow_dec",
-                SurgicalRobot::Motors::ELBOW,
-                SurgicalRobot::MotorDirections::DECREMENT);
-        connect_inc_dec(
-                "wrist_inc",
-                SurgicalRobot::Motors::WRIST,
-                SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec(
-                "wrist_dec",
-                SurgicalRobot::Motors::WRIST,
-                SurgicalRobot::MotorDirections::DECREMENT);
-        connect_inc_dec(
-                "hand_inc",
-                SurgicalRobot::Motors::HAND,
-                SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec(
-                "hand_dec",
-                SurgicalRobot::Motors::HAND,
-                SurgicalRobot::MotorDirections::DECREMENT);
+        connect_inc_dec("base_inc",
+                        SurgicalRobot::Motors::BASE,
+                        SurgicalRobot::MotorDirections::INCREMENT);
+        connect_inc_dec("base_dec",
+                        SurgicalRobot::Motors::BASE,
+                        SurgicalRobot::MotorDirections::DECREMENT);
+        connect_inc_dec("shoulder_inc",
+                        SurgicalRobot::Motors::SHOULDER,
+                        SurgicalRobot::MotorDirections::INCREMENT);
+        connect_inc_dec("shoulder_dec",
+                        SurgicalRobot::Motors::SHOULDER,
+                        SurgicalRobot::MotorDirections::DECREMENT);
+        connect_inc_dec("elbow_inc",
+                        SurgicalRobot::Motors::ELBOW,
+                        SurgicalRobot::MotorDirections::INCREMENT);
+        connect_inc_dec("elbow_dec",
+                        SurgicalRobot::Motors::ELBOW,
+                        SurgicalRobot::MotorDirections::DECREMENT);
+        connect_inc_dec("wrist_inc",
+                        SurgicalRobot::Motors::WRIST,
+                        SurgicalRobot::MotorDirections::INCREMENT);
+        connect_inc_dec("wrist_dec",
+                        SurgicalRobot::Motors::WRIST,
+                        SurgicalRobot::MotorDirections::DECREMENT);
+        connect_inc_dec("hand_inc",
+                        SurgicalRobot::Motors::HAND,
+                        SurgicalRobot::MotorDirections::INCREMENT);
+        connect_inc_dec("hand_dec",
+                        SurgicalRobot::Motors::HAND,
+                        SurgicalRobot::MotorDirections::DECREMENT);
 
         Gtk::Button *playall = nullptr;
         builder->get_widget<Gtk::Button>("playall", playall);
@@ -458,11 +441,10 @@ private:
         std::time_t now = std::time(nullptr);
         std::tm *local_time = std::localtime(&now);
         char time_str[100];
-        std::strftime(
-                time_str,
-                sizeof(time_str),
-                "%Y-%m-%d %H:%M:%S",
-                local_time);
+        std::strftime(time_str,
+                      sizeof(time_str),
+                      "%Y-%m-%d %H:%M:%S",
+                      local_time);
 
         std::stringstream ss;
         ss << "\n" << time_str << " - " << msg;
