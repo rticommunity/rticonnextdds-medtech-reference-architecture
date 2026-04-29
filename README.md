@@ -256,7 +256,7 @@ This reference architecture defines the following Topics in [DomainLibrary.xml](
 | OperationalDataDomain | `t/DeviceCommand` | Command initiating a status (e.g. `START`, `SHUTDOWN`) to a unique system component
 | OperationalDataDomain | `t/Vitals` | Data representative of a unique patient's collected vital signs
 
-*Note, this reference architecture defines a unique Topic for each Data Type defined. While a Topic may only reference a single Data Type, a multi-purpose Data Type can be associated with multiple Topics. It is a **best practice** to limit the number of defined Topics, but in doing so, it may be feasible to re-use a Data Type for several Topics.*
+*Note, this reference architecture defines a unique Topic for each Data Type defined. While a Topic may only reference a single Data Type, a multi-purpose Data Type can be associated with multiple Topics. It is a **best practice** to limit the number of defined Topics, but in doing so, it may be feasible to reuse a Data Type for several Topics.*
 
 ### DomainParticipants & DDS Entities
 

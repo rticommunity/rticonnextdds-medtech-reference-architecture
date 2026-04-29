@@ -52,7 +52,7 @@ Complete the shared setup in the root [Quick Start](../../README.md#quick-start)
 For this module, you will need the following:
 
 1. Two machines connected to the WAN (not on the same LAN) that can run the operating room applications from Module 01.
-2. Conditionally, a cloud instance that is publically reachable by both machines noted above. *This is required for Scenarios 2 and 3 described below.*
+2. Conditionally, a cloud instance that is publicly reachable by both machines noted above. *This is required for Scenarios 2 and 3 described below.*
 
 ### 1. Determine Your Scenario
 

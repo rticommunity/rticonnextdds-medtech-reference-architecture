@@ -120,7 +120,7 @@ This QoS profile is used for command and event-related Topics. These are Topics 
 
 It inherits from the *BuiltinQosLib::Generic.Common* profile in addition to builtin QoS snippets. As a result, this QoS profile applies the following:
 
-- *RELIABLE* Reliability QoS. Samples should be repaired if lost because the frequency of commands is unkown and irregular.
+- *RELIABLE* Reliability QoS. Samples should be repaired if lost because the frequency of commands is unknown and irregular.
 - *KEEP_LAST, depth=1* History QoS. In this simplified demonstration, only the last command for a system component should be processed by subscribing applications, or cached by DataWriters to repair as needed.
 - *VOLATILE* Durability QoS. Late-joining DataReaders should **not** receive historical commands that were published before they joined.
 - Some optimizations to make repairs faster.

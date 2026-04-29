@@ -16,6 +16,7 @@ contributors working from a fork.
 - [Running Tests Locally](#running-tests-locally)
 - [Branch and PR Conventions](#branch-and-pr-conventions)
 - [Upgrading Ruff](#upgrading-ruff)
+- [Markdown Tooling Roadmap](#markdown-tooling-roadmap)
 
 ---
 
@@ -63,6 +64,9 @@ ruff check .
 # Python formatting
 ruff format .
 
+# Spelling
+codespell --toml pyproject.toml
+
 # Run all project test suites
 tests/run_tests.sh -v
 
@@ -85,6 +89,7 @@ the commit is recorded:
 | `check-yaml` | Validates YAML syntax |
 | `check-xml` | Validates XML syntax |
 | `check-added-large-files` | Blocks files larger than 500 KB |
+| `codespell` | Checks spelling for source and docs using `pyproject.toml` settings |
 | `clang-format` | Reformats C/C++ source files |
 | `markdownlint-cli2` | Lint all `.md` files against `.markdownlint.json` |
 
@@ -233,3 +238,24 @@ pre-commit run --all-files
 git add .pre-commit-config.yaml .github/workflows/ci.yml pyproject.toml requirements-dev.txt
 git commit -m "chore: bump Ruff to <new-version>"
 ```
+
+---
+
+## Markdown Tooling Roadmap
+
+The active, blocking markdown gate remains `markdownlint-cli2` for now.
+
+If maintainers decide to migrate to `rumdl` later, use this low-risk path:
+
+1. Add `rumdl` to development dependencies and pin its version in CI.
+2. Run `rumdl` in CI as advisory-only (non-blocking) for at least 1-2 weeks.
+3. Compare findings between `markdownlint-cli2` and `rumdl` and resolve major rule gaps.
+4. Add stable `rumdl` config under `pyproject.toml`.
+5. Switch pre-commit and CI blocking gates from `markdownlint-cli2` to `rumdl` in one commit.
+6. Update `tests/test_markdown_lint.py` to call the selected markdown tool and remove the old one.
+
+Acceptance criteria for migration:
+
+- No increase in markdown false positives in active docs.
+- Equivalent or better rule coverage for heading/list/link hygiene.
+- Consistent behavior in local runs, Docker, and CI.

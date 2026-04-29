@@ -344,7 +344,7 @@ The *Arm* DomainParticipant is intended to demonstrate a Robotic Surgery Arm wit
 | DataReader | Topic | QoS Profile | Content Filter | Intended Use
 | ---------- | ----- | ----------- | -------------- | ------------
 | *dr/MotorControl* | *t/MotorControl* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | -- | Receive and process motor control commands
-| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | `device = 'ARM'` | Receive and process device commands targetting this Arm
+| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | `device = 'ARM'` | Receive and process device commands targeting this Arm
 
 ##### ***MedicalDemoParticipantLibrary::dp/ArmController***
 
@@ -362,7 +362,7 @@ The *ArmController* DomainParticipant is intended to administer commands to the 
 
 | DataReader | Topic | QoS Profile | Content Filter | Intended Use
 | ---------- | ----- | ----------- | -------------- | ------------
-| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | `device = 'ARM_CONTROLLER'` | Receive and process device commands targetting this Arm Controller
+| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | `device = 'ARM_CONTROLLER'` | Receive and process device commands targeting this Arm Controller
 
 ##### ***MedicalDemoParticipantLibrary::dp/Orchestrator***
 
@@ -397,7 +397,7 @@ The *PatientSensor* DomainParticipant is intended to simulate a streaming source
 
 | DataReader | Topic | QoS Profile | Content Filter | Intended Use
 | ---------- | ----- | ----------- | -------------- | ------------
-| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | `device = 'PATIENT_SENSOR'` | Receive and process device commands targetting this PatientSensor
+| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | `device = 'PATIENT_SENSOR'` | Receive and process device commands targeting this PatientSensor
 
 ##### ***MedicalDemoParticipantLibrary::dp/PatientMonitor***
 
@@ -414,7 +414,7 @@ The *PatientMonitor* DomainParticipant is intended to process (display) patient 
 
 | DataReader | Topic | QoS Profile | Content Filter | Intended Use
 | ---------- | ----- | ----------- | -------------- | ------------
-| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | `device = 'PATIENT_MONITOR'` | Receive and process device commands targetting this PatientMonitor
+| *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand) | `device = 'PATIENT_MONITOR'` | Receive and process device commands targeting this PatientMonitor
 | *dr/Vitals* | *t/Vitals* | [*DataFlowLibrary::Streaming*](../qos/README.md#dataflowlibrarystreaming) | -- | Receive and process patient vitals data stream
 
 ### DomainParticipant Library Best Practices

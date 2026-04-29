@@ -1,5 +1,18 @@
 [tool.ruff]
 required-version = ">=0.15"
 
+[tool.codespell]
+# Keep spelling checks focused on source/docs and skip generated/cache content.
+skip = ".git,.venv,.venv39,build,**/build,.pytest_cache,__pycache__,resource/images,*.svg"
+ignore-words-list = "nddshome,connextdds,rtisetenv,dpqoslib,unsecure"
+check-hidden = false
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# Rumdl migration path (future):
+# - Keep markdownlint as the blocking gate for now.
+# - Add rumdl as non-blocking in CI first and compare findings.
+# - Once parity is confirmed, replace markdownlint in hooks/tests/CI.
+# [tool.rumdl]
+# # Add rumdl-specific settings here during pilot.

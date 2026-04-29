@@ -12,7 +12,7 @@ inability to use the software. -->
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_dds_profiles.xsd" version="7.3.0">
 
     <qos_library name="SystemLibrary">
-      <!-- All DomainParticipants should typically use this profile, unless they have differen requirements -->
+      <!-- All DomainParticipants should typically use this profile, unless they have different requirements -->
       <qos_profile name="DefaultParticipant" base_name="BuiltinQosLib::Generic.Common">
         <domain_participant_qos>
           <!-- Discovery-related optimizations -->

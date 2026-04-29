@@ -15,6 +15,7 @@ pytest-cov>=4.0
 # Code quality
 ruff>=0.15
 pre-commit>=3.0
+codespell>=2.4
 
 # Security artifact scaffolding
 Jinja2>=3.1

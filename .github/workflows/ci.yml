@@ -40,7 +40,7 @@ jobs:
 
       - name: Install lint dependencies
         run: |
-          pip install ruff==0.15.12 clang-format==18.1.8 pytest
+          pip install ruff==0.15.12 clang-format==18.1.8 pytest codespell==2.4.1
           npm install -g markdownlint-cli
 
       - name: Python lint (ruff)
@@ -48,6 +48,9 @@ jobs:
 
       - name: Python format check (ruff)
         run: ruff format --check .
+
+      - name: Spelling check (codespell)
+        run: codespell --toml pyproject.toml
 
       - name: C++ format check (clang-format)
         run: |
