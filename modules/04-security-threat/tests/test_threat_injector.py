@@ -22,12 +22,9 @@ determine whether data can flow.
 import json
 import subprocess
 import sys
-import time
-from pathlib import Path
 
 import pytest
 from conftest import (
-    MODULE_01_DIR,
     MODULE_DIR,
     OR_SRC_DIR,
     THREAT_SRC_DIR,

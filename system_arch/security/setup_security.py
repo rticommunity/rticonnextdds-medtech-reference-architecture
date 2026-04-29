@@ -223,7 +223,7 @@ def main():
     else:
         SECURITY_TREE.generate_artifacts(
             root=SECURITY_DIR, force=args.force, strict=args.strict)
-        print(f"Security artifacts generated!")
+        print("Security artifacts generated!")
 
 
 if __name__ == "__main__":

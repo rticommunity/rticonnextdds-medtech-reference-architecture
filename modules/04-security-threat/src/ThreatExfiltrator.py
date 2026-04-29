@@ -13,7 +13,6 @@
 from __future__ import annotations
 
 import sys
-import math
 import time
 import threading
 import signal
@@ -26,8 +25,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout, QVBoxLayout, QPushButton,
     QTextEdit, QSizePolicy, QGridLayout
 )
-from PySide6.QtCore import Qt, QTimer, Signal, QObject
-from PySide6.QtGui import QFont, QColor, QPalette, QPixmap, QIcon
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QPixmap, QIcon
 
 import pyqtgraph as pg
 
@@ -35,12 +34,12 @@ import rti.connextdds as dds
 import PySide6.QtAsyncio as QtAsyncio
 
 # Import OR types
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
-if str(PROJECT_ROOT / "modules" / "01-operating-room" / "src") not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT / "modules" / "01-operating-room" / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.resolve() / "modules" / "01-operating-room" / "src"))
 import DdsUtils
 from Types import PatientMonitor, DdsEntities
 from ThreatTypes import ThreatEntities
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
 threat_entities = ThreatEntities.Constants
 entities = DdsEntities.Constants
 
@@ -64,10 +63,10 @@ COLOR_NIBP  = "#FF7043"
 
 # ─── Left-panel button styles ─────────────────────────────────────────────
 _STYLE_MODE_INACTIVE = (
-    f"QPushButton {{ background-color: #0D1824; color: #4A6070; "
-    f"border: 1px solid #1A2A38; border-radius: 5px; padding: 0px 12px; "
-    f"font-size: 13px; font-weight: bold; text-align: left; }}"
-    f"QPushButton:hover {{ background-color: #162030; color: #90AAB8; border-color: #2A3A4A; }}"
+    "QPushButton { background-color: #0D1824; color: #4A6070; "
+    "border: 1px solid #1A2A38; border-radius: 5px; padding: 0px 12px; "
+    "font-size: 13px; font-weight: bold; text-align: left; }"
+    "QPushButton:hover { background-color: #162030; color: #90AAB8; border-color: #2A3A4A; }"
 )
 _STYLE_MODE_ACTIVE_UNSECURE = (
     f"QPushButton {{ background-color: #0A1E35; color: {COLOR_ATTEMPTING}; "
@@ -86,9 +85,9 @@ _STYLE_STOP_ENABLED = (
     f"QPushButton:hover {{ background-color: #2E1010; border-color: {COLOR_BLOCKED}; }}"
 )
 _STYLE_STOP_DISABLED = (
-    f"QPushButton {{ background-color: #0D1520; color: #2A3848; "
-    f"border: 1px solid #182028; border-radius: 5px; padding: 0px 12px; "
-    f"font-size: 13px; font-weight: bold; }}"
+    "QPushButton { background-color: #0D1520; color: #2A3848; "
+    "border: 1px solid #182028; border-radius: 5px; padding: 0px 12px; "
+    "font-size: 13px; font-weight: bold; }"
 )
 
 UPDATE_MS = 100
@@ -453,7 +452,7 @@ class ThreatExfiltratorWindow(QMainWindow):
             "and return to idle at any time."
         )
         info_lbl.setStyleSheet(
-            f"color: #607080; font-size: 12px; background: transparent; padding: 4px;"
+            "color: #607080; font-size: 12px; background: transparent; padding: 4px;"
         )
         info_lbl.setWordWrap(True)
         layout.addWidget(info_lbl)
@@ -509,14 +508,14 @@ class ThreatExfiltratorWindow(QMainWindow):
         v.addWidget(hdr)
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setStyleSheet(f"""
-            QTextEdit {{
+        self.log_text.setStyleSheet("""
+            QTextEdit {
                 background-color: #060C14;
                 color: #A0B0C0;
                 font-family: 'Courier New', monospace;
                 font-size: 12px;
                 border: none;
-            }}
+            }
         """)
         v.addWidget(self.log_text)
         return frame

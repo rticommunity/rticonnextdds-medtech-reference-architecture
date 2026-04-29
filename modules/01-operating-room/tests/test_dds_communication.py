@@ -21,7 +21,6 @@ import time
 
 import pytest
 from conftest import (
-    MODULE_DIR,
     SRC_DIR,
     create_reader,
     create_writer,

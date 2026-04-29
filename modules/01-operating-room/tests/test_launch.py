@@ -15,12 +15,10 @@ Verifies that each application starts without crashing.
 GUI applications are marked so they can be skipped on headless systems.
 """
 
-import time
 
 import pytest
 from conftest import (
     create_reader,
-    wait_for_data,
     wait_for_device_status,
     wait_for_process_ready,
 )

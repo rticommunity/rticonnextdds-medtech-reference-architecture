@@ -1,4 +1,3 @@
-import socket
 import requests
 import stun
 import time

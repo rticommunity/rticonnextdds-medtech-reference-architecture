@@ -22,13 +22,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-MODULE_DIR = Path(__file__).parent.parent.resolve()
-PROJECT_ROOT = MODULE_DIR.parent.parent.resolve()
-MAIN_SECURITY_DIR = PROJECT_ROOT / "system_arch" / "security"
-MODULE_SECURITY_DIR = MODULE_DIR / "security"
-
 # Add the main security dir to the import path
-sys.path.insert(0, str(MAIN_SECURITY_DIR))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.resolve() / "system_arch" / "security"))
 
 from security_tree import (
     CA,
@@ -43,6 +38,11 @@ from security_tree import (
     scaffold_tree,
 )
 from dds_security import generate_expired_identity
+
+MODULE_DIR = Path(__file__).parent.parent.resolve()
+PROJECT_ROOT = MODULE_DIR.parent.parent.resolve()
+MAIN_SECURITY_DIR = PROJECT_ROOT / "system_arch" / "security"
+MODULE_SECURITY_DIR = MODULE_DIR / "security"
 
 # ---------------------------------------------------------------------------
 # Certificate authorities
@@ -212,7 +212,7 @@ def main():
                 force=args.force,
             )
 
-        print(f"Threat security artifacts generated!")
+        print("Threat security artifacts generated!")
 
 
 if __name__ == "__main__":

@@ -11,7 +11,6 @@
 # inability to use the software.
 
 import sys
-import math
 import time
 import threading
 import signal
@@ -22,7 +21,7 @@ from PySide6.QtWidgets import (
     QGridLayout, QHBoxLayout, QVBoxLayout, QSizePolicy
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QObject
-from PySide6.QtGui import QFont, QColor, QPalette, QFontDatabase, QPixmap, QIcon
+from PySide6.QtGui import QPixmap, QIcon
 
 import pyqtgraph as pg
 
@@ -359,7 +358,7 @@ class PatientMonitorWindow(QMainWindow):
         h_layout.addWidget(rti_lbl)
 
         bar = QLabel("|")
-        bar.setStyleSheet(f"color: #334455; font-size: 34px; background: transparent;")
+        bar.setStyleSheet("color: #334455; font-size: 34px; background: transparent;")
         h_layout.addWidget(bar)
 
         title_lbl = QLabel("Patient Monitor")

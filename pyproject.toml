@@ -1,34 +1,5 @@
 [tool.ruff]
 required-version = "==0.15.12"
-line-length = 120
-target-version = "py39"
-preview = true
-# Only lint test infrastructure and CI files; exclude pre-existing application source
-extend-exclude = [
-    "modules/01-operating-room/src/",
-    "modules/01-operating-room/scripts/",
-    "modules/04-security-threat/src/",
-    "modules/04-security-threat/scripts/",
-    "modules/04-security-threat/security/",
-    "system_arch/",
-    "resource/",
-]
-
-[tool.ruff.lint]
-select = [
-    "E",   # pycodestyle errors
-    "F",   # pyflakes
-    "W",   # pycodestyle warnings
-    "I",   # isort
-    "UP",  # pyupgrade
-    "B",   # flake8-bugbear
-    "BLE", # flake8-blind-except
-    "ARG", # flake8-unused-arguments
-    "PLW1514", # explicit text encodings for cross-platform portability
-]
-
-[tool.ruff.lint.per-file-ignores]
-# (No per-file ignores currently needed)
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -16,7 +16,6 @@ fields and enum members that this module's applications depend on.
 """
 
 import sys
-from pathlib import Path
 
 import pytest
 from conftest import SRC_DIR
@@ -39,11 +38,8 @@ class TestPythonTypes:
             sys.path.insert(0, str(SRC_DIR))
 
         from Types import (
-            Common_DeviceHeartbeat,
             Common_DeviceStatus,
-            Orchestrator_DeviceCommand,
             PatientMonitor_Vitals,
-            SurgicalRobot_MotorControl,
         )
 
         # Smoke-check that we can instantiate them

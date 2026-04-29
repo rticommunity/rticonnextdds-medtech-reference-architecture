@@ -18,11 +18,11 @@ import signal
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QFrame,
-    QHBoxLayout, QVBoxLayout, QSizePolicy, QScrollArea
+    QHBoxLayout, QVBoxLayout, QSizePolicy
 )
-from PySide6.QtCore import Qt, QTimer, QRectF, QPointF, Signal, QObject
+from PySide6.QtCore import Qt, QTimer, QRectF, QPointF
 from PySide6.QtGui import (
-    QPainter, QColor, QPen, QBrush, QFont, QConicalGradient, QPainterPath,
+    QPainter, QColor, QPen, QBrush, QFont, QPainterPath,
     QPixmap, QIcon
 )
 
@@ -425,8 +425,8 @@ class ArmWindow(QMainWindow):
 
         self.state_lbl = QLabel("ON")
         self.state_lbl.setStyleSheet(
-            f"color: #000; background-color: #00E676; font-size: 22px; "
-            f"font-weight: bold; padding: 3px 12px; border-radius: 4px;"
+            "color: #000; background-color: #00E676; font-size: 22px; "
+            "font-weight: bold; padding: 3px 12px; border-radius: 4px;"
         )
         h_layout.addWidget(self.state_lbl)
 

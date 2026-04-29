@@ -16,7 +16,6 @@ and verifies that data is captured to a SQLite database.
 """
 
 import time
-from pathlib import Path
 
 import pytest
 from conftest import (

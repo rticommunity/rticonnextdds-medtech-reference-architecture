@@ -21,13 +21,11 @@ They are marked ``slow`` because they launch the full application set and
 wait for inter-app DDS interactions to play out.
 """
 
-import signal
 import sys
 import time
 
 import pytest
 from conftest import (
-    MODULE_DIR,
     SRC_DIR,
     create_reader,
     create_writer,

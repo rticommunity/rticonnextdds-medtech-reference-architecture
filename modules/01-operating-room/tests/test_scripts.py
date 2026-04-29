@@ -15,12 +15,10 @@ Ensures that ``module_runner.load_module_config()`` produces a correct
 environment and that all referenced XML files actually exist.
 """
 
-import os
-import sys
 from pathlib import Path
 
 import pytest
-from conftest import MODULE_DIR, SECURITY_DIR, SYSTEM_ARCH_DIR
+from conftest import MODULE_DIR
 from scripts import module_runner, platform_setup
 
 # ---------------------------------------------------------------------------

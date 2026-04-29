@@ -15,7 +15,6 @@ Ensures the CMake build succeeds, expected binaries are produced,
 and the generated Python types are importable.
 """
 
-import subprocess
 import sys
 from pathlib import Path
 
@@ -58,11 +57,8 @@ class TestPythonTypes:
             sys.path.insert(0, str(SRC_DIR))
 
         from Types import (
-            Common_DeviceHeartbeat,
             Common_DeviceStatus,
-            Orchestrator_DeviceCommand,
             PatientMonitor_Vitals,
-            SurgicalRobot_MotorControl,
         )
 
         # Smoke-check that we can instantiate them

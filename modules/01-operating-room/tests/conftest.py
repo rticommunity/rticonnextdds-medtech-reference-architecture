@@ -18,7 +18,6 @@ and automatic skip logic for GUI / security markers.
 from __future__ import annotations
 
 import os
-import signal
 import subprocess
 import sys
 import time
@@ -329,7 +328,6 @@ def wait_for_data(reader, timeout_sec: float = 5.0, min_count: int = 1):
 
     Returns the list of collected data samples (may be empty on timeout).
     """
-    import rti.connextdds as dds
 
     collected = []
     deadline = time.monotonic() + timeout_sec

@@ -14,17 +14,16 @@ from __future__ import annotations
 
 import sys
 import math
-import time
 import threading
 import signal
 from pathlib import Path
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QFrame,
-    QHBoxLayout, QVBoxLayout, QGridLayout, QPushButton, QTextEdit,
+    QHBoxLayout, QVBoxLayout, QPushButton, QTextEdit,
     QSizePolicy, QSlider
 )
-from PySide6.QtCore import Qt, QTimer, QRectF, QPointF, Signal, QObject
+from PySide6.QtCore import Qt, QTimer, QPointF
 from PySide6.QtGui import (
     QPainter, QColor, QPen, QBrush, QFont, QPainterPath, QPixmap, QIcon
 )
@@ -33,12 +32,12 @@ import rti.connextdds as dds
 import PySide6.QtAsyncio as QtAsyncio
 
 # Import OR types
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
-if str(PROJECT_ROOT / "modules" / "01-operating-room" / "src") not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT / "modules" / "01-operating-room" / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.resolve() / "modules" / "01-operating-room" / "src"))
 import DdsUtils
 from Types import Common, Orchestrator, SurgicalRobot, DdsEntities
 from ThreatTypes import ThreatEntities
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
 threat_entities = ThreatEntities.Constants
 entities = DdsEntities.Constants
 
@@ -60,10 +59,10 @@ UPDATE_MS = 100
 
 # ─── Left-panel button styles ─────────────────────────────────────────────
 _STYLE_MODE_INACTIVE = (
-    f"QPushButton {{ background-color: #0D1824; color: #4A6070; "
-    f"border: 1px solid #1A2A38; border-radius: 5px; padding: 0px 12px; "
-    f"font-size: 13px; font-weight: bold; text-align: left; }}"
-    f"QPushButton:hover {{ background-color: #162030; color: #90AAB8; border-color: #2A3A4A; }}"
+    "QPushButton { background-color: #0D1824; color: #4A6070; "
+    "border: 1px solid #1A2A38; border-radius: 5px; padding: 0px 12px; "
+    "font-size: 13px; font-weight: bold; text-align: left; }"
+    "QPushButton:hover { background-color: #162030; color: #90AAB8; border-color: #2A3A4A; }"
 )
 _STYLE_MODE_ACTIVE_UNSECURE = (
     f"QPushButton {{ background-color: #0A1E35; color: {COLOR_ATTEMPTING}; "
@@ -76,10 +75,10 @@ _STYLE_MODE_ACTIVE_THREAT = (
     f"font-size: 13px; font-weight: bold; text-align: left; }}"
 )
 _STYLE_ATTACK_INACTIVE = (
-    f"QPushButton {{ background-color: #0D1824; color: #4A6070; "
-    f"border: 1px solid #1A2A38; border-radius: 5px; padding: 0px 12px; "
-    f"font-size: 12px; font-weight: bold; text-align: left; }}"
-    f"QPushButton:hover {{ background-color: #162030; color: #90AAB8; border-color: #2A3A4A; }}"
+    "QPushButton { background-color: #0D1824; color: #4A6070; "
+    "border: 1px solid #1A2A38; border-radius: 5px; padding: 0px 12px; "
+    "font-size: 12px; font-weight: bold; text-align: left; }"
+    "QPushButton:hover { background-color: #162030; color: #90AAB8; border-color: #2A3A4A; }"
 )
 _STYLE_ATTACK_ACTIVE = (
     f"QPushButton {{ background-color: #1E1200; color: {COLOR_WARN}; "
@@ -93,9 +92,9 @@ _STYLE_STOP_ENABLED = (
     f"QPushButton:hover {{ background-color: #2E1010; border-color: {COLOR_BLOCKED}; }}"
 )
 _STYLE_STOP_DISABLED = (
-    f"QPushButton {{ background-color: #0D1520; color: #2A3848; "
-    f"border: 1px solid #182028; border-radius: 5px; padding: 0px 12px; "
-    f"font-size: 13px; font-weight: bold; }}"
+    "QPushButton { background-color: #0D1520; color: #2A3848; "
+    "border: 1px solid #182028; border-radius: 5px; padding: 0px 12px; "
+    "font-size: 13px; font-weight: bold; }"
 )
 
 # Joint colors matching module 01
@@ -422,7 +421,7 @@ class ThreatInjectorWindow(QMainWindow):
         )
         layout.addWidget(self.freq_slider)
         self.freq_lbl = QLabel("5 Hz")
-        self.freq_lbl.setStyleSheet(f"color: #C0D0E0; font-size: 12px; background: transparent;")
+        self.freq_lbl.setStyleSheet("color: #C0D0E0; font-size: 12px; background: transparent;")
         layout.addWidget(self.freq_lbl)
         self.freq_slider.valueChanged.connect(lambda v: self.freq_lbl.setText(f"{v} Hz"))
 
@@ -490,14 +489,14 @@ class ThreatInjectorWindow(QMainWindow):
 
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setStyleSheet(f"""
-            QTextEdit {{
+        self.log_text.setStyleSheet("""
+            QTextEdit {
                 background-color: #060C14;
                 color: #A0B0C0;
                 font-family: 'Courier New', monospace;
                 font-size: 12px;
                 border: none;
-            }}
+            }
         """)
         v.addWidget(self.log_text)
         return frame
