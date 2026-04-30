@@ -58,7 +58,7 @@ SecureLogReader setup_secure_log_reader(
     // Initialize Participant
     dds::domain::DomainParticipant securelog_participant =
             qos_provider.extensions().create_participant_from_config(
-                    SECURELOG_READER_DP);
+                    std::string(SECURELOG_READER_DP));
     if (securelog_participant == dds::core::null) {
         throw std::runtime_error(
                 "Failed to lookup secure log reader participant");
@@ -67,8 +67,9 @@ SecureLogReader setup_secure_log_reader(
     // Initialize DataReader
     dds::sub::DataReader<SecureLogType> securelog_reader =
             rti::sub::find_datareader_by_name<
-                    dds::sub::DataReader<SecureLogType>>(securelog_participant,
-                                                         SECURELOG_DR);
+                    dds::sub::DataReader<SecureLogType>>(
+                    securelog_participant,
+                    std::string(SECURELOG_DR));
     if (securelog_reader == dds::core::null) {
         throw std::runtime_error(
                 "Failed to lookup secure log reader datareader");

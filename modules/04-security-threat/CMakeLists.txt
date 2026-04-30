@@ -25,6 +25,7 @@ connextdds_rtiddsgen_run(
     "${CMAKE_CURRENT_BINARY_DIR}/src/"
     LANG C++11
     UNBOUNDED
+    EXTRA_ARGS -standard IDL4_CPP
 )
 
 # Generate Python types for application use (output alongside source files so

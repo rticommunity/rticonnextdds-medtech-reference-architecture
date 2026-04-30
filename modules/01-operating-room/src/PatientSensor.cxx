@@ -51,35 +51,36 @@ public:
 
         dds::domain::DomainParticipant participant =
                 default_provider.extensions().create_participant_from_config(
-                        PATIENT_SENSOR_DP);
+                        std::string(PATIENT_SENSOR_DP));
 
         // Initialize DataWriters
         dds::pub::DataWriter<PatientMonitor::Vitals> vitals_writer =
                 rti::pub::find_datawriter_by_name<
                         dds::pub::DataWriter<PatientMonitor::Vitals>>(
                         participant,
-                        VITALS_DW);
+                        std::string(VITALS_DW));
 
         dds::pub::DataWriter<Common::DeviceStatus> status_writer =
                 rti::pub::find_datawriter_by_name<
-                        dds::pub::DataWriter<Common::DeviceStatus>>(participant,
-                                                                    STATUS_DW);
+                        dds::pub::DataWriter<Common::DeviceStatus>>(
+                        participant,
+                        std::string(STATUS_DW));
 
         dds::pub::DataWriter<Common::DeviceHeartbeat> hb_writer =
                 rti::pub::find_datawriter_by_name<
                         dds::pub::DataWriter<Common::DeviceHeartbeat>>(
                         participant,
-                        HB_DW);
+                        std::string(HB_DW));
 
         // Initialize DataReader
         dds::sub::DataReader<Orchestrator::DeviceCommand> cmd_reader =
                 rti::sub::find_datareader_by_name<
                         dds::sub::DataReader<Orchestrator::DeviceCommand>>(
                         participant,
-                        DEVICE_COMMAND_DR);
+                        std::string(DEVICE_COMMAND_DR));
 
-        current_status.device(Common::DeviceType::PATIENT_SENSOR);
-        current_status.status(Common::DeviceStatuses::ON);
+        current_status.device = Common::DeviceType::PATIENT_SENSOR;
+        current_status.status = Common::DeviceStatuses::ON;
 
         // Read condition to process commands
         dds::sub::cond::ReadCondition command_read_condition(
@@ -100,7 +101,7 @@ public:
 
         // Main loop
         while (!g_shutdown
-               && current_status.status() != Common::DeviceStatuses::OFF) {
+               && current_status.status != Common::DeviceStatuses::OFF) {
             try {
                 waitset_command.dispatch(dds::core::Duration(1));
             } catch (const dds::core::Error &) {
@@ -111,7 +112,7 @@ public:
 
         if (g_shutdown) {
             std::cout << "Shutting Down Patient Sensor (signal)" << std::endl;
-            current_status.status(Common::DeviceStatuses::OFF);
+            current_status.status = Common::DeviceStatuses::OFF;
             write_status(status_writer);
         }
 
@@ -126,21 +127,21 @@ private:
             dds::pub::DataWriter<PatientMonitor::Vitals> vitals_writer)
     {
         PatientMonitor::Vitals sample;
-        sample.patient_id("ab1234");
-        sample.hr(55 + rand() % 11);
-        sample.spo2(90 + rand() % 11);
-        sample.etco2(35 + rand() % 11);
-        sample.nibp_s(115 + rand() % 11);
-        sample.nibp_d(75 + rand() % 11);
+        sample.patient_id = "ab1234";
+        sample.hr = 55 + rand() % 11;
+        sample.spo2 = 90 + rand() % 11;
+        sample.etco2 = 35 + rand() % 11;
+        sample.nibp_s = 115 + rand() % 11;
+        sample.nibp_d = 75 + rand() % 11;
 
-        if (current_status.status() == Common::DeviceStatuses::ON)
+        if (current_status.status == Common::DeviceStatuses::ON)
             vitals_writer.write(sample);
     }
 
     // Function to publish heartbeats every 50ms
     void write_hb(dds::pub::DataWriter<Common::DeviceHeartbeat> hb_writer)
     {
-        while (current_status.status() != Common::DeviceStatuses::OFF) {
+        while (current_status.status != Common::DeviceStatuses::OFF) {
             Common::DeviceHeartbeat hb(Common::DeviceType::PATIENT_SENSOR);
             hb_writer.write(hb);
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -163,17 +164,17 @@ private:
 
         for (const auto &sample : samples) {
             if (sample.info().valid()) {
-                if (sample.data().command()
+                if (sample.data().command
                     == Orchestrator::DeviceCommands::PAUSE) {
                     std::cout << "Pausing Patient Sensor" << std::endl;
-                    current_status.status(Common::DeviceStatuses::PAUSED);
-                } else if (sample.data().command()
+                    current_status.status = Common::DeviceStatuses::PAUSED;
+                } else if (sample.data().command
                            == Orchestrator::DeviceCommands::START) {
                     std::cout << "Starting Patient Sensor" << std::endl;
-                    current_status.status(Common::DeviceStatuses::ON);
+                    current_status.status = Common::DeviceStatuses::ON;
                 } else {  // shutdown
                     std::cout << "Shutting Down Patient Sensor" << std::endl;
-                    current_status.status(Common::DeviceStatuses::OFF);
+                    current_status.status = Common::DeviceStatuses::OFF;
                 }
                 write_status(status_writer);
             }

@@ -57,10 +57,10 @@ public:
         Common::DeviceHeartbeat sample;
         reader.key_value(sample, status.last_instance_handle());
 
-        Gtk::Label *lbl = stat_map.at(sample.device());
+        Gtk::Label *lbl = stat_map.at(sample.device);
         if (lbl->get_text() != "DeviceStatuses::OFF") {
             std::stringstream ss;
-            ss << sample.device()
+            ss << sample.device
                << " is no longer sending heartbeats. Updating Status to OFF.";
             log_alert(ss.str());
             Glib::signal_idle().connect([lbl]() -> bool {
@@ -95,21 +95,23 @@ public:
 
         participant =
                 default_provider.extensions().create_participant_from_config(
-                        ORCHESTRATOR_DP);
+                        std::string(ORCHESTRATOR_DP));
 
         // Initialize DataWriter
         command_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<Orchestrator::DeviceCommand>>(
                 participant,
-                DEVICE_COMMAND_DW);
+                std::string(DEVICE_COMMAND_DW));
 
         // Initialize DataReaders
         status_reader = rti::sub::find_datareader_by_name<
-                dds::sub::DataReader<Common::DeviceStatus>>(participant,
-                                                            STATUS_DR);
+                dds::sub::DataReader<Common::DeviceStatus>>(
+                participant,
+                std::string(STATUS_DR));
         hb_reader = rti::sub::find_datareader_by_name<
-                dds::sub::DataReader<Common::DeviceHeartbeat>>(participant,
-                                                               HB_DR);
+                dds::sub::DataReader<Common::DeviceHeartbeat>>(
+                participant,
+                std::string(HB_DR));
 
         hb_listener = std::make_shared<HeartbeatListener>(
                 stat_map,
@@ -316,7 +318,7 @@ private:
 #ifdef RTI_SECURITY_AVAILABLE
     bool is_security_threat(const DDSSecurity::BuiltinLoggingTypeV2 &sample)
     {
-        return static_cast<int32_t>(sample.severity())
+        return static_cast<int32_t>(sample.severity)
                 // return sample.value<int32_t>("severity")
                 <= static_cast<int32_t>(
                         DDSSecurity::LoggingLevel::WARNING_LEVEL);
@@ -326,7 +328,7 @@ private:
     {
         if (is_security_threat(log)) {
             std::stringstream ss;
-            ss << "SECURITY THREAT [" << log.appname() << "] " << log.message();
+            ss << "SECURITY THREAT [" << log.appname << "] " << log.message;
             log_alert(ss.str());
             trigger_security_flash();
         }
@@ -342,15 +344,15 @@ private:
             if (sample.info().valid()) {
                 // update the label
                 std::stringstream ss_label;
-                ss_label << sample.data().status();
-                Gtk::Label *lbl = stat_map.at(sample.data().device());
+                ss_label << sample.data().status;
+                Gtk::Label *lbl = stat_map.at(sample.data().device);
                 lbl->set_text(ss_label.str());
                 apply_status_class(lbl, ss_label.str());
 
                 // print alert
                 std::stringstream ss_log;
-                ss_log << "Received " << sample.data().status()
-                       << " status message from " << sample.data().device();
+                ss_log << "Received " << sample.data().status
+                       << " status message from " << sample.data().device;
                 log_alert(ss_log.str());
             }
         }

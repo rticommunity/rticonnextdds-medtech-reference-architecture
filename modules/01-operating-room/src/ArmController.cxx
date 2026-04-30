@@ -122,25 +122,27 @@ private:
 
         dds::domain::DomainParticipant participant =
                 default_provider.extensions().create_participant_from_config(
-                        ARM_CONTROLLER_DP);
+                        std::string(ARM_CONTROLLER_DP));
 
         // Initialize DataWriters
         status_writer = rti::pub::find_datawriter_by_name<
-                dds::pub::DataWriter<Common::DeviceStatus>>(participant,
-                                                            STATUS_DW);
+                dds::pub::DataWriter<Common::DeviceStatus>>(
+                participant,
+                std::string(STATUS_DW));
         hb_writer = rti::pub::find_datawriter_by_name<
-                dds::pub::DataWriter<Common::DeviceHeartbeat>>(participant,
-                                                               HB_DW);
+                dds::pub::DataWriter<Common::DeviceHeartbeat>>(
+                participant,
+                std::string(HB_DW));
         arm_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<SurgicalRobot::MotorControl>>(
                 participant,
-                MOTOR_CONTROL_DW);
+                std::string(MOTOR_CONTROL_DW));
 
         // Initialize DataReader
         cmd_reader = rti::sub::find_datareader_by_name<
                 dds::sub::DataReader<Orchestrator::DeviceCommand>>(
                 participant,
-                DEVICE_COMMAND_DR);
+                std::string(DEVICE_COMMAND_DR));
 
         // Setup command handling with a WaitSet
         dds::sub::cond::ReadCondition command_read_condition(
@@ -154,7 +156,7 @@ private:
     // Publish heartbeat every 50ms
     void write_hb()
     {
-        while (current_status.status() != Common::DeviceStatuses::OFF) {
+        while (current_status.status != Common::DeviceStatuses::OFF) {
             Common::DeviceHeartbeat hb(Common::DeviceType::ARM_CONTROLLER);
             hb_writer.write(hb);
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -171,7 +173,7 @@ private:
     void write_command(SurgicalRobot::Motors motor,
                        SurgicalRobot::MotorDirections dir)
     {
-        if (current_status.status() == Common::DeviceStatuses::ON) {
+        if (current_status.status == Common::DeviceStatuses::ON) {
             SurgicalRobot::MotorControl sample(motor, dir);
             arm_writer.write(sample);
         }
@@ -181,7 +183,7 @@ private:
     // playing
     void playing()
     {
-        while (current_status.status() != Common::DeviceStatuses::OFF) {
+        while (current_status.status != Common::DeviceStatuses::OFF) {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             for (const auto &btn : motor_play_btns) {
                 if (btn.second->get_active()) {
@@ -201,18 +203,18 @@ private:
 
         for (const auto &sample : samples) {
             if (sample.info().valid()) {
-                if (sample.data().command()
+                if (sample.data().command
                     == Orchestrator::DeviceCommands::PAUSE) {
                     log_alert("Received PAUSE Command from Orchestrator");
-                    current_status.status(Common::DeviceStatuses::PAUSED);
-                } else if (sample.data().command()
+                    current_status.status = Common::DeviceStatuses::PAUSED;
+                } else if (sample.data().command
                            == Orchestrator::DeviceCommands::START) {
                     log_alert("Received START Command from Orchestrator");
-                    current_status.status(Common::DeviceStatuses::ON);
+                    current_status.status = Common::DeviceStatuses::ON;
                 } else {  // shutdown
                     log_alert("Received SHUTDOWN Command from Orchestrator");
                     std::cout << "Arm Controller shutting down" << std::endl;
-                    current_status.status(Common::DeviceStatuses::OFF);
+                    current_status.status = Common::DeviceStatuses::OFF;
                     app->quit();
                 }
             }
@@ -322,7 +324,7 @@ private:
     bool on_window_close(GdkEventAny *event)
     {
         std::cout << "Arm Controller UI closed, shutting down" << std::endl;
-        current_status.status(Common::DeviceStatuses::OFF);
+        current_status.status = Common::DeviceStatuses::OFF;
         return false;
     }
 
