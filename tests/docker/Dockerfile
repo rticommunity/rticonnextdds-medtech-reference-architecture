@@ -90,18 +90,16 @@ FROM build AS test
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Python 3.9 via deadsnakes PPA (matches advertised minimum version)
-RUN apt-get update && apt-get install -y --no-install-recommends software-properties-common \
-    && add-apt-repository -y ppa:deadsnakes/ppa \
-    && apt-get update && apt-get install -y --no-install-recommends \
-        python3.9 python3.9-venv python3.9-dev \
+# Python 3.10 from Ubuntu 22.04 repositories (matches advertised minimum version)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3.10 python3.10-venv python3.10-dev \
         xvfb \
         libegl1 libxkbcommon0 libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create venv and install dependencies from requirements-dev.txt
 ENV VIRTUAL_ENV=/workspace/.venv
-RUN python3.9 -m venv ${VIRTUAL_ENV}
+RUN python3.10 -m venv ${VIRTUAL_ENV}
 ENV PATH=${VIRTUAL_ENV}/bin:${PATH}
 
 RUN pip install --no-cache-dir --upgrade pip \

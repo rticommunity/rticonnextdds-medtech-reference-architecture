@@ -3,7 +3,7 @@ required-version = ">=0.15"
 
 [tool.codespell]
 # Keep spelling checks focused on source/docs and skip generated/cache content.
-skip = ".git,.venv,.venv39,build,**/build,.pytest_cache,__pycache__,resource/images,*.svg"
+skip = ".git,.venv,.venv*,build,**/build,.pytest_cache,__pycache__,resource/images,*.svg"
 ignore-words-list = "nddshome,connextdds,rtisetenv,dpqoslib,unsecure"
 check-hidden = false
 

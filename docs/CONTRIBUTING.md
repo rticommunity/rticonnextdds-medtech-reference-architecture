@@ -23,7 +23,7 @@ contributors working from a fork.
 
 | Tool | Minimum Version | Notes |
 | --- | --- | --- |
-| Python | 3.9 | Use `python3.9` explicitly if multiple versions are installed |
+| Python | 3.10 | Use `python3.10` explicitly if multiple versions are installed |
 | RTI Connext DDS | 7.7.x | See [README.md](../README.md) for install instructions |
 | CMake | 3.17 | Required for C++ module builds |
 | Docker | Any recent | Optional; required only for containerised test runs |
