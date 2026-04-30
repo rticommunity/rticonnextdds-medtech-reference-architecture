@@ -67,7 +67,7 @@ loaded into the same process.
 | `test_forged_perms_injection_blocked` | Forged Permissions | Secure | Not matched |
 | `test_expired_cert_injection_fails` | Expired Certificate | Secure | Not matched / not created |
 | `test_unsecure_exfiltration_succeeds` | Unsecure | Unsecure | Receives vitals |
-| `test_unsecure_exfiltrator_vs_secure_or` | Unsecure | Secure | Documented behavior |
+| `test_unsecure_exfiltrator_vs_secure_or` | Unsecure | Secure | Not matched / no vitals received |
 | `test_rogue_ca_exfiltrator_blocked` | Rogue CA | Secure | No vitals received |
 
 ## Markers

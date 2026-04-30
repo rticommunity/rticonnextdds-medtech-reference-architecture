@@ -23,16 +23,24 @@ wait for inter-app DDS interactions to play out.
 
 import sys
 import time
+import importlib
+from pathlib import Path
 
 import pytest
-from conftest import (
-    SRC_DIR,
-    create_reader,
-    create_writer,
-    wait_for_data,
-    wait_for_device_status,
-    wait_for_process_ready,
-)
+
+TESTS_DIR = Path(__file__).resolve().parent
+
+if str(TESTS_DIR) not in sys.path:
+    sys.path.insert(0, str(TESTS_DIR))
+
+module01_test_support = importlib.import_module("module01_test_support")
+
+SRC_DIR = module01_test_support.SRC_DIR
+create_reader = module01_test_support.create_reader
+create_writer = module01_test_support.create_writer
+wait_for_data = module01_test_support.wait_for_data
+wait_for_device_status = module01_test_support.wait_for_device_status
+wait_for_process_ready = module01_test_support.wait_for_process_ready
 
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))

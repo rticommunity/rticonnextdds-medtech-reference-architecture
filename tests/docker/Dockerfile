@@ -119,7 +119,9 @@ ENV DISPLAY=:99
 WORKDIR /workspace
 
 COPY tests/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 ENTRYPOINT ["entrypoint.sh"]
 
-# Default: run all tests headlessly
-CMD ["tests/run_tests.sh", "-v"]
+# Default: run all tests with verbose output
+CMD ["-v"]

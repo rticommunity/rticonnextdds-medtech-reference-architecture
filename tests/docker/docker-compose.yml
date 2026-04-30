@@ -9,11 +9,18 @@
 #   e.g. /opt/rti.com/rti_connext_dds-7.3.1/rti_license.dat, point to it.
 #
 # Usage:
+#   # Run all tests (default: verbose)
 #   docker compose -f tests/docker/docker-compose.yml run --rm --build test
-#       # one command: build image as needed, run all tests, auto-remove container
+#
+#   # Run specific tests with custom args
 #   docker compose -f tests/docker/docker-compose.yml run --rm --build test \
-#       python -m pytest modules/01-operating-room/tests/test_types.py -v
-#   docker compose -f tests/docker/docker-compose.yml up --build --abort-on-container-exit --exit-code-from test test
+#       -v modules/01-operating-room/tests/test_types.py
+#
+#   # Run tests matching a pattern
+#   docker compose -f tests/docker/docker-compose.yml run --rm --build test \
+#       -k "test_types"
+#
+#   # Clean up
 #   docker compose -f tests/docker/docker-compose.yml down --remove-orphans
 # ==========================================================================
 

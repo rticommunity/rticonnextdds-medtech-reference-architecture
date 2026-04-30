@@ -20,7 +20,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
-from conftest import SRC_DIR, SYSTEM_ARCH_DIR
+from module01_test_support import SRC_DIR, SYSTEM_ARCH_DIR
 
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))

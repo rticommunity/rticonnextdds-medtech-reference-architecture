@@ -21,7 +21,7 @@ import sys
 import time
 
 import pytest
-from conftest import (
+from module02_test_support import (
     MODULE_01_DIR,
     MODULE_DIR,
     RECORDING_DIR,

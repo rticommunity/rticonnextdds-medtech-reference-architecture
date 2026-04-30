@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   status check for the Module 04 threat security tree via `setup_threat_security.py --status`
 - Node.js 18 LTS (via NodeSource) to the Docker test image for `markdownlint-cli`
   compatibility; replaces the outdated system `nodejs` package
-- `tests/README.md` guidance on when to use `pytest`, `run_tests.sh`, or the
+- `tests/README.md` guidance on when to use root-level `pytest` and the
   Docker test image
 - **Module 01 pytest test suite** (`modules/01-operating-room/tests/`) with
   build, launch, DDS communication, and end-to-end demo-flow tests; includes

@@ -69,12 +69,14 @@ codespell --toml pyproject.toml
 rumdl check .
 rumdl fmt .
 
-# Run all project test suites
-tests/run_tests.sh -v
+# Run all tests from project root (repo-level + modules)
+python -m pytest -v
 
-# Run project or module-level tests
-python -m pytest tests/
-python -m pytest modules/01-operating-room/tests/
+# Run project-level tests only
+python -m pytest tests/ -v
+
+# Run a specific module
+python -m pytest modules/01-operating-room/tests/ -v
 ```
 
 ### On every `git commit` (automatic)
@@ -144,15 +146,14 @@ lint failures in CI.
 ### Option 1 — direct pytest
 
 ```bash
+# All tests from project root (repo-level + modules)
+python -m pytest -v
+
 # Project-level tests only
 python -m pytest tests/ -v
 
 # Single module
-cd modules/01-operating-room
-python -m pytest tests/ -v
-
-# All modules via helper script
-tests/run_tests.sh -v
+python -m pytest modules/01-operating-room/tests/ -v
 ```
 
 ### Option 2 — Docker (closest to CI)
@@ -167,11 +168,11 @@ docker compose -f tests/docker/docker-compose.yml run --rm --build test
 
 # Run a specific test file
 docker compose -f tests/docker/docker-compose.yml run --rm --build test \
-    python -m pytest modules/01-operating-room/tests/test_types.py -v
+    modules/01-operating-room/tests/test_types.py -v
 ```
 
-> **Note:** The Docker default command runs `tests/run_tests.sh`, which
-> executes functional/behavioral tests. It does **not** run Ruff lint,
+> **Note:** The Docker default command runs `python -m pytest -v` via the
+> test entrypoint. It executes functional/behavioral tests. It does **not** run Ruff lint,
 > rumdl markdown lint, or clang-format; those are enforced by pre-commit
 > (locally) and the CI lint job (on push/PR).
 
@@ -199,7 +200,7 @@ Before opening a PR, verify:
 
 - [ ] `pre-commit run --all-files` passes cleanly
 - [ ] `python -m pytest tests/` passes locally
-- [ ] Relevant module tests pass (`tests/run_tests.sh -v`)
+- [ ] `python -m pytest -v` passes locally
 - [ ] `CHANGELOG.md` updated if the change is user-visible
 - [ ] No `# noqa` suppressions added without a documented justification
 

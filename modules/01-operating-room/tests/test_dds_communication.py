@@ -20,7 +20,7 @@ import sys
 import time
 
 import pytest
-from conftest import (
+from module01_test_support import (
     SRC_DIR,
     create_reader,
     create_writer,

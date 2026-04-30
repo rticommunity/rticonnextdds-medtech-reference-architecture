@@ -24,7 +24,7 @@ import subprocess
 import sys
 
 import pytest
-from conftest import (
+from module04_test_support import (
     MODULE_DIR,
     OR_SRC_DIR,
     THREAT_SRC_DIR,

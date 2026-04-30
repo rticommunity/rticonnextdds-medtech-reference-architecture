@@ -26,7 +26,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "resource" / "python"))
 from build import build_command, configure_command
-from scripts import platform_setup
+
+pytestmark = pytest.mark.build_pipeline
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -59,20 +60,3 @@ class TestCMakeBuild:
         assert result.returncode == 0, (
             f"CMake build failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         )
-
-
-# ---------------------------------------------------------------------------
-# Binary existence — Module 01 (only module with C++ executables)
-# ---------------------------------------------------------------------------
-
-
-class TestModule01Binaries:
-    """Module 01 C++ binaries should be produced by the build."""
-
-    @pytest.mark.parametrize(
-        "binary", ["PatientSensor", "Orchestrator", "ArmController"]
-    )
-    def test_binary_exists(self, binary: str):
-        """Compiled C++ binary exists and can be located."""
-        exe = platform_setup.find_executable(binary)
-        assert Path(exe).is_file(), f"Binary not found: {exe}"

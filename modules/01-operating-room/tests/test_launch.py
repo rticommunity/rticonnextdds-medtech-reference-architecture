@@ -16,7 +16,7 @@ GUI applications are marked so they can be skipped on headless systems.
 """
 
 import pytest
-from conftest import (
+from module01_test_support import (
     create_reader,
     wait_for_device_status,
     wait_for_process_ready,

@@ -18,7 +18,7 @@ fields and enum members that this module's applications depend on.
 import sys
 
 import pytest
-from conftest import SRC_DIR
+from module01_test_support import SRC_DIR
 
 # ---------------------------------------------------------------------------
 # Generated types

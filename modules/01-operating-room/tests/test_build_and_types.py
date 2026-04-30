@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from conftest import MODULE_DIR, SRC_DIR
+from module01_test_support import MODULE_DIR, SRC_DIR
 
 sys.path.insert(0, str(MODULE_DIR.parent.parent / "resource" / "python"))
 from scripts import platform_setup

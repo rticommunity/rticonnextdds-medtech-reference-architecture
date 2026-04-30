@@ -18,7 +18,7 @@ and verifies that data is captured to a SQLite database.
 import time
 
 import pytest
-from conftest import (
+from module02_test_support import (
     MODULE_DIR,
     RECORDING_DIR,
     RECORDING_SERVICE,

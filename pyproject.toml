@@ -8,7 +8,19 @@ ignore-words-list = "nddshome,connextdds,rtisetenv,dpqoslib,unsecure"
 check-hidden = false
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = [
+    "tests",
+    "modules/01-operating-room/tests",
+    "modules/02-record-playback/tests",
+    "modules/04-security-threat/tests",
+]
+markers = [
+    "build_pipeline: tests that verify project-level configure/build pipeline",
+    "gui: test requires a graphical display (deselect with '-m not gui')",
+    "secure: test requires DDS Security artifacts (deselect with '-m not secure')",
+    "slow: long-running scenario",
+]
+addopts = "-rs"
 
 [tool.rumdl]
 disable = ["MD013"]

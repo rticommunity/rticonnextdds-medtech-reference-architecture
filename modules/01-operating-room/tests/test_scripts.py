@@ -18,7 +18,7 @@ environment and that all referenced XML files actually exist.
 from pathlib import Path
 
 import pytest
-from conftest import MODULE_DIR
+from module01_test_support import MODULE_DIR
 from scripts import module_runner, platform_setup
 
 # ---------------------------------------------------------------------------
