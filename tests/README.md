@@ -7,7 +7,7 @@ Module-specific tests live under each module's own `tests/` directory.
 
 | Requirement | Notes |
 | --- | --- |
-| RTI Connext DDS 7.3.1+ | `NDDSHOME` and `CONNEXTDDS_ARCH` must be set (via rtisetenv script) |
+| RTI Connext DDS 7.7.x | `NDDSHOME` and `CONNEXTDDS_ARCH` must be set (via rtisetenv script) |
 | Python 3.9+ | With `rti.connextdds` and `pytest` installed (in `.venv39` or equivalent) |
 | C++ build complete | Run `python build.py` first |
 
@@ -44,7 +44,7 @@ The root `pyproject.toml` configures pytest to automatically discover tests in:
 Before running pytest, ensure the RTI environment is sourced:
 
 ```bash
-source /opt/rti.com/rti_connext_dds-7.3.1/resource/scripts/rtisetenv_x64Linux4gcc7.3.0.bash
+source /opt/rti.com/rti_connext_dds-7.7.0/resource/scripts/rtisetenv_x64Linux4gcc8.5.0.bash
 source .venv39/bin/activate
 ```
 

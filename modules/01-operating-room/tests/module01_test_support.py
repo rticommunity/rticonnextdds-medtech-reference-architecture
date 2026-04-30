@@ -33,7 +33,6 @@ sys.path.insert(
 # Make src/ importable so tests can use generated Types module directly.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from scripts import module_runner
 
 # ---------------------------------------------------------------------------
 # Path bootstrapping — mirror what the launch scripts do

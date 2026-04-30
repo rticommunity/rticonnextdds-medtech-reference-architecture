@@ -51,7 +51,7 @@ def detect_connext_version() -> tuple[int, ...] | None:
 
 
 def _version_str(version: tuple[int, ...] | None) -> str:
-    """Format a version tuple as a dotted string, e.g. ``'7.3.0'``."""
+    """Format a version tuple as a dotted string, e.g. ``'7.7.0'``."""
     if version:
         return ".".join(str(c) for c in version)
     return "0.0.0"

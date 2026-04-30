@@ -166,7 +166,7 @@ Each attack mode corresponds to a different stage of the DDS Security handshake:
 | **Forged Permissions** | Participant is created but never matches | Authentication succeeds (identity signed by trusted CA), but the permissions document is signed by the rogue CA. Since the OR's `permissions_ca` is the trusted CA, the signature mismatch causes access control validation to fail. |
 | **Expired Certificate** | Participant creation fails immediately | The identity certificate was signed by the trusted CA but its `notAfter` field is in the past. The DDS Security authentication plugin validates certificate expiration during identity validation — for the local participant, this occurs during DomainParticipant creation, causing it to fail immediately. The status badge shows **ATTACK FAILED** (red). |
 
-For a deeper dive into the DDS Security handshake, refer to the [RTI Security Plugins User's Manual](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/index.htm).
+For a deeper dive into the DDS Security handshake, refer to the [RTI Security Plugins User's Manual](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/index.htm).
 
 ---
 

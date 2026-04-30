@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import os
 import signal
-import shutil
 import subprocess
 import sys
 import time
@@ -30,7 +29,6 @@ sys.path.insert(
     0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python")
 )
 
-from scripts import module_runner
 
 # ---------------------------------------------------------------------------
 # Path bootstrapping
@@ -109,6 +107,8 @@ def _kill_orphan_recording_services() -> None:
             os.kill(pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
+
+
 # ---------------------------------------------------------------------------
 # Process management (mirrors Module 01 ProcessManager)
 # ---------------------------------------------------------------------------
@@ -170,4 +170,6 @@ def wait_for_process_ready(proc, timeout_sec: float = 5.0):
         if proc.poll() is not None:
             return
         time.sleep(0.25)
+
+
 RECORDING_DIR = MODULE_DIR / "or_recording"

@@ -3,8 +3,8 @@
 RTI grants Licensee a license to use, modify, compile, and create derivative
 works of the software solely for use with RTI Connext DDS. -->
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_dds_profiles.xsd"
-    version="7.3.0">
+    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.7.0/rti_dds_profiles.xsd"
+    version="7.7.0">
 
   <configuration_variables>
     <value>

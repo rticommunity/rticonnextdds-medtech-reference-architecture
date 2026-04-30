@@ -9,7 +9,7 @@
 # RTI license file is NOT baked into the image.
 # Mount it at runtime via -v:
 #   docker run --rm \
-#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.3.1/rti_license.dat:ro \
+#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
 #     medtech-test
 #
 # Build targets (from repo root):
@@ -18,12 +18,12 @@
 #
 # Run all tests:
 #   docker run --rm \
-#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.3.1/rti_license.dat:ro \
+#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
 #     medtech-test
 #
 # Run specific tests:
 #   docker run --rm \
-#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.3.1/rti_license.dat:ro \
+#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
 #     medtech-test python -m pytest modules/01-operating-room/tests/test_types.py -v
 # ==========================================================================
 
@@ -32,9 +32,9 @@
 # ------------------------------------------------------------------
 FROM ubuntu:22.04 AS connext-base
 
-ARG CONNEXT_VERSION=7.3.1
+ARG CONNEXT_VERSION=7.7.0
 ARG OPENSSL_VERSION=3.5.5
-ARG CONNEXTDDS_ARCH=x64Linux4gcc7.3.0
+ARG CONNEXTDDS_ARCH=x64Linux4gcc8.5.0
 ARG DEBIAN_FRONTEND=noninteractive
 
 ENV CONNEXT_VERSION=${CONNEXT_VERSION}

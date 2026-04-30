@@ -17,7 +17,7 @@
 -->
 
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_routing_service.xsd">
+    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.7.0/rti_routing_service.xsd">
 
     <!-- PUBLIC_ADDRESS must be set as an environment variable to the publicly
             accessible IP address of this cloud instance.

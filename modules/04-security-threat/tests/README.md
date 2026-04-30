@@ -8,7 +8,7 @@ injector and exfiltrator participants depending on the attack mode.
 
 | Requirement | Notes |
 | --- | --- |
-| RTI Connext DDS 7.3.0+ | `NDDSHOME` must be set |
+| RTI Connext DDS 7.7.x | `NDDSHOME` must be set |
 | Python 3.9+ | With the Connext Python API (`rti.connextdds`) |
 | pytest | `pip install pytest` |
 | Module 01 C++ build complete | Run `python scripts/build.py` in `modules/01-operating-room/` |

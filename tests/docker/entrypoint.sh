@@ -12,7 +12,7 @@ trap 'kill $XVFB_PID 2>/dev/null || true' EXIT
 sleep 0.5
 
 # Source RTI environment (persists across to test command)
-source /opt/rti.com/rti_connext_dds-7.3.1/resource/scripts/rtisetenv_x64Linux4gcc7.3.0.bash
+source "${NDDSHOME}/resource/scripts/rtisetenv_${CONNEXTDDS_ARCH}.bash"
 
 # Run pytest from repo root with any passed arguments
 # Default to running all tests if no args provided

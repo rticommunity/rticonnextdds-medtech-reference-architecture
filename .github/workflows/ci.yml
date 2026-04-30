@@ -18,9 +18,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CONNEXT_VERSION: "7.3.1"
-  CONNEXTDDS_ARCH: x64Linux4gcc7.3.0
-  NDDSHOME: /opt/rti.com/rti_connext_dds-7.3.1
+  CONNEXT_VERSION: "7.7.0"
+  CONNEXTDDS_ARCH: x64Linux4gcc8.5.0
+  NDDSHOME: /opt/rti.com/rti_connext_dds-7.7.0
   PYTHON_VERSION: "3.9"
   QT_QPA_PLATFORM: offscreen
   DISPLAY: ":99"

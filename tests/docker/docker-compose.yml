@@ -6,7 +6,7 @@
 #     export RTI_LICENSE_FILE=/path/to/rti_license.dat
 #
 #   Or, if the license is at the standard $NDDSHOME location on your host,
-#   e.g. /opt/rti.com/rti_connext_dds-7.3.1/rti_license.dat, point to it.
+#   e.g. /opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat, point to it.
 #
 # Usage:
 #   # Run all tests (default: verbose)
@@ -43,4 +43,4 @@ services:
     environment:
       PYTHONUNBUFFERED: "1"
     volumes:
-      - ${RTI_LICENSE_FILE:?Set RTI_LICENSE_FILE to the path of your rti_license.dat}:/opt/rti.com/rti_connext_dds-7.3.1/rti_license.dat:ro
+      - ${RTI_LICENSE_FILE:?Set RTI_LICENSE_FILE to the path of your rti_license.dat}:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro

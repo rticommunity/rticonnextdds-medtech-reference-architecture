@@ -11,7 +11,7 @@ liable for any incidental or consequential damages arising out of the use or
 inability to use the software. -->
 <!-- All of our files start with a dds tag -->
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_replay_service.xsd">
+    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.7.0/rti_replay_service.xsd">
 
 
     <replay_service name="RepServCfg">

@@ -16,7 +16,7 @@
 
 ## RTI XML-Based Application Creation
 
-This reference architecture uses [RTI XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/Introduction/XMLAppCreation_Intro.htm#Chapter_1_Introduction) to define all DDS entities that the modules will use. This mechanism simplifies and streamlines the development of Connext applications. An alternative approach is to define the entities programmatically, which is more cumbersome, error-prone, and more difficult to coordinate across distributed developer groups.
+This reference architecture uses [RTI XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/Introduction/XMLAppCreation_Intro.htm#Chapter_1_Introduction) to define all DDS entities that the modules will use. This mechanism simplifies and streamlines the development of Connext applications. An alternative approach is to define the entities programmatically, which is more cumbersome, error-prone, and more difficult to coordinate across distributed developer groups.
 
 RTI XML-Based Application Creation allows for the extraction of a Connext system definition from the implemented application logic and behavior.
 
@@ -32,10 +32,10 @@ To leverage RTI XML-Based Application Creation, your application code simply ind
 Applications can be implemented via any supported Connext Professional API language, while ensuring adherence to the common system design expressed in XML.
 
 1. Register Types
-   To use generated Type-Support code (via [RTI Code Generator](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/code_generator/users_manual/code_generator/users_manual/UsersManual_Title.htm)), named *types* in the XML configuration must be registered with the DomainParticipant. This is necessary for the DomainParticipant to serialize and deserialize the data using the generated code.
+   To use generated Type-Support code (via [RTI Code Generator](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/code_generator/users_manual/code_generator/users_manual/UsersManual_Title.htm)), named *types* in the XML configuration must be registered with the DomainParticipant. This is necessary for the DomainParticipant to serialize and deserialize the data using the generated code.
 
     Documentation:
-   - [Using User-Generated Types](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/UsingGeneratingTypes.htm#4.7.5_Using_User-Generated_Types)
+   - [Using User-Generated Types](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/UsingGeneratingTypes.htm#4.7.5_Using_User-Generated_Types)
 
 2. Load XML Configuration
    One or multiple XML files should be loaded by an application to understand the complete configuration for a single DomainParticipant.
@@ -53,7 +53,7 @@ Applications can be implemented via any supported Connext Professional API langu
      ```
 
      Documentation:
-   - [Loading XML Configuration Files](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/LoadingXMLFiles.htm#4.2_Loading_XML_Configuration_Files)
+   - [Loading XML Configuration Files](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/LoadingXMLFiles.htm#4.2_Loading_XML_Configuration_Files)
 
 3. Create Defined DDS Entities
    DomainParticipants, and all underlying entities configured (Topics, Publishers, DataWriters, Subscribers, DataReaders), can be created with an API-specific implementation of the `create_participant_from_config()`.
@@ -72,8 +72,8 @@ Applications can be implemented via any supported Connext Professional API langu
     ```
 
     Documentation:
-   - [Creating and Retrieving Entities Configured in an XML File](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/CreatingEntities.htm)
-   - [Referring to Entities and Other Elements within XML Files](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ReferringToEntitiesElements.htm#4.6.1_Referring_to_Entities_and_Other_Elements_within_XML_Files)
+   - [Creating and Retrieving Entities Configured in an XML File](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/CreatingEntities.htm)
+   - [Referring to Entities and Other Elements within XML Files](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ReferringToEntitiesElements.htm#4.6.1_Referring_to_Entities_and_Other_Elements_within_XML_Files)
 
 4. Retrieve Created Entities by Name
    Commonly, configured named DDS entities must be retrieved for use (e.g. publishing to or subscribing to data) or preconfiguration before enabling (e.g. runtime QoS configuration).
@@ -89,12 +89,12 @@ Applications can be implemented via any supported Connext Professional API langu
     ```
 
     Documentation:
-   - [Accessing Entities Defined in XML Configuration from an Application](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/Accessing_Entit.htm#4.4_Accessing_Entities_Defined_in_XML_Configuration_from_an_Application)
-   - [Referring to Entities and Other Elements within XML Files](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ReferringToEntitiesElements.htm#4.6.1_Referring_to_Entities_and_Other_Elements_within_XML_Files)
+   - [Accessing Entities Defined in XML Configuration from an Application](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/Accessing_Entit.htm#4.4_Accessing_Entities_Defined_in_XML_Configuration_from_an_Application)
+   - [Referring to Entities and Other Elements within XML Files](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ReferringToEntitiesElements.htm#4.6.1_Referring_to_Entities_and_Other_Elements_within_XML_Files)
 
 ### XML-Based Application Creation References
 
-- [Getting Started Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/XMLAppCreationGSG_title.htm)
+- [Getting Started Guide](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/XMLAppCreationGSG_title.htm)
 
 ## Domain Library
 

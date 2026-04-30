@@ -36,6 +36,7 @@ repos:
         types_or: [batch]
       - id: name-tests-test
         args: [--pytest-test-first]
+        exclude: ^modules/.*/tests/module.*_test_support\.py$
       - id: check-illegal-windows-names
 
   - repo: https://github.com/codespell-project/codespell

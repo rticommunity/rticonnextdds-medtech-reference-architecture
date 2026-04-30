@@ -146,7 +146,7 @@ TELEOP_WAN_DOMAIN = DomainScope(
         # PSK seed for the WAN (TeleopWanDomain) domain.
         # Loaded by CDS and all WAN RS participants via
         # dds.sec.crypto.rtps_psk_secret_passphrase = file:<scope>/TeleopWanDomain.psk
-        # Increment 'id' on every rotation (never reuse). Valid range: 0-254 for 7.3.x.
+        # Increment 'id' on every rotation (never reuse). Valid range: 0-4294967295 for 7.7.x (0-254 for 7.3.x).
         PskSeed(filename="TeleopWanDomain.psk"),
     ],
 )

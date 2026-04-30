@@ -31,7 +31,6 @@ sys.path.insert(
     0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python")
 )
 
-from scripts import module_runner
 
 # ---------------------------------------------------------------------------
 # Path bootstrapping
@@ -66,6 +65,8 @@ def _has_display() -> bool:
     if sys.platform == "darwin":
         return True
     return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
 # ---------------------------------------------------------------------------
 # Process management
 # ---------------------------------------------------------------------------
