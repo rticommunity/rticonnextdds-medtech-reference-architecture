@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Shared pytest support modules for module test suites:
+  `module01_test_support.py`, `module02_test_support.py`, and
+  `module04_test_support.py` to separate importable helpers from
+  pytest-only fixture wiring
+- Root-level pytest marker `build_pipeline` in `pyproject.toml` for
+  build/configure pipeline tests, enabling marker-based CI selection
+
+### Changed
+
+- CI workflow (`.github/workflows/ci.yml`) simplified to a concise
+  lint + unified root-test pipeline, with marker-based exclusion of
+  build pipeline tests, concurrency cancellation, and streamlined
+  Connext runtime setup
+- Test execution model unified around root-level `python -m pytest`
+  across local runs, Docker test entrypoint, and contributor docs
+- Module test imports refactored to remove direct imports from
+  `conftest.py`; helper imports now resolve from dedicated support modules
+- Project test naming clarified and aligned:
+  `tests/test_build.py` -> `tests/test_project_build_pipeline.py`,
+  `modules/01-operating-room/tests/test_build.py` ->
+  `test_build_and_types.py`, and module XML test filenames normalized
+- Lint and quality tooling policy tightened:
+  stricter Ruff scope/rules, removal of legacy `# noqa` suppressions,
+  codespell integration, migration to rumdl markdown lint/format,
+  and repository-wide pre-commit autofix normalization
+- Ignore file hygiene and consistency improved across `.gitignore`,
+  `.dockerignore`, and nested security `.gitignore` files
+
+### Fixed
+
+- Test-process cleanup hardened by launching managed subprocesses in
+  dedicated process groups and terminating full groups during fixture
+  teardown in module 01/02/04 test support
+- Module 02 orphaned Recording/Replay Service processes are now
+  explicitly reaped during teardown when tied to module test configs,
+  preventing cross-suite DDS endpoint leakage
+- Module 04 secure exfiltrator tests now validate launch configuration
+  assumptions for secure OR and unsecured threat probe setup before
+  asserting expected security behavior
+
+### Removed
+
+- Legacy `tests/run_tests.sh` wrapper script in favor of direct,
+  root-level pytest invocation
+- Obsolete `.markdownlint.json` after migration to rumdl-based markdown
+  checks
+
 ## [1.2.1] - 2026-04-20
 
 ### Added
