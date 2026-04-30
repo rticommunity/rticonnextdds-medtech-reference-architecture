@@ -265,7 +265,7 @@ private:
             builder->get_widget<Gtk::Box>("header_bar", hdr);
             try {
                 auto pb = Gdk::Pixbuf::create_from_file(
-                        "../../resource/images/rti_logo.png");
+                        "../../resource/images/Arm-Controller.png");
                 window->set_icon(pb);
 #ifdef __APPLE__
                 set_macos_dock_icon(pb);
@@ -280,6 +280,7 @@ private:
                     hdr->reorder_child(*logo, 0);
                 }
             } catch (...) {
+                std::cerr << "Warning: artwork failure " << std::endl;
             }
         }
 

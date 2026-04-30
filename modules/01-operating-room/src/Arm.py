@@ -41,8 +41,8 @@ BORDER_DIM = "#1A2A3A"
 
 # Per-joint color palette
 JOINT_COLORS = {
-    SurgicalRobot.Motors.BASE:     "#004C97",   # RTI Blue
-    SurgicalRobot.Motors.SHOULDER: "#ED8B00",   # RTI Orange
+    SurgicalRobot.Motors.BASE:     RTI_BLUE,
+    SurgicalRobot.Motors.SHOULDER: RTI_ORANGE,
     SurgicalRobot.Motors.ELBOW:    "#00BFFF",   # Electric blue
     SurgicalRobot.Motors.WRIST:    "#7CFC00",   # Lime green
     SurgicalRobot.Motors.HAND:     "#DA70D6",   # Orchid
@@ -376,7 +376,7 @@ class ArmWindow(QMainWindow):
         self.setWindowTitle("RTI Connext — Surgical Arm Monitor")
         self.setMinimumSize(640, 650)
         self.setStyleSheet(f"background-color: {BG_MAIN};")
-        _icon_px = QPixmap("../../resource/images/rti_logo.png")
+        _icon_px = QPixmap("../../resource/images/Arm-Monitor.png")
         if not _icon_px.isNull():
             self.setWindowIcon(QIcon(_icon_px))
 
@@ -399,7 +399,7 @@ class ArmWindow(QMainWindow):
         h_layout = QHBoxLayout(header)
         h_layout.setContentsMargins(20, 0, 20, 0)
 
-        _logo_px = QPixmap("../../resource/images/rti_logo.png")
+        _logo_px = QPixmap("../../resource/images/Arm-Monitor.png")
         if not _logo_px.isNull():
             logo_lbl = QLabel()
             logo_lbl.setStyleSheet("background: transparent;")
@@ -580,7 +580,7 @@ class ArmApp:
     def run(self):
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
-        _icon = QIcon(QPixmap("../../resource/images/rti_logo.png"))
+        _icon = QIcon(QPixmap("../../resource/images/Arm-Monitor.png"))
         if not _icon.isNull():
             app.setWindowIcon(_icon)
 
