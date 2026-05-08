@@ -13,6 +13,7 @@ contributors working from a fork.
 - [One-Time Environment Setup](#one-time-environment-setup)
 - [Day-to-Day Workflow](#day-to-day-workflow)
 - [What Runs Automatically](#what-runs-automatically)
+- [Testing CI Locally with act (Optional)](#testing-ci-locally-with-act-optional)
 - [Running Tests Locally](#running-tests-locally)
 - [Branch and PR Conventions](#branch-and-pr-conventions)
 - [Upgrading Ruff](#upgrading-ruff)
@@ -138,6 +139,25 @@ committing. In exceptional circumstances you can bypass hooks with
 CI uses a pinned Ruff version (see [Upgrading Ruff](#upgrading-ruff)). If
 pre-commit and CI share the same pin, a clean local commit will not produce
 lint failures in CI.
+
+## Testing CI Locally with act (Optional)
+
+If you want to debug the GitHub Actions workflow itself, you can run the CI
+jobs locally with [`act`](https://github.com/nektos/act).
+
+```bash
+# Ensure RTI_LICENSE_FILE points to your local rti_license.dat
+export RTI_LICENSE_FILE=/path/to/rti_license.dat
+
+# Run the "test" job from .github/workflows/ci.yml
+act push -j test \
+    --secret RTI_LICENSE_FILE="$(base64 -w0 "$RTI_LICENSE_FILE")" \
+    --platform ubuntu-24.04=catthehacker/ubuntu:act-24.04
+```
+
+> **Note:** `act` is great for fast iteration, but behavior can differ slightly
+> from GitHub-hosted runners (container image, networking, and environment
+> details). Always rely on GitHub Actions as the final source of truth.
 
 ---
 

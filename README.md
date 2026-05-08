@@ -115,8 +115,8 @@ python3 build.py
 To build only the modules you intend to run:
 
 ```bash
-python3 build.py --target module-01   # all C++ targets in Module 01
-python3 build.py --target ArmController  # only the ArmController target
+python3 build.py -- --target module-01   # all C++ targets in Module 01
+python3 build.py -- --target ArmController  # only the ArmController target
 ```
 
 The compiled binaries are placed under `build/<CONNEXTDDS_ARCH>/`.

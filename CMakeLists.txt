@@ -20,6 +20,9 @@ project(MedTechRefArch LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (default: Release)")
+set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries (default: ON)")
+
 # --- RTI CMake Utilities (fetched from GitHub) ---
 include(FetchContent)
 FetchContent_Declare(
@@ -34,8 +37,9 @@ list(APPEND CMAKE_MODULE_PATH
 )
 
 # --- Find RTI Connext DDS ---
-find_package(RTIConnextDDS "7.7.0" REQUIRED
-    COMPONENTS core
+message(STATUS "Looking for RTI Connext DDS version ${RTICONNEXTDDS_VERSION}...")
+find_package(RTIConnextDDS ${RTICONNEXTDDS_VERSION} REQUIRED
+    COMPONENTS messaging_api
 )
 
 # --- Modules with C++ code ---

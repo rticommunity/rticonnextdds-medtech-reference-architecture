@@ -19,9 +19,9 @@ concurrency:
 
 env:
   CONNEXT_VERSION: "7.7.0"
-  CONNEXTDDS_ARCH: x64Linux4gcc8.5.0
-  NDDSHOME: /opt/rti.com/rti_connext_dds-7.7.0
+  OPENSSL_VERSION: "3.5.5"
   PYTHON_VERSION: "3.10"
+  CONNEXTDDS_ARCH: x64Linux4gcc8.5.0
   QT_QPA_PLATFORM: offscreen
   DISPLAY: ":99"
 
@@ -29,7 +29,7 @@ jobs:
   # ── Lint ────────────────────────────────────────────────────────────────
   lint:
     name: Lint & Format
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 7
     steps:
       - uses: actions/checkout@v5
@@ -47,16 +47,21 @@ jobs:
   test:
     name: Build & Test (root pytest)
     needs: lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v5
+
+      - name: Configure Connext build environment
+        run: |
+          echo "NDDSHOME=/opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}" >> "$GITHUB_ENV"
+          echo "CONNEXTDDS_ARCH=${{ env.CONNEXTDDS_ARCH }}" >> "$GITHUB_ENV"
 
       - name: Cache Connext installation
         id: cache-connext
         uses: actions/cache@v5
         with:
-          path: /opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          path: $NDDSHOME
           key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
 
       - name: Add RTI apt repository
@@ -77,13 +82,17 @@ jobs:
         run: |
           echo "rti-connext-dds-${{ env.CONNEXT_VERSION }}-common rti-connext-dds-${{ env.CONNEXT_VERSION }}/license/accepted select true" | \
             sudo debconf-set-selections
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y rti-connext-dds-${{ env.CONNEXT_VERSION }}
+          sudo DEBIAN_FRONTEND=noninteractive \
+            apt-get install -y --no-install-recommends \
+              rti-connext-dds-${{ env.CONNEXT_VERSION }}-lib-dev \
+              rti-connext-dds-${{ env.CONNEXT_VERSION }}-rtiddsgen \
+              rti-connext-dds-${{ env.CONNEXT_VERSION }}-services-all
 
       - name: Verify installation
         run: |
           test -d $NDDSHOME
           test -f $NDDSHOME/lib/$CONNEXTDDS_ARCH/libnddssecurity.so
-          ls $NDDSHOME/third_party/openssl-*/$CONNEXTDDS_ARCH/release/lib/libssl.so* | head -1
+          ls $NDDSHOME/third_party/openssl-${{ env.OPENSSL_VERSION }}/$CONNEXTDDS_ARCH/release/lib/libssl.so* | head -1
 
       - name: Write license file
         run: |
@@ -110,21 +119,22 @@ jobs:
 
       - name: Configure Connext runtime environment
         run: |
-          echo "LD_LIBRARY_PATH=$NDDSHOME/lib/$CONNEXTDDS_ARCH:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$NDDSHOME/lib/$CONNEXTDDS_ARCH:$NDDSHOME/third_party/openssl-${{ env.OPENSSL_VERSION }}/$CONNEXTDDS_ARCH/release/lib:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
           echo "$NDDSHOME/bin" >> "$GITHUB_PATH"
 
       - name: Install Python dependencies
         run: |
-          pip install -r requirements-dev.txt
-          pip install rti.connext==${{ env.CONNEXT_VERSION }}
+          pip install --upgrade pip
+          pip install rti.connext~=${{ env.CONNEXT_VERSION }}.0 \
+            -r requirements-dev.txt
 
       - name: Build project binaries
-        run: python build.py
+        run: python build.py -DRTICONNEXTDDS_VERSION=${{ env.CONNEXT_VERSION }} -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
 
       - name: Generate security artifacts
         run: |
-          cd system_arch/security && python3 setup_security.py
-          cd ../../modules/04-security-threat/security && python3 setup_threat_security.py
+          python system_arch/security/setup_security.py --force
+          python modules/04-security-threat/security/setup_threat_security.py --force
 
       - name: Start Xvfb
         run: |

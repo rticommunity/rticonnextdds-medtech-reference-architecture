@@ -11,6 +11,11 @@ liable for any incidental or consequential damages arising out of the use or
 inability to use the software. -->
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.7.0/rti_dds_profiles.xsd" version="7.7.0">
 
+  <qos_library name="DPFactoryQosLib">
+    <qos_profile name="Default" is_default_participant_factory_profile="true">
+    </qos_profile>
+  </qos_library>
+
   <qos_library name="DpQosLib">
     <qos_profile name="Arm" base_name="SystemLibrary::DefaultParticipant"/>
     <qos_profile name="ArmController" base_name="SystemLibrary::DefaultParticipant"/>

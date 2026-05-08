@@ -44,7 +44,7 @@ def _windows_cmake_platform() -> str | None:
 
 def configure_command(extra_args: list[str] | None = None) -> list[str]:
     args = extra_args if extra_args is not None else sys.argv[1:]
-    command = ["cmake", "-S", str(PROJECT_ROOT), "-B", str(BUILD_DIR)]
+    command = ["cmake", "-S", str(PROJECT_ROOT), "-B", str(BUILD_DIR)] + args
 
     platform_arg = _windows_cmake_platform()
     if platform_arg and not any(argument in ("-A", "--platform") for argument in args):
@@ -54,8 +54,8 @@ def configure_command(extra_args: list[str] | None = None) -> list[str]:
 
 
 def build_command(extra_args: list[str] | None = None) -> list[str]:
-    args = extra_args if extra_args is not None else sys.argv[1:]
-    command = ["cmake", "--build", str(BUILD_DIR)] + args
+    # args = extra_args if extra_args is not None else sys.argv[1:]
+    command = ["cmake", "--build", str(BUILD_DIR)]
 
     if platform.system() == "Windows" and "--config" not in command:
         command.extend(["--config", "Release"])

@@ -2,7 +2,7 @@
 # RTI MedTech Reference Architecture — Multi-stage Dockerfile
 #
 # Stages:
-#   connext-base  — Ubuntu 22.04 + Connext DDS via apt
+#   connext-base  — Ubuntu 24.04 + Connext DDS via apt
 #   build         — CMake configure + build + security artifacts
 #   test          — Python venv, pytest, Xvfb for headless testing
 #
@@ -27,14 +27,20 @@
 #     medtech-test python -m pytest modules/01-operating-room/tests/test_types.py -v
 # ==========================================================================
 
+# Shared build args (global defaults).
+ARG CONNEXT_VERSION=7.7.0
+ARG OPENSSL_VERSION=3.5.5
+ARG PYTHON_VERSION=3.10
+ARG CONNEXTDDS_ARCH=x64Linux4gcc8.5.0
+
 # ------------------------------------------------------------------
 # Stage 1: Connext base
 # ------------------------------------------------------------------
-FROM ubuntu:22.04 AS connext-base
+FROM ubuntu:24.04 AS connext-base
 
-ARG CONNEXT_VERSION=7.7.0
-ARG OPENSSL_VERSION=3.5.5
-ARG CONNEXTDDS_ARCH=x64Linux4gcc8.5.0
+ARG CONNEXT_VERSION
+ARG OPENSSL_VERSION
+ARG CONNEXTDDS_ARCH
 ARG DEBIAN_FRONTEND=noninteractive
 
 ENV CONNEXT_VERSION=${CONNEXT_VERSION}
@@ -42,6 +48,7 @@ ENV OPENSSL_VERSION=${OPENSSL_VERSION}
 ENV NDDSHOME=/opt/rti.com/rti_connext_dds-${CONNEXT_VERSION}
 ENV CONNEXTDDS_ARCH=${CONNEXTDDS_ARCH}
 ENV PATH=${NDDSHOME}/bin:${PATH}
+ENV RTI_LICENSE_FILE=/opt/rti.com/rti_license.dat
 
 # System packages (keep layer small by cleaning up)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -65,7 +72,10 @@ RUN curl -sSL -o /usr/share/keyrings/rti-official-archive.gpg \
 # Install Connext DDS (accept license non-interactively)
 RUN echo "rti-connext-dds-${CONNEXT_VERSION}-common rti-connext-dds-${CONNEXT_VERSION}/license/accepted select true" \
         | debconf-set-selections \
-    && apt-get install -y --no-install-recommends rti-connext-dds-${CONNEXT_VERSION} \
+    && apt-get install -y --no-install-recommends \
+    rti-connext-dds-${CONNEXT_VERSION}-lib-dev \
+    rti-connext-dds-${CONNEXT_VERSION}-rtiddsgen \
+    rti-connext-dds-${CONNEXT_VERSION}-services-all \
     && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------------
@@ -73,15 +83,35 @@ RUN echo "rti-connext-dds-${CONNEXT_VERSION}-common rti-connext-dds-${CONNEXT_VE
 # ------------------------------------------------------------------
 FROM connext-base AS build
 
+ARG PYTHON_VERSION
+
 WORKDIR /workspace
 COPY . .
 
+# Python packages (enable deadsnakes for broader PYTHON_VERSION support)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        software-properties-common \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create venv and install dependencies needed by build and test workflows.
+ENV VIRTUAL_ENV=/workspace/.venv
+RUN python${PYTHON_VERSION} -m venv ${VIRTUAL_ENV}
+ENV PATH=${VIRTUAL_ENV}/bin:${PATH}
+
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir \
+        rti.connext~=${CONNEXT_VERSION}.0 \
+        -r requirements-dev.txt
+
 # Build project with CMake
-RUN python3 build.py
+RUN python${PYTHON_VERSION} build.py -DRTICONNEXTDDS_VERSION=${CONNEXT_VERSION} -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
 
 # Generate security artifacts (certificates, signed governance/permissions)
-RUN python3 system_arch/security/setup_security.py
-RUN python3 modules/04-security-threat/security/setup_threat_security.py
+RUN python${PYTHON_VERSION} system_arch/security/setup_security.py --force
+RUN python${PYTHON_VERSION} modules/04-security-threat/security/setup_threat_security.py --force
 
 # ------------------------------------------------------------------
 # Stage 3: Test environment
@@ -90,22 +120,11 @@ FROM build AS test
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Python 3.10 from Ubuntu 22.04 repositories (matches advertised minimum version)
+# Install only test runtime dependencies; Python is already installed in build.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3.10 python3.10-venv python3.10-dev \
         xvfb \
         libegl1 libxkbcommon0 libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
-
-# Create venv and install dependencies from requirements-dev.txt
-ENV VIRTUAL_ENV=/workspace/.venv
-RUN python3.10 -m venv ${VIRTUAL_ENV}
-ENV PATH=${VIRTUAL_ENV}/bin:${PATH}
-
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir \
-        rti.connext==${CONNEXT_VERSION} \
-        -r requirements-dev.txt
 
 # Runtime library paths: Connext libs + bundled OpenSSL (for security plugin)
 ENV LD_LIBRARY_PATH=${NDDSHOME}/lib/${CONNEXTDDS_ARCH}:${NDDSHOME}/third_party/openssl-${OPENSSL_VERSION}/${CONNEXTDDS_ARCH}/release/lib

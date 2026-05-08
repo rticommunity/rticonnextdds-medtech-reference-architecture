@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   pytest-only fixture wiring
 - Root-level pytest marker `build_pipeline` in `pyproject.toml` for
   build/configure pipeline tests, enabling marker-based CI selection
+- Optional maintainer guidance in `docs/CONTRIBUTING.md` for running
+  `.github/workflows/ci.yml` locally with `act`, including
+  `RTI_LICENSE_FILE` secret encoding and `ubuntu-24.04` platform mapping
 
 ### Changed
 
@@ -22,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   lint + unified root-test pipeline, with marker-based exclusion of
   build pipeline tests, concurrency cancellation, and streamlined
   Connext runtime setup
+- CI runner targeting and setup refined around `ubuntu-24.04` with
+  explicit Connext/OpenSSL environment wiring (`NDDSHOME`,
+  `CONNEXTDDS_ARCH`, `OPENSSL_VERSION`), cache path normalization,
+  and runtime library verification
 - Test execution model unified around root-level `python -m pytest`
   across local runs, Docker test entrypoint, and contributor docs
 - Module test imports refactored to remove direct imports from

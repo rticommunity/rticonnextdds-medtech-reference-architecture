@@ -9,7 +9,7 @@ applications as end-user runtime containers.
 
 | Image | Target | Purpose |
 | --- | --- | --- |
-| `medtech-build` | `build` | Ubuntu 22.04 + Connext 7.7.0 + CMake build of C++ modules + security artifacts |
+| `medtech-build` | `build` | Ubuntu 24.04 + Connext 7.7.0 + CMake build of C++ modules + security artifacts |
 | `medtech-test` | `test` | Extends build with Python deps, pytest, rumdl, and Xvfb for headless tests |
 
 ## Prerequisites
@@ -61,24 +61,24 @@ docker build -f tests/docker/Dockerfile --target test  -t medtech-test .
 
 # 2. Run all tests (mounts license, default pytest with -v)
 docker run --rm \
-    -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
+    -v $RTI_LICENSE_FILE:/opt/rti.com/rti_license.dat:ro \
     medtech-test
 
 # 3. Run specific tests
 docker run --rm \
-    -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
+    -v $RTI_LICENSE_FILE:/opt/rti.com/rti_license.dat:ro \
     medtech-test \
     modules/01-operating-room/tests/test_types.py -v
 
 # 4. Run tests matching a pattern
 docker run --rm \
-    -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
+    -v $RTI_LICENSE_FILE:/opt/rti.com/rti_license.dat:ro \
     medtech-test \
     -k "test_types"
 
 # 5. Interactive shell for debugging
 docker run --rm -it \
-    -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
+    -v $RTI_LICENSE_FILE:/opt/rti.com/rti_license.dat:ro \
     medtech-test bash
 ```
 
