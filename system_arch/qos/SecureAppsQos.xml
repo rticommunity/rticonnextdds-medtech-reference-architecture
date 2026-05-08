@@ -30,7 +30,7 @@ inability to use the software. -->
     <qos_profile name="Default" is_default_participant_factory_profile="true">
       <participant_factory_qos>
         <monitoring>
-          <!-- <enable>false</enable> -->
+          <enable>false</enable>
         </monitoring>
       </participant_factory_qos>
     </qos_profile>
