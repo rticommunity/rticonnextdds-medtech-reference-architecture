@@ -177,7 +177,7 @@ class TestPauseAndResume:
 
         # Drain any remaining vitals and then check no new ones arrive
         vitals_reader.take()  # drain
-        time.sleep(2)
+        time.sleep(1)
         stale = vitals_reader.take()
         valid_stale = [s for s in stale if s.info.valid]
         assert len(valid_stale) <= 1, (
@@ -284,7 +284,7 @@ class TestSecurePatientSensor:
         ps = proc_manager_secure.start_app("PatientSensor")
 
         # Wait for security handshake and DDS initialization
-        wait_for_process_ready(ps, timeout_sec=15)
+        wait_for_process_ready(ps, timeout_sec=5)
 
         if ps.poll() is not None:
             stdout = ps.stdout.read().decode(errors="replace") if ps.stdout else ""

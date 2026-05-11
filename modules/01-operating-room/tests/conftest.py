@@ -87,7 +87,7 @@ def proc_manager_secure(dds_env_secure):
     pm.shutdown_all()
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def dds_participant(dds_env):
     """Create a lightweight DDS DomainParticipant for test observation."""
     import rti.connextdds as dds

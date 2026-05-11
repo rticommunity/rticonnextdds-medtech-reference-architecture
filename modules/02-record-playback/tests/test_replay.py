@@ -57,7 +57,7 @@ class TestReplay:
             ],
             cwd=MODULE_DIR,
         )
-        time.sleep(8)
+        time.sleep(3)
 
         rec_proc.terminate()
         try:

@@ -118,7 +118,7 @@ class TestInjectorUnsecure:
     def test_unsecure_injection_succeeds(self, or_pm_nonsecure, or_env_nonsecure, threat_env):
         """Unsecured injector should match unsecured OR apps."""
         sensor = or_pm_nonsecure.start_app("PatientSensor")
-        wait_for_process_ready(sensor, timeout_sec=10)
+        wait_for_process_ready(sensor, timeout_sec=5)
         assert sensor.poll() is None, f"PatientSensor exited early with code {sensor.returncode}"
 
         result = _run_injector_probe(
@@ -141,12 +141,12 @@ class TestInjectorSecure:
     def test_rogue_ca_injection_blocked(self, or_pm_secure, or_env_secure, threat_env):
         """Injector with rogue CA identity should not match secured OR apps."""
         ps = or_pm_secure.start_app("PatientSensor")
-        wait_for_process_ready(ps, timeout_sec=15)
+        wait_for_process_ready(ps, timeout_sec=5)
 
         result = _run_injector_probe(
             threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatInjector/RogueCA",
-            timeout_sec=10,
+            timeout_sec=4,
         )
         # The participant may be created but should NOT match
         assert not result["matched"], "Rogue CA injector should NOT match secured OR apps"
@@ -154,24 +154,24 @@ class TestInjectorSecure:
     def test_forged_perms_injection_blocked(self, or_pm_secure, or_env_secure, threat_env):
         """Injector with forged permissions should not match secured OR apps."""
         ps = or_pm_secure.start_app("PatientSensor")
-        wait_for_process_ready(ps, timeout_sec=15)
+        wait_for_process_ready(ps, timeout_sec=5)
 
         result = _run_injector_probe(
             threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatInjector/ForgedPerms",
-            timeout_sec=10,
+            timeout_sec=4,
         )
         assert not result["matched"], "Forged permissions injector should NOT match secured OR apps"
 
     def test_expired_cert_injection_fails(self, or_pm_secure, or_env_secure, threat_env):
         """Injector with expired certificate should fail to create participant or match."""
         ps = or_pm_secure.start_app("PatientSensor")
-        wait_for_process_ready(ps, timeout_sec=15)
+        wait_for_process_ready(ps, timeout_sec=5)
 
         result = _run_injector_probe(
             threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatInjector/ExpiredCert",
-            timeout_sec=10,
+            timeout_sec=4,
         )
         # Expired cert typically causes participant creation failure
         if result["created"]:

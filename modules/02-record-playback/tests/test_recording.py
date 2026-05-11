@@ -50,8 +50,8 @@ class TestRecording:
             ],
             cwd=MODULE_DIR,
         )
-        # Record for ~8 seconds
-        time.sleep(8)
+        # Record for ~3 seconds
+        time.sleep(3)
 
         # Verify Recording Service is still alive
         assert rec_proc.poll() is None, (

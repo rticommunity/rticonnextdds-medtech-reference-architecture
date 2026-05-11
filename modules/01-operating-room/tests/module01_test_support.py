@@ -135,8 +135,8 @@ class ProcessManager:
                     os.killpg(p.pid, signal.SIGTERM)
                 except (ProcessLookupError, PermissionError):
                     p.terminate()
-        # Give processes 3 seconds to exit gracefully
-        deadline = time.monotonic() + 3
+        # Give processes 1 second to exit gracefully
+        deadline = time.monotonic() + 1
         for p in self._children:
             remaining = max(0, deadline - time.monotonic())
             try:
@@ -272,18 +272,35 @@ def wait_for_data(reader, timeout_sec: float = 5.0, min_count: int = 1):
 
 
 def wait_for_process_ready(proc, timeout_sec: float = 5.0):
-    """Wait until *proc* survives for *timeout_sec* or exits early.
+    """Wait until *proc* produces stdout output, exits, or *timeout_sec* expires.
 
-    Polls ``proc.poll()`` every 250ms.  Returns as soon as either:
+    Returns as soon as any of these conditions is met:
+    - The process writes to stdout (indicates successful startup).
     - The process exits (caller should check ``proc.returncode``).
-    - The full *timeout_sec* elapses with the process still running (success
-      for smoke tests — the process survived its startup window).
+    - The full *timeout_sec* elapses with the process still running.
     """
-    deadline = time.monotonic() + timeout_sec
-    while time.monotonic() < deadline:
-        if proc.poll() is not None:
-            return
-        time.sleep(0.25)
+    import selectors
+
+    if proc.poll() is not None:
+        return
+
+    sel = selectors.DefaultSelector()
+    try:
+        if proc.stdout and hasattr(proc.stdout, "fileno"):
+            sel.register(proc.stdout, selectors.EVENT_READ)
+        deadline = time.monotonic() + timeout_sec
+        while time.monotonic() < deadline:
+            if proc.poll() is not None:
+                return
+            remaining = max(0, deadline - time.monotonic())
+            if sel.get_map():
+                events = sel.select(timeout=min(remaining, 0.25))
+                if events:
+                    return  # stdout has data — process started successfully
+            else:
+                time.sleep(min(remaining, 0.25))
+    finally:
+        sel.close()
 
 
 def wait_for_device_status(

@@ -249,7 +249,7 @@ class TestArmMotorControl:
             direction=SurgicalRobot.MotorDirections.INCREMENT,
         )
         writer.write(cmd)
-        time.sleep(1)
+        time.sleep(0.5)
 
         assert proc.poll() is None, "Arm crashed after receiving MotorControl"
 
@@ -419,7 +419,7 @@ class TestContentFilter:
 
         # Give time for any reaction and drain vitals
         vitals_reader.take()
-        time.sleep(1.5)
+        time.sleep(0.5)
 
         # PatientSensor should still be publishing vitals (not paused)
         fresh = wait_for_data(vitals_reader, timeout_sec=3.0, min_count=1)

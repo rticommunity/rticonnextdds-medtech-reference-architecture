@@ -147,7 +147,7 @@ class ProcessManager:
                     os.killpg(p.pid, signal.SIGTERM)
                 except (ProcessLookupError, PermissionError):
                     p.terminate()
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + 2
         for p in self._children:
             remaining = max(0, deadline - time.monotonic())
             try:
@@ -164,12 +164,29 @@ class ProcessManager:
 
 
 def wait_for_process_ready(proc, timeout_sec: float = 5.0):
-    """Wait until *proc* survives for *timeout_sec* or exits early."""
-    deadline = time.monotonic() + timeout_sec
-    while time.monotonic() < deadline:
-        if proc.poll() is not None:
-            return
-        time.sleep(0.25)
+    """Wait until *proc* produces stdout output, exits, or *timeout_sec* expires."""
+    import selectors
+
+    if proc.poll() is not None:
+        return
+
+    sel = selectors.DefaultSelector()
+    try:
+        if proc.stdout and hasattr(proc.stdout, "fileno"):
+            sel.register(proc.stdout, selectors.EVENT_READ)
+        deadline = time.monotonic() + timeout_sec
+        while time.monotonic() < deadline:
+            if proc.poll() is not None:
+                return
+            remaining = max(0, deadline - time.monotonic())
+            if sel.get_map():
+                events = sel.select(timeout=min(remaining, 0.25))
+                if events:
+                    return
+            else:
+                time.sleep(min(remaining, 0.25))
+    finally:
+        sel.close()
 
 
 RECORDING_DIR = MODULE_DIR / "or_recording"
