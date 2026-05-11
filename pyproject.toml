@@ -1,5 +1,9 @@
 [tool.ruff]
 required-version = ">=0.15"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
 
 [tool.codespell]
 # Keep spelling checks focused on source/docs and skip generated/cache content.

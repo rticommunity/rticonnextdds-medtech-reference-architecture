@@ -100,7 +100,7 @@ def openssl_run(args: list[str], **kwargs) -> subprocess.CompletedProcess:
         if env:
             kwargs["env"] = env
     log.debug("openssl %s", " ".join(str(a) for a in args))
-    result = subprocess.run([_openssl, *args], check=False, **kwargs)
+    result = subprocess.run([_openssl, *args], **kwargs)
     if result.stderr:
         log.debug("openssl stderr: %s", result.stderr.decode().strip())
     return result
@@ -503,9 +503,7 @@ def scaffold_identity(cnf_dest: Path, *, subdirs: list[str] | None = None) -> No
     cnf_dest.parent.mkdir(parents=True, exist_ok=True)
     if subdirs is not None:
         for d in subdirs:
-            (cnf_dest.parent / d).mkdir(
-                exist_ok=True, mode=0o700 if d == "private" else 0o755
-            )
+            (cnf_dest.parent / d).mkdir(exist_ok=True, mode=0o700 if d == "private" else 0o755)
 
 
 def generate_identity(
@@ -617,15 +615,11 @@ def revoke_certificate(
     """
     revoke_cert(issuer_cnf, issuer_key, issuer_cert, cert_path, cwd=issuer_cwd)
     if out_crl is not None:
-        return generate_crl(
-            issuer_cnf, issuer_key, issuer_cert, out_crl, cwd=issuer_cwd
-        )
+        return generate_crl(issuer_cnf, issuer_key, issuer_cert, out_crl, cwd=issuer_cwd)
     return None
 
 
-def scaffold_governance(
-    template: Path, out_xml: Path, context: dict | None = None
-) -> None:
+def scaffold_governance(template: Path, out_xml: Path, context: dict | None = None) -> None:
     """(l) Scaffold a governance XML file from *template*."""
     render_template(template, out_xml, context)
 
@@ -645,9 +639,7 @@ def sign_governance(
     return sign_xml(key_path, cert_path, xml_path, out_p7s)
 
 
-def scaffold_permissions(
-    template: Path, out_xml: Path, context: dict | None = None
-) -> None:
+def scaffold_permissions(template: Path, out_xml: Path, context: dict | None = None) -> None:
     """(n) Scaffold a permissions XML file from *template*."""
     render_template(template, out_xml, context)
 
