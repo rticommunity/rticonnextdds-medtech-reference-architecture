@@ -57,7 +57,8 @@ def _resolve_module(
         for name in app_names:
             if name not in all_apps:
                 raise ValueError(
-                    f"Unknown app '{name}' in module '{module_name}'. Available: {', '.join(all_apps)}"
+                    f"Unknown app '{name}' in module '{module_name}'. "
+                    f"Available: {', '.join(all_apps)}"
                 )
         commands = [all_apps[app] for app in app_names]
     else:

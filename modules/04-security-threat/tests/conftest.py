@@ -29,7 +29,8 @@ def pytest_collection_modifyitems(config, items):
     has_display = _has_display()
 
     skip_sec = pytest.mark.skip(
-        reason="Security artifacts not generated (run setup_security.py and setup_threat_security.py)"
+        reason="Security artifacts not generated "
+        "(run setup_security.py and setup_threat_security.py)"
     )
     skip_gui = pytest.mark.skip(reason="No graphical display available")
 

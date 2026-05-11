@@ -8,12 +8,12 @@ domain scopes, and identity modules of a DDS security system, plus
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from fnmatch import fnmatch
 import hashlib
 import logging
 import re
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Optional
 
@@ -210,7 +210,7 @@ class PskSeed:
 
     Attributes:
         filename: Output file name relative to the domain scope directory
-                  (e.g. ``TeleopWanDomain.psk`` → ``domain_scope/TeleopWanDomain/TeleopWanDomain.psk``).
+                  (e.g. ``MyDomain.psk`` → ``domain_scope/MyDomain/MyDomain.psk``).
                   Use a ``.psk`` extension (no RTI-mandated extension, but
                   ``.psk`` is clearer than ``.txt`` for operator awareness).
         id:       PSK ID written as the integer prefix. Must be in [0,254] for

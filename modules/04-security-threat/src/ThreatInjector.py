@@ -12,39 +12,38 @@
 
 from __future__ import annotations
 
-import sys
 import math
-import threading
 import signal
+import sys
+import threading
 from pathlib import Path
-
-from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QWidget,
-    QLabel,
-    QFrame,
-    QHBoxLayout,
-    QVBoxLayout,
-    QPushButton,
-    QTextEdit,
-    QSizePolicy,
-    QSlider,
-)
-from PySide6.QtCore import Qt, QTimer, QPointF
-from PySide6.QtGui import (
-    QPainter,
-    QColor,
-    QPen,
-    QBrush,
-    QFont,
-    QPainterPath,
-    QPixmap,
-    QIcon,
-)
 
 import rti.connextdds as dds
 from PySide6 import QtAsyncio
+from PySide6.QtCore import QPointF, Qt, QTimer
+from PySide6.QtGui import (
+    QBrush,
+    QColor,
+    QFont,
+    QIcon,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QSizePolicy,
+    QSlider,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 # Import OR types
 sys.path.insert(
@@ -57,8 +56,8 @@ sys.path.insert(
     ),
 )
 import DdsUtils
-from Types import Common, Orchestrator, SurgicalRobot, DdsEntities
 from ThreatTypes import ThreatEntities
+from Types import Common, DdsEntities, Orchestrator, SurgicalRobot
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
 threat_entities = ThreatEntities.Constants
@@ -450,7 +449,11 @@ class ThreatInjectorWindow(QMainWindow):
         # ── Frequency slider ───────────────────────────────────────
         freq_hdr = QLabel("Inject Frequency (Hz)")
         freq_hdr.setStyleSheet(
-            f"color: {RTI_ORANGE}; font-size: 12px; font-weight: bold; background: transparent; letter-spacing: 1px;"
+            f"color: {RTI_ORANGE}; "
+            f"font-size: 12px; "
+            f"font-weight: bold; "
+            f"background: transparent; "
+            f"letter-spacing: 1px;"
         )
         layout.addWidget(freq_hdr)
         self.freq_slider = QSlider(Qt.Orientation.Horizontal)
@@ -458,7 +461,8 @@ class ThreatInjectorWindow(QMainWindow):
         self.freq_slider.setMaximum(20)
         self.freq_slider.setValue(5)
         self.freq_slider.setStyleSheet(
-            f"QSlider::handle:horizontal {{ background: {RTI_ORANGE}; border-radius: 5px; width: 12px; height: 12px; }}"
+            f"QSlider::handle:horizontal "
+            f"{{ background: {RTI_ORANGE}; border-radius: 5px; width: 12px; height: 12px; }}"
         )
         layout.addWidget(self.freq_slider)
         self.freq_lbl = QLabel("5 Hz")

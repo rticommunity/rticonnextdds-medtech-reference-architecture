@@ -12,7 +12,6 @@ import platform
 import sys
 from pathlib import Path
 
-
 # -- Connext environment variables and paths ------------------------------------------------
 
 

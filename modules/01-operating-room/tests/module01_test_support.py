@@ -200,7 +200,10 @@ deadline = time.monotonic() + {timeout_sec}
 while time.monotonic() < deadline and len(collected) < {min_count}:
     for s in reader.take():
         if s.info.valid:
-            val = getattr(s.data, "{extract_field or ""}") if "{extract_field or ""}" else str(s.data)
+            if "{extract_field or ""}":
+                val = getattr(s.data, "{extract_field}")
+            else:
+                val = str(s.data)
             collected.append(str(val))
     if len(collected) < {min_count}:
         time.sleep(0.1)
@@ -247,7 +250,9 @@ print(json.dumps(collected))
     ]
     if not lines:
         raise RuntimeError(
-            f"No JSON output from secure subscriber.\nstdout: {result.stdout}\nstderr: {result.stderr}"
+            f"No JSON output from secure subscriber.\n"
+            f"stdout: {result.stdout}\n"
+            f"stderr: {result.stderr}"
         )
     return json.loads(lines[0])
 

@@ -32,6 +32,7 @@ sys.path.insert(
     ),
 )
 
+from dds_security import generate_expired_identity
 from security_tree import (
     CA,
     App,
@@ -44,7 +45,6 @@ from security_tree import (
     TopicRule,
     scaffold_tree,
 )
-from dds_security import generate_expired_identity
 
 MODULE_DIR = Path(__file__).parent.parent.resolve()
 PROJECT_ROOT = MODULE_DIR.parent.parent.resolve()
@@ -80,8 +80,8 @@ TRUSTED_IDENTITY_CA = CA(
 #
 # The same ThreatDomain XML is signed by two CAs to enable the four threat
 # demonstrations:
-#   Threat 1 — Unauthorized subscriber  (TrustedIdentityCa identity  + TrustedPermissionsCa permissions)
-#   Threat 2 — Unauthorized publisher   (TrustedIdentityCa identity  + TrustedPermissionsCa permissions)
+#   Threat 1 — Unauth subscriber  (TrustedIdentityCa identity  + TrustedPermissionsCa permissions)
+#   Threat 2 — Unauth publisher   (TrustedIdentityCa identity  + TrustedPermissionsCa permissions)
 #   Threat 3 — Tampered permissions     (TrustedIdentityCa identity  + RogueCa-signed permissions)
 #   Threat 4 — Tampered governance      (TrustedIdentityCa identity  + RogueCa-signed governance)
 # ---------------------------------------------------------------------------

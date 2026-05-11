@@ -37,7 +37,8 @@ def pytest_collection_modifyitems(config, items):
         run=False,
     )
     fail_sec_plugin = pytest.mark.xfail(
-        reason="DDS Security plugin not fully installed (need libnddssecurity, OpenSSL, rti_license.dat)",
+        reason="DDS Security plugin not fully installed "
+        "(need libnddssecurity, OpenSSL, rti_license.dat)",
         strict=True,
         run=False,
     )

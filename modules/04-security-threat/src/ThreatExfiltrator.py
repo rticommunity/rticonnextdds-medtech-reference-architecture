@@ -12,34 +12,31 @@
 
 from __future__ import annotations
 
-import sys
-import time
-import threading
 import signal
+import sys
+import threading
+import time
 from pathlib import Path
 
 import numpy as np
-
-from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QWidget,
-    QLabel,
-    QFrame,
-    QHBoxLayout,
-    QVBoxLayout,
-    QPushButton,
-    QTextEdit,
-    QSizePolicy,
-    QGridLayout,
-)
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QPixmap, QIcon
-
 import pyqtgraph as pg
-
 import rti.connextdds as dds
 from PySide6 import QtAsyncio
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QSizePolicy,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 # Import OR types
 sys.path.insert(
@@ -52,8 +49,8 @@ sys.path.insert(
     ),
 )
 import DdsUtils
-from Types import PatientMonitor, DdsEntities
 from ThreatTypes import ThreatEntities
+from Types import DdsEntities, PatientMonitor
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
 threat_entities = ThreatEntities.Constants

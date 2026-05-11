@@ -427,5 +427,6 @@ class TestContentFilter:
         # PatientSensor should still be publishing vitals (not paused)
         fresh = wait_for_data(vitals_reader, timeout_sec=3.0, min_count=1)
         assert len(fresh) >= 1, (
-            "PatientSensor stopped publishing vitals after a command addressed to ARM — content filter may be broken"
+            "PatientSensor stopped publishing vitals after a command addressed to ARM"
+            " — content filter may be broken"
         )

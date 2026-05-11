@@ -10,37 +10,36 @@
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
 
-import sys
 import math
-import time
-import threading
 import signal
-
-from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QWidget,
-    QLabel,
-    QFrame,
-    QHBoxLayout,
-    QVBoxLayout,
-    QSizePolicy,
-)
-from PySide6.QtCore import Qt, QTimer, QRectF, QPointF
-from PySide6.QtGui import (
-    QPainter,
-    QColor,
-    QPen,
-    QBrush,
-    QFont,
-    QPainterPath,
-    QPixmap,
-    QIcon,
-)
+import sys
+import threading
+import time
 
 import rti.connextdds as dds
-from Types import Common, SurgicalRobot, Orchestrator, DdsEntities
 from DdsUtils import register_type
+from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
+from PySide6.QtGui import (
+    QBrush,
+    QColor,
+    QFont,
+    QIcon,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
+from Types import Common, DdsEntities, Orchestrator, SurgicalRobot
 
 # ─── RTI Brand Colors ────────────────────────────────────────────────────
 RTI_BLUE = "#004C97"
