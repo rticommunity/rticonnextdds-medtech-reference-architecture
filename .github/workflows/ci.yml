@@ -50,17 +50,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Configure Connext build environment
-        run: |
-          eval $(rtienv)
-          echo "NDDSHOME=$NDDSHOME" >> "$GITHUB_ENV"
-          echo "CONNEXTDDS_ARCH=$CONNEXTDDS_ARCH" >> "$GITHUB_ENV"
-
       - name: Cache Connext installation
         id: cache-connext
         uses: actions/cache@v5
         with:
-          path: $NDDSHOME
+          path: /opt/rti.com
           key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
 
       - name: Add RTI apt repository
@@ -86,6 +80,12 @@ jobs:
               rti-connext-dds-${{ env.CONNEXT_VERSION }}-lib-dev \
               rti-connext-dds-${{ env.CONNEXT_VERSION }}-rtiddsgen \
               rti-connext-dds-${{ env.CONNEXT_VERSION }}-services-all
+
+      - name: Configure Connext build environment
+        run: |
+          eval $(rtienv)
+          echo "NDDSHOME=$NDDSHOME" >> "$GITHUB_ENV"
+          echo "CONNEXTDDS_ARCH=$CONNEXTDDS_ARCH" >> "$GITHUB_ENV"
 
       - name: Verify installation
         run: |
