@@ -28,6 +28,8 @@ from module01_test_support import (
     wait_for_process_ready,
 )
 
+_IS_MACOS = sys.platform == "darwin"
+
 # Ensure generated types are importable
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
@@ -262,7 +264,7 @@ class TestAllAppsStatus:
     """All five apps should report DeviceStatus ON when running."""
 
     QT_ENV = {"QT_QPA_PLATFORM": "offscreen"}
-    GTK_ENV = {"GDK_BACKEND": "x11"}
+    GTK_ENV = {} if _IS_MACOS else {"GDK_BACKEND": "x11"}
 
     EXPECTED_DEVICES = {
         "PATIENT_SENSOR",

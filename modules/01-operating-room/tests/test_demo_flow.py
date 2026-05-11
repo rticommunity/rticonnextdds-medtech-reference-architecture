@@ -23,10 +23,13 @@ wait for inter-app DDS interactions to play out.
 
 import importlib
 import sys
+import threading
 import time
 from pathlib import Path
 
 import pytest
+
+_IS_MACOS = sys.platform == "darwin"
 
 TESTS_DIR = Path(__file__).resolve().parent
 
@@ -46,7 +49,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 QT_ENV = {"QT_QPA_PLATFORM": "offscreen"}
-GTK_ENV = {"GDK_BACKEND": "x11"}
+GTK_ENV = {} if _IS_MACOS else {"GDK_BACKEND": "x11"}
 
 
 # ---------------------------------------------------------------------------
@@ -304,9 +307,14 @@ class TestSecureAllApps:
             "ArmController": proc_manager_secure.start_app("ArmController", extra_env=GTK_ENV),
         }
 
-        # Wait for security handshake and DDS initialization
-        for p in apps.values():
-            wait_for_process_ready(p, timeout_sec=15)
+        # Wait for security handshake and DDS initialization (parallel).
+        # Apps that fail the handshake crash within the first 1-2 s; 3 s is
+        # enough to catch startup failures while keeping the test fast.
+        threads = [threading.Thread(target=wait_for_process_ready, args=(p, 3)) for p in apps.values()]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
 
         crashed = {}
         for name, p in apps.items():

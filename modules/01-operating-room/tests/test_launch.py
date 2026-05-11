@@ -15,12 +15,16 @@ Verifies that each application starts without crashing.
 GUI applications are marked so they can be skipped on headless systems.
 """
 
+import sys
+
 import pytest
 from module01_test_support import (
     create_reader,
     wait_for_device_status,
     wait_for_process_ready,
 )
+
+_IS_MACOS = sys.platform == "darwin"
 
 
 class TestPatientSensor:
@@ -52,7 +56,7 @@ class TestPatientSensor:
 class TestOrchestrator:
     """Orchestrator is a C++ GTK application."""
 
-    GTK_ENV = {"GDK_BACKEND": "x11"}
+    GTK_ENV = {} if _IS_MACOS else {"GDK_BACKEND": "x11"}
 
     def test_starts_and_stays_alive(self, proc_manager):
         proc = proc_manager.start_app("Orchestrator", extra_env=self.GTK_ENV)
@@ -64,7 +68,7 @@ class TestOrchestrator:
 class TestArmController:
     """ArmController is a C++ GTK application."""
 
-    GTK_ENV = {"GDK_BACKEND": "x11"}
+    GTK_ENV = {} if _IS_MACOS else {"GDK_BACKEND": "x11"}
 
     def test_starts_and_stays_alive(self, proc_manager):
         proc = proc_manager.start_app("ArmController", extra_env=self.GTK_ENV)
@@ -101,7 +105,7 @@ class TestAllApps:
     """Launch all five applications simultaneously."""
 
     QT_ENV = {"QT_QPA_PLATFORM": "offscreen"}
-    GTK_ENV = {"GDK_BACKEND": "x11"}
+    GTK_ENV = {} if _IS_MACOS else {"GDK_BACKEND": "x11"}
 
     def test_all_apps_launch_together(self, proc_manager, dds_participant):
         from Types import Common, Common_DeviceStatus
