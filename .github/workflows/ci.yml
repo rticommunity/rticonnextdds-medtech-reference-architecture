@@ -19,9 +19,7 @@ concurrency:
 
 env:
   CONNEXT_VERSION: "7.7.0"
-  OPENSSL_VERSION: "3.5.5"
   PYTHON_VERSION: "3.10"
-  CONNEXTDDS_ARCH: x64Linux4gcc8.5.0
   QT_QPA_PLATFORM: offscreen
   DISPLAY: ":99"
 
@@ -54,8 +52,9 @@ jobs:
 
       - name: Configure Connext build environment
         run: |
-          echo "NDDSHOME=/opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}" >> "$GITHUB_ENV"
-          echo "CONNEXTDDS_ARCH=${{ env.CONNEXTDDS_ARCH }}" >> "$GITHUB_ENV"
+          eval $(rtienv)
+          echo "NDDSHOME=$NDDSHOME" >> "$GITHUB_ENV"
+          echo "CONNEXTDDS_ARCH=$CONNEXTDDS_ARCH" >> "$GITHUB_ENV"
 
       - name: Cache Connext installation
         id: cache-connext
@@ -92,7 +91,7 @@ jobs:
         run: |
           test -d $NDDSHOME
           test -f $NDDSHOME/lib/$CONNEXTDDS_ARCH/libnddssecurity.so
-          ls $NDDSHOME/third_party/openssl-${{ env.OPENSSL_VERSION }}/$CONNEXTDDS_ARCH/release/lib/libssl.so* | head -1
+          ls $NDDSHOME/third_party/openssl-*/$CONNEXTDDS_ARCH/release/lib/libssl.so* | head -1
 
       - name: Install system dependencies
         run: |
@@ -133,7 +132,8 @@ jobs:
 
       - name: Configure Connext runtime environment
         run: |
-          echo "LD_LIBRARY_PATH=$NDDSHOME/lib/$CONNEXTDDS_ARCH:$NDDSHOME/third_party/openssl-${{ env.OPENSSL_VERSION }}/$CONNEXTDDS_ARCH/release/lib:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
+          eval $(rtienv)
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
           echo "$NDDSHOME/bin" >> "$GITHUB_PATH"
 
       - name: Write license file
