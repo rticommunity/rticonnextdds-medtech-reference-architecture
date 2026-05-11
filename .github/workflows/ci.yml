@@ -48,7 +48,7 @@ jobs:
     name: Build & Test (root pytest)
     needs: lint
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
 
@@ -94,11 +94,6 @@ jobs:
           test -f $NDDSHOME/lib/$CONNEXTDDS_ARCH/libnddssecurity.so
           ls $NDDSHOME/third_party/openssl-${{ env.OPENSSL_VERSION }}/$CONNEXTDDS_ARCH/release/lib/libssl.so* | head -1
 
-      - name: Write license file
-        run: |
-          echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
-          test -s $NDDSHOME/rti_license.dat
-
       - name: Install system dependencies
         run: |
           sudo rm -f /etc/apt/sources.list.d/{microsoft-prod,azure-cli}.*
@@ -116,11 +111,6 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-
-      - name: Configure Connext runtime environment
-        run: |
-          echo "LD_LIBRARY_PATH=$NDDSHOME/lib/$CONNEXTDDS_ARCH:$NDDSHOME/third_party/openssl-${{ env.OPENSSL_VERSION }}/$CONNEXTDDS_ARCH/release/lib:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
-          echo "$NDDSHOME/bin" >> "$GITHUB_PATH"
 
       - name: Install Python dependencies
         run: |
@@ -140,6 +130,27 @@ jobs:
         run: |
           Xvfb :99 -screen 0 1024x768x24 &
           sleep 1
+
+      - name: Configure Connext runtime environment
+        run: |
+          echo "LD_LIBRARY_PATH=$NDDSHOME/lib/$CONNEXTDDS_ARCH:$NDDSHOME/third_party/openssl-${{ env.OPENSSL_VERSION }}/$CONNEXTDDS_ARCH/release/lib:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
+          echo "$NDDSHOME/bin" >> "$GITHUB_PATH"
+
+      - name: Write license file
+        run: |
+          echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
+          echo "License file check:"
+          if [ ! -f "$NDDSHOME/rti_license.dat" ]; then
+            echo "  ERROR: License file was not created"
+            exit 1
+          elif [ ! -s "$NDDSHOME/rti_license.dat" ]; then
+            echo "  ERROR: License file is empty (secret RTI_LICENSE_FILE may not be set)"
+            exit 1
+          else
+            echo "  Path: $NDDSHOME/rti_license.dat"
+            echo "  Size: $(wc -c < $NDDSHOME/rti_license.dat) bytes"
+            echo "  Contains 'Security': $(grep -ci 'security' $NDDSHOME/rti_license.dat || echo 0) matches"
+          fi
 
       - name: Run full test suite from project root
         run: python -m pytest -v -m "not build_pipeline" --junitxml=results.xml
