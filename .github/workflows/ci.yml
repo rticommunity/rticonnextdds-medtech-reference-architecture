@@ -138,18 +138,20 @@ jobs:
 
       - name: Write license file
         run: |
-          echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > $NDDSHOME/rti_license.dat
+          RTI_LICENSE_FILE="$RUNNER_TEMP/rti_license.dat"
+          echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > "$RTI_LICENSE_FILE"
+          echo "RTI_LICENSE_FILE=$RTI_LICENSE_FILE" >> "$GITHUB_ENV"
           echo "License file check:"
-          if [ ! -f "$NDDSHOME/rti_license.dat" ]; then
+          if [ ! -f "$RTI_LICENSE_FILE" ]; then
             echo "  ERROR: License file was not created"
             exit 1
-          elif [ ! -s "$NDDSHOME/rti_license.dat" ]; then
+          elif [ ! -s "$RTI_LICENSE_FILE" ]; then
             echo "  ERROR: License file is empty (secret RTI_LICENSE_FILE may not be set)"
             exit 1
           else
-            echo "  Path: $NDDSHOME/rti_license.dat"
-            echo "  Size: $(wc -c < $NDDSHOME/rti_license.dat) bytes"
-            echo "  Contains 'Security': $(grep -ci 'security' $NDDSHOME/rti_license.dat || echo 0) matches"
+            echo "  Path: $RTI_LICENSE_FILE"
+            echo "  Size: $(wc -c < $RTI_LICENSE_FILE) bytes"
+            echo "  Contains 'Security': $(grep -ci 'security' $RTI_LICENSE_FILE || echo 0) matches"
           fi
 
       - name: Run full test suite from project root
