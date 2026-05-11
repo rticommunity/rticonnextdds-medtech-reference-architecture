@@ -56,6 +56,19 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     python3 \
     python3-gi \
     python3-gi-cairo \
+    libxcb-cursor0 \
+    libxkbcommon-x11-0 \
+    libxcb-xinerama0 \
+    libxcb-icccm4 \
+    libxcb-keysyms1 \
+    libxcb-randr0 \
+    libxcb-render-util0 \
+    libxcb-shape0 \
+    libxcb-xinerama0 \
+    libxcb-xkb1 \
+    libx11-xcb1 \
+    libgl1 \
+    libegl1 \
     python3-numpy \
     python3-matplotlib \
     python3-pip \
@@ -74,7 +87,11 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     && rm -rf /var/lib/apt/lists
 
 # Install the RTI Connext Python API
-RUN pip install rti.connext
+RUN pip install --no-cache-dir \
+    pyqtgraph>=0.13 \
+    numpy>=1.24 \
+    PySide6>=6.5 \
+    rti.connext~=${CONNEXT_VERSION}.0
 
 # Install the RTI Connext Debian Package
 RUN curl -sSL -o /usr/share/keyrings/rti-official-archive.gpg \
@@ -90,7 +107,9 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     RTI_LICENSE_AGREEMENT_ACCEPTED=${RTI_LICENSE_AGREEMENT_ACCEPTED} \
     && apt-get update \
     && apt-get install -y \
-    rti-connext-dds-${CONNEXT_VERSION} \
+    rti-connext-dds-${CONNEXT_VERSION}-lib-dev \
+    rti-connext-dds-${CONNEXT_VERSION}-rtiddsgen \
+    rti-connext-dds-${CONNEXT_VERSION}-services-all \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists
 
@@ -98,7 +117,7 @@ RUN echo "source ${NDDSHOME}/resource/scripts/rtisetenv_*.bash" >> /root/.bashrc
 
 WORKDIR /root
 
-RUN git clone -b examples --recurse-submodule https://github.com/rticommunity/rticonnextdds-medtech-reference-architecture.git medtech_ra
+COPY . medtech_ra
 WORKDIR /root/medtech_ra/modules/01-operating-room
 
 # Copy additional source files
@@ -117,25 +136,15 @@ COPY ./examples/joystick_controller/launch_arm_joystick.sh \
      ./examples/xbox_controller/launch_arm_xbox.sh \
      /root/medtech_ra/modules/01-operating-room/scripts/
 
-# Create a script to build the sources
-RUN echo "#!/bin/bash" > build_module_01.sh
-RUN echo "source ${NDDSHOME}/resource/scripts/rtisetenv_*.bash" >> build_module_01.sh
-RUN echo "mkdir build && cd build && cmake .. && cmake --build ." >> build_module_01.sh
-RUN chmod +x build_module_01.sh
-
-# Configure licence file
-RUN echo "export RTI_LICENSE_FILE=/root/rti_license.dat" >> /root/.bashrc
-RUN rm ${NDDSHOME}/rti_license.dat
-RUN ln -s /root/rti_licence.dat ${NDDSHOME}/rti_license.dat
-
-FROM scratch AS final-stage
-
-WORKDIR /root
-
-COPY --from=install-stage / /
+FROM install-stage AS build-stage
 
 WORKDIR /root/medtech_ra/modules/01-operating-room
-RUN ./build_module_01.sh
+RUN source ${NDDSHOME}/resource/scripts/rtisetenv_*.bash \
+    && cmake -B build && cmake --build build
+
+FROM build-stage AS final-stage
+
+ENV RTI_LICENSE_FILE=/root/rti_license.dat
 
 WORKDIR /root
 CMD ["/bin/bash"]
