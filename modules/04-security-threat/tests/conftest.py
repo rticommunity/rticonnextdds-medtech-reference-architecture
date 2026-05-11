@@ -44,18 +44,14 @@ def pytest_collection_modifyitems(config, items):
 @pytest.fixture(scope="session")
 def or_env_nonsecure():
     """Module 01 OR env — non-secure mode."""
-    env, apps = module_runner.load_module_config(
-        MODULE_01_DIR, flags={"security": False}
-    )
+    env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": False})
     return env, apps
 
 
 @pytest.fixture(scope="session")
 def or_env_secure():
     """Module 01 OR env — secure mode."""
-    env, apps = module_runner.load_module_config(
-        MODULE_01_DIR, flags={"security": True}
-    )
+    env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": True})
     return env, apps
 
 

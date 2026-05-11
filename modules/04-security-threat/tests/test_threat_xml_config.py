@@ -46,36 +46,28 @@ class TestThreatParticipantsXml:
         lib = tree.getroot().find("domain_participant_library")
         dp_names = {dp.get("name") for dp in lib.findall("domain_participant")}
         for mode in EXPECTED_INJECTOR_MODES:
-            assert f"dp/ThreatInjector/{mode}" in dp_names, (
-                f"Missing injector mode: {mode}"
-            )
+            assert f"dp/ThreatInjector/{mode}" in dp_names, f"Missing injector mode: {mode}"
 
     def test_all_exfiltrator_modes_defined(self):
         tree = ElementTree.parse(self.CONFIG)
         lib = tree.getroot().find("domain_participant_library")
         dp_names = {dp.get("name") for dp in lib.findall("domain_participant")}
         for mode in EXPECTED_EXFILTRATOR_MODES:
-            assert f"dp/ThreatExfiltrator/{mode}" in dp_names, (
-                f"Missing exfiltrator mode: {mode}"
-            )
+            assert f"dp/ThreatExfiltrator/{mode}" in dp_names, f"Missing exfiltrator mode: {mode}"
 
     def test_injectors_have_publishers(self):
         tree = ElementTree.parse(self.CONFIG)
         lib = tree.getroot().find("domain_participant_library")
         for dp in lib.findall("domain_participant"):
             if dp.get("name", "").startswith("dp/ThreatInjector/"):
-                assert dp.find("publisher") is not None, (
-                    f"{dp.get('name')} missing publisher"
-                )
+                assert dp.find("publisher") is not None, f"{dp.get('name')} missing publisher"
 
     def test_exfiltrators_have_subscribers(self):
         tree = ElementTree.parse(self.CONFIG)
         lib = tree.getroot().find("domain_participant_library")
         for dp in lib.findall("domain_participant"):
             if dp.get("name", "").startswith("dp/ThreatExfiltrator/"):
-                assert dp.find("subscriber") is not None, (
-                    f"{dp.get('name')} missing subscriber"
-                )
+                assert dp.find("subscriber") is not None, f"{dp.get('name')} missing subscriber"
 
 
 class TestThreatQosXml:

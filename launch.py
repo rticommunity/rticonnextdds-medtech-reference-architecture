@@ -49,9 +49,7 @@ def _resolve_module(
     modules = module_runner.discover_modules()
     module_dir = modules[module_name]
 
-    env, all_apps = module_runner.load_module_config(
-        module_dir, flags={"security": security}
-    )
+    env, all_apps = module_runner.load_module_config(module_dir, flags={"security": security})
 
     if app_names:
         for name in app_names:
@@ -166,9 +164,7 @@ def main() -> None:
         module_runner.launch_multi(specs)
 
     elif args.module:
-        cmds, mod_dir, env = _resolve_module(
-            args.module, args.apps or None, args.security
-        )
+        cmds, mod_dir, env = _resolve_module(args.module, args.apps or None, args.security)
         app_label = ", ".join(args.apps) if args.apps else "all"
         print(f"Launching from {args.module}: {app_label}")
         module_runner.launch(cmds, mod_dir, env)

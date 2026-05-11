@@ -194,19 +194,13 @@ class VitalPanel(QFrame):
         top.addWidget(name_lbl)
         top.addStretch()
         unit_lbl = QLabel(self.unit)
-        unit_lbl.setStyleSheet(
-            f"color: {self.color}88; font-size: 14px; background: transparent;"
-        )
-        unit_lbl.setAlignment(
-            Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight
-        )
+        unit_lbl.setStyleSheet(f"color: {self.color}88; font-size: 14px; background: transparent;")
+        unit_lbl.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight)
         top.addWidget(unit_lbl)
         root.addLayout(top)
 
         self.value_lbl = QLabel("---")
-        self.value_lbl.setAlignment(
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-        )
+        self.value_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.value_lbl.setStyleSheet(
             f"color: {self.color}; font-size: 48px; font-weight: bold; "
             f"font-family: 'Courier New', monospace; background: transparent; letter-spacing: -2px;"
@@ -215,9 +209,7 @@ class VitalPanel(QFrame):
 
         self.plot_widget = pg.PlotWidget(background=BG_PANEL)
         self.plot_widget.setMinimumHeight(120)
-        self.plot_widget.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
+        self.plot_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.plot_widget.hideAxis("left")
         self.plot_widget.hideAxis("bottom")
         self.plot_widget.setMouseEnabled(x=False, y=False)
@@ -279,9 +271,7 @@ class NiBPPanel(QFrame):
         top.addWidget(name_lbl)
         top.addStretch()
         unit_lbl = QLabel("mmHg")
-        unit_lbl.setStyleSheet(
-            f"color: {COLOR_NIBP}88; font-size: 14px; background: transparent;"
-        )
+        unit_lbl.setStyleSheet(f"color: {COLOR_NIBP}88; font-size: 14px; background: transparent;")
         top.addWidget(unit_lbl)
         root.addLayout(top)
 
@@ -296,9 +286,7 @@ class NiBPPanel(QFrame):
         )
         bp_row.addWidget(self.sys_lbl)
         sep = QLabel("/")
-        sep.setStyleSheet(
-            f"color: {COLOR_NIBP}88; font-size: 36px; background: transparent;"
-        )
+        sep.setStyleSheet(f"color: {COLOR_NIBP}88; font-size: 36px; background: transparent;")
         bp_row.addWidget(sep)
         self.dia_lbl = QLabel("---")
         self.dia_lbl.setStyleSheet(self.sys_lbl.styleSheet())
@@ -308,9 +296,7 @@ class NiBPPanel(QFrame):
         sub_row = QHBoxLayout()
         sub_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sub_lbl = QLabel("Systolic  /  Diastolic")
-        sub_lbl.setStyleSheet(
-            f"color: {COLOR_NIBP}66; font-size: 18px; background: transparent;"
-        )
+        sub_lbl.setStyleSheet(f"color: {COLOR_NIBP}66; font-size: 18px; background: transparent;")
         sub_row.addWidget(sub_lbl)
         root.addLayout(sub_row)
 
@@ -376,9 +362,7 @@ class ThreatExfiltratorWindow(QMainWindow):
     def _build_header(self) -> QWidget:
         header = QWidget()
         header.setFixedHeight(80)
-        header.setStyleSheet(
-            f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};"
-        )
+        header.setStyleSheet(f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};")
         h = QHBoxLayout(header)
         h.setContentsMargins(20, 0, 20, 0)
 
@@ -422,17 +406,11 @@ class ThreatExfiltratorWindow(QMainWindow):
     def _build_footer(self) -> QWidget:
         footer = QWidget()
         footer.setFixedHeight(44)
-        footer.setStyleSheet(
-            f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};"
-        )
+        footer.setStyleSheet(f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};")
         f = QHBoxLayout(footer)
         f.setContentsMargins(20, 0, 20, 0)
-        lbl = QLabel(
-            "Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture"
-        )
-        lbl.setStyleSheet(
-            f"color: {COLOR_IDLE}; font-size: 18px; background: transparent;"
-        )
+        lbl = QLabel("Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture")
+        lbl.setStyleSheet(f"color: {COLOR_IDLE}; font-size: 18px; background: transparent;")
         f.addWidget(lbl)
         f.addStretch()
         return footer
@@ -571,9 +549,7 @@ class ThreatExfiltratorWindow(QMainWindow):
                 btn.setStyleSheet(_STYLE_MODE_INACTIVE)
         is_active = active_mode is not None
         self._stop_btn.setEnabled(is_active)
-        self._stop_btn.setStyleSheet(
-            _STYLE_STOP_ENABLED if is_active else _STYLE_STOP_DISABLED
-        )
+        self._stop_btn.setStyleSheet(_STYLE_STOP_ENABLED if is_active else _STYLE_STOP_DISABLED)
 
     def set_data_status(self, status: str):
         """status: 'IDLE', 'ACCESS GRANTED', 'NO ACCESS', 'ATTACK FAILED'"""
@@ -603,9 +579,7 @@ class ThreatExfiltratorWindow(QMainWindow):
             f'<span style="color:{c}; font-weight:bold;">[{level}]</span>'
             f' <span style="color:#C0D0E0;">{msg}</span>'
         )
-        self.log_text.verticalScrollBar().setValue(
-            self.log_text.verticalScrollBar().maximum()
-        )
+        self.log_text.verticalScrollBar().setValue(self.log_text.verticalScrollBar().maximum())
 
     def reset_vitals(self):
         self.hr_panel.reset_to_dashes()
@@ -659,9 +633,7 @@ class ThreatExfiltratorApp:
                 self.window.reset_vitals()
                 self._current_mode = mode
             except dds.Error as exc:
-                self.window.log(
-                    "BLOCKED", f"Participant creation blocked by security: {exc}"
-                )
+                self.window.log("BLOCKED", f"Participant creation blocked by security: {exc}")
                 self._cert_invalid = True
                 self.window.set_data_status("ATTACK FAILED")
                 self.window.highlight_mode_button(None)
@@ -698,9 +670,7 @@ class ThreatExfiltratorApp:
                     self.window.log("OK", "Subscription matched — receiving data")
                 else:
                     self.window.set_data_status("NO ACCESS")
-                    self.window.log(
-                        "BLOCKED", "No subscription match — access denied by security"
-                    )
+                    self.window.log("BLOCKED", "No subscription match — access denied by security")
 
             try:
                 samples = self._vitals_reader.take_data()
@@ -736,10 +706,7 @@ class ThreatExfiltratorApp:
             )
 
         # Data timeout → reset panels to dashes
-        if (
-            self._last_sample_time > 0
-            and (now - self._last_sample_time) > DATA_TIMEOUT_S
-        ):
+        if self._last_sample_time > 0 and (now - self._last_sample_time) > DATA_TIMEOUT_S:
             self.window.reset_vitals()
             self._last_sample_time = 0.0
 

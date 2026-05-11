@@ -57,21 +57,17 @@ class TestModuleJsonContract:
 
         for module_name, module_dir in modules.items():
             config_path = module_dir / "module.json"
-            assert config_path.is_file(), (
-                f"Missing module.json for {module_name}: {config_path}"
-            )
+            assert config_path.is_file(), f"Missing module.json for {module_name}: {config_path}"
 
             with open(config_path, encoding="utf-8") as f:
                 raw = json.load(f)
 
-            assert (
-                isinstance(raw.get("description"), str) and raw["description"].strip()
-            ), f"{module_name}: description must be a non-empty string"
+            assert isinstance(raw.get("description"), str) and raw["description"].strip(), (
+                f"{module_name}: description must be a non-empty string"
+            )
 
             if "env" in raw:
-                assert isinstance(raw["env"], dict), (
-                    f"{module_name}: env must be an object"
-                )
+                assert isinstance(raw["env"], dict), f"{module_name}: env must be an object"
                 for key, value in raw["env"].items():
                     assert isinstance(key, str) and key, (
                         f"{module_name}: env key must be non-empty string"
@@ -81,16 +77,12 @@ class TestModuleJsonContract:
                     )
 
             args_section = raw.get("args", {})
-            assert isinstance(args_section, dict), (
-                f"{module_name}: args must be an object"
-            )
+            assert isinstance(args_section, dict), f"{module_name}: args must be an object"
             for arg_name, spec in args_section.items():
                 assert isinstance(arg_name, str) and arg_name, (
                     f"{module_name}: args key must be non-empty string"
                 )
-                assert isinstance(spec, dict), (
-                    f"{module_name}: args.{arg_name} must be an object"
-                )
+                assert isinstance(spec, dict), f"{module_name}: args.{arg_name} must be an object"
                 assert "true" in spec and "false" in spec, (
                     f"{module_name}: args.{arg_name} must define both 'true' and 'false'"
                 )
@@ -146,9 +138,7 @@ class TestLoadModuleConfigNegativeParsing:
         with open(module_dir / "module.json", "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
 
-    def test_missing_required_flag_raises(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_missing_required_flag_raises(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         module_dir = tmp_path / "bad-module-1"
         self._write_config(
             module_dir,
@@ -166,9 +156,7 @@ class TestLoadModuleConfigNegativeParsing:
         with pytest.raises(ValueError, match="requires flag"):
             module_runner.load_module_config(module_dir, flags={})
 
-    def test_unknown_placeholder_kind_raises(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_unknown_placeholder_kind_raises(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         module_dir = tmp_path / "bad-module-2"
         self._write_config(
             module_dir,
@@ -186,9 +174,7 @@ class TestLoadModuleConfigNegativeParsing:
         with pytest.raises(ValueError, match="Unknown placeholder"):
             module_runner.load_module_config(module_dir, flags={})
 
-    def test_undefined_args_reference_raises(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_undefined_args_reference_raises(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         module_dir = tmp_path / "bad-module-3"
         self._write_config(
             module_dir,

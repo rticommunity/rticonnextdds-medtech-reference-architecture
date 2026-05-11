@@ -37,9 +37,7 @@ class TestRecording:
         # Start PatientSensor to produce t/Vitals data
         ps = proc_manager.start_app("PatientSensor")
         wait_for_process_ready(ps, timeout_sec=10)
-        assert ps.poll() is None, (
-            f"PatientSensor exited early with code {ps.returncode}"
-        )
+        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         # Start Recording Service
         rec_proc = proc_manager.start(

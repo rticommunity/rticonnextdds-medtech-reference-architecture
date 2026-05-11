@@ -30,9 +30,7 @@ class TestModuleConfig:
     """load_module_config() should return a well-formed environment dict."""
 
     def _get_env(self, security: bool = False) -> dict:
-        env, _apps = module_runner.load_module_config(
-            MODULE_DIR, flags={"security": security}
-        )
+        env, _apps = module_runner.load_module_config(MODULE_DIR, flags={"security": security})
         return env
 
     def test_nonsecure_env_has_ndds_qos_profiles(self):
@@ -114,9 +112,7 @@ class TestModuleConfigErrors:
 
     def test_referenced_xml_files_are_not_empty(self):
         """All XML files referenced by NDDS_QOS_PROFILES should be non-empty."""
-        env, _apps = module_runner.load_module_config(
-            MODULE_DIR, flags={"security": False}
-        )
+        env, _apps = module_runner.load_module_config(MODULE_DIR, flags={"security": False})
         for path_str in env["NDDS_QOS_PROFILES"].split(";"):
             p = Path(path_str)
             assert p.stat().st_size > 0, f"XML file is empty: {p}"

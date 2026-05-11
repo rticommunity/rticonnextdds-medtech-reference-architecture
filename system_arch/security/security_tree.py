@@ -282,16 +282,12 @@ class SecurityTree:
     def _permissions_dir(self, root: Path, scope_name: str, perm_name: str) -> Path:
         return root / "domain_scope" / scope_name / "permissions" / perm_name
 
-    def _identity_dir(
-        self, root: Path, module_name: str, app_name: str, id_name: str
-    ) -> Path:
+    def _identity_dir(self, root: Path, module_name: str, app_name: str, id_name: str) -> Path:
         return root / "identity" / module_name / app_name / id_name
 
     # -- Artifact generation ------------------------------------------------
 
-    def generate_artifacts(
-        self, root: Path, force: bool = False, strict: bool = False
-    ) -> None:
+    def generate_artifacts(self, root: Path, force: bool = False, strict: bool = False) -> None:
         """Generate all keys, certificates, and signed XML files.
 
         Args:
@@ -461,9 +457,7 @@ class SecurityTree:
                     days=CA_CERT_VALIDITY_DAYS,
                     force=force,
                 )
-                _check_cert_validity(
-                    cert, f"Intermediate CA '{ca_def.name}'", issuer_cert
-                )
+                _check_cert_validity(cert, f"Intermediate CA '{ca_def.name}'", issuer_cert)
 
             ca_cert_cache[ca_def.name] = cert
 
@@ -480,9 +474,7 @@ class SecurityTree:
 
             # Generate alternative CA bundle if alternatives are defined (#9)
             if ca_def.alternatives:
-                bundle_path = (
-                    ca_dir / "certs" / ca_def.name / f"{ca_def.name}-bundle.pem"
-                )
+                bundle_path = ca_dir / "certs" / ca_def.name / f"{ca_def.name}-bundle.pem"
                 parts = [cert.read_text()]
                 for alt in ca_def.alternatives:
                     alt_cert = _resolve_ca(alt)
@@ -506,10 +498,7 @@ class SecurityTree:
             # Validation B: check governance XML exists
             gov_xml = gov_dir / f"{gov.name}.xml"
             if not gov_xml.is_file():
-                _warn(
-                    f"Governance XML not found: {gov_xml} — "
-                    "did you run --scaffold first?"
-                )
+                _warn(f"Governance XML not found: {gov_xml} — did you run --scaffold first?")
 
             sign_governance(
                 perm_ca_key,
@@ -527,10 +516,7 @@ class SecurityTree:
 
                 # Validation B: check permissions XML exists
                 if not perm_xml.is_file():
-                    _warn(
-                        f"Permissions XML not found: {perm_xml} — "
-                        "did you run --scaffold first?"
-                    )
+                    _warn(f"Permissions XML not found: {perm_xml} — did you run --scaffold first?")
 
                 sign_permissions(
                     p_ca_key,
@@ -557,23 +543,18 @@ class SecurityTree:
         for module in self.modules:
             for app in module.apps:
                 for identity in app.identities:
-                    id_dir = self._identity_dir(
-                        root, module.name, app.name, identity.name
-                    )
+                    id_dir = self._identity_dir(root, module.name, app.name, identity.name)
                     id_ca_dir = self._ca_dir(root, identity.issuer)
                     id_ca_cert = _resolve_ca(identity.issuer)
 
                     id_cnf = id_dir / f"{identity.name}.cnf"
                     id_key = id_dir / "private" / f"{identity.name}.key"
-                    id_cert = (
-                        id_dir / "certs" / identity.issuer.name / f"{identity.name}.crt"
-                    )
+                    id_cert = id_dir / "certs" / identity.issuer.name / f"{identity.name}.crt"
 
                     # Validation B: check identity CNF exists
                     if not id_cnf.is_file():
                         _warn(
-                            f"Identity config not found: {id_cnf} — "
-                            "did you run --scaffold first?"
+                            f"Identity config not found: {id_cnf} — did you run --scaffold first?"
                         )
 
                     _check_key_perms(id_key)
@@ -619,9 +600,7 @@ class SecurityTree:
 
     # -- Validation helpers -------------------------------------------------
 
-    def _validate_subject_name(
-        self, root: Path, identity, module, app, warn_fn
-    ) -> None:
+    def _validate_subject_name(self, root: Path, identity, module, app, warn_fn) -> None:
         """#1: Compare live cert DN against committed permissions XML."""
         id_dir = self._identity_dir(root, module.name, app.name, identity.name)
         cert_path = None
@@ -646,10 +625,7 @@ class SecurityTree:
             for perm in scope.permissions:
                 if perm.name != identity.name:
                     continue
-                perm_xml = (
-                    self._permissions_dir(root, scope.name, perm.name)
-                    / f"{perm.name}.xml"
-                )
+                perm_xml = self._permissions_dir(root, scope.name, perm.name) / f"{perm.name}.xml"
                 if not perm_xml.is_file():
                     continue
                 content = perm_xml.read_text()
@@ -748,12 +724,8 @@ class SecurityTree:
         for module in self.modules:
             for app in module.apps:
                 for identity in app.identities:
-                    id_dir = self._identity_dir(
-                        root, module.name, app.name, identity.name
-                    )
-                    cert = (
-                        id_dir / "certs" / identity.issuer.name / f"{identity.name}.crt"
-                    )
+                    id_dir = self._identity_dir(root, module.name, app.name, identity.name)
+                    cert = id_dir / "certs" / identity.issuer.name / f"{identity.name}.crt"
                     _check(f"Identity: {identity.name}", cert)
 
         # Sort by days remaining

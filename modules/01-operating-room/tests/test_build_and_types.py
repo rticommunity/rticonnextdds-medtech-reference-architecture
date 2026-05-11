@@ -32,9 +32,7 @@ from scripts import platform_setup
 class TestBuild:
     """Validate that the project-level CMake build produced expected binaries."""
 
-    @pytest.mark.parametrize(
-        "binary", ["PatientSensor", "Orchestrator", "ArmController"]
-    )
+    @pytest.mark.parametrize("binary", ["PatientSensor", "Orchestrator", "ArmController"])
     def test_binary_exists(self, binary: str):
         """Compiled C++ binary exists and can be located."""
         exe = platform_setup.find_executable(binary)

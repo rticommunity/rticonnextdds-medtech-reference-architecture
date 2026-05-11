@@ -55,9 +55,7 @@ def _or_security_artifacts_exist() -> bool:
 
 def _threat_artifacts_exist() -> bool:
     """Check that Module 04 threat security artifacts exist."""
-    rogue_ca = (
-        MODULE_DIR / "security" / "ca" / "RogueCa" / "certs" / "RogueCa" / "RogueCa.crt"
-    )
+    rogue_ca = MODULE_DIR / "security" / "ca" / "RogueCa" / "certs" / "RogueCa" / "RogueCa.crt"
     return rogue_ca.is_file()
 
 
@@ -188,7 +186,5 @@ print(json.dumps(collected))
         check=False,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"DDS observer failed (exit {result.returncode}):\n{result.stderr}"
-        )
+        raise RuntimeError(f"DDS observer failed (exit {result.returncode}):\n{result.stderr}")
     return json.loads(result.stdout.strip())

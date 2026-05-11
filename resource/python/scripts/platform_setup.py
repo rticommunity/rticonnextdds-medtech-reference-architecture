@@ -54,9 +54,7 @@ def openssl_lib(nddshome: "Path | None" = None) -> Path:
         nddshome = get_nddshome()
 
     for crypto_lib in sorted(
-        nddshome.glob(
-            f"third_party/openssl-*/{get_connextdds_arch()}/release/lib/libcrypto*"
-        ),
+        nddshome.glob(f"third_party/openssl-*/{get_connextdds_arch()}/release/lib/libcrypto*"),
         reverse=True,
     ):
         if crypto_lib.is_file():
@@ -134,9 +132,7 @@ def find_service_binary(name: str) -> Path:
             return candidate
 
     searched = ", ".join(str(path) for path in candidates)
-    raise FileNotFoundError(
-        f"Could not find RTI service binary '{name}'. Searched: {searched}"
-    )
+    raise FileNotFoundError(f"Could not find RTI service binary '{name}'. Searched: {searched}")
 
 
 # -- Environment setup for launching applications ----------------------------

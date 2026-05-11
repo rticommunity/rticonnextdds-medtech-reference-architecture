@@ -179,9 +179,7 @@ OPERATING_ROOM = Module(
             name="PatientSensor",
             identities=[Identity(name="PatientSensor", issuer=TRUSTED_IDENTITY_CA)],
         ),
-        App(
-            name="Test", identities=[Identity(name="Test", issuer=TRUSTED_IDENTITY_CA)]
-        ),
+        App(name="Test", identities=[Identity(name="Test", issuer=TRUSTED_IDENTITY_CA)]),
     ],
 )
 
@@ -258,9 +256,7 @@ def main():
         action="store_true",
         help="Re-generate artifacts even if they already exist.",
     )
-    parser.add_argument(
-        "--strict", action="store_true", help="Promote warnings to fatal errors."
-    )
+    parser.add_argument("--strict", action="store_true", help="Promote warnings to fatal errors.")
     parser.add_argument(
         "--status",
         action="store_true",
@@ -290,9 +286,7 @@ def main():
     logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
 
     if args.connext_version:
-        SECURITY_TREE.connext_version = tuple(
-            int(x) for x in args.connext_version.split(".")
-        )
+        SECURITY_TREE.connext_version = tuple(int(x) for x in args.connext_version.split("."))
     else:
         detected = detect_connext_version()
         if detected:
@@ -307,9 +301,7 @@ def main():
         scaffold_tree(SECURITY_TREE, root=SECURITY_DIR, strict=args.strict)
         print(f"Security directory tree scaffolded under {SECURITY_DIR}")
     else:
-        SECURITY_TREE.generate_artifacts(
-            root=SECURITY_DIR, force=args.force, strict=args.strict
-        )
+        SECURITY_TREE.generate_artifacts(root=SECURITY_DIR, force=args.force, strict=args.strict)
         print("Security artifacts generated!")
 
 

@@ -25,11 +25,7 @@ from pathlib import Path
 # Add the main security dir to the import path
 sys.path.insert(
     0,
-    str(
-        Path(__file__).parent.parent.parent.parent.resolve()
-        / "system_arch"
-        / "security"
-    ),
+    str(Path(__file__).parent.parent.parent.parent.resolve() / "system_arch" / "security"),
 )
 
 from dds_security import generate_expired_identity
@@ -188,9 +184,7 @@ def main():
         action="store_true",
         help="Re-generate artifacts even if they already exist.",
     )
-    parser.add_argument(
-        "--strict", action="store_true", help="Promote warnings to fatal errors."
-    )
+    parser.add_argument("--strict", action="store_true", help="Promote warnings to fatal errors.")
     parser.add_argument(
         "--status",
         action="store_true",
@@ -234,25 +228,14 @@ def main():
         # valid) but have notAfter in the past, causing Connext to reject
         # them at participant creation time.
         for app_name in ("ThreatInjector", "ThreatExfiltrator"):
-            id_dir = (
-                MODULE_SECURITY_DIR
-                / "identity"
-                / "security-threat"
-                / app_name
-                / app_name
-            )
-            expired_cert = (
-                id_dir / "certs" / "TrustedIdentityCa" / "expired" / f"{app_name}.crt"
-            )
+            id_dir = MODULE_SECURITY_DIR / "identity" / "security-threat" / app_name / app_name
+            expired_cert = id_dir / "certs" / "TrustedIdentityCa" / "expired" / f"{app_name}.crt"
             generate_expired_identity(
                 key_path=id_dir / "private" / f"{app_name}.key",
                 cnf=id_dir / f"{app_name}.cnf",
                 out_cert=expired_cert,
                 issuer_cnf=(
-                    MAIN_SECURITY_DIR
-                    / "ca"
-                    / "TrustedIdentityCa"
-                    / "TrustedIdentityCa.cnf"
+                    MAIN_SECURITY_DIR / "ca" / "TrustedIdentityCa" / "TrustedIdentityCa.cnf"
                 ),
                 issuer_key=(
                     MAIN_SECURITY_DIR

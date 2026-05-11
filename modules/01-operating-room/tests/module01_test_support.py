@@ -122,9 +122,7 @@ class ProcessManager:
         self._children.append(proc)
         return proc
 
-    def start_app(
-        self, name: str, extra_env: dict | None = None, **kwargs
-    ) -> subprocess.Popen:
+    def start_app(self, name: str, extra_env: dict | None = None, **kwargs) -> subprocess.Popen:
         """Start an application by its module.json name."""
         cmd = self.apps[name]
         return self.start(cmd, extra_env=extra_env, **kwargs)
@@ -245,9 +243,7 @@ print(json.dumps(collected))
 
     # DDS security may print warnings to stdout after our JSON line.
     # Extract only lines that look like JSON arrays.
-    lines = [
-        line for line in result.stdout.strip().splitlines() if line.startswith("[")
-    ]
+    lines = [line for line in result.stdout.strip().splitlines() if line.startswith("[")]
     if not lines:
         raise RuntimeError(
             f"No JSON output from secure subscriber.\n"

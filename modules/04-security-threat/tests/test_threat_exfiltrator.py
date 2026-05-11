@@ -168,26 +168,20 @@ print(json.dumps(result))
 class TestExfiltratorUnsecure:
     """Exfiltrator should read vitals from unsecured OR apps."""
 
-    def test_unsecure_exfiltration_succeeds(
-        self, or_pm_nonsecure, or_env_nonsecure, threat_env
-    ):
+    def test_unsecure_exfiltration_succeeds(self, or_pm_nonsecure, or_env_nonsecure, threat_env):
         """Unsecured exfiltrator should receive vitals from unsecured OR apps."""
         _assert_unsecure_exfiltrator_probe_launch(threat_env)
 
         ps = or_pm_nonsecure.start_app("PatientSensor")
         wait_for_process_ready(ps, timeout_sec=10)
-        assert ps.poll() is None, (
-            f"PatientSensor exited early with code {ps.returncode}"
-        )
+        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         result = _run_exfiltrator_probe(
             threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/Unsecure",
         )
         assert result["created"], f"Participant creation failed: {result.get('error')}"
-        assert result["matched"], (
-            "Unsecured exfiltrator did not match unsecured OR apps"
-        )
+        assert result["matched"], "Unsecured exfiltrator did not match unsecured OR apps"
         assert result["received"] >= 1, "Exfiltrator received no vitals"
 
 
@@ -200,9 +194,7 @@ class TestExfiltratorUnsecure:
 class TestExfiltratorSecure:
     """Security should block threat exfiltrator from reading vitals."""
 
-    def test_unsecure_exfiltrator_vs_secure_or(
-        self, or_pm_secure, or_env_secure, threat_env
-    ):
+    def test_unsecure_exfiltrator_vs_secure_or(self, or_pm_secure, or_env_secure, threat_env):
         """Unsecured exfiltrator should not access secured OR vitals.
 
         A participant without DDS Security credentials must not establish
@@ -213,9 +205,7 @@ class TestExfiltratorSecure:
 
         ps = or_pm_secure.start_app("PatientSensor")
         wait_for_process_ready(ps, timeout_sec=15)
-        assert ps.poll() is None, (
-            f"PatientSensor exited early with code {ps.returncode}"
-        )
+        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         result = _run_exfiltrator_probe(
             threat_env[0],
@@ -224,22 +214,16 @@ class TestExfiltratorSecure:
             fail_fast_on_match_or_data=True,
         )
         assert result["created"], f"Participant creation failed: {result.get('error')}"
-        assert result["matched"] is False, (
-            "Unsecured exfiltrator should NOT match secured OR apps"
-        )
+        assert result["matched"] is False, "Unsecured exfiltrator should NOT match secured OR apps"
         assert result["received"] == 0, (
             "Unsecured exfiltrator should NOT receive vitals from secured OR"
         )
 
-    def test_rogue_ca_exfiltrator_blocked(
-        self, or_pm_secure, or_env_secure, threat_env
-    ):
+    def test_rogue_ca_exfiltrator_blocked(self, or_pm_secure, or_env_secure, threat_env):
         """Rogue CA exfiltrator should NOT receive vitals from secured OR apps."""
         ps = or_pm_secure.start_app("PatientSensor")
         wait_for_process_ready(ps, timeout_sec=15)
-        assert ps.poll() is None, (
-            f"PatientSensor exited early with code {ps.returncode}"
-        )
+        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         result = _run_exfiltrator_probe(
             threat_env[0],
@@ -250,15 +234,11 @@ class TestExfiltratorSecure:
             "Rogue CA exfiltrator should NOT receive vitals from secured OR"
         )
 
-    def test_forged_perms_exfiltrator_blocked(
-        self, or_pm_secure, or_env_secure, threat_env
-    ):
+    def test_forged_perms_exfiltrator_blocked(self, or_pm_secure, or_env_secure, threat_env):
         """Forged permissions exfiltrator should NOT receive vitals from secured OR apps."""
         ps = or_pm_secure.start_app("PatientSensor")
         wait_for_process_ready(ps, timeout_sec=15)
-        assert ps.poll() is None, (
-            f"PatientSensor exited early with code {ps.returncode}"
-        )
+        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         result = _run_exfiltrator_probe(
             threat_env[0],
@@ -269,15 +249,11 @@ class TestExfiltratorSecure:
             "Forged permissions exfiltrator should NOT receive vitals from secured OR"
         )
 
-    def test_expired_cert_exfiltrator_blocked(
-        self, or_pm_secure, or_env_secure, threat_env
-    ):
+    def test_expired_cert_exfiltrator_blocked(self, or_pm_secure, or_env_secure, threat_env):
         """Expired certificate exfiltrator should fail to create participant or receive data."""
         ps = or_pm_secure.start_app("PatientSensor")
         wait_for_process_ready(ps, timeout_sec=15)
-        assert ps.poll() is None, (
-            f"PatientSensor exited early with code {ps.returncode}"
-        )
+        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         result = _run_exfiltrator_probe(
             threat_env[0],

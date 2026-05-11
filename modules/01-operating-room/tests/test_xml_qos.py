@@ -95,9 +95,7 @@ class TestQosProfiles:
     )
     def test_dataflow_profile_exists(self, qos_root, profile):
         names = self._profile_names(qos_root, "DataFlowLibrary")
-        assert profile in names, (
-            f"DataFlowLibrary::{profile} not found. Available: {names}"
-        )
+        assert profile in names, f"DataFlowLibrary::{profile} not found. Available: {names}"
 
     def test_heartbeat_profile_has_deadline(self, qos_root):
         """Heartbeat profile should define a 200ms deadline on both reader and writer."""
@@ -111,9 +109,7 @@ class TestQosProfiles:
                 dr_qos = prof.find("datareader_qos")
                 assert dr_qos is not None, "Heartbeat profile missing datareader_qos"
                 deadline_ns = dr_qos.findtext("deadline/period/nanosec")
-                assert deadline_ns is not None, (
-                    "Missing deadline nanosec in datareader_qos"
-                )
+                assert deadline_ns is not None, "Missing deadline nanosec in datareader_qos"
                 assert int(deadline_ns) == 200_000_000
                 return
         pytest.fail("Heartbeat profile not found in DataFlowLibrary")
@@ -137,18 +133,14 @@ class TestDpQosLib:
         "Test",
     }
 
-    @pytest.mark.parametrize(
-        "xml_file", [NON_SECURE_QOS_XML, SECURE_QOS_XML], ids=lambda p: p.name
-    )
+    @pytest.mark.parametrize("xml_file", [NON_SECURE_QOS_XML, SECURE_QOS_XML], ids=lambda p: p.name)
     def test_dpqoslib_profiles(self, xml_file: Path):
         root = ET.parse(xml_file).getroot()
         for lib in root.findall("qos_library"):
             if lib.get("name") == "DpQosLib":
                 names = {p.get("name") for p in lib.findall("qos_profile")}
                 missing = self.EXPECTED_PROFILES - names
-                assert not missing, (
-                    f"{xml_file.name} DpQosLib missing profiles: {missing}"
-                )
+                assert not missing, f"{xml_file.name} DpQosLib missing profiles: {missing}"
                 return
         pytest.fail(f"DpQosLib not found in {xml_file.name}")
 

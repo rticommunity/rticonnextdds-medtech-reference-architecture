@@ -28,9 +28,7 @@ def pytest_collection_modifyitems(config, items):
     """Auto-skip all tests if Recording/Replay Service is not available."""
     if RECORDING_SERVICE and REPLAY_SERVICE:
         return
-    skip = pytest.mark.skip(
-        reason="RTI Recording/Replay Service not found in NDDSHOME/bin/"
-    )
+    skip = pytest.mark.skip(reason="RTI Recording/Replay Service not found in NDDSHOME/bin/")
     for item in items:
         item.add_marker(skip)
 
@@ -38,9 +36,7 @@ def pytest_collection_modifyitems(config, items):
 @pytest.fixture(scope="session")
 def dds_env():
     """Non-secure DDS environment configured from Module 01's module.json."""
-    env, apps = module_runner.load_module_config(
-        MODULE_01_DIR, flags={"security": False}
-    )
+    env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": False})
     return env, apps
 
 

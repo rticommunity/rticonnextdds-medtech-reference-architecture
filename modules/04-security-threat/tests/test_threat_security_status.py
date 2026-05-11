@@ -34,6 +34,4 @@ def test_threat_security_status_runs_clean() -> None:
 
     output = f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     assert result.returncode == 0, f"setup_threat_security --status failed:\n{output}"
-    assert "EXPIRED" not in output, (
-        f"Expired threat security artifacts detected:\n{output}"
-    )
+    assert "EXPIRED" not in output, f"Expired threat security artifacts detected:\n{output}"

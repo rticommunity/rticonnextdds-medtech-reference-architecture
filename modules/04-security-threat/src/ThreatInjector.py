@@ -245,9 +245,7 @@ class ArmVizWidget(QWidget):
             p.drawLine(QPointF(x0, y0), QPointF(x1, y1))
 
         ee_color = (
-            QColor(JOINT_COLORS[SurgicalRobot.Motors.HAND])
-            if self._active
-            else QColor(self._GREY)
+            QColor(JOINT_COLORS[SurgicalRobot.Motors.HAND]) if self._active else QColor(self._GREY)
         )
         p.setPen(QPen(ee_color, 2))
         ex, ey = points[-1]
@@ -266,9 +264,7 @@ class ArmVizWidget(QWidget):
             color = QColor(JOINT_COLORS[motor]) if self._active else QColor(self._GREY)
             cx2, cy2 = points[i]
             p.setPen(QPen(color, 2))
-            p.setBrush(
-                QBrush(color.darker(200) if self._active else QColor(self._GREY_DIM))
-            )
+            p.setBrush(QBrush(color.darker(200) if self._active else QColor(self._GREY_DIM)))
             p.drawEllipse(QPointF(cx2, cy2), jr, jr)
             name = JOINT_NAMES[motor][:3]
             p.setPen(QPen(color))
@@ -329,9 +325,7 @@ class ThreatInjectorWindow(QMainWindow):
     def _build_header(self) -> QWidget:
         header = QWidget()
         header.setFixedHeight(80)
-        header.setStyleSheet(
-            f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};"
-        )
+        header.setStyleSheet(f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};")
         h = QHBoxLayout(header)
         h.setContentsMargins(20, 0, 20, 0)
 
@@ -377,17 +371,11 @@ class ThreatInjectorWindow(QMainWindow):
     def _build_footer(self) -> QWidget:
         footer = QWidget()
         footer.setFixedHeight(44)
-        footer.setStyleSheet(
-            f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};"
-        )
+        footer.setStyleSheet(f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};")
         f = QHBoxLayout(footer)
         f.setContentsMargins(20, 0, 20, 0)
-        lbl = QLabel(
-            "Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture"
-        )
-        lbl.setStyleSheet(
-            f"color: {COLOR_IDLE}; font-size: 18px; background: transparent;"
-        )
+        lbl = QLabel("Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture")
+        lbl.setStyleSheet(f"color: {COLOR_IDLE}; font-size: 18px; background: transparent;")
         f.addWidget(lbl)
         f.addStretch()
         return footer
@@ -466,13 +454,9 @@ class ThreatInjectorWindow(QMainWindow):
         )
         layout.addWidget(self.freq_slider)
         self.freq_lbl = QLabel("5 Hz")
-        self.freq_lbl.setStyleSheet(
-            "color: #C0D0E0; font-size: 12px; background: transparent;"
-        )
+        self.freq_lbl.setStyleSheet("color: #C0D0E0; font-size: 12px; background: transparent;")
         layout.addWidget(self.freq_lbl)
-        self.freq_slider.valueChanged.connect(
-            lambda v: self.freq_lbl.setText(f"{v} Hz")
-        )
+        self.freq_slider.valueChanged.connect(lambda v: self.freq_lbl.setText(f"{v} Hz"))
 
         layout.addSpacing(6)
 
@@ -581,9 +565,7 @@ class ThreatInjectorWindow(QMainWindow):
                 btn.setStyleSheet(_STYLE_MODE_INACTIVE)
         is_active = active_mode is not None
         self._stop_btn.setEnabled(is_active)
-        self._stop_btn.setStyleSheet(
-            _STYLE_STOP_ENABLED if is_active else _STYLE_STOP_DISABLED
-        )
+        self._stop_btn.setStyleSheet(_STYLE_STOP_ENABLED if is_active else _STYLE_STOP_DISABLED)
 
     def highlight_attack_button(self, active_attack: str | None) -> None:
         for atk, btn in self._attack_buttons.items():
@@ -609,9 +591,7 @@ class ThreatInjectorWindow(QMainWindow):
             f'<span style="color:{c}; font-weight:bold;">[{level}]</span>'
             f' <span style="color:#C0D0E0;">{msg}</span>'
         )
-        self.log_text.verticalScrollBar().setValue(
-            self.log_text.verticalScrollBar().maximum()
-        )
+        self.log_text.verticalScrollBar().setValue(self.log_text.verticalScrollBar().maximum())
 
     def set_launch_btn_active(self, active: bool):
         if active:
@@ -711,9 +691,7 @@ class ThreatInjectorApp:
                 self._current_mode = mode
                 self._update_slider_enabled()
             except dds.Error as exc:
-                self.window.log(
-                    "BLOCKED", f"Participant creation blocked by security: {exc}"
-                )
+                self.window.log("BLOCKED", f"Participant creation blocked by security: {exc}")
                 self._cert_invalid = True
                 self.window.highlight_mode_button(None)
                 self.window.set_data_status("ATTACK FAILED")
@@ -783,9 +761,7 @@ class ThreatInjectorApp:
                         level,
                         f"Writing MotorControl — joint: {JOINT_NAMES[motor]}, direction: {d_str}",
                     )
-                    self.window.set_data_status(
-                        "ATTACKING" if self._prev_matched else "NO ACCESS"
-                    )
+                    self.window.set_data_status("ATTACKING" if self._prev_matched else "NO ACCESS")
                 except Exception as exc:
                     self.window.log("BLOCKED", f"Write rejected: {exc}")
                     self.window.set_data_status("NO ACCESS")
@@ -797,12 +773,8 @@ class ThreatInjectorApp:
                 if attack == ATTACK_CMD_PAUSE
                 else Orchestrator.DeviceCommands.SHUTDOWN
             )
-            sample = Orchestrator.DeviceCommand(
-                device=Common.DeviceType.ARM, command=cmd
-            )
-            cmd_str = (
-                "PAUSE" if cmd == Orchestrator.DeviceCommands.PAUSE else "SHUTDOWN"
-            )
+            sample = Orchestrator.DeviceCommand(device=Common.DeviceType.ARM, command=cmd)
+            cmd_str = "PAUSE" if cmd == Orchestrator.DeviceCommands.PAUSE else "SHUTDOWN"
 
             with self._participant_lock:
                 if self._cmd_writer is None:
@@ -812,9 +784,7 @@ class ThreatInjectorApp:
                     self._cmd_writer.write(sample)
                     level = "OK" if self._prev_matched else "WARN"
                     self.window.log(level, f"Writing DeviceCommand — {cmd_str} → ARM")
-                    self.window.set_data_status(
-                        "ATTACKING" if self._prev_matched else "NO ACCESS"
-                    )
+                    self.window.set_data_status("ATTACKING" if self._prev_matched else "NO ACCESS")
                 except Exception as exc:
                     self.window.log("BLOCKED", f"Write rejected: {exc}")
                     self.window.set_data_status("NO ACCESS")
@@ -850,14 +820,10 @@ class ThreatInjectorApp:
     def _poll_matched_status(self) -> None:
         """Periodically check publication matched status on the writers."""
         with self._participant_lock:
-            writers = [
-                w for w in [self._motor_writer, self._cmd_writer] if w is not None
-            ]
+            writers = [w for w in [self._motor_writer, self._cmd_writer] if w is not None]
             if not writers:
                 return
-            matched = any(
-                w.publication_matched_status.current_count > 0 for w in writers
-            )
+            matched = any(w.publication_matched_status.current_count > 0 for w in writers)
 
         if matched != self._prev_matched:
             self._prev_matched = matched
@@ -868,9 +834,7 @@ class ThreatInjectorApp:
             else:
                 if not self._attacking:
                     self.window.set_data_status("NO ACCESS")
-                self.window.log(
-                    "BLOCKED", "No publication match — access denied by security"
-                )
+                self.window.log("BLOCKED", "No publication match — access denied by security")
 
     def _on_mode_selected(self, mode: str):
         """Mode button clicked: stop any active injection and recreate participant."""

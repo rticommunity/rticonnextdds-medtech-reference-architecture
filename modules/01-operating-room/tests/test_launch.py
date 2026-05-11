@@ -29,9 +29,7 @@ class TestPatientSensor:
     def test_starts_and_stays_alive(self, proc_manager):
         proc = proc_manager.start_app("PatientSensor")
         wait_for_process_ready(proc)
-        assert proc.poll() is None, (
-            f"PatientSensor exited early with code {proc.returncode}"
-        )
+        assert proc.poll() is None, f"PatientSensor exited early with code {proc.returncode}"
 
     def test_prints_launch_message(self, proc_manager):
         proc = proc_manager.start_app("PatientSensor")
@@ -59,9 +57,7 @@ class TestOrchestrator:
     def test_starts_and_stays_alive(self, proc_manager):
         proc = proc_manager.start_app("Orchestrator", extra_env=self.GTK_ENV)
         wait_for_process_ready(proc)
-        assert proc.poll() is None, (
-            f"Orchestrator exited early with code {proc.returncode}"
-        )
+        assert proc.poll() is None, f"Orchestrator exited early with code {proc.returncode}"
 
 
 @pytest.mark.gui
@@ -73,9 +69,7 @@ class TestArmController:
     def test_starts_and_stays_alive(self, proc_manager):
         proc = proc_manager.start_app("ArmController", extra_env=self.GTK_ENV)
         wait_for_process_ready(proc)
-        assert proc.poll() is None, (
-            f"ArmController exited early with code {proc.returncode}"
-        )
+        assert proc.poll() is None, f"ArmController exited early with code {proc.returncode}"
 
 
 @pytest.mark.gui
@@ -87,9 +81,7 @@ class TestPatientMonitor:
     def test_starts_and_stays_alive(self, proc_manager):
         proc = proc_manager.start_app("PatientMonitor", extra_env=self.QT_ENV)
         wait_for_process_ready(proc, timeout_sec=10)
-        assert proc.poll() is None, (
-            f"PatientMonitor exited early with code {proc.returncode}"
-        )
+        assert proc.poll() is None, f"PatientMonitor exited early with code {proc.returncode}"
 
 
 @pytest.mark.gui
@@ -116,15 +108,9 @@ class TestAllApps:
 
         procs = {}
         procs["PatientSensor"] = proc_manager.start_app("PatientSensor")
-        procs["Orchestrator"] = proc_manager.start_app(
-            "Orchestrator", extra_env=self.GTK_ENV
-        )
-        procs["ArmController"] = proc_manager.start_app(
-            "ArmController", extra_env=self.GTK_ENV
-        )
-        procs["PatientMonitor"] = proc_manager.start_app(
-            "PatientMonitor", extra_env=self.QT_ENV
-        )
+        procs["Orchestrator"] = proc_manager.start_app("Orchestrator", extra_env=self.GTK_ENV)
+        procs["ArmController"] = proc_manager.start_app("ArmController", extra_env=self.GTK_ENV)
+        procs["PatientMonitor"] = proc_manager.start_app("PatientMonitor", extra_env=self.QT_ENV)
         procs["Arm"] = proc_manager.start_app("Arm", extra_env=self.QT_ENV)
 
         # Wait for all 4 device-type apps to report DeviceStatus
@@ -147,6 +133,4 @@ class TestAllApps:
         )
 
         for name, proc in procs.items():
-            assert proc.poll() is None, (
-                f"{name} crashed on startup (exit code {proc.returncode})"
-            )
+            assert proc.poll() is None, f"{name} crashed on startup (exit code {proc.returncode})"

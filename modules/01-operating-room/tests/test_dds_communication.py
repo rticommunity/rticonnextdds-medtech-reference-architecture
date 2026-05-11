@@ -121,9 +121,7 @@ class TestPatientSensorStatus:
         )
 
         samples = wait_for_data(reader, timeout_sec=10)
-        sensor_statuses = [
-            s for s in samples if s.device == Common.DeviceType.PATIENT_SENSOR
-        ]
+        sensor_statuses = [s for s in samples if s.device == Common.DeviceType.PATIENT_SENSOR]
         assert len(sensor_statuses) >= 1, "No DeviceStatus from PatientSensor"
         assert sensor_statuses[-1].status == Common.DeviceStatuses.ON
 
@@ -157,8 +155,7 @@ class TestPatientSensorCommands:
         # Wait for PatientSensor to come online (status = ON)
         samples = wait_for_data(status_reader, timeout_sec=10)
         sensor_on = any(
-            s.device == Common.DeviceType.PATIENT_SENSOR
-            and s.status == Common.DeviceStatuses.ON
+            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON
             for s in samples
         )
         assert sensor_on, "PatientSensor did not publish ON status"
@@ -346,8 +343,7 @@ class TestContentFilter:
         # Wait for PatientSensor to come online
         samples = wait_for_data(status_reader, timeout_sec=10)
         assert any(
-            s.device == Common.DeviceType.PATIENT_SENSOR
-            and s.status == Common.DeviceStatuses.ON
+            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON
             for s in samples
         ), "PatientSensor never reached ON"
 
@@ -406,8 +402,7 @@ class TestContentFilter:
         # Wait for ON status and verify vitals are flowing
         samples = wait_for_data(status_reader, timeout_sec=10)
         assert any(
-            s.device == Common.DeviceType.PATIENT_SENSOR
-            and s.status == Common.DeviceStatuses.ON
+            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON
             for s in samples
         )
         wait_for_data(vitals_reader, timeout_sec=5, min_count=1)

@@ -97,9 +97,7 @@ def _capno_template(n_pts: int = SAMPLE_RATE) -> np.ndarray:
 
 # ─── DDS → Qt bridge ────────────────────────────────────────────────────────
 class DdsBridge(QObject):
-    vitals_received = Signal(
-        float, float, float, float, float
-    )  # hr, spo2, etco2, nibp_s, nibp_d
+    vitals_received = Signal(float, float, float, float, float)  # hr, spo2, etco2, nibp_s, nibp_d
     shutdown_received = Signal()
     status_changed = Signal(str)  # "ON" / "PAUSED"
 
@@ -165,17 +163,13 @@ class VitalPanel(QFrame):
         self.unit_lbl.setStyleSheet(
             f"color: {self.color}88; font-size: 16px; background: transparent;"
         )
-        self.unit_lbl.setAlignment(
-            Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight
-        )
+        self.unit_lbl.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight)
         top.addWidget(self.unit_lbl)
         root.addLayout(top)
 
         # ── Numeric value ─────────────────────────────────────────────
         self.value_lbl = QLabel("---")
-        self.value_lbl.setAlignment(
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-        )
+        self.value_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.value_lbl.setStyleSheet(
             f"color: {self.color}; font-size: 54px; font-weight: bold; "
             f"font-family: 'Courier New', monospace; background: transparent; "
@@ -186,9 +180,7 @@ class VitalPanel(QFrame):
         # ── Waveform plot ─────────────────────────────────────────────
         self.plot_widget = pg.PlotWidget(background=BG_PANEL)
         self.plot_widget.setMinimumHeight(150)
-        self.plot_widget.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
+        self.plot_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.plot_widget.hideAxis("left")
         self.plot_widget.hideAxis("bottom")
         self.plot_widget.setMouseEnabled(x=False, y=False)
@@ -248,9 +240,7 @@ class NiBPPanel(QFrame):
         top.addWidget(name_lbl)
         top.addStretch()
         unit_lbl = QLabel("mmHg")
-        unit_lbl.setStyleSheet(
-            f"color: {COLOR_NIBP}88; font-size: 16px; background: transparent;"
-        )
+        unit_lbl.setStyleSheet(f"color: {COLOR_NIBP}88; font-size: 16px; background: transparent;")
         top.addWidget(unit_lbl)
         root.addLayout(top)
 
@@ -268,9 +258,7 @@ class NiBPPanel(QFrame):
         bp_row.addWidget(self.sys_lbl)
 
         sep = QLabel("/")
-        sep.setStyleSheet(
-            f"color: {COLOR_NIBP}88; font-size: 42px; background: transparent;"
-        )
+        sep.setStyleSheet(f"color: {COLOR_NIBP}88; font-size: 42px; background: transparent;")
         bp_row.addWidget(sep)
 
         self.dia_lbl = QLabel("---")
@@ -284,9 +272,7 @@ class NiBPPanel(QFrame):
         sub_row = QHBoxLayout()
         sub_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sub_lbl = QLabel("Systolic  /  Diastolic")
-        sub_lbl.setStyleSheet(
-            f"color: {COLOR_NIBP}66; font-size: 20px; background: transparent;"
-        )
+        sub_lbl.setStyleSheet(f"color: {COLOR_NIBP}66; font-size: 20px; background: transparent;")
         sub_row.addWidget(sub_lbl)
         root.addLayout(sub_row)
 
@@ -375,9 +361,7 @@ class PatientMonitorWindow(QMainWindow):
         # ── Header bar ───────────────────────────────────────────────
         header = QWidget()
         header.setFixedHeight(80)
-        header.setStyleSheet(
-            f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};"
-        )
+        header.setStyleSheet(f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};")
         h_layout = QHBoxLayout(header)
         h_layout.setContentsMargins(20, 0, 20, 0)
 
@@ -450,14 +434,10 @@ class PatientMonitorWindow(QMainWindow):
         # ── Footer bar ────────────────────────────────────────────────
         footer = QWidget()
         footer.setFixedHeight(44)
-        footer.setStyleSheet(
-            f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};"
-        )
+        footer.setStyleSheet(f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};")
         f_layout = QHBoxLayout(footer)
         f_layout.setContentsMargins(20, 0, 20, 0)
-        f_lbl = QLabel(
-            "Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture"
-        )
+        f_lbl = QLabel("Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture")
         f_lbl.setStyleSheet("color: #445566; font-size: 20px; background: transparent;")
         f_layout.addWidget(f_lbl)
         f_layout.addStretch()
@@ -568,20 +548,12 @@ class PatientMonitorApp:
         register_type(PatientMonitor.Vitals)
 
         qos_provider = dds.QosProvider.default
-        participant = qos_provider.create_participant_from_config(
-            entities.PATIENT_MONITOR_DP
-        )
+        participant = qos_provider.create_participant_from_config(entities.PATIENT_MONITOR_DP)
 
-        self.status_writer = dds.DataWriter(
-            participant.find_datawriter(entities.STATUS_DW)
-        )
+        self.status_writer = dds.DataWriter(participant.find_datawriter(entities.STATUS_DW))
         self.hb_writer = dds.DataWriter(participant.find_datawriter(entities.HB_DW))
-        self.vitals_reader = dds.DataReader(
-            participant.find_datareader(entities.VITALS_DR)
-        )
-        self.cmd_reader = dds.DataReader(
-            participant.find_datareader(entities.DEVICE_COMMAND_DR)
-        )
+        self.vitals_reader = dds.DataReader(participant.find_datareader(entities.VITALS_DR))
+        self.cmd_reader = dds.DataReader(participant.find_datareader(entities.DEVICE_COMMAND_DR))
         self.pm_status = Common.DeviceStatus(
             device=Common.DeviceType.PATIENT_MONITOR,
             status=Common.DeviceStatuses.ON,

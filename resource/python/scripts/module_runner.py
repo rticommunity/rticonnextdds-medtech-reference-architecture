@@ -174,10 +174,7 @@ def load_module_config(
     consumed_flags = {spec.get("flag", name) for name, spec in args_section.items()}
     for flag_name, flag_value in flags.items():
         if flag_value and flag_name not in consumed_flags:
-            print(
-                f"Info: --{flag_name} has no effect on "
-                f"{raw.get('description', module_dir.name)}"
-            )
+            print(f"Info: --{flag_name} has no effect on {raw.get('description', module_dir.name)}")
 
     # --- Environment ---
     nddshome = platform_setup.get_nddshome()

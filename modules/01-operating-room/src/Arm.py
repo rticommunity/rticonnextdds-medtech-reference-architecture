@@ -102,9 +102,7 @@ class ArcGauge(QWidget):
         rect = QRectF((self.width() - side) / 2, (self.height() - side) / 2, side, side)
 
         # ── Background track ──────────────────────────────────────
-        pen_bg = QPen(
-            QColor("#1A2A40"), 8, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap
-        )
+        pen_bg = QPen(QColor("#1A2A40"), 8, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap)
         p.setPen(pen_bg)
         p.drawArc(rect, 225 * 16, -270 * 16)  # 270° arc, starts at 225°
 
@@ -128,15 +126,11 @@ class ArcGauge(QWidget):
         back_x = cx - hub_r * math.cos(angle_rad)
         back_y = cy + hub_r * math.sin(angle_rad)
         # Draw shadow
-        pen_shadow = QPen(
-            QColor("#000000"), 4, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap
-        )
+        pen_shadow = QPen(QColor("#000000"), 4, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
         p.setPen(pen_shadow)
         p.drawLine(QPointF(back_x + 1, back_y + 1), QPointF(tip_x + 1, tip_y + 1))
         # Draw needle
-        pen_needle = QPen(
-            grad_color, 2.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap
-        )
+        pen_needle = QPen(grad_color, 2.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
         p.setPen(pen_needle)
         p.drawLine(QPointF(back_x, back_y), QPointF(tip_x, tip_y))
 
@@ -221,8 +215,7 @@ class JointRow(QFrame):
         self.angle_lbl = QLabel("180.0°")
         self.angle_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.angle_lbl.setStyleSheet(
-            f"color: {self.color}; font-size: 20px; font-weight: bold; "
-            f"background: transparent;"
+            f"color: {self.color}; font-size: 20px; font-weight: bold; background: transparent;"
         )
         gauge_col.addWidget(self.angle_lbl)
         row.addLayout(gauge_col)
@@ -338,9 +331,7 @@ class ArmVizWidget(QWidget):
             color = QColor(JOINT_COLORS[motor])
             x0, y0 = points[i]
             x1, y1 = points[i + 1]
-            pen = QPen(
-                color, link_pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap
-            )
+            pen = QPen(color, link_pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
             p.setPen(pen)
             p.drawLine(QPointF(x0, y0), QPointF(x1, y1))
 
@@ -413,9 +404,7 @@ class ArmWindow(QMainWindow):
         # ── Header ───────────────────────────────────────────────
         header = QWidget()
         header.setFixedHeight(80)
-        header.setStyleSheet(
-            f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};"
-        )
+        header.setStyleSheet(f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};")
         h_layout = QHBoxLayout(header)
         h_layout.setContentsMargins(20, 0, 20, 0)
 
@@ -474,14 +463,10 @@ class ArmWindow(QMainWindow):
         # ── Footer ───────────────────────────────────────────────
         footer = QWidget()
         footer.setFixedHeight(44)
-        footer.setStyleSheet(
-            f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};"
-        )
+        footer.setStyleSheet(f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};")
         f_layout = QHBoxLayout(footer)
         f_layout.setContentsMargins(20, 0, 20, 0)
-        f_lbl = QLabel(
-            "Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture"
-        )
+        f_lbl = QLabel("Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture")
         f_lbl.setStyleSheet("color: #445566; font-size: 20px; background: transparent;")
         f_layout.addWidget(f_lbl)
         f_layout.addStretch()
@@ -549,9 +534,7 @@ class ArmApp:
                     self.directions[sample.id] = "DECREMENT"
                 else:
                     self.directions[sample.id] = "STATIONARY"
-            self.window.update_joint(
-                sample.id, self.angles[sample.id], self.directions[sample.id]
-            )
+            self.window.update_joint(sample.id, self.angles[sample.id], self.directions[sample.id])
 
         # Command samples
         cmd_samples = self.cmd_reader.take_data()
@@ -585,9 +568,7 @@ class ArmApp:
         qos_provider = dds.QosProvider.default
         participant = qos_provider.create_participant_from_config(entities.ARM_DP)
 
-        self.status_writer = dds.DataWriter(
-            participant.find_datawriter(entities.STATUS_DW)
-        )
+        self.status_writer = dds.DataWriter(participant.find_datawriter(entities.STATUS_DW))
         self.hb_writer = dds.DataWriter(participant.find_datawriter(entities.HB_DW))
         self.arm_status = Common.DeviceStatus(
             device=Common.DeviceType.ARM, status=Common.DeviceStatuses.ON
@@ -597,9 +578,7 @@ class ArmApp:
         self.motor_control_reader = dds.DataReader(
             participant.find_datareader(entities.MOTOR_CONTROL_DR)
         )
-        self.cmd_reader = dds.DataReader(
-            participant.find_datareader(entities.DEVICE_COMMAND_DR)
-        )
+        self.cmd_reader = dds.DataReader(participant.find_datareader(entities.DEVICE_COMMAND_DR))
 
     # ── Entry point ───────────────────────────────────────────────────
     def run(self):
@@ -618,9 +597,7 @@ class ArmApp:
         dds_timer.start(UPDATE_MS)
 
         # Heartbeat in background thread
-        hb_thread = threading.Thread(
-            target=self.write_hb, args=[self.hb_writer], daemon=True
-        )
+        hb_thread = threading.Thread(target=self.write_hb, args=[self.hb_writer], daemon=True)
         hb_thread.start()
 
         # Allow Ctrl+C to cleanly quit the Qt event loop.

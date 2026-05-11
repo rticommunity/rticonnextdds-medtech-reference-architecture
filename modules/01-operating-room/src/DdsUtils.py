@@ -16,6 +16,4 @@ from Types import idl
 
 # Simplifying how to register a type since we're using the same name
 def register_type(data_type):
-    dds.DomainParticipant.register_idl_type(
-        data_type, idl.get_type_support(data_type).type_name
-    )
+    dds.DomainParticipant.register_idl_type(data_type, idl.get_type_support(data_type).type_name)

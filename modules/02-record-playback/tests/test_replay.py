@@ -40,16 +40,12 @@ class TestReplay:
     RECORDING_CONFIG = str(MODULE_DIR / "RecordingServiceConfiguration.xml")
     REPLAY_CONFIG = str(MODULE_DIR / "ReplayServiceConfiguration.xml")
 
-    def test_replay_produces_vitals(
-        self, proc_manager, dds_env_dict, clean_recording_dir
-    ):
+    def test_replay_produces_vitals(self, proc_manager, dds_env_dict, clean_recording_dir):
         """Replay Service should publish t/Vitals from a recording."""
         # ── Phase 1: Record some data ─────────────────────────────────
         ps = proc_manager.start_app("PatientSensor")
         wait_for_process_ready(ps, timeout_sec=10)
-        assert ps.poll() is None, (
-            f"PatientSensor exited early with code {ps.returncode}"
-        )
+        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         rec_proc = proc_manager.start(
             [
