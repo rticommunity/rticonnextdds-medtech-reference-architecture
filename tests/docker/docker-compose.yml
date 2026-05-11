@@ -49,6 +49,5 @@ services:
     build:
       args:
         CONNEXT_VERSION: "7.3.1"
-        CONNEXTDDS_ARCH: x64Linux4gcc7.3.0
         PYTHON_VERSION: "3.9"
     image: medtech-test:7.3.1

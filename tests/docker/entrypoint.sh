@@ -11,8 +11,9 @@ trap 'kill $XVFB_PID 2>/dev/null || true' EXIT
 # Give Xvfb a moment to start
 sleep 0.5
 
-# Source RTI environment (persists across to test command)
-source "${NDDSHOME}/resource/scripts/rtisetenv_${CONNEXTDDS_ARCH}.bash"
+# Source RTI & Python environments
+eval $(rtienv)
+source $VIRTUAL_ENV/bin/activate
 
 # Run pytest from repo root with any passed arguments
 # Default to running all tests if no args provided
