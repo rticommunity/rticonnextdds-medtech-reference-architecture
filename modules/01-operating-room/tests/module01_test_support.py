@@ -231,6 +231,7 @@ print(json.dumps(collected))
         capture_output=True,
         text=True,
         timeout=int(timeout_sec) + 10,
+        check=False,
     )
     if result.returncode != 0:
         raise RuntimeError(

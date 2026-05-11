@@ -10,31 +10,29 @@
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
 
-import sys
-import time
-import threading
 import signal
-import numpy as np
+import sys
+import threading
+import time
 
+import numpy as np
+import pyqtgraph as pg
+import rti.connextdds as dds
+from DdsUtils import register_type
+from PySide6.QtCore import QObject, Qt, QTimer, Signal
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
-    QMainWindow,
-    QWidget,
-    QLabel,
     QFrame,
     QGridLayout,
     QHBoxLayout,
-    QVBoxLayout,
+    QLabel,
+    QMainWindow,
     QSizePolicy,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import Qt, QTimer, Signal, QObject
-from PySide6.QtGui import QPixmap, QIcon
-
-import pyqtgraph as pg
-
-import rti.connextdds as dds
-from Types import Common, PatientMonitor, Orchestrator, DdsEntities
-from DdsUtils import register_type
+from Types import Common, DdsEntities, Orchestrator, PatientMonitor
 
 # ─── RTI Brand Colors ───────────────────────────────────────────────────────
 RTI_BLUE = "#004C97"

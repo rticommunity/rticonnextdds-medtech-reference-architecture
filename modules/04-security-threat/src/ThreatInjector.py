@@ -44,7 +44,7 @@ from PySide6.QtGui import (
 )
 
 import rti.connextdds as dds
-import PySide6.QtAsyncio as QtAsyncio
+from PySide6 import QtAsyncio
 
 # Import OR types
 sys.path.insert(

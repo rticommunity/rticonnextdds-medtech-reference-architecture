@@ -89,12 +89,12 @@ TRUSTED_IDENTITY_CA = CA(
 # Governance overrides for the threat module: no LogTopicV2 rule (threat apps
 # don't use the security log topic) and protection kinds set to NONE to match
 # the project's previous configuration.
-_THREAT_GOV_KWARGS = dict(
-    name="ThreatDomain",
-    discovery_protection_kind="NONE",
-    liveliness_protection_kind="NONE",
-    topic_rules=[TopicRule(topic_expression="*")],
-)
+_THREAT_GOV_KWARGS = {
+    "name": "ThreatDomain",
+    "discovery_protection_kind": "NONE",
+    "liveliness_protection_kind": "NONE",
+    "topic_rules": [TopicRule(topic_expression="*")],
+}
 
 THREAT_DOMAIN_TRUSTED = DomainScope(
     name="ThreatDomain",

@@ -21,9 +21,9 @@ They are marked ``slow`` because they launch the full application set and
 wait for inter-app DDS interactions to play out.
 """
 
+import importlib
 import sys
 import time
-import importlib
 from pathlib import Path
 
 import pytest

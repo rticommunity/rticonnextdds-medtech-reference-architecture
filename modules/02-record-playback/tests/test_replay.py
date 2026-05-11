@@ -122,6 +122,7 @@ print(json.dumps(collected))
             capture_output=True,
             text=True,
             timeout=30,
+            check=False,
         )
         assert result.returncode == 0, (
             f"Replay subscriber failed (exit {result.returncode}):\n{result.stderr}"

@@ -45,6 +45,7 @@ class TestCMakeBuild:
             configure_command(extra_args=[]),
             capture_output=True,
             text=True,
+            check=False,
         )
         assert result.returncode == 0, (
             f"CMake configure failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
@@ -56,6 +57,7 @@ class TestCMakeBuild:
             build_command(extra_args=[]),
             capture_output=True,
             text=True,
+            check=False,
         )
         assert result.returncode == 0, (
             f"CMake build failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"

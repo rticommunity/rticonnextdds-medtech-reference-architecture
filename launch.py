@@ -31,7 +31,7 @@ from scripts import module_runner
 PROJECT_ROOT = Path(__file__).resolve().parent
 SCENARIOS_PATH = PROJECT_ROOT / "resource" / "config" / "scenarios.json"
 
-with open(SCENARIOS_PATH) as f:
+with open(SCENARIOS_PATH, encoding="utf-8") as f:
     SCENARIOS: dict[str, dict] = json.load(f)
 
 
@@ -91,7 +91,7 @@ def _complete_apps(prefix, parsed_args, **kwargs):
         return []
     try:
         config_path = module_dir / "module.json"
-        with open(config_path) as f:
+        with open(config_path, encoding="utf-8") as f:
             raw = json.load(f)
         return [a for a in raw.get("apps", {}) if a.startswith(prefix)]
     except Exception:

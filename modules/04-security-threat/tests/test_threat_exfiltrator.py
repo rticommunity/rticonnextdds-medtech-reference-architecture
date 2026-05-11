@@ -138,6 +138,7 @@ print(json.dumps(result))
         capture_output=True,
         text=True,
         timeout=int(timeout_sec) + 15,
+        check=False,
     )
     if proc.returncode != 0:
         return {

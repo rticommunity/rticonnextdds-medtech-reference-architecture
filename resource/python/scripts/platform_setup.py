@@ -148,7 +148,7 @@ def lib_path_var() -> str:
     system = platform.system()
     if system == "Darwin":
         return "DYLD_LIBRARY_PATH"
-    elif system == "Windows":
+    if system == "Windows":
         return "PATH"
     return "LD_LIBRARY_PATH"
 

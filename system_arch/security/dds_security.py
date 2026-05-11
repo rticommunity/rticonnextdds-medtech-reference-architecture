@@ -33,7 +33,7 @@ import platform
 import secrets
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -100,7 +100,7 @@ def openssl_run(args: list[str], **kwargs) -> subprocess.CompletedProcess:
         if env:
             kwargs["env"] = env
     log.debug("openssl %s", " ".join(str(a) for a in args))
-    result = subprocess.run([_openssl, *args], **kwargs)
+    result = subprocess.run([_openssl, *args], check=False, **kwargs)
     if result.stderr:
         log.debug("openssl stderr: %s", result.stderr.decode().strip())
     return result
@@ -579,8 +579,6 @@ def generate_expired_identity(
     csr = out_cert.with_suffix(".csr")
     generate_csr(key_path, cnf, csr)
     # One year ago → one day ago (YYMMDDHHMMSSZ)
-    from datetime import datetime, timedelta, timezone
-
     one_year_ago = datetime.now(timezone.utc) - timedelta(days=365)
     one_day_ago = datetime.now(timezone.utc) - timedelta(days=1)
     startdate = one_year_ago.strftime("%y%m%d%H%M%SZ")

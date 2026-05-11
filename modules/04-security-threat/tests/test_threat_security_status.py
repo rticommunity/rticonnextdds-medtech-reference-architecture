@@ -29,6 +29,7 @@ def test_threat_security_status_runs_clean() -> None:
         cwd=PROJECT_ROOT,
         capture_output=True,
         text=True,
+        check=False,
     )
 
     output = f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"

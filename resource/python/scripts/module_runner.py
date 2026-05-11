@@ -97,18 +97,17 @@ def _expand_string(
             if arg not in resolved_args:
                 raise ValueError(f"Unknown args variable: {arg}")
             return resolved_args[arg]
-        elif kind == "MODULE_DIR":
+        if kind == "MODULE_DIR":
             return str(module_dir)
-        elif kind == "SYSTEM_ARCH":
+        if kind == "SYSTEM_ARCH":
             return str(SYSTEM_ARCH)
-        elif kind == "PYTHON":
+        if kind == "PYTHON":
             return sys.executable
-        elif kind == "CPP":
+        if kind == "CPP":
             return platform_setup.find_executable(arg)
-        elif kind == "RTISERVICE":
+        if kind == "RTISERVICE":
             return str(platform_setup.find_service_binary(arg))
-        else:
-            raise ValueError(f"Unknown placeholder: ${{{kind}}}")
+        raise ValueError(f"Unknown placeholder: ${{{kind}}}")
 
     return _INLINE_PLACEHOLDER_RE.sub(_replace, value)
 
@@ -162,7 +161,7 @@ def load_module_config(
     *apps* is ``{name: [resolved_cmd_args]}``.
     """
     config_path = module_dir / "module.json"
-    with open(config_path) as f:
+    with open(config_path, encoding="utf-8") as f:
         raw = json.load(f)
 
     if flags is None:

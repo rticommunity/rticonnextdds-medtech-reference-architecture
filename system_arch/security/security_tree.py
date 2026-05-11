@@ -409,7 +409,7 @@ class SecurityTree:
         ) -> None:
             """Validations D and #4: expired cert and leaf-outlives-CA."""
             try:
-                not_before, not_after = extract_cert_dates(cert_path)
+                _, not_after = extract_cert_dates(cert_path)
             except Exception:
                 return
             now = datetime.now(timezone.utc)

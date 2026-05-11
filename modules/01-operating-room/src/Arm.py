@@ -117,19 +117,17 @@ class ArcGauge(QWidget):
         p.drawArc(rect, 225 * 16, -span)
 
         # ── Needle ────────────────────────────────────────────────
-        import math as _math
-
         cx, cy = self.width() / 2, self.height() / 2
         needle_r = (side / 2) * 0.72
         hub_r = (side / 2) * 0.12
         # Qt arc: 0°=east, positive=CCW; our arc starts at 225° spanning -270°
         angle_deg = 225.0 - (self._value / 360.0) * 270.0
-        angle_rad = _math.radians(angle_deg)
-        tip_x = cx + needle_r * _math.cos(angle_rad)
-        tip_y = cy - needle_r * _math.sin(angle_rad)
+        angle_rad = math.radians(angle_deg)
+        tip_x = cx + needle_r * math.cos(angle_rad)
+        tip_y = cy - needle_r * math.sin(angle_rad)
         # Back stub in opposite direction
-        back_x = cx - hub_r * _math.cos(angle_rad)
-        back_y = cy + hub_r * _math.sin(angle_rad)
+        back_x = cx - hub_r * math.cos(angle_rad)
+        back_y = cy + hub_r * math.sin(angle_rad)
         # Draw shadow
         pen_shadow = QPen(
             QColor("#000000"), 4, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap

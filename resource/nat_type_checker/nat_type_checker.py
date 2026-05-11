@@ -1,11 +1,12 @@
+import time
+
 import requests
 import stun
-import time
 
 
 def get_public_ip():
     try:
-        response = requests.get("https://api.ipify.org?format=json")
+        response = requests.get("https://api.ipify.org?format=json", timeout=10)
         response.raise_for_status()
         return response.json()["ip"]
     except requests.RequestException as e:
@@ -30,7 +31,7 @@ def check_cone_nat():
     print("\nRunning... This will take a few seconds\n")
 
     try:
-        nat_type, external_ip, external_port = get_stun_info()
+        _, external_ip, _ = get_stun_info()
         public_ip = get_public_ip()
 
         if public_ip is None:

@@ -39,7 +39,7 @@ from PySide6.QtGui import QPixmap, QIcon
 import pyqtgraph as pg
 
 import rti.connextdds as dds
-import PySide6.QtAsyncio as QtAsyncio
+from PySide6 import QtAsyncio
 
 # Import OR types
 sys.path.insert(
