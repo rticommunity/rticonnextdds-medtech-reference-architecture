@@ -2,19 +2,15 @@
 #
 # Install with: pip install -r requirements-dev.txt
 #
-# Note: rti.connextdds is installed separately via RTI Connext DDS installer
-# and is NOT available on PyPI.
+# Note: rti.connextdds is typically installed separately via RTI Connext DDS installer
 
 # Runtime dependencies (inherited)
 -r requirements.txt
 
-# Testing
+codespell>=2.4
+Jinja2>=3.1
+pre-commit>=3.0
 pytest>=7.0
 pytest-cov>=4.0
-
-# Code quality
-ruff>=0.9.0
-pre-commit>=3.0
-
-# Security artifact scaffolding
-Jinja2>=3.1
+ruff>=0.15
+rumdl>=0.1.84

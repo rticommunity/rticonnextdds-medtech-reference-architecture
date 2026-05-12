@@ -4,9 +4,9 @@ This directory contains the DDS Security PKI infrastructure, governance, permiss
 
 ## Prerequisites
 
-- Python 3.9+
+- Python 3.10+
 - OpenSSL (available on PATH)
-- [RTI Security Plugins](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/installation_guide/security_plugins/installation_guide/SecurityPluginsInstallationTitle.htm) installed
+- [RTI Security Plugins](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/installation_guide/security_plugins/installation_guide/SecurityPluginsInstallationTitle.htm) installed
 
 ## Generating Security Artifacts
 
@@ -101,7 +101,7 @@ The security artifacts in this reference architecture demonstrate how applicatio
 3. In a deployed system, you will need to manage the lifecycle of these certificates using a PKI or other security tools.
 4. You should implement safeguards for certificate revocation based on your threat model, and implement other cybersecurity best practices like security information and event management (SIEM).
 
-See the RTI Security Plugins User's Manual for more detail on [Design Considerations](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/design_considerations.html) and [Best Practices](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/best_practices.html).
+See the RTI Security Plugins User's Manual for more detail on [Design Considerations](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/design_considerations.html) and [Best Practices](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/best_practices.html).
 
 ## Scaffolding (Maintainer-Only)
 

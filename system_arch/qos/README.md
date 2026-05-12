@@ -37,8 +37,8 @@ QoS Profile
 ```text
 Tag: <qos_profile>
 
-Main attributes:  
-  name:             Must be unique within the QoS library. 
+Main attributes:
+  name:             Must be unique within the QoS library.
   base_name:        The QoS profile to inherit from, and use as a base.
 
 Subelements:
@@ -51,7 +51,7 @@ Subelements:
 ```text
 Tag: <domain_participant_qos> <publisher_qos> <subscriber_qos> <datawriter_qos> <datareader_qos>
 
-Main attributes:  
+Main attributes:
   name:           Must be unique within the QoS profile for the entity kind.
   base_name:      The QoS profile to inherit from, and use as a base.
   topic_filter:   A Topic name expression, such that this QoS is used for matching Topics.
@@ -115,14 +115,14 @@ It inherits from the *BuiltinQosLib::Pattern.Status* profile. As a result, this 
 - Some optimizations to make repairs faster.
 
 #### ***DataFlowLibrary::Command* profile**
-  
+
 This QoS profile is used for command and event-related Topics. These are Topics that transmit commands or trigger some action in the system. They are not sent periodically. They should not be delivered to late-joining applications that joined after being published.
 
 It inherits from the *BuiltinQosLib::Generic.Common* profile in addition to builtin QoS snippets. As a result, this QoS profile applies the following:
 
-- *RELIABLE* Reliability QoS. Samples should be repaired if lost because the frequency of commands is unkown and irregular.
+- *RELIABLE* Reliability QoS. Samples should be repaired if lost because the frequency of commands is unknown and irregular.
 - *KEEP_LAST, depth=1* History QoS. In this simplified demonstration, only the last command for a system component should be processed by subscribing applications, or cached by DataWriters to repair as needed.
-- *VOLATILE* Durability QoS. Late-joining DataReaders should **not** receive historical commands that were published before they joined.  
+- *VOLATILE* Durability QoS. Late-joining DataReaders should **not** receive historical commands that were published before they joined.
 - Some optimizations to make repairs faster.
 
 *Note, this QoS profile is nearly identical to the *Status* QoS profile, but uses *VOLATILE* durability, since late-joining DataReaders should not receive historical commands.*
@@ -133,7 +133,7 @@ This QoS profile is used to implement a lightweight mechanism to assert and dete
 
 It inherits from the *Streaming* QoS profile and sets:
 
-- *200 ms* Deadline QoS period. It is assumed that each system component must assert themselves as present in the system at least once every 200 ms seconds. They do so by publishing a message on a common Topic. If a gap in received messages on this Topic were to reach 200 ms, applications subscribing to this Topic will be notified via the corresponding DataReader's [`REQUESTED_DEADLINE_MISSED`](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Statuses_for_DataReaders.htm#receiving_2076951295_607264) status.
+- *200 ms* Deadline QoS period. It is assumed that each system component must assert themselves as present in the system at least once every 200 ms seconds. They do so by publishing a message on a common Topic. If a gap in received messages on this Topic were to reach 200 ms, applications subscribing to this Topic will be notified via the corresponding DataReader's [`REQUESTED_DEADLINE_MISSED`](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Statuses_for_DataReaders.htm#receiving_2076951295_607264) status.
 
 *This QoS profile is designed to be used only for the `t/DeviceHeartbeat` Topic in this reference architecture. This Topic is used to manually signal whether an application is still present in the system or not (e.g. cable disconnected, application crashed, otherwise unreachable, etc.).*
 
@@ -164,6 +164,6 @@ Both files contain only 1 QoS library: ***DpQosLib***. This QoS library contains
 
 >**Best Practice:** Compose your QoS profiles with [QoS Snippets](https://community.rti.com/best-practices/qos-profile-inheritance-and-composition-guidance#h.wr6u1ebybeff). Snippets provide easier readability and result in more maintainable QoS for increasingly complex systems by reducing repetitive configuration.
 >
->**Best Practice:** Inherit from [Built-in QoS Profiles](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Built_in_QoS_Profiles.htm). Builtin profiles provide starting points to frequently used and tuned QoS combinations.
+>**Best Practice:** Inherit from [Built-in QoS Profiles](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Built_in_QoS_Profiles.htm). Builtin profiles provide starting points to frequently used and tuned QoS combinations.
 
 Please take a look at the comments inside the profiles in [Qos.xml](./Qos.xml), [NonSecureAppsQos.xml](./NonSecureAppsQos.xml), and [SecureAppsQos.xml](./SecureAppsQos.xml) for further details on each QoS policy and more **best practices** related to QoS configuration.

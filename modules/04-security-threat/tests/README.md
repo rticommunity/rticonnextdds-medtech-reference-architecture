@@ -1,6 +1,6 @@
 # Module 04 — Test Suite
 
-Automated tests for the **Security Threat Demonstration** module.  
+Automated tests for the **Security Threat Demonstration** module.
 Tests verify that DDS Security correctly blocks (or allows) threat
 injector and exfiltrator participants depending on the attack mode.
 
@@ -8,8 +8,8 @@ injector and exfiltrator participants depending on the attack mode.
 
 | Requirement | Notes |
 | --- | --- |
-| RTI Connext DDS 7.3.0+ | `NDDSHOME` must be set |
-| Python 3.9+ | With the Connext Python API (`rti.connextdds`) |
+| RTI Connext DDS 7.7.x | `NDDSHOME` must be set |
+| Python 3.10+ | With the Connext Python API (`rti.connextdds`) |
 | pytest | `pip install pytest` |
 | Module 01 C++ build complete | Run `python scripts/build.py` in `modules/01-operating-room/` |
 | Security artifacts | Run `system_arch/security/setup_security.py` |
@@ -67,7 +67,7 @@ loaded into the same process.
 | `test_forged_perms_injection_blocked` | Forged Permissions | Secure | Not matched |
 | `test_expired_cert_injection_fails` | Expired Certificate | Secure | Not matched / not created |
 | `test_unsecure_exfiltration_succeeds` | Unsecure | Unsecure | Receives vitals |
-| `test_unsecure_exfiltrator_vs_secure_or` | Unsecure | Secure | Documented behavior |
+| `test_unsecure_exfiltrator_vs_secure_or` | Unsecure | Secure | Not matched / no vitals received |
 | `test_rogue_ca_exfiltrator_blocked` | Rogue CA | Secure | No vitals received |
 
 ## Markers

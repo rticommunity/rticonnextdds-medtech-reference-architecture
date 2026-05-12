@@ -114,8 +114,9 @@ behavior. Everything that worked before continues to work.
 
 ```markdown
 v1.0.0 → v1.1.0
-  - Added Module 04: Security Threat Demonstration
-  - Added new QoS profile "HighThroughputStream" to Qos.xml
+
+- Added Module 04: Security Threat Demonstration
+- Added new QoS profile "HighThroughputStream" to Qos.xml
 ```
 
 ### PATCH version (x.y.Z) — Bug Fixes, Corrections
@@ -137,9 +138,10 @@ features or break compatibility.
 
 ```markdown
 v1.3.0 → v1.3.1
-  - Fixed PatientSensor publishing incorrect units for heart rate
-  - Fixed CMakeLists.txt failing on Ubuntu 24.04
-  - Updated expired security certificates
+
+- Fixed PatientSensor publishing incorrect units for heart rate
+- Fixed CMakeLists.txt failing on Ubuntu 24.04
+- Updated expired security certificates
 ```
 
 ---
@@ -201,18 +203,13 @@ naturally.
 
 ### Version Lifecycle
 
-```markdown
-Development ─→ Version Bump ─→ Git Tag ─→ GitHub Release
-    │                │              │             │
-    │                │              │             └─ Published artifact with
-    │                │              │                release notes, available
-    │                │              │                to users
-    │                │              └─ Immutable pointer to the release commit
-    │                │                 (e.g., v1.3.1)
-    │                └─ Version updated in tracked files
-    │                   (CHANGELOG, VERSION, etc.)
-    └─ Ongoing work on main or feature branches;
-       no version label until release decision
+```text
+Development -> Version Bump -> Git Tag -> GitHub Release
+  |              |            |            |
+  |              |            |            +-- Published artifact with release notes, available to users
+  |              |            +-- Immutable pointer to the release commit (e.g., v1.3.1)
+  |              +-- Version updated in tracked files (CHANGELOG, VERSION, etc.)
+  +-- Ongoing work on main or feature branches; no version label until release decision
 ```
 
 ---
@@ -292,7 +289,7 @@ git push origin vX.Y.Z
 
 ## Full Changelog
 
-https://github.com/<org>/<repo>/compare/vPREVIOUS...vX.Y.Z
+<https://github.com/><org>/<repo>/compare/vPREVIOUS...vX.Y.Z
 ```
 
 ---
@@ -313,22 +310,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+
 - <new features not yet released>
 
 ## [1.0.1] - 2026-XX-XX
 
 ### Fixed
+
 - Fixed PatientSensor publishing incorrect heart rate units
 
 ## [1.1.0] - 2026-XX-XX
 
 ### Added
+
 - Module 04: Security Threat Demonstration
 - Shared utility library (modules/00-common/)
 
 ## [1.0.0] - 2026-03-25
 
 ### Added
+
 - Initial release with Modules 01-03
 - Operating Room module with Orchestrator, PatientSensor, ArmController
 - Record and Playback module
@@ -393,10 +394,10 @@ For significant releases (especially MAJOR), use pre-release versions to gather
 feedback before the final release:
 
 ```markdown
-v2.0.0-alpha.1   → Early preview, may be incomplete
+v2.0.0-alpha.1 → Early preview, may be incomplete
 v2.0.0-beta.1    → Feature-complete, may have known issues
-v2.0.0-rc.1      → Release candidate, believed ready for release
-v2.0.0           → Final stable release
+v2.0.0-rc.1 → Release candidate, believed ready for release
+v2.0.0 → Final stable release
 ```
 
 Pre-releases:
@@ -447,12 +448,12 @@ v2.0.0 — Legacy launch scripts removed
 
 ```markdown
 Is the change functional, structural, or behavioral?
-├── NO  → Do not release (commit to main, include in next release)
+├── NO → Do not release (commit to main, include in next release)
 └── YES → Does it break backward compatibility?
     ├── YES → MAJOR bump
-    └── NO  → Does it add new functionality?
+    └── NO → Does it add new functionality?
         ├── YES → MINOR bump
-        └── NO  → PATCH bump
+        └── NO → PATCH bump
 ```
 
 ---

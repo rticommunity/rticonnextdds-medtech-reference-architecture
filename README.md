@@ -9,10 +9,12 @@ This repository contains documentation and module demo applications showcasing d
 - [Introduction](#introduction)
 - [Quick Start](#quick-start)
 - [Hands-On: Modules](#hands-on-modules)
-  - [Module 01: Digital Operating Room](#module-01--digital-operating-room)
-  - [Module 02: RTI Recording Service & RTI Replay Service](#module-02--rti-recording-service--rti-replay-service)
-  - [Module 03: Remote Teleoperation with RTI Real-Time WAN Transport](#module-03--remote-teleoperation-with-rti-real-time-wan-transport)
-  - [Module 04: Security Threat Demonstration](#module-04--security-threat-demonstration)
+  - [Module 01: Digital Operating Room](#module-01-digital-operating-room)
+  - [Module 02: RTI Recording Service & RTI Replay Service](#module-02-rti-recording-service--rti-replay-service)
+  - [Module 03: Remote Teleoperation with RTI Real-Time WAN Transport](#module-03-remote-teleoperation-with-rti-real-time-wan-transport)
+  - [Module 04: Security Threat Demonstration](#module-04-security-threat-demonstration)
+- [Hands-On: Architecture](#hands-on-architecture)
+- [Architecture Overview](#architecture-overview)
 - [Hands-On: Architecture](#hands-on-architecture)
 - [Architecture Overview](#architecture-overview)
   - [Data Types](#data-types)
@@ -44,12 +46,12 @@ The steps below cover environment setup, dependencies, security artifacts, and b
 
 You will need:
 
-- **RTI Connext DDS 7.3** installed and `NDDSHOME` set, including the Python API `.whl`.
-  See the [Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/installation_guide/installation_guide/Installing.htm) and [Python API setup](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/getting_started_guide/python/before_python.html#installing-connext-heading).
+- **RTI Connext DDS 7.7.0** installed and `NDDSHOME` set, including the Python API `.whl`.
+  See the [Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/installation_guide/installation_guide/Installing.htm) and [Python API setup](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/getting_started_guide/python/before_python.html#installing-connext-heading).
 
   > If `NDDSHOME` is not already in your environment, source the platform setup script from your Connext installation: `source <connext_dir>/resource/scripts/rtisetenv_<arch>.bash` (Linux/macOS) or `rtisetenv_<arch>.bat` (Windows). This script sets `NDDSHOME`, `CONNEXTDDS_ARCH`, and related library paths required by both `build.py` and `launch.py`.
 - **CMake** ≥ 3.17 and a C++ compiler toolchain.
-- **Python** ≥ 3.9.
+- **Python** ≥ 3.10.
 
 Install the system build dependencies for your platform:
 
@@ -99,7 +101,7 @@ pip install -r requirements.txt
 # Install the RTI Connext Python API from your local Connext installation:
 pip install rti.connext.activated -f $NDDSHOME/resource/python_api
 # Alternatively, if the above path is not available, install from PyPI:
-# pip install rti.connext==7.3.0
+# pip install rti.connext==7.7.0
 ```
 
 ### 4. Build the C++ Modules
@@ -113,8 +115,8 @@ python3 build.py
 To build only the modules you intend to run:
 
 ```bash
-python3 build.py --target module-01   # all C++ targets in Module 01
-python3 build.py --target ArmController  # only the ArmController target
+python3 build.py -- --target module-01   # all C++ targets in Module 01
+python3 build.py -- --target ArmController  # only the ArmController target
 ```
 
 The compiled binaries are placed under `build/<CONNEXTDDS_ARCH>/`.
@@ -137,13 +139,13 @@ The RTI MedTech Reference Architecture demonstrates use cases and capabilities o
 
 Use the module-specific READMEs when you want to run a demo. They describe what each workflow launches, why it exists, and the exact `launch.py` commands to use from the repository root.
 
-- ### [Module 01](./modules/01-operating-room/) : Digital Operating Room
+### [Module 01: Digital Operating Room](./modules/01-operating-room/)
 
-- ### [Module 02](./modules/02-record-playback/) : RTI Recording Service & RTI Replay Service
+### [Module 02: RTI Recording Service & RTI Replay Service](./modules/02-record-playback/)
 
-- ### [Module 03](./modules/03-remote-teleoperation/) : Remote Teleoperation with RTI Real-Time WAN Transport
+### [Module 03: Remote Teleoperation with RTI Real-Time WAN Transport](./modules/03-remote-teleoperation/)
 
-- ### [Module 04](./modules/04-security-threat/) : Security Threat Demonstration
+### [Module 04: Security Threat Demonstration](./modules/04-security-threat/)
 
 ## Hands-On: Architecture
 
@@ -152,18 +154,18 @@ RTI System Designer allows you to graphically design, configure, examine, and sh
 *RTI recommends using the provided RTI System Designer project file ([RefArch.rtisdproj](./system_arch/RefArch.rtisdproj)) to follow along with the next section, [Architecture Overview](#architecture-overview).*
 
 1. Launch RTI System Designer.
-    - From RTI Launcher:
-        1. Open *RTI Launcher*.
-        2. Navigate to the **Tools** tab.
-        3. Click the *System Designer* button.
-    - From a terminal:
-        1. Launch the `rtisystemdesigner[.bat]` script found in the *$NDDSHOME/bin* folder. *Where *$NDDSHOME* is the folder where Connext is installed.*
+   - From RTI Launcher:
+      1. Open *RTI Launcher*.
+      2. Navigate to the **Tools** tab.
+      3. Click the *System Designer* button.
+   - From a terminal:
+      1. Launch the `rtisystemdesigner[.bat]` script found in the *$NDDSHOME/bin* folder. *Where *$NDDSHOME* is the folder where Connext is installed.*
 2. Open the Project File.
-    1. Select **Projects** in the toolbar.
-    2. Click **Open** in the dropdown.
-    3. In the file browser popup, navigate to *system_arch/RefArch.rtisdproj* and open.
+   1. Select **Projects** in the toolbar.
+   2. Click **Open** in the dropdown.
+   3. In the file browser popup, navigate to *system_arch/RefArch.rtisdproj* and open.
 
-*Please refer to [Project Management](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/tools/system_designer/project_mgmt.html) documentation for more detailed instructions on working with RTI System Designer projects.*
+*Please refer to [Project Management](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/tools/system_designer/project_mgmt.html) documentation for more detailed instructions on working with RTI System Designer projects.*
 
 ## Architecture Overview
 
@@ -185,7 +187,7 @@ Please find a diagram of the Digital OR module module below:
 
 ### Data Types
 
-DDS is a **data-centric** communication standard that understands user-defined Data Types. You can define a Data Type, its members, and annotations in IDL, XML, or XSD. *Conversion between file formats and type-support code generation for (de)serialization can be done with [RTI Code Generator](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/code_generator/users_manual/code_generator/users_manual/UsersManual_Title.htm#).*
+DDS is a **data-centric** communication standard that understands user-defined Data Types. You can define a Data Type, its members, and annotations in IDL, XML, or XSD. *Conversion between file formats and type-support code generation for (de)serialization can be done with [RTI Code Generator](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/code_generator/users_manual/code_generator/users_manual/UsersManual_Title.htm#).*
 
 This reference architecture defines the following Data Types in [Types.xml](./system_arch/Types.xml):
 
@@ -233,7 +235,7 @@ The hierarchy of the components configured in a Domain are as follows:
 Domain → Domain ID
 ├── Type Name → Data Type
 └── Topic → Type Name
- 
+
 Legend:
  → references
 ```
@@ -256,7 +258,7 @@ This reference architecture defines the following Topics in [DomainLibrary.xml](
 | OperationalDataDomain | `t/DeviceCommand` | Command initiating a status (e.g. `START`, `SHUTDOWN`) to a unique system component
 | OperationalDataDomain | `t/Vitals` | Data representative of a unique patient's collected vital signs
 
-*Note, this reference architecture defines a unique Topic for each Data Type defined. While a Topic may only reference a single Data Type, a multi-purpose Data Type can be associated with multiple Topics. It is a **best practice** to limit the number of defined Topics, but in doing so, it may be feasible to re-use a Data Type for several Topics.*
+*Note, this reference architecture defines a unique Topic for each Data Type defined. While a Topic may only reference a single Data Type, a multi-purpose Data Type can be associated with multiple Topics. It is a **best practice** to limit the number of defined Topics, but in doing so, it may be feasible to reuse a Data Type for several Topics.*
 
 ### DomainParticipants & DDS Entities
 
@@ -333,15 +335,15 @@ Check out the the [system_arch](./system_arch/) folder, where the system archite
 
 ## Additional References
 
-- [RTI XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/XMLAppCreationGSG_title.htm#)
-- [RTI System Designer](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/tools/system_designer/index.html)
-- [RTI Core Libraries Users Manual](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/title.htm#)
-- [RTI Security Plugins](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/index.html)
-- [RTI Connext Modern C++ API](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/api/connext_dds/api_cpp2/index.html) *, used in Module 01: Digital Operating Room*
-- [RTI Connext Python API](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/api/connext_dds/api_python/index.html) *, used in Module 01: Digital Operating Room*
-- [RTI Recording Service & Replay Service](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/services/recording_service/introduction.html) *, used in Module 02: RTI Recording Service & RTI Replay Service*
-- [Connext Real-Time WAN Transport](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/PartRealtimeWAN.htm) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
-- [RTI Routing Service](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/services/routing_service/index.html) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
-- [RTI Cloud Discovery Service](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/addon_products/cloud_discovery_service/index.html) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
-- [RTI Security Plugins Users Manual](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/index.html) *, used in Module 04: Security Threat Demonstration*
-- [RTI Connext Third-Party Software](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/release_notes_3rdparty/index.html)
+- [RTI XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/XMLAppCreationGSG_title.htm#)
+- [RTI System Designer](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/tools/system_designer/index.html)
+- [RTI Core Libraries Users Manual](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/title.htm#)
+- [RTI Security Plugins](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/index.html)
+- [RTI Connext Modern C++ API](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/api/connext_dds/api_cpp2/index.html) *, used in Module 01: Digital Operating Room*
+- [RTI Connext Python API](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/api/connext_dds/api_python/index.html) *, used in Module 01: Digital Operating Room*
+- [RTI Recording Service & Replay Service](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/services/recording_service/introduction.html) *, used in Module 02: RTI Recording Service & RTI Replay Service*
+- [Connext Real-Time WAN Transport](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/PartRealtimeWAN.htm) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
+- [RTI Routing Service](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/services/routing_service/index.html) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
+- [RTI Cloud Discovery Service](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/addon_products/cloud_discovery_service/index.html) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
+- [RTI Security Plugins Users Manual](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/index.html) *, used in Module 04: Security Threat Demonstration*
+- [RTI Connext Third-Party Software](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/release_notes_3rdparty/index.html)

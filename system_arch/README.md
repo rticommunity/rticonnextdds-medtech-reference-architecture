@@ -50,9 +50,9 @@ A well-designed Connext Data Model is critical to a system's ability to share da
 
 #### Data Types
 
-DDS is a **data-centric** communication standard that understands user-defined Data Types. You can define a Data Type, its members, and annotations in [IDL](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Creating_User_Data_Types_with_IDL.htm), [XML](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Creating_User_Data_Types_with_Extensible.htm#17.4_Creating_User_Data_Types_with_Extensible_Markup_Language_(XML)), or [XSD](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/CreatingUserDataTypesWithXMLSchemas.htm).
+DDS is a **data-centric** communication standard that understands user-defined Data Types. You can define a Data Type, its members, and annotations in [IDL](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Creating_User_Data_Types_with_IDL.htm), [XML](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Creating_User_Data_Types_with_Extensible.htm#17.4_Creating_User_Data_Types_with_Extensible_Markup_Language_(XML)), or [XSD](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/CreatingUserDataTypesWithXMLSchemas.htm).
 
-*Conversion between file formats and type-support code generation for (de)serialization can be done with [RTI Code Generator](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/code_generator/users_manual/code_generator/users_manual/UsersManual_Title.htm).*
+*Conversion between file formats and type-support code generation for (de)serialization can be done with [RTI Code Generator](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/code_generator/users_manual/code_generator/users_manual/UsersManual_Title.htm).*
 
 Data Types allow for capabilities in Connext such as:
 
@@ -78,10 +78,10 @@ This reference architecture defines the following Data Types in [Types.xml](./Ty
 
 #### Data Model References
 
-- [Data Types](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/DataTypes.htm)
-- [Extensible Types Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/extensible_types_guide/extensible_types/XTypes_Title.htm)
-- [RTI Code Generator](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/code_generator/users_manual/code_generator/users_manual/UsersManual_Title.htm)
-- Creating User Data Types with [IDL](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Creating_User_Data_Types_with_IDL.htm) / [XML](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Creating_User_Data_Types_with_Extensible.htm#17.4_Creating_User_Data_Types_with_Extensible_Markup_Language_(XML)) / [XSD](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/CreatingUserDataTypesWithXMLSchemas.htm)
+- [Data Types](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/DataTypes.htm)
+- [Extensible Types Guide](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/extensible_types_guide/extensible_types/XTypes_Title.htm)
+- [RTI Code Generator](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/code_generator/users_manual/code_generator/users_manual/UsersManual_Title.htm)
+- Creating User Data Types with [IDL](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Creating_User_Data_Types_with_IDL.htm) / [XML](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Creating_User_Data_Types_with_Extensible.htm#17.4_Creating_User_Data_Types_with_Extensible_Markup_Language_(XML)) / [XSD](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/CreatingUserDataTypesWithXMLSchemas.htm)
 
 ### Quality of Service (QoS)
 
@@ -113,7 +113,7 @@ QoS Libraries group QoS Profiles and Snippets. QoS Libraries can contain one or 
 
 ##### QoS Profiles
 
-A QoS Profile defines a set of QoS policy values for DDS entities - DomainParticipant, Publisher, Subscriber, DataWriter, and DataReader.  
+A QoS Profile defines a set of QoS policy values for DDS entities - DomainParticipant, Publisher, Subscriber, DataWriter, and DataReader.
 
 Examples of QoS policies include:
 
@@ -146,9 +146,9 @@ Connext provides a set of usable Builtin QoS Libraries, Profiles, and QoS.
 
 #### QoS References
 
-- [Configuring Connext Using QoS](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/PartConfiguringQos.htm)
-- [Configuring QoS with XML](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/XMLConfiguration.htm)
-- [RTI Connext QoS Reference Guide](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/qos_reference/qos_reference/qos_guide_all_in_one.htm)
+- [Configuring Connext Using QoS](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/PartConfiguringQos.htm)
+- [Configuring QoS with XML](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/XMLConfiguration.htm)
+- [RTI Connext QoS Reference Guide](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/qos_reference/qos_reference/qos_guide_all_in_one.htm)
 
 ## RTI XML-Based Application Creation
 
@@ -173,12 +173,12 @@ The hierarchy of the components configured in a Domain are as follows:
 Domain → Domain ID
 ├── Type Name → Data Type
 └── Topic → Type Name
- 
+
 Legend:
  → references
 ```
 
-Domains and Topics are configured in XML via Domain Libraries and Domains.  
+Domains and Topics are configured in XML via Domain Libraries and Domains.
 
 *Note, Domains can be configured across one or multiple XML files and reference configuration content by name across files. Given that Connext applications load all relevant files, Connext interprets all files as one cohesive configuration.*
 
@@ -197,13 +197,13 @@ Domains offer the highest level of separation of data and visibility in Connext.
 >
 >**Best Practice:** When possible, use a single DomainParticipant for every Domain an application operates on.
 
-*Looking for a more dynamic means of data separation and visibility? Check out [DomainParticipant partitions](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/whats_new/whats_new/WhatsNew730.htm#AbilityPartition)!*
+*Looking for a more dynamic means of data separation and visibility? Check out [DomainParticipant partitions](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/whats_new/whats_new/WhatsNew730.htm#AbilityPartition)!*
 
 ##### Topics
 
 Topics describe a channel for which Connext applications can selectively publish and subscribe to. A Topic is associated with a well-known Data Type.
 
-Endpoints (DataWriters and DataReaders) operating on a Topic require compatible QoS.  
+Endpoints (DataWriters and DataReaders) operating on a Topic require compatible QoS.
 
 *Note, that while configured Topics can have explicit Topic QoS associated, it is extremely rare to have a valid use case for doing so. In almost all cases, not referencing explicit Topic QoS and therefore using the default Topic QoS, is sufficient.*
 
@@ -217,10 +217,10 @@ Endpoints (DataWriters and DataReaders) operating on a Topic require compatible 
 
 #### Domains & Topics References
 
-- [DDS Domains and DomainParticipants](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/DDS_Domains_and_DomainParticipants.htm)
-- [Isolating DomainParticipants and Endpoints from Each Other](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Creating_ParticipantPartitions.htm)
-- [Understanding XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/UnderstandingXMLCreate.htm)
-- [Domain Library](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/DomainLibrary.htm#4.5.1_Domain_Library)
+- [DDS Domains and DomainParticipants](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/DDS_Domains_and_DomainParticipants.htm)
+- [Isolating DomainParticipants and Endpoints from Each Other](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Creating_ParticipantPartitions.htm)
+- [Understanding XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/UnderstandingXMLCreate.htm)
+- [Domain Library](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/DomainLibrary.htm#4.5.1_Domain_Library)
 
 ### DomainParticipants & DDS Entities
 
@@ -282,7 +282,7 @@ When deciding what should be a Publisher or Subscriber during design, consider:
 
 - A DomainParticipant may have one or multiple Publishers and/or Subscribers.
 - A Publisher or Subscriber may have one or multiple DataWriters or DataReaders, respectively.
-- [Partitions](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/PARTITION_QosPolicy.htm) are controlled at the Publisher and Subscriber level.
+- [Partitions](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/PARTITION_QosPolicy.htm) are controlled at the Publisher and Subscriber level.
 
 >**Best Practice:** Unless requirements dictate otherwise, use a single Publisher for all DataWriters and a single Subscriber for all Subscribers for each DomainParticipant.
 
@@ -312,13 +312,13 @@ When deciding how a Content Filter should be designed, consider:
 - Filter expressions and expression parameters are propagated to matching DataWriters upon discovery and modification of the Content Filter at runtime.
 - Filtering is optimized for filter expressions that evaluate only and all of the *keyed* Data Type field values.
 
-*Why filter data with Connext as opposed to in application logic?*  
+*Why filter data with Connext as opposed to in application logic?*
 
-- Connext can perform Writer-side filtering to significantly reduce resource usage, under [certain circumstances](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Where_Filtering_is_Applied.htm).  
+- Connext can perform Writer-side filtering to significantly reduce resource usage, under [certain circumstances](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Where_Filtering_is_Applied.htm).
 - If filtering on *keyed* Data Type field values, Connext optimizes filtering logic by caching filter results. This means DataReaders can skip the step of deserializing incoming data for instances known to fail filter evaluation.
 - DataReaders maintain a configurable cache of samples it receives. Data filtered by Connext will not be stored in the cache. This not only has resource usage implications but implications of data delivery when a full DataReader cache contains potentially unwanted data affects the DataReaders ability to receive relevant data.
 
->**Best Practice:** If components of a Content Filter expression or expression parameters are determined dynamically, and cannot be fully described statically in XML, disable autoenabling of entities upon creation. After Content Filters are configured appropriately, entities should be explicitly enabled by calling [`enable()`](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Enabling_DDS_Entities.htm). Note, this concept is extended to other entities as well if certain QoS configuration must be applied dynamically before enabling.
+>**Best Practice:** If components of a Content Filter expression or expression parameters are determined dynamically, and cannot be fully described statically in XML, disable autoenabling of entities upon creation. After Content Filters are configured appropriately, entities should be explicitly enabled by calling [`enable()`](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Enabling_DDS_Entities.htm). Note, this concept is extended to other entities as well if certain QoS configuration must be applied dynamically before enabling.
 
 #### How have we approached DDS entities in this reference architecture?
 
@@ -328,9 +328,9 @@ When deciding how a Content Filter should be designed, consider:
 
 #### DDS Entities References
 
-- [DDS Domains and DomainParticipants](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/users_manual/users_manual/DDS_Domains_and_DomainParticipants.htm)
-- [Understanding XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/UnderstandingXMLCreate.htm)
-- [Participant Library](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ParticipantLibrary.htm#4.5.2_Participant_Library)
+- [DDS Domains and DomainParticipants](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/DDS_Domains_and_DomainParticipants.htm)
+- [Understanding XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/UnderstandingXMLCreate.htm)
+- [Participant Library](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ParticipantLibrary.htm#4.5.2_Participant_Library)
 
 ## Security
 
@@ -348,17 +348,17 @@ RTI Security Plugins provide configurable capability to prevent unauthorized act
 
 See the [Security README](./security/README.md) for artifact generation instructions and directory layout details.
 
->**Best Practice:** Use separate Domains for secure and unsecure DomainParticipants. [[more info](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/best_practices.html)]
+>**Best Practice:** Use separate Domains for secure and unsecure DomainParticipants. [[more info](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/best_practices.html)]
 >
 >**Best Practice:** Use a unique Governance file per Domain.
 >
->**Best Practice:** Use a unique Permissions file for each DomainParticipant. [[more info](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/best_practices.html#choosing-the-granularity-of-your-permissions-documents-for-domainparticipants)]
+>**Best Practice:** Use a unique Permissions file for each DomainParticipant. [[more info](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/best_practices.html#choosing-the-granularity-of-your-permissions-documents-for-domainparticipants)]
 >
->**Best Practice:** Avoid encrypting the contents of each message twice. [[more info](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/best_practices.html#using-serialized-data-protection-along-with-submessage-rtps-protection)]
+>**Best Practice:** Avoid encrypting the contents of each message twice. [[more info](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/best_practices.html#using-serialized-data-protection-along-with-submessage-rtps-protection)]
 >
 >**Best Practice:** Explicitly configure the Topics to allow in the Permissions file. The default rule should be `DENY`.
 
 ### Security References
 
-- [RTI Security Plugins Getting Started](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/getting_started_guide/index.html)
-- [RTI Security Plugins User's Manual](https://community.rti.com/static/documentation/connext-dds/7.3.0/doc/manuals/connext_dds_secure/users_manual/p1_welcome/overview.html)
+- [RTI Security Plugins Getting Started](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/getting_started_guide/index.html)
+- [RTI Security Plugins User's Manual](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p1_welcome/overview.html)

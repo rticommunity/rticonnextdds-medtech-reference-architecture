@@ -25,13 +25,13 @@ try:
 except ImportError:
     argcomplete = None
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "resource" / "python"))
+from scripts import module_runner
+
 PROJECT_ROOT = Path(__file__).resolve().parent
 SCENARIOS_PATH = PROJECT_ROOT / "resource" / "config" / "scenarios.json"
 
-sys.path.insert(0, str(PROJECT_ROOT / "resource" / "python"))
-from scripts import module_runner
-
-with open(SCENARIOS_PATH) as f:
+with open(SCENARIOS_PATH, encoding="utf-8") as f:
     SCENARIOS: dict[str, dict] = json.load(f)
 
 
@@ -54,7 +54,10 @@ def _resolve_module(
     if app_names:
         for name in app_names:
             if name not in all_apps:
-                raise ValueError(f"Unknown app '{name}' in module '{module_name}'. Available: {', '.join(all_apps)}")
+                raise ValueError(
+                    f"Unknown app '{name}' in module '{module_name}'. "
+                    f"Available: {', '.join(all_apps)}"
+                )
         commands = [all_apps[app] for app in app_names]
     else:
         commands = list(all_apps.values())
@@ -68,7 +71,9 @@ def _list_scenarios() -> None:
     max_name = max(len(name) for name in SCENARIOS)
     for name, spec in SCENARIOS.items():
         desc = spec.get("description", "")
-        modules_str = ", ".join(f"{m} ({', '.join(apps) if apps else 'all'})" for m, apps in spec["modules"])
+        modules_str = ", ".join(
+            f"{m} ({', '.join(apps) if apps else 'all'})" for m, apps in spec["modules"]
+        )
         print(f"  {name:<{max_name}}  {desc}")
         print(f"  {'':<{max_name}}  -> {modules_str}")
         print()
@@ -85,7 +90,7 @@ def _complete_apps(prefix, parsed_args, **kwargs):
         return []
     try:
         config_path = module_dir / "module.json"
-        with open(config_path) as f:
+        with open(config_path, encoding="utf-8") as f:
             raw = json.load(f)
         return [a for a in raw.get("apps", {}) if a.startswith(prefix)]
     except Exception:

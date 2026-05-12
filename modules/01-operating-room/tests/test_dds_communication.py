@@ -20,14 +20,15 @@ import sys
 import time
 
 import pytest
-from conftest import (
-    MODULE_DIR,
+from module01_test_support import (
     SRC_DIR,
     create_reader,
     create_writer,
     wait_for_data,
     wait_for_process_ready,
 )
+
+_IS_MACOS = sys.platform == "darwin"
 
 # Ensure generated types are importable
 if str(SRC_DIR) not in sys.path:
@@ -39,13 +40,17 @@ if str(SRC_DIR) not in sys.path:
 # ---------------------------------------------------------------------------
 
 
-class TestPatientSensorVitals:
-    """PatientSensor should publish vitals on t/Vitals."""
+class TestPatientSensorReadOnly:
+    """Read-only PatientSensor tests: vitals, heartbeats, and status.
 
-    def test_vitals_arrive(self, proc_manager, dds_participant):
+    Uses a class-scoped ProcessManager so PatientSensor is launched once
+    and shared across all tests in this class.
+    """
+
+    def test_vitals_arrive(self, class_proc_manager, dds_participant):
         from Types import PatientMonitor_Vitals
 
-        proc_manager.start_app("PatientSensor")
+        class_proc_manager.start_app("PatientSensor")
         reader = create_reader(
             dds_participant,
             "t/Vitals",
@@ -56,10 +61,9 @@ class TestPatientSensorVitals:
         samples = wait_for_data(reader, timeout_sec=10)
         assert len(samples) >= 1, "No vitals received from PatientSensor"
 
-    def test_vitals_values_in_range(self, proc_manager, dds_participant):
+    def test_vitals_values_in_range(self, class_proc_manager, dds_participant):
         from Types import PatientMonitor_Vitals
 
-        proc_manager.start_app("PatientSensor")
         reader = create_reader(
             dds_participant,
             "t/Vitals",
@@ -77,14 +81,9 @@ class TestPatientSensorVitals:
             assert 60 <= v.nibp_s <= 200, f"Systolic BP out of range: {v.nibp_s}"
             assert 40 <= v.nibp_d <= 130, f"Diastolic BP out of range: {v.nibp_d}"
 
-
-class TestPatientSensorHeartbeat:
-    """PatientSensor should publish heartbeats at ~20 Hz on t/DeviceHeartbeat."""
-
-    def test_heartbeat_rate(self, proc_manager, dds_participant):
+    def test_heartbeat_rate(self, class_proc_manager, dds_participant):
         from Types import Common_DeviceHeartbeat
 
-        proc_manager.start_app("PatientSensor")
         reader = create_reader(
             dds_participant,
             "t/DeviceHeartbeat",
@@ -106,14 +105,9 @@ class TestPatientSensorHeartbeat:
         # At 20 Hz we expect ~20 samples/sec; require at least 8 to be safe
         assert count >= 8, f"Expected ≥8 heartbeats in 1s, got {count}"
 
-
-class TestPatientSensorStatus:
-    """PatientSensor should publish DeviceStatus ON on startup."""
-
-    def test_status_on(self, proc_manager, dds_participant):
+    def test_status_on(self, class_proc_manager, dds_participant):
         from Types import Common, Common_DeviceStatus
 
-        proc_manager.start_app("PatientSensor")
         reader = create_reader(
             dds_participant,
             "t/DeviceStatus",
@@ -156,7 +150,8 @@ class TestPatientSensorCommands:
         # Wait for PatientSensor to come online (status = ON)
         samples = wait_for_data(status_reader, timeout_sec=10)
         sensor_on = any(
-            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON for s in samples
+            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON
+            for s in samples
         )
         assert sensor_on, "PatientSensor did not publish ON status"
 
@@ -170,7 +165,8 @@ class TestPatientSensorCommands:
         # Wait for status to change to PAUSED
         paused_samples = wait_for_data(status_reader, timeout_sec=10)
         paused = any(
-            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.PAUSED
+            s.device == Common.DeviceType.PATIENT_SENSOR
+            and s.status == Common.DeviceStatuses.PAUSED
             for s in paused_samples
         )
         assert paused, "PatientSensor did not transition to PAUSED"
@@ -230,7 +226,7 @@ class TestArmMotorControl:
         from Types import SurgicalRobot, SurgicalRobot_MotorControl
 
         proc = proc_manager.start_app("Arm", extra_env=self.QT_ENV)
-        wait_for_process_ready(proc, timeout_sec=10)
+        wait_for_process_ready(proc, timeout_sec=3)
         assert proc.poll() is None, f"Arm exited early with code {proc.returncode}"
 
         writer = create_writer(
@@ -246,7 +242,7 @@ class TestArmMotorControl:
             direction=SurgicalRobot.MotorDirections.INCREMENT,
         )
         writer.write(cmd)
-        time.sleep(1)
+        time.sleep(0.5)
 
         assert proc.poll() is None, "Arm crashed after receiving MotorControl"
 
@@ -261,7 +257,7 @@ class TestAllAppsStatus:
     """All five apps should report DeviceStatus ON when running."""
 
     QT_ENV = {"QT_QPA_PLATFORM": "offscreen"}
-    GTK_ENV = {"GDK_BACKEND": "x11"}
+    GTK_ENV = {} if _IS_MACOS else {"GDK_BACKEND": "x11"}
 
     EXPECTED_DEVICES = {
         "PATIENT_SENSOR",
@@ -302,7 +298,9 @@ class TestAllAppsStatus:
                 break
             time.sleep(0.2)
 
-        assert len(devices_on) >= 4, f"Only {len(devices_on)} devices reported ON: {devices_on}. Expected at least 4."
+        assert len(devices_on) >= 4, (
+            f"Only {len(devices_on)} devices reported ON: {devices_on}. Expected at least 4."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -340,7 +338,8 @@ class TestContentFilter:
         # Wait for PatientSensor to come online
         samples = wait_for_data(status_reader, timeout_sec=10)
         assert any(
-            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON for s in samples
+            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON
+            for s in samples
         ), "PatientSensor never reached ON"
 
         # Send PAUSE addressed to PATIENT_SENSOR
@@ -356,7 +355,10 @@ class TestContentFilter:
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline and not paused:
             for s in wait_for_data(status_reader, timeout_sec=1):
-                if s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.PAUSED:
+                if (
+                    s.device == Common.DeviceType.PATIENT_SENSOR
+                    and s.status == Common.DeviceStatuses.PAUSED
+                ):
                     paused = True
                     break
         assert paused, "PatientSensor did not receive its own PAUSE command"
@@ -395,7 +397,8 @@ class TestContentFilter:
         # Wait for ON status and verify vitals are flowing
         samples = wait_for_data(status_reader, timeout_sec=10)
         assert any(
-            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON for s in samples
+            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON
+            for s in samples
         )
         wait_for_data(vitals_reader, timeout_sec=5, min_count=1)
 
@@ -409,10 +412,11 @@ class TestContentFilter:
 
         # Give time for any reaction and drain vitals
         vitals_reader.take()
-        time.sleep(1.5)
+        time.sleep(0.5)
 
         # PatientSensor should still be publishing vitals (not paused)
         fresh = wait_for_data(vitals_reader, timeout_sec=3.0, min_count=1)
         assert len(fresh) >= 1, (
-            "PatientSensor stopped publishing vitals after a command addressed to ARM — content filter may be broken"
+            "PatientSensor stopped publishing vitals after a command addressed to ARM"
+            " — content filter may be broken"
         )

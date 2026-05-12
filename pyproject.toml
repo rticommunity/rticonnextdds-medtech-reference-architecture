@@ -1,34 +1,39 @@
 [tool.ruff]
-line-length = 120
-target-version = "py39"
-# Only lint test infrastructure and CI files; exclude pre-existing application source
-extend-exclude = [
-    "modules/01-operating-room/src/",
-    "modules/01-operating-room/scripts/",
-    "modules/04-security-threat/src/",
-    "modules/04-security-threat/scripts/",
-    "modules/04-security-threat/security/",
-    "system_arch/",
-    "resource/",
-]
+required-version = ">=0.15"
+line-length = 100
 
 [tool.ruff.lint]
-select = [
-    "E",   # pycodestyle errors
-    "F",   # pyflakes
-    "W",   # pycodestyle warnings
-    "I",   # isort
-    "UP",  # pyupgrade
-]
+select = ["E", "F", "I"]
 
-[tool.ruff.lint.per-file-ignores]
-# E402: sys.path manipulation required before imports
-"build.py" = ["E402"]
-"launch.py" = ["E402"]
-"tests/test_build.py" = ["E402"]
-# Test files may have unused imports for readability
-"**/tests/*.py" = ["F401"]
-"**/tests/conftest.py" = ["E402"]
+[tool.codespell]
+# Keep spelling checks focused on source/docs and skip generated/cache content.
+skip = ".git,.venv,.venv*,build,**/build,.pytest_cache,__pycache__,resource/images,*.svg"
+ignore-words-list = "nddshome,connextdds,rtisetenv,dpqoslib,unsecure"
+check-hidden = false
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = [
+    "tests",
+    "modules/01-operating-room/tests",
+    "modules/02-record-playback/tests",
+    "modules/04-security-threat/tests",
+]
+markers = [
+    "build_pipeline: tests that verify project-level configure/build pipeline",
+    "gui: test requires a graphical display (deselect with '-m not gui')",
+    "secure: test requires DDS Security artifacts (deselect with '-m not secure')",
+    "slow: long-running scenario",
+]
+addopts = "-rs"
+
+[tool.rumdl]
+disable = ["MD013"]
+
+[tool.rumdl.MD024]
+siblings-only = true
+
+[tool.rumdl.MD033]
+allowed-elements = ["details", "summary", "strong"]
+
+[tool.rumdl.MD060]
+style = "compact"

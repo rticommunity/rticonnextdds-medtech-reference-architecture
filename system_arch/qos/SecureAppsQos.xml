@@ -9,7 +9,7 @@ of any type, including any warranty for fitness for any purpose. RTI is
 under no obligation to maintain or support the software.  RTI shall not be
 liable for any incidental or consequential damages arising out of the use or
 inability to use the software. -->
-<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_dds_profiles.xsd" version="7.3.0">
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.7.0/rti_dds_profiles.xsd" version="7.7.0">
 
   <configuration_variables>
     <value>
@@ -25,6 +25,16 @@ inability to use the software. -->
       </element>
     </value>
   </configuration_variables>
+
+  <qos_library name="DPFactoryQosLib">
+    <qos_profile name="Default" is_default_participant_factory_profile="true">
+      <participant_factory_qos>
+        <monitoring>
+          <enable>false</enable>
+        </monitoring>
+      </participant_factory_qos>
+    </qos_profile>
+  </qos_library>
 
   <qos_library name="CommonLibrary">
     <qos_profile name="CommonSecurityConfig">

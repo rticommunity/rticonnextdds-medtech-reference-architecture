@@ -19,10 +19,9 @@ import json
 import subprocess
 import sys
 import time
-from pathlib import Path
 
 import pytest
-from conftest import (
+from module02_test_support import (
     MODULE_01_DIR,
     MODULE_DIR,
     RECORDING_DIR,
@@ -45,28 +44,34 @@ class TestReplay:
         """Replay Service should publish t/Vitals from a recording."""
         # ── Phase 1: Record some data ─────────────────────────────────
         ps = proc_manager.start_app("PatientSensor")
-        wait_for_process_ready(ps, timeout_sec=10)
+        wait_for_process_ready(ps, timeout_sec=5)
         assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         rec_proc = proc_manager.start(
-            [RECORDING_SERVICE, "-cfgFile", self.RECORDING_CONFIG, "-cfgName", "RecServCfg"],
+            [
+                RECORDING_SERVICE,
+                "-cfgFile",
+                self.RECORDING_CONFIG,
+                "-cfgName",
+                "RecServCfg",
+            ],
             cwd=MODULE_DIR,
         )
-        time.sleep(8)
+        time.sleep(3)
 
         rec_proc.terminate()
         try:
-            rec_proc.wait(timeout=10)
+            rec_proc.wait(timeout=5)
         except Exception:
             rec_proc.kill()
-            rec_proc.wait(timeout=5)
+            rec_proc.wait(timeout=3)
 
         db_file = RECORDING_DIR / "or_recording_database.dat"
         assert db_file.is_file(), "Recording phase failed — no database"
 
         # Kill PatientSensor so the only source of data is the replay
         proc_manager.shutdown_all()
-        time.sleep(1)
+        time.sleep(0.5)
 
         # ── Phase 2: Replay and verify data arrives ───────────────────
         # Start Replay Service
@@ -74,7 +79,7 @@ class TestReplay:
             [REPLAY_SERVICE, "-cfgFile", self.REPLAY_CONFIG, "-cfgName", "RepServCfg"],
             cwd=MODULE_DIR,
         )
-        wait_for_process_ready(replay_proc, timeout_sec=10)
+        wait_for_process_ready(replay_proc, timeout_sec=5)
 
         # Run a short subscriber in a subprocess to capture replayed data
         subscriber_script = f"""\
@@ -95,7 +100,7 @@ subscriber = dds.Subscriber(participant)
 reader = dds.DataReader(subscriber, topic, dr_qos)
 
 collected = []
-deadline = time.monotonic() + 15
+deadline = time.monotonic() + 8
 while time.monotonic() < deadline and len(collected) < 3:
     for s in reader.take():
         if s.info.valid:
@@ -112,9 +117,15 @@ print(json.dumps(collected))
             cwd=MODULE_01_DIR,
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=20,
+            check=False,
         )
-        assert result.returncode == 0, f"Replay subscriber failed (exit {result.returncode}):\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"Replay subscriber failed (exit {result.returncode}):\n{result.stderr}"
+        )
 
-        samples = json.loads(result.stdout.strip())
+        # Extract only the last non-empty line (the JSON output);
+        # DDS may emit log lines to stdout before it.
+        json_line = [ln for ln in result.stdout.strip().splitlines() if ln.strip()][-1]
+        samples = json.loads(json_line)
         assert len(samples) >= 1, "No vitals received from Replay Service"

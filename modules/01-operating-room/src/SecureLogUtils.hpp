@@ -31,8 +31,8 @@ namespace SecureLogUtils {
 
 using SecureLogType = DDSSecurity::BuiltinLoggingTypeV2;
 using SecureLogHandler = std::function<void(const SecureLogType &)>;
-using SecureLogReader = std::
-        pair<dds::sub::DataReader<SecureLogType>, rti::sub::SampleProcessor>;
+using SecureLogReader = std::pair<dds::sub::DataReader<SecureLogType>,
+                                  rti::sub::SampleProcessor>;
 
 bool is_secure(const dds::domain::DomainParticipant &participant)
 {
@@ -58,7 +58,7 @@ SecureLogReader setup_secure_log_reader(
     // Initialize Participant
     dds::domain::DomainParticipant securelog_participant =
             qos_provider.extensions().create_participant_from_config(
-                    SECURELOG_READER_DP);
+                    std::string(SECURELOG_READER_DP));
     if (securelog_participant == dds::core::null) {
         throw std::runtime_error(
                 "Failed to lookup secure log reader participant");
@@ -69,7 +69,7 @@ SecureLogReader setup_secure_log_reader(
             rti::sub::find_datareader_by_name<
                     dds::sub::DataReader<SecureLogType>>(
                     securelog_participant,
-                    SECURELOG_DR);
+                    std::string(SECURELOG_DR));
     if (securelog_reader == dds::core::null) {
         throw std::runtime_error(
                 "Failed to lookup secure log reader datareader");

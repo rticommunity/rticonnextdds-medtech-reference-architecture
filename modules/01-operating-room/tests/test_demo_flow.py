@@ -21,26 +21,35 @@ They are marked ``slow`` because they launch the full application set and
 wait for inter-app DDS interactions to play out.
 """
 
-import signal
+import importlib
 import sys
+import threading
 import time
+from pathlib import Path
 
 import pytest
-from conftest import (
-    MODULE_DIR,
-    SRC_DIR,
-    create_reader,
-    create_writer,
-    wait_for_data,
-    wait_for_device_status,
-    wait_for_process_ready,
-)
+
+_IS_MACOS = sys.platform == "darwin"
+
+TESTS_DIR = Path(__file__).resolve().parent
+
+if str(TESTS_DIR) not in sys.path:
+    sys.path.insert(0, str(TESTS_DIR))
+
+module01_test_support = importlib.import_module("module01_test_support")
+
+SRC_DIR = module01_test_support.SRC_DIR
+create_reader = module01_test_support.create_reader
+create_writer = module01_test_support.create_writer
+wait_for_data = module01_test_support.wait_for_data
+wait_for_device_status = module01_test_support.wait_for_device_status
+wait_for_process_ready = module01_test_support.wait_for_process_ready
 
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 QT_ENV = {"QT_QPA_PLATFORM": "offscreen"}
-GTK_ENV = {"GDK_BACKEND": "x11"}
+GTK_ENV = {} if _IS_MACOS else {"GDK_BACKEND": "x11"}
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +98,9 @@ class TestCrashDetection:
         time.sleep(1)  # wait longer than the 200ms deadline
         post_kill = hb_reader.take()
         post_kill_valid = [s for s in post_kill if s.info.valid]
-        assert len(post_kill_valid) == 0, f"Heartbeats still arriving after SIGKILL ({len(post_kill_valid)} samples)"
+        assert len(post_kill_valid) == 0, (
+            f"Heartbeats still arriving after SIGKILL ({len(post_kill_valid)} samples)"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +145,8 @@ class TestPauseAndResume:
         # Wait for ON
         samples = wait_for_data(status_reader, timeout_sec=10)
         assert any(
-            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON for s in samples
+            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON
+            for s in samples
         ), "PatientSensor never reached ON"
 
         # Verify vitals are flowing
@@ -155,7 +167,9 @@ class TestPauseAndResume:
         while time.monotonic() < deadline:
             ss = wait_for_data(status_reader, timeout_sec=1)
             if any(
-                s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.PAUSED for s in ss
+                s.device == Common.DeviceType.PATIENT_SENSOR
+                and s.status == Common.DeviceStatuses.PAUSED
+                for s in ss
             ):
                 paused = True
                 break
@@ -163,10 +177,12 @@ class TestPauseAndResume:
 
         # Drain any remaining vitals and then check no new ones arrive
         vitals_reader.take()  # drain
-        time.sleep(2)
+        time.sleep(1)
         stale = vitals_reader.take()
         valid_stale = [s for s in stale if s.info.valid]
-        assert len(valid_stale) <= 1, f"Vitals still flowing while PAUSED ({len(valid_stale)} samples)"
+        assert len(valid_stale) <= 1, (
+            f"Vitals still flowing while PAUSED ({len(valid_stale)} samples)"
+        )
 
         # Send START
         cmd_writer.write(
@@ -201,9 +217,13 @@ class TestGracefulShutdown:
 
         procs = {
             Common.DeviceType.PATIENT_SENSOR: proc_manager.start_app("PatientSensor"),
-            Common.DeviceType.ARM_CONTROLLER: proc_manager.start_app("ArmController", extra_env=GTK_ENV),
+            Common.DeviceType.ARM_CONTROLLER: proc_manager.start_app(
+                "ArmController", extra_env=GTK_ENV
+            ),
             Common.DeviceType.ARM: proc_manager.start_app("Arm", extra_env=QT_ENV),
-            Common.DeviceType.PATIENT_MONITOR: proc_manager.start_app("PatientMonitor", extra_env=QT_ENV),
+            Common.DeviceType.PATIENT_MONITOR: proc_manager.start_app(
+                "PatientMonitor", extra_env=QT_ENV
+            ),
         }
 
         status_reader = create_reader(
@@ -222,7 +242,9 @@ class TestGracefulShutdown:
         # Wait until all devices have published a DeviceStatus (up to 30s)
         expected = set(procs.keys())
         seen = wait_for_device_status(status_reader, expected, timeout_sec=30)
-        assert seen == expected, f"Timed out waiting for devices. Missing: {set(d.name for d in expected - seen)}"
+        assert seen == expected, (
+            f"Timed out waiting for devices. Missing: {set(d.name for d in expected - seen)}"
+        )
 
         # Send SHUTDOWN to each device
         for device_type in procs:
@@ -243,7 +265,9 @@ class TestGracefulShutdown:
             except Exception:
                 still_alive[device_type.name] = proc
 
-        assert not still_alive, f"These devices did not exit after SHUTDOWN: {list(still_alive.keys())}"
+        assert not still_alive, (
+            f"These devices did not exit after SHUTDOWN: {list(still_alive.keys())}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -260,7 +284,7 @@ class TestSecurePatientSensor:
         ps = proc_manager_secure.start_app("PatientSensor")
 
         # Wait for security handshake and DDS initialization
-        wait_for_process_ready(ps, timeout_sec=15)
+        wait_for_process_ready(ps, timeout_sec=5)
 
         if ps.poll() is not None:
             stdout = ps.stdout.read().decode(errors="replace") if ps.stdout else ""
@@ -283,9 +307,16 @@ class TestSecureAllApps:
             "ArmController": proc_manager_secure.start_app("ArmController", extra_env=GTK_ENV),
         }
 
-        # Wait for security handshake and DDS initialization
-        for p in apps.values():
-            wait_for_process_ready(p, timeout_sec=15)
+        # Wait for security handshake and DDS initialization (parallel).
+        # Apps that fail the handshake crash within the first 1-2 s; 3 s is
+        # enough to catch startup failures while keeping the test fast.
+        threads = [
+            threading.Thread(target=wait_for_process_ready, args=(p, 3)) for p in apps.values()
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
 
         crashed = {}
         for name, p in apps.items():

@@ -6,34 +6,48 @@
 #     export RTI_LICENSE_FILE=/path/to/rti_license.dat
 #
 #   Or, if the license is at the standard $NDDSHOME location on your host,
-#   e.g. /opt/rti.com/rti_connext_dds-7.3.1/rti_license.dat, point to it.
+#   e.g. /opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat, point to it.
 #
 # Usage:
+#   # Run all tests (default: verbose)
 #   docker compose -f tests/docker/docker-compose.yml run --rm --build test
-#       # one command: build image as needed, run all tests, auto-remove container
+#
+#   # Run specific tests with custom args
 #   docker compose -f tests/docker/docker-compose.yml run --rm --build test \
-#       python -m pytest modules/01-operating-room/tests/test_types.py -v
-#   docker compose -f tests/docker/docker-compose.yml up --build --abort-on-container-exit --exit-code-from test test
+#       -v modules/01-operating-room/tests/test_types.py
+#
+#   # Run tests matching a pattern
+#   docker compose -f tests/docker/docker-compose.yml run --rm --build test \
+#       -k "test_types"
+#
+#   # Clean up
 #   docker compose -f tests/docker/docker-compose.yml down --remove-orphans
 # ==========================================================================
 
 services:
-  build:
-    build:
-      context: ../..
-      dockerfile: tests/docker/Dockerfile
-      target: build
-    image: medtech-build
 
+  # Primary test service, used for CI and local testing.
+  # Can be extended for testing variations of dependency versions.
   test:
     build:
       context: ../..
       dockerfile: tests/docker/Dockerfile
       target: test
-    image: medtech-test
+    image: medtech-test:latest
     stdin_open: false
     tty: false
     environment:
       PYTHONUNBUFFERED: "1"
     volumes:
-      - ${RTI_LICENSE_FILE:?Set RTI_LICENSE_FILE to the path of your rti_license.dat}:/opt/rti.com/rti_connext_dds-7.3.1/rti_license.dat:ro
+      - ${RTI_LICENSE_FILE:?Set RTI_LICENSE_FILE to the path of your rti_license.dat}:/opt/rti.com/rti_license.dat:ro
+
+  # Test with Connext 7.3 LTS to validate backward compatibility.
+  # Note: this service is NOT run as part of CI.
+  test-connext-73:
+    extends:
+      service: test
+    build:
+      args:
+        CONNEXT_VERSION: "7.3.1"
+        PYTHON_VERSION: "3.9"
+    image: medtech-test:7.3.1

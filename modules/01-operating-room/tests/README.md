@@ -1,6 +1,6 @@
 # Module 01 — Test Suite
 
-Automated tests for the **Digital Operating Room** module.  
+Automated tests for the **Digital Operating Room** module.
 Tests verify that applications build, launch, communicate via DDS, and
 behave as described in the module README.
 
@@ -8,8 +8,8 @@ behave as described in the module README.
 
 | Requirement | Notes |
 | --- | --- |
-| RTI Connext DDS 7.3.0+ | `NDDSHOME` must be set |
-| Python 3.9+ | With the Connext Python API (`rti.connextdds`) |
+| RTI Connext DDS 7.7.x | `NDDSHOME` must be set |
+| Python 3.10+ | With the Connext Python API (`rti.connextdds`) |
 | pytest | `pip install pytest` |
 | C++ build complete | Run `python scripts/build.py` first |
 | PySide6, pyqtgraph, numpy | For GUI app tests |

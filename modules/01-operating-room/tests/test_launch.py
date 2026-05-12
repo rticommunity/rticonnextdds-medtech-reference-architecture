@@ -15,15 +15,16 @@ Verifies that each application starts without crashing.
 GUI applications are marked so they can be skipped on headless systems.
 """
 
-import time
+import sys
 
 import pytest
-from conftest import (
+from module01_test_support import (
     create_reader,
-    wait_for_data,
     wait_for_device_status,
     wait_for_process_ready,
 )
+
+_IS_MACOS = sys.platform == "darwin"
 
 
 class TestPatientSensor:
@@ -38,7 +39,11 @@ class TestPatientSensor:
         proc = proc_manager.start_app("PatientSensor")
         wait_for_process_ready(proc)
         # Read whatever is available, non-blocking
-        out = proc.stdout.read1(4096).decode(errors="replace") if hasattr(proc.stdout, "read1") else b""
+        out = (
+            proc.stdout.read1(4096).decode(errors="replace")
+            if hasattr(proc.stdout, "read1")
+            else b""
+        )
         # Fallback: terminate and capture
         if not out:
             proc.terminate()
@@ -51,7 +56,7 @@ class TestPatientSensor:
 class TestOrchestrator:
     """Orchestrator is a C++ GTK application."""
 
-    GTK_ENV = {"GDK_BACKEND": "x11"}
+    GTK_ENV = {} if _IS_MACOS else {"GDK_BACKEND": "x11"}
 
     def test_starts_and_stays_alive(self, proc_manager):
         proc = proc_manager.start_app("Orchestrator", extra_env=self.GTK_ENV)
@@ -63,7 +68,7 @@ class TestOrchestrator:
 class TestArmController:
     """ArmController is a C++ GTK application."""
 
-    GTK_ENV = {"GDK_BACKEND": "x11"}
+    GTK_ENV = {} if _IS_MACOS else {"GDK_BACKEND": "x11"}
 
     def test_starts_and_stays_alive(self, proc_manager):
         proc = proc_manager.start_app("ArmController", extra_env=self.GTK_ENV)
@@ -79,7 +84,7 @@ class TestPatientMonitor:
 
     def test_starts_and_stays_alive(self, proc_manager):
         proc = proc_manager.start_app("PatientMonitor", extra_env=self.QT_ENV)
-        wait_for_process_ready(proc, timeout_sec=10)
+        wait_for_process_ready(proc, timeout_sec=3)
         assert proc.poll() is None, f"PatientMonitor exited early with code {proc.returncode}"
 
 
@@ -91,7 +96,7 @@ class TestArm:
 
     def test_starts_and_stays_alive(self, proc_manager):
         proc = proc_manager.start_app("Arm", extra_env=self.QT_ENV)
-        wait_for_process_ready(proc, timeout_sec=10)
+        wait_for_process_ready(proc, timeout_sec=3)
         assert proc.poll() is None, f"Arm exited early with code {proc.returncode}"
 
 
@@ -100,7 +105,7 @@ class TestAllApps:
     """Launch all five applications simultaneously."""
 
     QT_ENV = {"QT_QPA_PLATFORM": "offscreen"}
-    GTK_ENV = {"GDK_BACKEND": "x11"}
+    GTK_ENV = {} if _IS_MACOS else {"GDK_BACKEND": "x11"}
 
     def test_all_apps_launch_together(self, proc_manager, dds_participant):
         from Types import Common, Common_DeviceStatus
@@ -127,7 +132,9 @@ class TestAllApps:
             Common.DeviceType.PATIENT_MONITOR,
         }
         seen = wait_for_device_status(status_reader, expected, timeout_sec=30)
-        assert seen == expected, f"Not all apps came online. Missing: {set(d.name for d in expected - seen)}"
+        assert seen == expected, (
+            f"Not all apps came online. Missing: {set(d.name for d in expected - seen)}"
+        )
 
         for name, proc in procs.items():
             assert proc.poll() is None, f"{name} crashed on startup (exit code {proc.returncode})"

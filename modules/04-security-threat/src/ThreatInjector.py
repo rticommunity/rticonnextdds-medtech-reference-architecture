@@ -1,6 +1,6 @@
-# 
+#
 # (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
-# 
+#
 # RTI grants Licensee a license to use, modify, compile, and create derivative
 # works of the software solely for use with RTI Connext DDS.  Licensee may
 # redistribute copies of the software provided that all such copies are
@@ -12,58 +12,79 @@
 
 from __future__ import annotations
 
-import sys
 import math
-import time
-import threading
 import signal
+import sys
+import threading
 from pathlib import Path
 
-from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QLabel, QFrame,
-    QHBoxLayout, QVBoxLayout, QGridLayout, QPushButton, QTextEdit,
-    QSizePolicy, QSlider
-)
-from PySide6.QtCore import Qt, QTimer, QRectF, QPointF, Signal, QObject
-from PySide6.QtGui import (
-    QPainter, QColor, QPen, QBrush, QFont, QPainterPath, QPixmap, QIcon
-)
-
 import rti.connextdds as dds
-import PySide6.QtAsyncio as QtAsyncio
+from PySide6 import QtAsyncio
+from PySide6.QtCore import QPointF, Qt, QTimer
+from PySide6.QtGui import (
+    QBrush,
+    QColor,
+    QFont,
+    QIcon,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QSizePolicy,
+    QSlider,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 # Import OR types
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
-if str(PROJECT_ROOT / "modules" / "01-operating-room" / "src") not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT / "modules" / "01-operating-room" / "src"))
+sys.path.insert(
+    0,
+    str(
+        Path(__file__).parent.parent.parent.parent.resolve()
+        / "modules"
+        / "01-operating-room"
+        / "src"
+    ),
+)
 import DdsUtils
-from Types import Common, Orchestrator, SurgicalRobot, DdsEntities
 from ThreatTypes import ThreatEntities
+from Types import Common, DdsEntities, Orchestrator, SurgicalRobot
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
 threat_entities = ThreatEntities.Constants
 entities = DdsEntities.Constants
 
 # ─── RTI Brand Colors ────────────────────────────────────────────────────
-RTI_BLUE    = "#004C97"
-RTI_ORANGE  = "#ED8B00"
-BG_MAIN     = "#0A0E17"
-BG_PANEL    = "#0F1822"
-BG_HEADER   = "#071020"
-BORDER_DIM  = "#1A2535"
-COLOR_OK     = "#00E676"
-COLOR_WARN   = "#ED8B00"
-COLOR_BLOCKED    = "#FF4444"
-COLOR_IDLE       = "#445566"
+RTI_BLUE = "#004C97"
+RTI_ORANGE = "#ED8B00"
+BG_MAIN = "#0A0E17"
+BG_PANEL = "#0F1822"
+BG_HEADER = "#071020"
+BORDER_DIM = "#1A2535"
+COLOR_OK = "#00E676"
+COLOR_WARN = "#ED8B00"
+COLOR_BLOCKED = "#FF4444"
+COLOR_IDLE = "#445566"
 COLOR_ATTEMPTING = "#1E88E5"
-COLOR_GRANTED    = "#00C853"
+COLOR_GRANTED = "#00C853"
 
 UPDATE_MS = 100
 
 # ─── Left-panel button styles ─────────────────────────────────────────────
 _STYLE_MODE_INACTIVE = (
-    f"QPushButton {{ background-color: #0D1824; color: #4A6070; "
-    f"border: 1px solid #1A2A38; border-radius: 5px; padding: 0px 12px; "
-    f"font-size: 13px; font-weight: bold; text-align: left; }}"
-    f"QPushButton:hover {{ background-color: #162030; color: #90AAB8; border-color: #2A3A4A; }}"
+    "QPushButton { background-color: #0D1824; color: #4A6070; "
+    "border: 1px solid #1A2A38; border-radius: 5px; padding: 0px 12px; "
+    "font-size: 13px; font-weight: bold; text-align: left; }"
+    "QPushButton:hover { background-color: #162030; color: #90AAB8; border-color: #2A3A4A; }"
 )
 _STYLE_MODE_ACTIVE_UNSECURE = (
     f"QPushButton {{ background-color: #0A1E35; color: {COLOR_ATTEMPTING}; "
@@ -76,10 +97,10 @@ _STYLE_MODE_ACTIVE_THREAT = (
     f"font-size: 13px; font-weight: bold; text-align: left; }}"
 )
 _STYLE_ATTACK_INACTIVE = (
-    f"QPushButton {{ background-color: #0D1824; color: #4A6070; "
-    f"border: 1px solid #1A2A38; border-radius: 5px; padding: 0px 12px; "
-    f"font-size: 12px; font-weight: bold; text-align: left; }}"
-    f"QPushButton:hover {{ background-color: #162030; color: #90AAB8; border-color: #2A3A4A; }}"
+    "QPushButton { background-color: #0D1824; color: #4A6070; "
+    "border: 1px solid #1A2A38; border-radius: 5px; padding: 0px 12px; "
+    "font-size: 12px; font-weight: bold; text-align: left; }"
+    "QPushButton:hover { background-color: #162030; color: #90AAB8; border-color: #2A3A4A; }"
 )
 _STYLE_ATTACK_ACTIVE = (
     f"QPushButton {{ background-color: #1E1200; color: {COLOR_WARN}; "
@@ -93,26 +114,26 @@ _STYLE_STOP_ENABLED = (
     f"QPushButton:hover {{ background-color: #2E1010; border-color: {COLOR_BLOCKED}; }}"
 )
 _STYLE_STOP_DISABLED = (
-    f"QPushButton {{ background-color: #0D1520; color: #2A3848; "
-    f"border: 1px solid #182028; border-radius: 5px; padding: 0px 12px; "
-    f"font-size: 13px; font-weight: bold; }}"
+    "QPushButton { background-color: #0D1520; color: #2A3848; "
+    "border: 1px solid #182028; border-radius: 5px; padding: 0px 12px; "
+    "font-size: 13px; font-weight: bold; }"
 )
 
 # Joint colors matching module 01
 JOINT_COLORS = {
-    SurgicalRobot.Motors.BASE:     "#004C97",
+    SurgicalRobot.Motors.BASE: "#004C97",
     SurgicalRobot.Motors.SHOULDER: "#ED8B00",
-    SurgicalRobot.Motors.ELBOW:    "#00BFFF",
-    SurgicalRobot.Motors.WRIST:    "#7CFC00",
-    SurgicalRobot.Motors.HAND:     "#DA70D6",
+    SurgicalRobot.Motors.ELBOW: "#00BFFF",
+    SurgicalRobot.Motors.WRIST: "#7CFC00",
+    SurgicalRobot.Motors.HAND: "#DA70D6",
 }
 
 JOINT_NAMES = {
-    SurgicalRobot.Motors.BASE:     "BASE",
+    SurgicalRobot.Motors.BASE: "BASE",
     SurgicalRobot.Motors.SHOULDER: "SHOULDER",
-    SurgicalRobot.Motors.ELBOW:    "ELBOW",
-    SurgicalRobot.Motors.WRIST:    "WRIST",
-    SurgicalRobot.Motors.HAND:     "HAND",
+    SurgicalRobot.Motors.ELBOW: "ELBOW",
+    SurgicalRobot.Motors.WRIST: "WRIST",
+    SurgicalRobot.Motors.HAND: "HAND",
 }
 
 _MOTORS_ORDERED = [
@@ -124,27 +145,27 @@ _MOTORS_ORDERED = [
 ]
 
 INITIAL_ANGLES = {
-    SurgicalRobot.Motors.BASE:     204.0,
+    SurgicalRobot.Motors.BASE: 204.0,
     SurgicalRobot.Motors.SHOULDER: 176.0,
-    SurgicalRobot.Motors.ELBOW:    156.0,
-    SurgicalRobot.Motors.WRIST:    165.0,
-    SurgicalRobot.Motors.HAND:     151.0,
+    SurgicalRobot.Motors.ELBOW: 156.0,
+    SurgicalRobot.Motors.WRIST: 165.0,
+    SurgicalRobot.Motors.HAND: 151.0,
 }
 
 # Attack mode constants
-MODE_UNSECURE     = "UNSECURE"
-MODE_ROGUE_CA     = "ROGUE CA"
+MODE_UNSECURE = "UNSECURE"
+MODE_ROGUE_CA = "ROGUE CA"
 MODE_FORGED_PERMS = "FORGED PERMS"
 MODE_EXPIRED_CERT = "EXPIRED CERT"
 
 # Attack type constants
-ATTACK_MOTOR_INJECT    = "MOTOR INJECT"
-ATTACK_CMD_PAUSE       = "CMD INJECT (PAUSE)"
-ATTACK_CMD_SHUTDOWN    = "CMD INJECT (SHUTDOWN)"
+ATTACK_MOTOR_INJECT = "MOTOR INJECT"
+ATTACK_CMD_PAUSE = "CMD INJECT (PAUSE)"
+ATTACK_CMD_SHUTDOWN = "CMD INJECT (SHUTDOWN)"
 
 MODE_TO_DP_NAME = {
-    MODE_UNSECURE:     threat_entities.INJECTOR_UNSECURE_DP,
-    MODE_ROGUE_CA:     threat_entities.INJECTOR_ROGUE_CA_DP,
+    MODE_UNSECURE: threat_entities.INJECTOR_UNSECURE_DP,
+    MODE_ROGUE_CA: threat_entities.INJECTOR_ROGUE_CA_DP,
     MODE_FORGED_PERMS: threat_entities.INJECTOR_FORGED_PERMS_DP,
     MODE_EXPIRED_CERT: threat_entities.INJECTOR_EXPIRED_CERT_DP,
 }
@@ -153,9 +174,9 @@ MODE_TO_DP_NAME = {
 # ─── Arm Visualisation (reused from Arm.py style) ────────────────────────
 class ArmVizWidget(QWidget):
     SEGMENT_LEN = 70
-    JOINT_R     = 12
-    EE_SIZE     = 16
-    GROUND_W    = 80
+    JOINT_R = 12
+    EE_SIZE = 16
+    GROUND_W = 80
     GROUND_LINES = 6
 
     _GREY = "#334455"
@@ -223,7 +244,9 @@ class ArmVizWidget(QWidget):
             p.setPen(pen)
             p.drawLine(QPointF(x0, y0), QPointF(x1, y1))
 
-        ee_color = QColor(JOINT_COLORS[SurgicalRobot.Motors.HAND]) if self._active else QColor(self._GREY)
+        ee_color = (
+            QColor(JOINT_COLORS[SurgicalRobot.Motors.HAND]) if self._active else QColor(self._GREY)
+        )
         p.setPen(QPen(ee_color, 2))
         ex, ey = points[-1]
         es = self.EE_SIZE
@@ -274,8 +297,6 @@ class ThreatInjectorWindow(QMainWindow):
 
         self._build_ui()
 
-
-
     def _build_ui(self):
         central = QWidget()
         central.setStyleSheet(f"background-color: {BG_MAIN};")
@@ -304,9 +325,7 @@ class ThreatInjectorWindow(QMainWindow):
     def _build_header(self) -> QWidget:
         header = QWidget()
         header.setFixedHeight(80)
-        header.setStyleSheet(
-            f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};"
-        )
+        header.setStyleSheet(f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};")
         h = QHBoxLayout(header)
         h.setContentsMargins(20, 0, 20, 0)
 
@@ -314,7 +333,14 @@ class ThreatInjectorWindow(QMainWindow):
         if not _logo_px.isNull():
             logo = QLabel()
             logo.setStyleSheet("background: transparent;")
-            logo.setPixmap(_logo_px.scaled(52, 52, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            logo.setPixmap(
+                _logo_px.scaled(
+                    52,
+                    52,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
             h.addWidget(logo)
 
         rti_lbl = QLabel("RTI Connext")
@@ -345,14 +371,10 @@ class ThreatInjectorWindow(QMainWindow):
     def _build_footer(self) -> QWidget:
         footer = QWidget()
         footer.setFixedHeight(44)
-        footer.setStyleSheet(
-            f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};"
-        )
+        footer.setStyleSheet(f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};")
         f = QHBoxLayout(footer)
         f.setContentsMargins(20, 0, 20, 0)
-        lbl = QLabel(
-            "Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture"
-        )
+        lbl = QLabel("Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture")
         lbl.setStyleSheet(f"color: {COLOR_IDLE}; font-size: 18px; background: transparent;")
         f.addWidget(lbl)
         f.addStretch()
@@ -378,7 +400,12 @@ class ThreatInjectorWindow(QMainWindow):
         layout.addWidget(mode_lbl)
 
         self._mode_buttons: dict[str, QPushButton] = {}
-        for mode in [MODE_UNSECURE, MODE_ROGUE_CA, MODE_FORGED_PERMS, MODE_EXPIRED_CERT]:
+        for mode in [
+            MODE_UNSECURE,
+            MODE_ROGUE_CA,
+            MODE_FORGED_PERMS,
+            MODE_EXPIRED_CERT,
+        ]:
             btn = QPushButton(mode)
             btn.setFixedHeight(40)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -410,7 +437,11 @@ class ThreatInjectorWindow(QMainWindow):
         # ── Frequency slider ───────────────────────────────────────
         freq_hdr = QLabel("Inject Frequency (Hz)")
         freq_hdr.setStyleSheet(
-            f"color: {RTI_ORANGE}; font-size: 12px; font-weight: bold; background: transparent; letter-spacing: 1px;"
+            f"color: {RTI_ORANGE}; "
+            f"font-size: 12px; "
+            f"font-weight: bold; "
+            f"background: transparent; "
+            f"letter-spacing: 1px;"
         )
         layout.addWidget(freq_hdr)
         self.freq_slider = QSlider(Qt.Orientation.Horizontal)
@@ -418,11 +449,12 @@ class ThreatInjectorWindow(QMainWindow):
         self.freq_slider.setMaximum(20)
         self.freq_slider.setValue(5)
         self.freq_slider.setStyleSheet(
-            f"QSlider::handle:horizontal {{ background: {RTI_ORANGE}; border-radius: 5px; width: 12px; height: 12px; }}"
+            f"QSlider::handle:horizontal "
+            f"{{ background: {RTI_ORANGE}; border-radius: 5px; width: 12px; height: 12px; }}"
         )
         layout.addWidget(self.freq_slider)
         self.freq_lbl = QLabel("5 Hz")
-        self.freq_lbl.setStyleSheet(f"color: #C0D0E0; font-size: 12px; background: transparent;")
+        self.freq_lbl.setStyleSheet("color: #C0D0E0; font-size: 12px; background: transparent;")
         layout.addWidget(self.freq_lbl)
         self.freq_slider.valueChanged.connect(lambda v: self.freq_lbl.setText(f"{v} Hz"))
 
@@ -490,14 +522,14 @@ class ThreatInjectorWindow(QMainWindow):
 
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setStyleSheet(f"""
-            QTextEdit {{
+        self.log_text.setStyleSheet("""
+            QTextEdit {
                 background-color: #060C14;
                 color: #A0B0C0;
                 font-family: 'Courier New', monospace;
                 font-size: 12px;
                 border: none;
-            }}
+            }
         """)
         v.addWidget(self.log_text)
         return frame
@@ -507,11 +539,11 @@ class ThreatInjectorWindow(QMainWindow):
     def set_data_status(self, status: str):
         """status: 'IDLE', 'ACCESS GRANTED', 'ATTACKING', 'NO ACCESS', 'ATTACK FAILED'"""
         colors = {
-            "IDLE":          (COLOR_IDLE,       "#fff"),
-            "ACCESS GRANTED":(COLOR_GRANTED,    "#000"),
-            "ATTACKING":     (COLOR_GRANTED,    "#000"),
-            "NO ACCESS":     (COLOR_WARN,       "#000"),
-            "ATTACK FAILED": (COLOR_BLOCKED,    "#fff"),
+            "IDLE": (COLOR_IDLE, "#fff"),
+            "ACCESS GRANTED": (COLOR_GRANTED, "#000"),
+            "ATTACKING": (COLOR_GRANTED, "#000"),
+            "NO ACCESS": (COLOR_WARN, "#000"),
+            "ATTACK FAILED": (COLOR_BLOCKED, "#fff"),
         }
         bg, fg = colors.get(status, (COLOR_IDLE, "#fff"))
         self.status_badge.setText(status)
@@ -523,7 +555,11 @@ class ThreatInjectorWindow(QMainWindow):
     def highlight_mode_button(self, active_mode: str | None) -> None:
         for mode, btn in self._mode_buttons.items():
             if mode == active_mode:
-                style = _STYLE_MODE_ACTIVE_UNSECURE if mode == MODE_UNSECURE else _STYLE_MODE_ACTIVE_THREAT
+                style = (
+                    _STYLE_MODE_ACTIVE_UNSECURE
+                    if mode == MODE_UNSECURE
+                    else _STYLE_MODE_ACTIVE_THREAT
+                )
                 btn.setStyleSheet(style)
             else:
                 btn.setStyleSheet(_STYLE_MODE_INACTIVE)
@@ -533,7 +569,9 @@ class ThreatInjectorWindow(QMainWindow):
 
     def highlight_attack_button(self, active_attack: str | None) -> None:
         for atk, btn in self._attack_buttons.items():
-            btn.setStyleSheet(_STYLE_ATTACK_ACTIVE if atk == active_attack else _STYLE_ATTACK_INACTIVE)
+            btn.setStyleSheet(
+                _STYLE_ATTACK_ACTIVE if atk == active_attack else _STYLE_ATTACK_INACTIVE
+            )
 
     def set_attack_buttons_enabled(self, enabled: bool) -> None:
         for btn in self._attack_buttons.values():
@@ -542,10 +580,10 @@ class ThreatInjectorWindow(QMainWindow):
     def log(self, level: str, msg: str):
         """Append a coloured log entry. level: 'OK', 'WARN', 'BLOCKED', 'INFO', 'SECURITY'"""
         colors = {
-            "OK":       COLOR_OK,
-            "WARN":     COLOR_WARN,
-            "BLOCKED":  COLOR_BLOCKED,
-            "INFO":     "#6699AA",
+            "OK": COLOR_OK,
+            "WARN": COLOR_WARN,
+            "BLOCKED": COLOR_BLOCKED,
+            "INFO": "#6699AA",
             "SECURITY": "#FF6D00",
         }
         c = colors.get(level, "#C0D0E0")
@@ -553,9 +591,7 @@ class ThreatInjectorWindow(QMainWindow):
             f'<span style="color:{c}; font-weight:bold;">[{level}]</span>'
             f' <span style="color:#C0D0E0;">{msg}</span>'
         )
-        self.log_text.verticalScrollBar().setValue(
-            self.log_text.verticalScrollBar().maximum()
-        )
+        self.log_text.verticalScrollBar().setValue(self.log_text.verticalScrollBar().maximum())
 
     def set_launch_btn_active(self, active: bool):
         if active:
@@ -599,7 +635,9 @@ class ThreatInjectorApp:
         self._attack_timer = QTimer()
         self._attack_timer.timeout.connect(self._do_inject)
         self._angles = dict(INITIAL_ANGLES)
-        self._inject_directions = {m: SurgicalRobot.MotorDirections.INCREMENT for m in _MOTORS_ORDERED}
+        self._inject_directions = {
+            m: SurgicalRobot.MotorDirections.INCREMENT for m in _MOTORS_ORDERED
+        }
         self._motor_idx = 0
         self._tick = 0
         self._participant_lock = threading.Lock()
@@ -713,9 +751,16 @@ class ThreatInjectorApp:
                     return
                 try:
                     self._motor_writer.write(sample)
-                    d_str = "INCREMENT" if direction == SurgicalRobot.MotorDirections.INCREMENT else "DECREMENT"
+                    d_str = (
+                        "INCREMENT"
+                        if direction == SurgicalRobot.MotorDirections.INCREMENT
+                        else "DECREMENT"
+                    )
                     level = "OK" if self._prev_matched else "WARN"
-                    self.window.log(level, f"Writing MotorControl — joint: {JOINT_NAMES[motor]}, direction: {d_str}")
+                    self.window.log(
+                        level,
+                        f"Writing MotorControl — joint: {JOINT_NAMES[motor]}, direction: {d_str}",
+                    )
                     self.window.set_data_status("ATTACKING" if self._prev_matched else "NO ACCESS")
                 except Exception as exc:
                     self.window.log("BLOCKED", f"Write rejected: {exc}")
@@ -767,7 +812,10 @@ class ThreatInjectorApp:
             self._attack_timer.start(int(1000 / hz))
             self.window.set_launch_btn_active(True)
             self._update_slider_enabled()
-            self.window.log("INFO", f"Attack launched — mode: {self._current_mode}, type: {self._current_attack}")
+            self.window.log(
+                "INFO",
+                f"Attack launched — mode: {self._current_mode}, type: {self._current_attack}",
+            )
 
     def _poll_matched_status(self) -> None:
         """Periodically check publication matched status on the writers."""

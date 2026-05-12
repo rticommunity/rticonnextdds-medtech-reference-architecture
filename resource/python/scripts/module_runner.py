@@ -34,7 +34,6 @@ from pathlib import Path
 
 from . import platform_setup
 
-
 # ---------------------------------------------------------------------------
 # Module discovery
 # ---------------------------------------------------------------------------
@@ -48,11 +47,7 @@ SYSTEM_ARCH = PROJECT_ROOT / "system_arch"
 
 def discover_modules() -> dict[str, Path]:
     """Return ``{dirname: absolute_path}`` for every ``modules/*/`` directory."""
-    return {
-        p.name: p
-        for p in sorted(MODULES_DIR.iterdir())
-        if p.is_dir()
-    }
+    return {p.name: p for p in sorted(MODULES_DIR.iterdir()) if p.is_dir()}
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +87,7 @@ def _expand_string(
     module_dir: Path,
 ) -> str:
     """Expand all ``${...}`` placeholders in a string value."""
+
     def _replace(m: re.Match) -> str:
         kind = m.group(1)
         arg = m.group(2) or ""
@@ -100,18 +96,17 @@ def _expand_string(
             if arg not in resolved_args:
                 raise ValueError(f"Unknown args variable: {arg}")
             return resolved_args[arg]
-        elif kind == "MODULE_DIR":
+        if kind == "MODULE_DIR":
             return str(module_dir)
-        elif kind == "SYSTEM_ARCH":
+        if kind == "SYSTEM_ARCH":
             return str(SYSTEM_ARCH)
-        elif kind == "PYTHON":
+        if kind == "PYTHON":
             return sys.executable
-        elif kind == "CPP":
+        if kind == "CPP":
             return platform_setup.find_executable(arg)
-        elif kind == "RTISERVICE":
+        if kind == "RTISERVICE":
             return str(platform_setup.find_service_binary(arg))
-        else:
-            raise ValueError(f"Unknown placeholder: ${{{kind}}}")
+        raise ValueError(f"Unknown placeholder: ${{{kind}}}")
 
     return _INLINE_PLACEHOLDER_RE.sub(_replace, value)
 
@@ -165,7 +160,7 @@ def load_module_config(
     *apps* is ``{name: [resolved_cmd_args]}``.
     """
     config_path = module_dir / "module.json"
-    with open(config_path) as f:
+    with open(config_path, encoding="utf-8") as f:
         raw = json.load(f)
 
     if flags is None:
@@ -176,15 +171,10 @@ def load_module_config(
     resolved_args = _resolve_args(args_section, flags)
 
     # Warn about flags that are set but not consumed by this module
-    consumed_flags = {
-        spec.get("flag", name) for name, spec in args_section.items()
-    }
+    consumed_flags = {spec.get("flag", name) for name, spec in args_section.items()}
     for flag_name, flag_value in flags.items():
         if flag_value and flag_name not in consumed_flags:
-            print(
-                f"Info: --{flag_name} has no effect on "
-                f"{raw.get('description', module_dir.name)}"
-            )
+            print(f"Info: --{flag_name} has no effect on {raw.get('description', module_dir.name)}")
 
     # --- Environment ---
     nddshome = platform_setup.get_nddshome()
@@ -231,6 +221,7 @@ def load_module_config(
 # ---------------------------------------------------------------------------
 # Launch helpers
 # ---------------------------------------------------------------------------
+
 
 def _shutdown(children: list[subprocess.Popen]) -> None:
     """Gracefully terminate then kill all children."""

@@ -10,7 +10,7 @@ under no obligation to maintain or support the software.  RTI shall not be
 liable for any incidental or consequential damages arising out of the use or
 inability to use the software. -->
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/dds_security_permissions.xsd">
+    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.7.0/dds_security_permissions.xsd">
     <permissions>
         <grant name="SecureLogReaderParticipant">
             <subject_name>/C=US/ST=CA/O=Company Name/emailAddress=securelogreader@company_name.com/CN=SecureLogReader</subject_name>

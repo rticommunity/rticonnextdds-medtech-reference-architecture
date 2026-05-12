@@ -9,10 +9,10 @@ of any type, including any warranty for fitness for any purpose. RTI is
 under no obligation to maintain or support the software.  RTI shall not be
 liable for any incidental or consequential damages arising out of the use or
 inability to use the software. -->
-<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_dds_profiles.xsd" version="7.3.0">
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.7.0/rti_dds_profiles.xsd" version="7.7.0">
 
     <qos_library name="SystemLibrary">
-      <!-- All DomainParticipants should typically use this profile, unless they have differen requirements -->
+      <!-- All DomainParticipants should typically use this profile, unless they have different requirements -->
       <qos_profile name="DefaultParticipant" base_name="BuiltinQosLib::Generic.Common">
         <domain_participant_qos>
           <!-- Discovery-related optimizations -->
@@ -26,7 +26,7 @@ inability to use the software. -->
               <!-- message_size_max should be >= largest message over SHMEM -->
               <!-- receive_buffer_size and received_message_count_max should be modified accordingly -->
               <!-- As a general rule: receive_buffer_size = message_size_max * received_message_count_max -->
-              
+
               <!-- <message_size_max>262144</message_size_max>
               <receive_buffer_size>8388608</receive_buffer_size>
               <received_message_count_max>32</received_message_count_max> -->
@@ -71,7 +71,7 @@ inability to use the software. -->
       </domain_participant_qos>
         </qos_profile>
     </qos_library>
-  
+
     <qos_library name="DataFlowLibrary">
     <!-- For topics that are published at a high rate -->
       <qos_profile name="Streaming" base_name="BuiltinQosLib::Generic.Common">
@@ -140,5 +140,4 @@ inability to use the software. -->
         </datareader_qos>
       </qos_profile>
     </qos_library>
-     
 </dds>

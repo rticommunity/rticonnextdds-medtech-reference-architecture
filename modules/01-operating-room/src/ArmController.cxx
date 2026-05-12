@@ -39,9 +39,8 @@ using namespace DdsEntities::Constants;
 class SurgicalArmController {
 public:
     SurgicalArmController()
-            : current_status(
-                      Common::DeviceType::ARM_CONTROLLER,
-                      Common::DeviceStatuses::ON)
+            : current_status(Common::DeviceType::ARM_CONTROLLER,
+                             Common::DeviceStatuses::ON)
     {
         // Initialize Connext entities
         initialize_connext();
@@ -123,27 +122,27 @@ private:
 
         dds::domain::DomainParticipant participant =
                 default_provider.extensions().create_participant_from_config(
-                        ARM_CONTROLLER_DP);
+                        std::string(ARM_CONTROLLER_DP));
 
         // Initialize DataWriters
         status_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<Common::DeviceStatus>>(
                 participant,
-                STATUS_DW);
+                std::string(STATUS_DW));
         hb_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<Common::DeviceHeartbeat>>(
                 participant,
-                HB_DW);
+                std::string(HB_DW));
         arm_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<SurgicalRobot::MotorControl>>(
                 participant,
-                MOTOR_CONTROL_DW);
+                std::string(MOTOR_CONTROL_DW));
 
         // Initialize DataReader
         cmd_reader = rti::sub::find_datareader_by_name<
                 dds::sub::DataReader<Orchestrator::DeviceCommand>>(
                 participant,
-                DEVICE_COMMAND_DR);
+                std::string(DEVICE_COMMAND_DR));
 
         // Setup command handling with a WaitSet
         dds::sub::cond::ReadCondition command_read_condition(
@@ -157,7 +156,7 @@ private:
     // Publish heartbeat every 50ms
     void write_hb()
     {
-        while (current_status.status() != Common::DeviceStatuses::OFF) {
+        while (current_status.status != Common::DeviceStatuses::OFF) {
             Common::DeviceHeartbeat hb(Common::DeviceType::ARM_CONTROLLER);
             hb_writer.write(hb);
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -171,11 +170,10 @@ private:
     }
 
     // Write motor command
-    void write_command(
-            SurgicalRobot::Motors motor,
-            SurgicalRobot::MotorDirections dir)
+    void write_command(SurgicalRobot::Motors motor,
+                       SurgicalRobot::MotorDirections dir)
     {
-        if (current_status.status() == Common::DeviceStatuses::ON) {
+        if (current_status.status == Common::DeviceStatuses::ON) {
             SurgicalRobot::MotorControl sample(motor, dir);
             arm_writer.write(sample);
         }
@@ -185,14 +183,13 @@ private:
     // playing
     void playing()
     {
-        while (current_status.status() != Common::DeviceStatuses::OFF) {
+        while (current_status.status != Common::DeviceStatuses::OFF) {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             for (const auto &btn : motor_play_btns) {
                 if (btn.second->get_active()) {
-                    write_command(
-                            btn.first,
-                            static_cast<SurgicalRobot::MotorDirections>(
-                                    rand() % 3));
+                    write_command(btn.first,
+                                  static_cast<SurgicalRobot::MotorDirections>(
+                                          rand() % 3));
                 }
             }
         }
@@ -206,19 +203,18 @@ private:
 
         for (const auto &sample : samples) {
             if (sample.info().valid()) {
-                if (sample.data().command()
+                if (sample.data().command
                     == Orchestrator::DeviceCommands::PAUSE) {
                     log_alert("Received PAUSE Command from Orchestrator");
-                    current_status.status(Common::DeviceStatuses::PAUSED);
-                } else if (
-                        sample.data().command()
-                        == Orchestrator::DeviceCommands::START) {
+                    current_status.status = Common::DeviceStatuses::PAUSED;
+                } else if (sample.data().command
+                           == Orchestrator::DeviceCommands::START) {
                     log_alert("Received START Command from Orchestrator");
-                    current_status.status(Common::DeviceStatuses::ON);
+                    current_status.status = Common::DeviceStatuses::ON;
                 } else {  // shutdown
                     log_alert("Received SHUTDOWN Command from Orchestrator");
                     std::cout << "Arm Controller shutting down" << std::endl;
-                    current_status.status(Common::DeviceStatuses::OFF);
+                    current_status.status = Common::DeviceStatuses::OFF;
                     app->quit();
                 }
             }
@@ -328,7 +324,7 @@ private:
     bool on_window_close(GdkEventAny *event)
     {
         std::cout << "Arm Controller UI closed, shutting down" << std::endl;
-        current_status.status(Common::DeviceStatuses::OFF);
+        current_status.status = Common::DeviceStatuses::OFF;
         return false;
     }
 
@@ -350,11 +346,10 @@ private:
     //   - AUTO / PLAY ALL can re-enable automatic mode.
     void connect_buttons(const Glib::RefPtr<Gtk::Builder> &builder)
     {
-        auto connect_inc_dec = [this, &builder](
-                                       const std::string &btn_name,
-                                       SurgicalRobot::Motors motor,
-                                       SurgicalRobot::MotorDirections
-                                               direction) {
+        auto connect_inc_dec = [this, &builder](const std::string &btn_name,
+                                                SurgicalRobot::Motors motor,
+                                                SurgicalRobot::MotorDirections
+                                                        direction) {
             Gtk::Button *button = nullptr;
             builder->get_widget<Gtk::Button>(btn_name, button);
             if (!button)
@@ -395,46 +390,36 @@ private:
                     false);
         };
 
-        connect_inc_dec(
-                "base_inc",
-                SurgicalRobot::Motors::BASE,
-                SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec(
-                "base_dec",
-                SurgicalRobot::Motors::BASE,
-                SurgicalRobot::MotorDirections::DECREMENT);
-        connect_inc_dec(
-                "shoulder_inc",
-                SurgicalRobot::Motors::SHOULDER,
-                SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec(
-                "shoulder_dec",
-                SurgicalRobot::Motors::SHOULDER,
-                SurgicalRobot::MotorDirections::DECREMENT);
-        connect_inc_dec(
-                "elbow_inc",
-                SurgicalRobot::Motors::ELBOW,
-                SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec(
-                "elbow_dec",
-                SurgicalRobot::Motors::ELBOW,
-                SurgicalRobot::MotorDirections::DECREMENT);
-        connect_inc_dec(
-                "wrist_inc",
-                SurgicalRobot::Motors::WRIST,
-                SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec(
-                "wrist_dec",
-                SurgicalRobot::Motors::WRIST,
-                SurgicalRobot::MotorDirections::DECREMENT);
-        connect_inc_dec(
-                "hand_inc",
-                SurgicalRobot::Motors::HAND,
-                SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec(
-                "hand_dec",
-                SurgicalRobot::Motors::HAND,
-                SurgicalRobot::MotorDirections::DECREMENT);
+        connect_inc_dec("base_inc",
+                        SurgicalRobot::Motors::BASE,
+                        SurgicalRobot::MotorDirections::INCREMENT);
+        connect_inc_dec("base_dec",
+                        SurgicalRobot::Motors::BASE,
+                        SurgicalRobot::MotorDirections::DECREMENT);
+        connect_inc_dec("shoulder_inc",
+                        SurgicalRobot::Motors::SHOULDER,
+                        SurgicalRobot::MotorDirections::INCREMENT);
+        connect_inc_dec("shoulder_dec",
+                        SurgicalRobot::Motors::SHOULDER,
+                        SurgicalRobot::MotorDirections::DECREMENT);
+        connect_inc_dec("elbow_inc",
+                        SurgicalRobot::Motors::ELBOW,
+                        SurgicalRobot::MotorDirections::INCREMENT);
+        connect_inc_dec("elbow_dec",
+                        SurgicalRobot::Motors::ELBOW,
+                        SurgicalRobot::MotorDirections::DECREMENT);
+        connect_inc_dec("wrist_inc",
+                        SurgicalRobot::Motors::WRIST,
+                        SurgicalRobot::MotorDirections::INCREMENT);
+        connect_inc_dec("wrist_dec",
+                        SurgicalRobot::Motors::WRIST,
+                        SurgicalRobot::MotorDirections::DECREMENT);
+        connect_inc_dec("hand_inc",
+                        SurgicalRobot::Motors::HAND,
+                        SurgicalRobot::MotorDirections::INCREMENT);
+        connect_inc_dec("hand_dec",
+                        SurgicalRobot::Motors::HAND,
+                        SurgicalRobot::MotorDirections::DECREMENT);
 
         Gtk::Button *playall = nullptr;
         builder->get_widget<Gtk::Button>("playall", playall);
@@ -458,11 +443,10 @@ private:
         std::time_t now = std::time(nullptr);
         std::tm *local_time = std::localtime(&now);
         char time_str[100];
-        std::strftime(
-                time_str,
-                sizeof(time_str),
-                "%Y-%m-%d %H:%M:%S",
-                local_time);
+        std::strftime(time_str,
+                      sizeof(time_str),
+                      "%Y-%m-%d %H:%M:%S",
+                      local_time);
 
         std::stringstream ss;
         ss << "\n" << time_str << " - " << msg;

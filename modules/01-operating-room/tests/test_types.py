@@ -16,10 +16,9 @@ fields and enum members that this module's applications depend on.
 """
 
 import sys
-from pathlib import Path
 
 import pytest
-from conftest import SRC_DIR
+from module01_test_support import SRC_DIR
 
 # ---------------------------------------------------------------------------
 # Generated types
@@ -39,11 +38,8 @@ class TestPythonTypes:
             sys.path.insert(0, str(SRC_DIR))
 
         from Types import (
-            Common_DeviceHeartbeat,
             Common_DeviceStatus,
-            Orchestrator_DeviceCommand,
             PatientMonitor_Vitals,
-            SurgicalRobot_MotorControl,
         )
 
         # Smoke-check that we can instantiate them
@@ -115,7 +111,14 @@ class TestEnumMembers:
     def test_device_type_enum(self):
         from Types import Common
 
-        expected = {"ARM_CONTROLLER", "ARM", "VIDEO_PUB", "VIDEO_SUB", "PATIENT_MONITOR", "PATIENT_SENSOR"}
+        expected = {
+            "ARM_CONTROLLER",
+            "ARM",
+            "VIDEO_PUB",
+            "VIDEO_SUB",
+            "PATIENT_MONITOR",
+            "PATIENT_SENSOR",
+        }
         actual = {e.name for e in Common.DeviceType}
         assert expected <= actual
 

@@ -16,10 +16,9 @@ and verifies that data is captured to a SQLite database.
 """
 
 import time
-from pathlib import Path
 
 import pytest
-from conftest import (
+from module02_test_support import (
     MODULE_DIR,
     RECORDING_DIR,
     RECORDING_SERVICE,
@@ -37,27 +36,35 @@ class TestRecording:
         """Recording Service should create or_recording_database.dat."""
         # Start PatientSensor to produce t/Vitals data
         ps = proc_manager.start_app("PatientSensor")
-        wait_for_process_ready(ps, timeout_sec=10)
+        wait_for_process_ready(ps, timeout_sec=5)
         assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
 
         # Start Recording Service
         rec_proc = proc_manager.start(
-            [RECORDING_SERVICE, "-cfgFile", self.RECORDING_CONFIG, "-cfgName", "RecServCfg"],
+            [
+                RECORDING_SERVICE,
+                "-cfgFile",
+                self.RECORDING_CONFIG,
+                "-cfgName",
+                "RecServCfg",
+            ],
             cwd=MODULE_DIR,
         )
-        # Record for ~8 seconds
-        time.sleep(8)
+        # Record for ~3 seconds
+        time.sleep(3)
 
         # Verify Recording Service is still alive
-        assert rec_proc.poll() is None, f"Recording Service exited early with code {rec_proc.returncode}"
+        assert rec_proc.poll() is None, (
+            f"Recording Service exited early with code {rec_proc.returncode}"
+        )
 
         # Stop recording service gracefully
         rec_proc.terminate()
         try:
-            rec_proc.wait(timeout=10)
+            rec_proc.wait(timeout=5)
         except Exception:
             rec_proc.kill()
-            rec_proc.wait(timeout=5)
+            rec_proc.wait(timeout=3)
 
         # Verify the database file was created
         db_file = RECORDING_DIR / "or_recording_database.dat"
@@ -67,4 +74,6 @@ class TestRecording:
             f"{list(RECORDING_DIR.iterdir()) if RECORDING_DIR.is_dir() else 'dir not found'}"
         )
         # Database should have non-trivial size (at least a few KB of data)
-        assert db_file.stat().st_size > 1024, f"Recording database too small: {db_file.stat().st_size} bytes"
+        assert db_file.stat().st_size > 1024, (
+            f"Recording database too small: {db_file.stat().st_size} bytes"
+        )
