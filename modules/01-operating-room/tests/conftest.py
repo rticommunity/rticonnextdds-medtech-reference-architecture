@@ -78,6 +78,15 @@ def proc_manager(dds_env):
     pm.shutdown_all()
 
 
+@pytest.fixture(scope="class")
+def class_proc_manager(dds_env):
+    """Class-scoped ProcessManager for read-only test classes."""
+    env, apps = dds_env
+    pm = ProcessManager(env, apps)
+    yield pm
+    pm.shutdown_all()
+
+
 @pytest.fixture()
 def proc_manager_secure(dds_env_secure):
     """Yield a ProcessManager wired to the secure DDS environment."""
@@ -87,7 +96,7 @@ def proc_manager_secure(dds_env_secure):
     pm.shutdown_all()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def dds_participant(dds_env):
     """Create a lightweight DDS DomainParticipant for test observation."""
     import rti.connextdds as dds

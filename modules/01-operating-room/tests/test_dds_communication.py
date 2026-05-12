@@ -40,13 +40,17 @@ if str(SRC_DIR) not in sys.path:
 # ---------------------------------------------------------------------------
 
 
-class TestPatientSensorVitals:
-    """PatientSensor should publish vitals on t/Vitals."""
+class TestPatientSensorReadOnly:
+    """Read-only PatientSensor tests: vitals, heartbeats, and status.
 
-    def test_vitals_arrive(self, proc_manager, dds_participant):
+    Uses a class-scoped ProcessManager so PatientSensor is launched once
+    and shared across all tests in this class.
+    """
+
+    def test_vitals_arrive(self, class_proc_manager, dds_participant):
         from Types import PatientMonitor_Vitals
 
-        proc_manager.start_app("PatientSensor")
+        class_proc_manager.start_app("PatientSensor")
         reader = create_reader(
             dds_participant,
             "t/Vitals",
@@ -57,10 +61,9 @@ class TestPatientSensorVitals:
         samples = wait_for_data(reader, timeout_sec=10)
         assert len(samples) >= 1, "No vitals received from PatientSensor"
 
-    def test_vitals_values_in_range(self, proc_manager, dds_participant):
+    def test_vitals_values_in_range(self, class_proc_manager, dds_participant):
         from Types import PatientMonitor_Vitals
 
-        proc_manager.start_app("PatientSensor")
         reader = create_reader(
             dds_participant,
             "t/Vitals",
@@ -78,14 +81,9 @@ class TestPatientSensorVitals:
             assert 60 <= v.nibp_s <= 200, f"Systolic BP out of range: {v.nibp_s}"
             assert 40 <= v.nibp_d <= 130, f"Diastolic BP out of range: {v.nibp_d}"
 
-
-class TestPatientSensorHeartbeat:
-    """PatientSensor should publish heartbeats at ~20 Hz on t/DeviceHeartbeat."""
-
-    def test_heartbeat_rate(self, proc_manager, dds_participant):
+    def test_heartbeat_rate(self, class_proc_manager, dds_participant):
         from Types import Common_DeviceHeartbeat
 
-        proc_manager.start_app("PatientSensor")
         reader = create_reader(
             dds_participant,
             "t/DeviceHeartbeat",
@@ -107,14 +105,9 @@ class TestPatientSensorHeartbeat:
         # At 20 Hz we expect ~20 samples/sec; require at least 8 to be safe
         assert count >= 8, f"Expected ≥8 heartbeats in 1s, got {count}"
 
-
-class TestPatientSensorStatus:
-    """PatientSensor should publish DeviceStatus ON on startup."""
-
-    def test_status_on(self, proc_manager, dds_participant):
+    def test_status_on(self, class_proc_manager, dds_participant):
         from Types import Common, Common_DeviceStatus
 
-        proc_manager.start_app("PatientSensor")
         reader = create_reader(
             dds_participant,
             "t/DeviceStatus",

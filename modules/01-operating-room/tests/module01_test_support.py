@@ -272,10 +272,10 @@ def wait_for_data(reader, timeout_sec: float = 5.0, min_count: int = 1):
 
 
 def wait_for_process_ready(proc, timeout_sec: float = 5.0):
-    """Wait until *proc* produces stdout output, exits, or *timeout_sec* expires.
+    """Wait until *proc* produces output, exits, or *timeout_sec* expires.
 
     Returns as soon as any of these conditions is met:
-    - The process writes to stdout (indicates successful startup).
+    - The process writes to stdout or stderr (indicates successful startup).
     - The process exits (caller should check ``proc.returncode``).
     - The full *timeout_sec* elapses with the process still running.
     """
@@ -286,8 +286,9 @@ def wait_for_process_ready(proc, timeout_sec: float = 5.0):
 
     sel = selectors.DefaultSelector()
     try:
-        if proc.stdout and hasattr(proc.stdout, "fileno"):
-            sel.register(proc.stdout, selectors.EVENT_READ)
+        for stream in (proc.stdout, proc.stderr):
+            if stream and hasattr(stream, "fileno"):
+                sel.register(stream, selectors.EVENT_READ)
         deadline = time.monotonic() + timeout_sec
         while time.monotonic() < deadline:
             if proc.poll() is not None:
@@ -296,7 +297,7 @@ def wait_for_process_ready(proc, timeout_sec: float = 5.0):
             if sel.get_map():
                 events = sel.select(timeout=min(remaining, 0.25))
                 if events:
-                    return  # stdout has data — process started successfully
+                    return  # output detected — process started
             else:
                 time.sleep(min(remaining, 0.25))
     finally:

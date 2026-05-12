@@ -164,7 +164,7 @@ class ProcessManager:
 
 
 def wait_for_process_ready(proc, timeout_sec: float = 5.0):
-    """Wait until *proc* produces stdout output, exits, or *timeout_sec* expires."""
+    """Wait until *proc* produces output, exits, or *timeout_sec* expires."""
     import selectors
 
     if proc.poll() is not None:
@@ -172,8 +172,9 @@ def wait_for_process_ready(proc, timeout_sec: float = 5.0):
 
     sel = selectors.DefaultSelector()
     try:
-        if proc.stdout and hasattr(proc.stdout, "fileno"):
-            sel.register(proc.stdout, selectors.EVENT_READ)
+        for stream in (proc.stdout, proc.stderr):
+            if stream and hasattr(stream, "fileno"):
+                sel.register(stream, selectors.EVENT_READ)
         deadline = time.monotonic() + timeout_sec
         while time.monotonic() < deadline:
             if proc.poll() is not None:

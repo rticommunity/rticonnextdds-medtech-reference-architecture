@@ -124,5 +124,8 @@ print(json.dumps(collected))
             f"Replay subscriber failed (exit {result.returncode}):\n{result.stderr}"
         )
 
-        samples = json.loads(result.stdout.strip())
+        # Extract only the last non-empty line (the JSON output);
+        # DDS may emit log lines to stdout before it.
+        json_line = [ln for ln in result.stdout.strip().splitlines() if ln.strip()][-1]
+        samples = json.loads(json_line)
         assert len(samples) >= 1, "No vitals received from Replay Service"

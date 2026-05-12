@@ -78,3 +78,12 @@ def or_pm_secure(or_env_secure):
     pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
     yield pm
     pm.shutdown_all()
+
+
+@pytest.fixture(scope="class")
+def or_pm_secure_class(or_env_secure):
+    """Class-scoped secure ProcessManager — reuses PatientSensor across tests."""
+    env, apps = or_env_secure
+    pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
+    yield pm
+    pm.shutdown_all()
