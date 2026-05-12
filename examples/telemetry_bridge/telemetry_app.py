@@ -20,23 +20,6 @@ from Types import Common, SurgicalRobot, Orchestrator
 import rti.idl as idl
 
 
-@idl.struct(
-    type_annotations = [idl.type_name("SurgicalRobot::MotorTelemetry")],
-
-    member_annotations = {
-        'id': [idl.key,],
-    }
-)
-class SurgicalRobot_MotorTelemetry:
-    id: SurgicalRobot.Motors = SurgicalRobot.Motors.BASE
-    position_deg: idl.float32 = 0.0
-    speed_rpm: idl.float32 = 0.0
-    current_mA: idl.float32 = 0.0
-    voltage_V: idl.float32 = 0.0
-    temp_c: idl.float32 = 0.0
-
-SurgicalRobot.MotorTelemetry = SurgicalRobot_MotorTelemetry
-
 class DigitalTwinApp:
     def __init__(self):
         self.angles = {SurgicalRobot.Motors.BASE : 180.0,

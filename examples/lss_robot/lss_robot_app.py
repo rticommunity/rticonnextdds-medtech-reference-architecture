@@ -22,23 +22,6 @@ import lss
 import lss_const as lssc
 
 
-@idl.struct(
-    type_annotations = [idl.type_name("SurgicalRobot::MotorTelemetry")],
-
-    member_annotations = {
-        'id': [idl.key,],
-    }
-)
-class SurgicalRobot_MotorTelemetry:
-    id: SurgicalRobot.Motors = SurgicalRobot.Motors.BASE
-    position_deg: idl.float32 = 0.0
-    speed_rpm: idl.float32 = 0.0
-    current_mA: idl.float32 = 0.0
-    voltage_V: idl.float32 = 0.0
-    temp_c: idl.float32 = 0.0
-
-SurgicalRobot.MotorTelemetry = SurgicalRobot_MotorTelemetry
-
 class RobotApp:
     def __init__(self):
         self.stop_event = asyncio.Event()

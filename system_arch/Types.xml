@@ -63,6 +63,14 @@
         <member name="id" type="nonBasic"  nonBasicTypeName= "SurgicalRobot::Motors" key="true"/>
         <member name="direction" type="nonBasic"  nonBasicTypeName= "SurgicalRobot::MotorDirections"/>
       </struct>
+      <struct name= "MotorTelemetry">
+        <member name="id" type="nonBasic"  nonBasicTypeName= "SurgicalRobot::Motors" key="true"/>
+        <member name="position_deg" type="float32"/>
+        <member name="speed_rpm" type="float32"/>
+        <member name="current_mA" type="float32"/>
+        <member name="voltage_V" type="float32"/>
+        <member name="temp_c" type="float32"/>
+      </struct>
     </module>
     <module name="Orchestrator">
       <enum name="DeviceCommands">
