@@ -26,7 +26,7 @@ import lss_const as lssc
     type_annotations = [idl.type_name("SurgicalRobot::MotorTelemetry")],
 
     member_annotations = {
-        'id': [idl.key, idl.default(0),],
+        'id': [idl.key,],
     }
 )
 class SurgicalRobot_MotorTelemetry:
