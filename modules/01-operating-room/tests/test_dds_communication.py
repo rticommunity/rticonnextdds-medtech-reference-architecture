@@ -233,7 +233,7 @@ class TestArmMotorControl:
         from Types import SurgicalRobot, SurgicalRobot_MotorControl
 
         proc = proc_manager.start_app("Arm", extra_env=self.QT_ENV)
-        wait_for_process_ready(proc, timeout_sec=10)
+        wait_for_process_ready(proc, timeout_sec=3)
         assert proc.poll() is None, f"Arm exited early with code {proc.returncode}"
 
         writer = create_writer(

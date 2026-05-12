@@ -310,7 +310,9 @@ class TestSecureAllApps:
         # Wait for security handshake and DDS initialization (parallel).
         # Apps that fail the handshake crash within the first 1-2 s; 3 s is
         # enough to catch startup failures while keeping the test fast.
-        threads = [threading.Thread(target=wait_for_process_ready, args=(p, 3)) for p in apps.values()]
+        threads = [
+            threading.Thread(target=wait_for_process_ready, args=(p, 3)) for p in apps.values()
+        ]
         for t in threads:
             t.start()
         for t in threads:
