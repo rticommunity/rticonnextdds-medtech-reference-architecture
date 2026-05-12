@@ -83,7 +83,8 @@ jobs:
 
       - name: Configure Connext build environment
         run: |
-          eval $(rtienv)
+          NDDSHOME=/opt/rti.com/rti_connext_dds-${{ env.CONNEXT_VERSION }}
+          CONNEXTDDS_ARCH=$(basename $(ls -d "$NDDSHOME"/lib/*/libnddscore.so | head -1 | xargs dirname))
           echo "NDDSHOME=$NDDSHOME" >> "$GITHUB_ENV"
           echo "CONNEXTDDS_ARCH=$CONNEXTDDS_ARCH" >> "$GITHUB_ENV"
 
@@ -132,7 +133,8 @@ jobs:
 
       - name: Configure Connext runtime environment
         run: |
-          eval $(rtienv)
+          OPENSSL_LIB=$(dirname $(ls "$NDDSHOME"/third_party/openssl-*/"$CONNEXTDDS_ARCH"/release/lib/libssl.so* 2>/dev/null | head -1) 2>/dev/null || true)
+          LD_LIBRARY_PATH="$NDDSHOME/lib/$CONNEXTDDS_ARCH${OPENSSL_LIB:+:$OPENSSL_LIB}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
           echo "$NDDSHOME/bin" >> "$GITHUB_PATH"
 
