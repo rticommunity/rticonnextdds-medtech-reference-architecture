@@ -27,6 +27,8 @@ inability to use the software. -->
     <qos_profile name="RsActive" base_name="SystemLibrary::WanConfig"/>
     <qos_profile name="RsCloud" base_name="SystemLibrary::WanConfig"/>
     <qos_profile name="RsPassive" base_name="SystemLibrary::WanConfig"/>
+    
+    <qos_profile name="WebIntegrationService" base_name="SystemLibrary::DefaultParticipant"/>
   </qos_library>
 
 </dds>

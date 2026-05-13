@@ -10,6 +10,8 @@ else
   echo "Running without Security..."
 fi
 
+source ./scripts/variables.sh
+
 # Set up XML-related variables (QoS, XML App Creation, etc.)
 export NDDS_QOS_PROFILES="../../system_arch/Types.xml;$NDDS_QOS_PROFILES"
 
