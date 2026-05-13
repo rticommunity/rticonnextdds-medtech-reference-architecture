@@ -296,6 +296,7 @@ class TestSecurePatientSensor:
 
 
 @pytest.mark.secure
+@pytest.mark.gui
 class TestSecureAllApps:
     """All C++ apps should launch successfully in secure mode."""
 

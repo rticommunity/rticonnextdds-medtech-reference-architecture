@@ -24,6 +24,7 @@ import signal
 import subprocess
 import sys
 import time
+from functools import lru_cache
 from pathlib import Path
 
 # Add centralized scripts package to import path
@@ -31,6 +32,7 @@ sys.path.insert(
     0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python")
 )
 
+from scripts.security_utils import check_security
 
 # ---------------------------------------------------------------------------
 # Path bootstrapping
@@ -63,6 +65,12 @@ def _has_display() -> bool:
     if sys.platform == "darwin":
         return True
     return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
+@lru_cache(maxsize=1)
+def _security_plugin_available() -> bool:
+    """Return True when secure participant creation succeeds at runtime."""
+    return check_security()
 
 
 # ---------------------------------------------------------------------------

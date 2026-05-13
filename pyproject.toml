@@ -22,7 +22,8 @@ markers = [
     "build_pipeline: tests that verify project-level configure/build pipeline",
     "gui: test requires a graphical display (deselect with '-m not gui')",
     "secure: test requires DDS Security artifacts (deselect with '-m not secure')",
-    "slow: long-running scenario",
+    "service: test requires RTI Recording/Replay Service (deselect with '-m not service')",
+    "slow: long-running scenario (deselect with '-m not slow')",
 ]
 addopts = "-rs"
 

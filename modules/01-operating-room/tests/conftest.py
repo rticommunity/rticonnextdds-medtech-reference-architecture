@@ -25,33 +25,27 @@ _security_plugin_available = module01_test_support._security_plugin_available
 
 
 def pytest_collection_modifyitems(config, items):
-    """Fail tests when prerequisites are missing instead of silently skipping."""
-    fail_gui = pytest.mark.xfail(
+    """Skip tests when prerequisites are missing."""
+    skip_gui = pytest.mark.skip(
         reason="No graphical display available (need DISPLAY or WAYLAND_DISPLAY)",
-        strict=True,
-        run=False,
     )
-    fail_sec_artifacts = pytest.mark.xfail(
+    skip_sec_artifacts = pytest.mark.skip(
         reason="Security artifacts not generated (run setup_security.py)",
-        strict=True,
-        run=False,
     )
-    fail_sec_plugin = pytest.mark.xfail(
-        reason="DDS Security plugin not fully installed "
-        "(need libnddssecurity, OpenSSL, rti_license.dat)",
-        strict=True,
-        run=False,
+    skip_sec_plugin = pytest.mark.skip(
+        reason="DDS Security runtime probe failed",
     )
 
     has_display = _has_display()
+    module_items = [i for i in items if Path(i.fspath).is_relative_to(TESTS_DIR)]
 
-    for item in items:
+    for item in module_items:
         if "gui" in item.keywords and not has_display:
-            item.add_marker(fail_gui)
+            item.add_marker(skip_gui)
         if "secure" in item.keywords and not _security_artifacts_exist():
-            item.add_marker(fail_sec_artifacts)
+            item.add_marker(skip_sec_artifacts)
         elif "secure" in item.keywords and not _security_plugin_available():
-            item.add_marker(fail_sec_plugin)
+            item.add_marker(skip_sec_plugin)
 
 
 @pytest.fixture(scope="session")

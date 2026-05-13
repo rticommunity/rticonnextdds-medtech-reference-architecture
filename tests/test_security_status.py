@@ -17,10 +17,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = PROJECT_ROOT / "system_arch" / "security" / "setup_security.py"
 
 
+@pytest.mark.secure
 def test_system_security_status_runs_clean() -> None:
     """Status report should run and not report expired artifacts."""
     result = subprocess.run(

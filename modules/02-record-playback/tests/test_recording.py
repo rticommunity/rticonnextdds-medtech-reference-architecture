@@ -26,6 +26,7 @@ from module02_test_support import (
 )
 
 
+@pytest.mark.service
 @pytest.mark.slow
 class TestRecording:
     """RTI Recording Service should capture data from running applications."""

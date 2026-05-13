@@ -21,6 +21,7 @@ ProcessManager = module04_test_support.ProcessManager
 SYSTEM_ARCH_DIR = module04_test_support.SYSTEM_ARCH_DIR
 _has_display = module04_test_support._has_display
 _or_security_artifacts_exist = module04_test_support._or_security_artifacts_exist
+_security_plugin_available = module04_test_support._security_plugin_available
 _threat_artifacts_exist = module04_test_support._threat_artifacts_exist
 
 
@@ -28,15 +29,20 @@ def pytest_collection_modifyitems(config, items):
     has_security = _or_security_artifacts_exist() and _threat_artifacts_exist()
     has_display = _has_display()
 
-    skip_sec = pytest.mark.skip(
+    skip_sec_artifacts = pytest.mark.skip(
         reason="Security artifacts not generated "
         "(run setup_security.py and setup_threat_security.py)"
     )
+    skip_sec_plugin = pytest.mark.skip(reason="DDS Security runtime probe failed")
     skip_gui = pytest.mark.skip(reason="No graphical display available")
 
-    for item in items:
-        if not has_security:
-            item.add_marker(skip_sec)
+    module_items = [i for i in items if Path(i.fspath).is_relative_to(TESTS_DIR)]
+
+    for item in module_items:
+        if "secure" in item.keywords and not has_security:
+            item.add_marker(skip_sec_artifacts)
+        elif "secure" in item.keywords and not _security_plugin_available():
+            item.add_marker(skip_sec_plugin)
         if "gui" in item.keywords and not has_display:
             item.add_marker(skip_gui)
 

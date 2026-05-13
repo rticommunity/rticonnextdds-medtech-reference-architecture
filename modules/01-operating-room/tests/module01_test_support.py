@@ -22,6 +22,7 @@ import signal
 import subprocess
 import sys
 import time
+from functools import lru_cache
 from pathlib import Path
 
 # Make resource/python/ importable — the `scripts` package contains
@@ -33,6 +34,7 @@ sys.path.insert(
 # Make src/ importable so tests can use generated Types module directly.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from scripts.security_utils import check_security
 
 # ---------------------------------------------------------------------------
 # Path bootstrapping — mirror what the launch scripts do
@@ -67,28 +69,10 @@ def _security_artifacts_exist() -> bool:
     return any(domain_scope_dir.rglob("*.p7s"))
 
 
+@lru_cache(maxsize=1)
 def _security_plugin_available() -> bool:
-    """Return True when the DDS Security plugin is fully usable.
-
-    Requires:
-    1. ``libnddssecurity`` shared library
-    2. Bundled OpenSSL ``release/lib`` directory
-    3. A valid ``rti_license.dat`` in NDDSHOME (Security Plugins are
-       a licensed feature).
-    """
-    nddshome = os.environ.get("NDDSHOME")
-    if not nddshome:
-        return False
-    nddshome_path = Path(nddshome)
-    has_plugin = bool(list(nddshome_path.glob("lib/*/libnddssecurity.*")))
-    has_openssl = any(
-        (arch / "release" / "lib").is_dir()
-        for arch in nddshome_path.glob("third_party/openssl-*/*")
-    )
-    has_license = (nddshome_path / "rti_license.dat").is_file() and (
-        (nddshome_path / "rti_license.dat").stat().st_size > 0
-    )
-    return has_plugin and has_openssl and has_license
+    """Return True when secure participant creation succeeds at runtime."""
+    return check_security()
 
 
 # ---------------------------------------------------------------------------

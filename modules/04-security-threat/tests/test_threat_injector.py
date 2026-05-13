@@ -111,6 +111,7 @@ print(json.dumps(result))
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.secure
 @pytest.mark.slow
 class TestInjectorUnsecure:
     """Injector should match unsecured OR apps (no DDS Security)."""
@@ -134,6 +135,7 @@ class TestInjectorUnsecure:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.secure
 @pytest.mark.slow
 class TestInjectorSecure:
     """Security should block threat injector participants from matching secured OR apps."""

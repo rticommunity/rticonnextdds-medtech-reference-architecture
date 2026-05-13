@@ -164,6 +164,7 @@ print(json.dumps(result))
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.secure
 @pytest.mark.slow
 class TestExfiltratorUnsecure:
     """Exfiltrator should read vitals from unsecured OR apps."""
@@ -190,6 +191,7 @@ class TestExfiltratorUnsecure:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.secure
 @pytest.mark.slow
 class TestExfiltratorSecure:
     """Security should block threat exfiltrator from reading vitals."""

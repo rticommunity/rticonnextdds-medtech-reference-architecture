@@ -33,6 +33,7 @@ from module02_test_support import (
 SRC_DIR = MODULE_01_DIR / "src"
 
 
+@pytest.mark.service
 @pytest.mark.slow
 class TestReplay:
     """RTI Replay Service should re-publish recorded data."""

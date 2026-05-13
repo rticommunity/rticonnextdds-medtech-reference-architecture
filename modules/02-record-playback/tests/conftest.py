@@ -25,12 +25,13 @@ REPLAY_SERVICE = module02_test_support.REPLAY_SERVICE
 
 
 def pytest_collection_modifyitems(config, items):
-    """Auto-skip all tests if Recording/Replay Service is not available."""
+    """Auto-skip @service-marked tests if Recording/Replay Service is not available."""
     if RECORDING_SERVICE and REPLAY_SERVICE:
         return
     skip = pytest.mark.skip(reason="RTI Recording/Replay Service not found in NDDSHOME/bin/")
     for item in items:
-        item.add_marker(skip)
+        if Path(item.fspath).is_relative_to(TESTS_DIR) and "service" in item.keywords:
+            item.add_marker(skip)
 
 
 @pytest.fixture(scope="session")
