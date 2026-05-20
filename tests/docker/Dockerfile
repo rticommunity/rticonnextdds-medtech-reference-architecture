@@ -25,7 +25,7 @@
 # Run specific tests:
 #   docker run --rm \
 #     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
-#     medtech-test python -m pytest modules/01-operating-room/tests/test_types.py -v
+#     medtech-test pytest modules/01-operating-room/tests/test_types.py -v
 # ==========================================================================
 
 # Shared build args (global defaults).

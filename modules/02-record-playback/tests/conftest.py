@@ -18,15 +18,21 @@ module_runner = importlib.import_module("scripts.module_runner")
 
 MODULE_01_DIR = module02_test_support.MODULE_01_DIR
 MODULE_DIR = module02_test_support.MODULE_DIR
-ProcessManager = module02_test_support.ProcessManager
 RECORDING_DIR = module02_test_support.RECORDING_DIR
-RECORDING_SERVICE = module02_test_support.RECORDING_SERVICE
-REPLAY_SERVICE = module02_test_support.REPLAY_SERVICE
+
+from scripts.test_utils import ProcessManager  # noqa: E402
+
+# Probe whether RTI services are available without loading full config.
+_services_available = True
+try:
+    module_runner.load_module_config(MODULE_DIR, flags={"security": False})
+except FileNotFoundError:
+    _services_available = False
 
 
 def pytest_collection_modifyitems(config, items):
     """Auto-skip @service-marked tests if Recording/Replay Service is not available."""
-    if RECORDING_SERVICE and REPLAY_SERVICE:
+    if _services_available:
         return
     skip = pytest.mark.skip(reason="RTI Recording/Replay Service not found in NDDSHOME/bin/")
     for item in items:
@@ -35,22 +41,30 @@ def pytest_collection_modifyitems(config, items):
 
 
 @pytest.fixture(scope="session")
-def dds_env():
-    """Non-secure DDS environment configured from Module 01's module.json."""
-    env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": False})
-    return env, apps
+def module01_env():
+    """Non-secure DDS environment from Module 01 (operating-room apps)."""
+    return module_runner.load_module_config(MODULE_01_DIR, flags={"security": False})
 
 
 @pytest.fixture(scope="session")
-def dds_env_dict(dds_env):
-    """Just the env dict (no apps) for passing to subprocess.run(env=...)."""
-    env, _apps = dds_env
-    return env
+def module02_env():
+    """Non-secure DDS environment from Module 02 (recording/replay services)."""
+    return module_runner.load_module_config(MODULE_DIR, flags={"security": False})
 
 
 @pytest.fixture()
-def proc_manager(dds_env):
-    env, apps = dds_env
+def or_proc_manager(module01_env):
+    """ProcessManager for Module 01 operating-room apps (PatientSensor, etc.)."""
+    env, apps = module01_env
+    pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
+    yield pm
+    pm.shutdown_all()
+
+
+@pytest.fixture()
+def svc_proc_manager(module02_env):
+    """ProcessManager for Module 02 recording/replay services."""
+    env, apps = module02_env
     pm = ProcessManager(env, apps, cwd=MODULE_DIR)
     yield pm
     pm.shutdown_all()

@@ -17,19 +17,19 @@ From the repository root, after sourcing the RTI environment and activating the 
 
 ```bash
 # Run all 130 tests (repo-level + all modules)
-python -m pytest
+pytest
 
 # Run with verbose output
-python -m pytest -v
+pytest -v
 
 # Run specific module or test
-python -m pytest modules/01-operating-room/tests/test_types.py -v
+pytest modules/01-operating-room/tests/test_types.py -v
 
 # Run tests matching a pattern
-python -m pytest -k "test_types" -v
+pytest -k "test_types" -v
 
 # Run a specific test class or function
-python -m pytest tests/test_config_parsing.py::TestModuleJsonContract -v
+pytest tests/test_config_parsing.py::TestModuleJsonContract -v
 ```
 
 ## Environment Setup
@@ -56,13 +56,13 @@ Use root-level `pytest` directly for fast iteration and clear output:
 
 ```bash
 # All tests
-python -m pytest
+pytest
 
 # With markers to skip slow/gui/secure tests
-python -m pytest -m "not slow and not gui and not secure"
+pytest -m "not slow and not gui and not secure"
 
 # Fast feedback on a single file
-python -m pytest tests/test_config_parsing.py -v
+pytest tests/test_config_parsing.py -v
 ```
 
 **When to use:**
@@ -102,7 +102,7 @@ docker compose -f tests/docker/docker-compose.yml run --rm --build test \
 
 ```bash
 # Markdown linting (rumdl)
-rumdl check .
+rumdl check
 
 # Code formatting and linting (pre-commit)
 pre-commit run --all-files
@@ -119,13 +119,13 @@ Tests can be filtered using pytest markers. Common markers:
 Run fast tests only (skip slow/GUI/secure):
 
 ```bash
-python -m pytest -m "not slow and not gui and not secure"
+pytest -m "not slow and not gui and not secure"
 ```
 
 Run only GUI tests:
 
 ```bash
-python -m pytest -m "gui"
+pytest -m "gui"
 ```
 
 ## Test Structure

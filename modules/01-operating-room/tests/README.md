@@ -21,25 +21,25 @@ From the `modules/01-operating-room/` directory:
 
 ```bash
 # All tests (requires display for GUI tests)
-python -m pytest tests/ -v
+pytest tests/ -v
 
 # Skip GUI tests (headless / CI)
-python -m pytest tests/ -v -m "not gui"
+pytest tests/ -v -m "not gui"
 
 # Skip slow end-to-end tests
-python -m pytest tests/ -v -m "not slow"
+pytest tests/ -v -m "not slow"
 
 # Only fast, non-GUI tests (best for quick validation)
-python -m pytest tests/ -v -m "not gui and not slow"
+pytest tests/ -v -m "not gui and not slow"
 
 # Only DDS communication tests
-python -m pytest tests/test_dds_communication.py -v
+pytest tests/test_dds_communication.py -v
 
 # Only security tests (requires setup_security.py)
-python -m pytest tests/ -v -m "secure"
+pytest tests/ -v -m "secure"
 
 # Skip security tests
-python -m pytest tests/ -v -m "not secure"
+pytest tests/ -v -m "not secure"
 ```
 
 ## Test Structure

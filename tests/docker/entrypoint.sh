@@ -4,7 +4,7 @@
 set -e
 
 # Start Xvfb virtual display for headless GUI testing
-Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp &
+Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp 2>/dev/null &
 XVFB_PID=$!
 trap 'kill $XVFB_PID 2>/dev/null || true' EXIT
 
@@ -18,4 +18,4 @@ source $VIRTUAL_ENV/bin/activate
 # Run pytest from repo root with any passed arguments
 # Default to running all tests if no args provided
 cd /workspace
-exec python -m pytest "${@:-.}"
+exec pytest "${@:-.}"

@@ -24,13 +24,13 @@ From the `modules/02-record-playback/` directory:
 
 ```bash
 # All tests
-python -m pytest tests/ -v
+pytest tests/ -v
 
 # Only recording tests
-python -m pytest tests/test_recording.py -v
+pytest tests/test_recording.py -v
 
 # Only replay tests
-python -m pytest tests/test_replay.py -v
+pytest tests/test_replay.py -v
 ```
 
 ## Test Structure

@@ -19,10 +19,7 @@ import time
 
 import pytest
 from module02_test_support import (
-    MODULE_DIR,
     RECORDING_DIR,
-    RECORDING_SERVICE,
-    wait_for_process_ready,
 )
 
 
@@ -31,26 +28,15 @@ from module02_test_support import (
 class TestRecording:
     """RTI Recording Service should capture data from running applications."""
 
-    RECORDING_CONFIG = str(MODULE_DIR / "RecordingServiceConfiguration.xml")
-
-    def test_recording_creates_database(self, proc_manager, clean_recording_dir):
+    def test_recording_creates_database(
+        self, or_proc_manager, svc_proc_manager, clean_recording_dir
+    ):
         """Recording Service should create or_recording_database.dat."""
         # Start PatientSensor to produce t/Vitals data
-        ps = proc_manager.start_app("PatientSensor")
-        wait_for_process_ready(ps, timeout_sec=5)
-        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
+        or_proc_manager.start_app_ready("PatientSensor")
 
         # Start Recording Service
-        rec_proc = proc_manager.start(
-            [
-                RECORDING_SERVICE,
-                "-cfgFile",
-                self.RECORDING_CONFIG,
-                "-cfgName",
-                "RecServCfg",
-            ],
-            cwd=MODULE_DIR,
-        )
+        rec_proc = svc_proc_manager.start_app_ready("RecordingService")
         # Record for ~3 seconds
         time.sleep(3)
 
@@ -59,13 +45,9 @@ class TestRecording:
             f"Recording Service exited early with code {rec_proc.returncode}"
         )
 
-        # Stop recording service gracefully
-        rec_proc.terminate()
-        try:
-            rec_proc.wait(timeout=5)
-        except Exception:
-            rec_proc.kill()
-            rec_proc.wait(timeout=3)
+        # Kill PatientSensor and Recording Service to finalize the recording
+        or_proc_manager.shutdown_all()
+        svc_proc_manager.shutdown_all()
 
         # Verify the database file was created
         db_file = RECORDING_DIR / "or_recording_database.dat"

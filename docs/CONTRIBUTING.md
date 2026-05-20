@@ -58,26 +58,26 @@ not need to invoke them manually.
 
 ```bash
 # Python lint
-ruff check .
+ruff check
 
 # Python formatting
-ruff format .
+ruff format
 
 # Spelling
-codespell --toml pyproject.toml
+codespell
 
 # Markdown lint/format
-rumdl check .
-rumdl fmt .
+rumdl check
+rumdl fmt
 
 # Run all tests from project root (repo-level + modules)
-python -m pytest -v
+pytest
 
 # Run project-level tests only
-python -m pytest tests/ -v
+pytest tests/
 
 # Run a specific module
-python -m pytest modules/01-operating-room/tests/ -v
+pytest modules/01-operating-room/tests/
 ```
 
 ### On every `git commit` (automatic)
@@ -125,7 +125,7 @@ committing. In exceptional circumstances you can bypass hooks with
 
 | Job | What it does |
 | --- | --- |
-| Lint & Format | `ruff check .`, `ruff format --check .`, codespell, clang-format dry-run, markdown lint via `rvben/rumdl` action |
+| Lint & Format | `ruff check`, `ruff format --check`, codespell, clang-format dry-run, markdown lint via `rvben/rumdl` action |
 | Build | CMake configure + build all C++ modules |
 | Project-level Tests | `pytest tests/` |
 | Unit Tests | Fast Python type/script/QoS tests |
@@ -167,13 +167,13 @@ act push -j test \
 
 ```bash
 # All tests from project root (repo-level + modules)
-python -m pytest -v
+pytest -v
 
 # Project-level tests only
-python -m pytest tests/ -v
+pytest tests/ -v
 
 # Single module
-python -m pytest modules/01-operating-room/tests/ -v
+pytest modules/01-operating-room/tests/ -v
 ```
 
 ### Option 2 — Docker (closest to CI)
@@ -191,7 +191,7 @@ docker compose -f tests/docker/docker-compose.yml run --rm --build test \
     modules/01-operating-room/tests/test_types.py -v
 ```
 
-> **Note:** The Docker default command runs `python -m pytest -v` via the
+> **Note:** The Docker default command runs `pytest -v` via the
 > test entrypoint. It executes functional/behavioral tests. It does **not** run Ruff lint,
 > rumdl markdown lint, or clang-format; those are enforced by pre-commit
 > (locally) and the CI lint job (on push/PR).
@@ -219,8 +219,8 @@ In summary:
 Before opening a PR, verify:
 
 - [ ] `pre-commit run --all-files` passes cleanly
-- [ ] `python -m pytest tests/` passes locally
-- [ ] `python -m pytest -v` passes locally
+- [ ] `pytest tests/` passes locally
+- [ ] `pytest -v` passes locally
 - [ ] `CHANGELOG.md` updated if the change is user-visible
 - [ ] No `# noqa` suppressions added without a documented justification
 

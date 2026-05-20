@@ -24,16 +24,16 @@ From the `modules/04-security-threat/` directory:
 
 ```bash
 # All tests
-python -m pytest tests/ -v
+pytest tests/ -v
 
 # Only injector tests
-python -m pytest tests/test_threat_injector.py -v
+pytest tests/test_threat_injector.py -v
 
 # Only exfiltrator tests
-python -m pytest tests/test_threat_exfiltrator.py -v
+pytest tests/test_threat_exfiltrator.py -v
 
 # Only unsecure tests (faster)
-python -m pytest tests/ -v -k "Unsecure"
+pytest tests/ -v -k "Unsecure"
 ```
 
 ## Test Structure

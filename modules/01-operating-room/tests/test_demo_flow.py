@@ -22,14 +22,12 @@ wait for inter-app DDS interactions to play out.
 """
 
 import importlib
+import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 
 import pytest
-
-_IS_MACOS = sys.platform == "darwin"
 
 TESTS_DIR = Path(__file__).resolve().parent
 
@@ -39,18 +37,16 @@ if str(TESTS_DIR) not in sys.path:
 module01_test_support = importlib.import_module("module01_test_support")
 
 SRC_DIR = module01_test_support.SRC_DIR
-create_reader = module01_test_support.create_reader
-create_writer = module01_test_support.create_writer
-wait_for_data = module01_test_support.wait_for_data
-wait_for_device_status = module01_test_support.wait_for_device_status
-wait_for_process_ready = module01_test_support.wait_for_process_ready
 
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
-
-QT_ENV = {"QT_QPA_PLATFORM": "offscreen"}
-GTK_ENV = {} if _IS_MACOS else {"GDK_BACKEND": "x11"}
-
+from scripts.test_utils import (  # noqa: E402
+    GTK_ENV,
+    NONGUI_PROCESS_WAIT_TIMEOUT,
+    QT_ENV,
+    wait_for_device_status,
+    wait_for_process_ready,
+    wait_for_reader_match,
+    wait_for_samples,
+)
 
 # ---------------------------------------------------------------------------
 # Crash detection (README exercise: kill an app, Orchestrator detects it)
@@ -62,21 +58,17 @@ GTK_ENV = {} if _IS_MACOS else {"GDK_BACKEND": "x11"}
 class TestCrashDetection:
     """Killing an app should cause Orchestrator to detect the loss via heartbeat deadline."""
 
-    def test_orchestrator_detects_patient_sensor_crash(self, proc_manager, dds_participant):
-        from Types import Common, Common_DeviceHeartbeat
+    def test_orchestrator_detects_patient_sensor_crash(self, proc_manager, nonsecure_utility_app):
+        from Types import Common
 
-        patient_sensor = proc_manager.start_app("PatientSensor")
+        patient_sensor = proc_manager.start_app_ready("PatientSensor")
         proc_manager.start_app("Orchestrator", extra_env=GTK_ENV)
 
-        hb_reader = create_reader(
-            dds_participant,
-            "t/DeviceHeartbeat",
-            Common_DeviceHeartbeat,
-            "DataFlowLibrary::Heartbeat",
-        )
+        hb_reader = nonsecure_utility_app.device_heartbeat.reader
 
         # Wait for PatientSensor heartbeats to start flowing
-        samples = wait_for_data(hb_reader, timeout_sec=10)
+        assert wait_for_reader_match(hb_reader), "Reader never matched a writer"
+        samples = wait_for_samples(hb_reader, timeout_sec=5)
         assert any(s.device == Common.DeviceType.PATIENT_SENSOR for s in samples), (
             "PatientSensor heartbeats never arrived"
         )
@@ -112,68 +104,52 @@ class TestCrashDetection:
 class TestPauseAndResume:
     """Pausing PatientSensor should stop vitals; resuming should restart them."""
 
-    def test_pause_stops_vitals_then_resume_restarts(self, proc_manager, dds_participant):
+    def test_pause_stops_vitals_then_resume_restarts(self, proc_manager, nonsecure_utility_app):
         from Types import (
             Common,
-            Common_DeviceStatus,
             Orchestrator,
-            Orchestrator_DeviceCommand,
-            PatientMonitor_Vitals,
         )
 
-        proc_manager.start_app("PatientSensor")
+        proc_manager.start_app_ready("PatientSensor")
 
-        status_reader = create_reader(
-            dds_participant,
-            "t/DeviceStatus",
-            Common_DeviceStatus,
-            "DataFlowLibrary::Status",
-        )
-        vitals_reader = create_reader(
-            dds_participant,
-            "t/Vitals",
-            PatientMonitor_Vitals,
-            "DataFlowLibrary::Streaming",
-        )
-        cmd_writer = create_writer(
-            dds_participant,
-            "t/DeviceCommand",
-            Orchestrator_DeviceCommand,
-            "DataFlowLibrary::Command",
-        )
+        status_reader = nonsecure_utility_app.device_status.reader
+        vitals_reader = nonsecure_utility_app.vitals.reader
+        cmd_writer = nonsecure_utility_app.device_command.writer
 
-        # Wait for ON
-        samples = wait_for_data(status_reader, timeout_sec=10)
-        assert any(
-            s.device == Common.DeviceType.PATIENT_SENSOR and s.status == Common.DeviceStatuses.ON
-            for s in samples
-        ), "PatientSensor never reached ON"
+        # Wait for device status
+        seen = wait_for_device_status(
+            status_reader,
+            expected_devices={Common.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Common.DeviceStatuses.ON],
+            timeout_sec=10,
+        )
+        assert Common.DeviceType.PATIENT_SENSOR in seen, (
+            "PatientSensor did not report DeviceStatus ON within the timeout"
+        )
 
         # Verify vitals are flowing
-        vitals = wait_for_data(vitals_reader, timeout_sec=5)
+        assert wait_for_reader_match(vitals_reader), "Reader never matched a writer"
+        vitals = wait_for_samples(vitals_reader, timeout_sec=5)
         assert len(vitals) >= 1, "No vitals before pause"
 
         # Send PAUSE
         cmd_writer.write(
-            Orchestrator_DeviceCommand(
+            Orchestrator.DeviceCommand(
                 device=Common.DeviceType.PATIENT_SENSOR,
                 command=Orchestrator.DeviceCommands.PAUSE,
             )
         )
 
         # Wait for PAUSED status
-        paused = False
-        deadline = time.monotonic() + 5
-        while time.monotonic() < deadline:
-            ss = wait_for_data(status_reader, timeout_sec=1)
-            if any(
-                s.device == Common.DeviceType.PATIENT_SENSOR
-                and s.status == Common.DeviceStatuses.PAUSED
-                for s in ss
-            ):
-                paused = True
-                break
-        assert paused, "PatientSensor did not transition to PAUSED"
+        seen = wait_for_device_status(
+            status_reader,
+            expected_devices={Common.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Common.DeviceStatuses.PAUSED],
+            timeout_sec=5,
+        )
+        assert Common.DeviceType.PATIENT_SENSOR in seen, (
+            "PatientSensor did not transition to PAUSED"
+        )
 
         # Drain any remaining vitals and then check no new ones arrive
         vitals_reader.take()  # drain
@@ -186,14 +162,14 @@ class TestPauseAndResume:
 
         # Send START
         cmd_writer.write(
-            Orchestrator_DeviceCommand(
+            Orchestrator.DeviceCommand(
                 device=Common.DeviceType.PATIENT_SENSOR,
                 command=Orchestrator.DeviceCommands.START,
             )
         )
 
         # Vitals should resume
-        resumed = wait_for_data(vitals_reader, timeout_sec=5)
+        resumed = wait_for_samples(vitals_reader, timeout_sec=5)
         assert len(resumed) >= 1, "Vitals did not resume after START command"
 
 
@@ -207,12 +183,10 @@ class TestPauseAndResume:
 class TestGracefulShutdown:
     """Sending SHUTDOWN to each device should cause all processes to exit."""
 
-    def test_shutdown_all_devices(self, proc_manager, dds_participant):
+    def test_shutdown_all_devices(self, proc_manager, nonsecure_utility_app):
         from Types import (
             Common,
-            Common_DeviceStatus,
             Orchestrator,
-            Orchestrator_DeviceCommand,
         )
 
         procs = {
@@ -226,22 +200,17 @@ class TestGracefulShutdown:
             ),
         }
 
-        status_reader = create_reader(
-            dds_participant,
-            "t/DeviceStatus",
-            Common_DeviceStatus,
-            "DataFlowLibrary::Status",
-        )
-        cmd_writer = create_writer(
-            dds_participant,
-            "t/DeviceCommand",
-            Orchestrator_DeviceCommand,
-            "DataFlowLibrary::Command",
-        )
+        status_reader = nonsecure_utility_app.device_status.reader
+        cmd_writer = nonsecure_utility_app.device_command.writer
 
-        # Wait until all devices have published a DeviceStatus (up to 30s)
+        # Wait until all devices have published DeviceStatus ON (up to 30s)
         expected = set(procs.keys())
-        seen = wait_for_device_status(status_reader, expected, timeout_sec=30)
+        seen = wait_for_device_status(
+            status_reader,
+            expected,
+            device_statuses=[Common.DeviceStatuses.ON],
+            timeout_sec=30,
+        )
         assert seen == expected, (
             f"Timed out waiting for devices. Missing: {set(d.name for d in expected - seen)}"
         )
@@ -249,7 +218,7 @@ class TestGracefulShutdown:
         # Send SHUTDOWN to each device
         for device_type in procs:
             cmd_writer.write(
-                Orchestrator_DeviceCommand(
+                Orchestrator.DeviceCommand(
                     device=device_type,
                     command=Orchestrator.DeviceCommands.SHUTDOWN,
                 )
@@ -262,7 +231,7 @@ class TestGracefulShutdown:
             remaining = max(0.1, deadline - time.monotonic())
             try:
                 proc.wait(timeout=remaining)
-            except Exception:
+            except subprocess.TimeoutExpired:
                 still_alive[device_type.name] = proc
 
         assert not still_alive, (
@@ -284,7 +253,7 @@ class TestSecurePatientSensor:
         ps = proc_manager_secure.start_app("PatientSensor")
 
         # Wait for security handshake and DDS initialization
-        wait_for_process_ready(ps, timeout_sec=5)
+        wait_for_process_ready(ps, timeout_sec=NONGUI_PROCESS_WAIT_TIMEOUT)
 
         if ps.poll() is not None:
             stdout = ps.stdout.read().decode(errors="replace") if ps.stdout else ""
@@ -302,26 +271,10 @@ class TestSecureAllApps:
 
     def test_secure_launch(self, proc_manager_secure, dds_env_secure):
         """All C++ apps start and keep running with DDS Security enabled."""
-        apps = {
-            "PatientSensor": proc_manager_secure.start_app("PatientSensor"),
-            "Orchestrator": proc_manager_secure.start_app("Orchestrator", extra_env=GTK_ENV),
-            "ArmController": proc_manager_secure.start_app("ArmController", extra_env=GTK_ENV),
-        }
-
-        # Wait for security handshake and DDS initialization (parallel).
-        # Apps that fail the handshake crash within the first 1-2 s; 3 s is
-        # enough to catch startup failures while keeping the test fast.
-        threads = [
-            threading.Thread(target=wait_for_process_ready, args=(p, 3)) for p in apps.values()
-        ]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        crashed = {}
-        for name, p in apps.items():
-            if p.poll() is not None:
-                stderr = p.stderr.read().decode(errors="replace") if p.stderr else ""
-                crashed[name] = f"code={p.returncode}, stderr={stderr[-500:]}"
-        assert not crashed, f"Apps crashed during secure startup:\n{crashed}"
+        proc_manager_secure.start_apps_ready(
+            [
+                "PatientSensor",
+                ("Orchestrator", GTK_ENV),
+                ("ArmController", GTK_ENV),
+            ]
+        )

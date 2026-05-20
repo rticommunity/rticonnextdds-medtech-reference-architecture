@@ -15,20 +15,16 @@ Verifies that DDS Security correctly blocks (or allows) threat injector
 participants depending on the attack mode and whether OR apps are secured.
 
 Each test launches OR apps (secured or unsecured), then creates a threat
-participant in a subprocess and checks the publication_matched_status to
-determine whether data can flow.
+participant with an isolated QosProvider and checks the
+publication_matched_status to determine whether data can flow.
 """
 
-import json
-import subprocess
-import sys
-
 import pytest
-from module04_test_support import (
-    MODULE_DIR,
-    OR_SRC_DIR,
-    THREAT_SRC_DIR,
-    wait_for_process_ready,
+import rti.connextdds as dds
+from scripts.test_utils import (
+    make_isolated_qos_provider,
+    register_type,
+    wait_for_writer_match,
 )
 
 
@@ -37,73 +33,37 @@ def _run_injector_probe(
     dp_name: str,
     timeout_sec: float = 12.0,
 ) -> dict:
-    """Launch a threat injector probe in a subprocess.
+    """Test whether a threat injector can match secured OR apps.
 
-    Creates a DomainParticipant from the XML config, writes a few motor
-    control samples, and returns a dict with:
+    Creates a DomainParticipant from the XML config using an isolated
+    QosProvider and checks publication_matched_status via WaitSet.
+    No data is written — only match detection.
+
+    Returns a dict with:
       - "created": bool — whether the participant was created successfully
       - "matched": bool — whether publication_matched_status.current_count > 0
     """
-    script = f"""\
-import sys, time, json
-sys.path.insert(0, "{OR_SRC_DIR}")
-sys.path.insert(0, "{THREAT_SRC_DIR}")
-import rti.connextdds as dds
-from Types import DdsEntities
+    from Types import Orchestrator
 
-result = {{"created": False, "matched": False}}
-try:
-    provider = dds.QosProvider.default
-    participant = provider.create_participant_from_config("{dp_name}")
-    result["created"] = True
+    xml_files = env["NDDS_QOS_PROFILES"].split(";")
+    provider = make_isolated_qos_provider(*xml_files)
 
-    # Use DynamicData writer since create_participant_from_config creates
-    # untyped entities.
-    cmd_dw = dds.DynamicData.DataWriter(
-        participant.find_datawriter(DdsEntities.Constants.DEVICE_COMMAND_DW)
-    )
+    result = {"created": False, "matched": False}
+    try:
+        register_type(Orchestrator.DeviceCommand)
+        participant = provider.create_participant_from_config(dp_name)
+        if participant is not None:
+            result["created"] = True
 
-    # Create a DynamicData sample from the provider's type definition
-    cmd_type = provider.type("Orchestrator::DeviceCommand")
-    sample = dds.DynamicData(cmd_type)
-    sample["device"] = 5  # PATIENT_SENSOR enum value
-    sample["command"] = 2  # PAUSE enum value
+            writer = dds.DataWriter(participant.find_datawriter("p/publisher::dw/DeviceCommand"))
+            result["matched"] = wait_for_writer_match(writer, timeout_sec=timeout_sec)
+    except dds.Error as exc:
+        result["error"] = str(exc)
+    finally:
+        if result["created"]:
+            participant.close()
 
-    deadline = time.monotonic() + {timeout_sec}
-    while time.monotonic() < deadline:
-        try:
-            cmd_dw.write(sample)
-        except Exception:
-            pass
-        if cmd_dw.publication_matched_status.current_count > 0:
-            result["matched"] = True
-            break
-        time.sleep(0.5)
-
-    participant.close()
-except dds.Error as exc:
-    result["error"] = str(exc)
-except Exception as exc:
-    result["error"] = str(exc)
-
-print(json.dumps(result))
-"""
-    proc = subprocess.run(
-        [sys.executable, "-c", script],
-        env=env,
-        cwd=MODULE_DIR,
-        capture_output=True,
-        text=True,
-        timeout=int(timeout_sec) + 15,
-        check=False,
-    )
-    if proc.returncode != 0:
-        return {"created": False, "matched": False, "error": proc.stderr}
-    # Parse only the last line — DDS may print log messages to stdout
-    lines = [line for line in proc.stdout.strip().splitlines() if line.startswith("{")]
-    if not lines:
-        return {"created": False, "matched": False, "error": "No JSON output"}
-    return json.loads(lines[-1])
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -118,9 +78,7 @@ class TestInjectorUnsecure:
 
     def test_unsecure_injection_succeeds(self, or_pm_nonsecure, or_env_nonsecure, threat_env):
         """Unsecured injector should match unsecured OR apps."""
-        sensor = or_pm_nonsecure.start_app("PatientSensor")
-        wait_for_process_ready(sensor, timeout_sec=5)
-        assert sensor.poll() is None, f"PatientSensor exited early with code {sensor.returncode}"
+        or_pm_nonsecure.start_app_ready("PatientSensor")
 
         result = _run_injector_probe(
             threat_env[0],
@@ -143,10 +101,7 @@ class TestInjectorSecure:
     @pytest.fixture(autouse=True, scope="class")
     def _start_patient_sensor(self, or_pm_secure_class):
         """Launch PatientSensor once for all tests in this class."""
-        from module04_test_support import wait_for_process_ready
-
-        ps = or_pm_secure_class.start_app("PatientSensor")
-        wait_for_process_ready(ps, timeout_sec=5)
+        or_pm_secure_class.start_app_ready("PatientSensor")
 
     def test_rogue_ca_injection_blocked(self, or_pm_secure_class, or_env_secure, threat_env):
         """Injector with rogue CA identity should not match secured OR apps."""
@@ -156,6 +111,7 @@ class TestInjectorSecure:
             timeout_sec=4,
         )
         # The participant may be created but should NOT match
+        assert result["created"], f"Participant creation failed: {result.get('error')}"
         assert not result["matched"], "Rogue CA injector should NOT match secured OR apps"
 
     def test_forged_perms_injection_blocked(self, or_pm_secure_class, or_env_secure, threat_env):
@@ -165,6 +121,7 @@ class TestInjectorSecure:
             dp_name="ThreatParticipantLibrary::dp/ThreatInjector/ForgedPerms",
             timeout_sec=4,
         )
+        assert result["created"], f"Participant creation failed: {result.get('error')}"
         assert not result["matched"], "Forged permissions injector should NOT match secured OR apps"
 
     def test_expired_cert_injection_fails(self, or_pm_secure_class, or_env_secure, threat_env):
@@ -175,6 +132,6 @@ class TestInjectorSecure:
             timeout_sec=4,
         )
         # Expired cert typically causes participant creation failure
-        if result["created"]:
-            assert not result["matched"], "Expired cert injector should NOT match secured OR apps"
-        # If not created, that's also a valid block
+        assert not result["created"], (
+            f"Participant creation should have failed: {result.get('error')}"
+        )

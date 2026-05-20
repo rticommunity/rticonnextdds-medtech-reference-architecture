@@ -88,12 +88,12 @@ The Docker entrypoint (`tests/docker/entrypoint.sh`):
 
 1. Starts Xvfb virtual display (`:99`) for headless GUI tests
 2. Sources the RTI Connext environment
-3. Runs `python -m pytest` with any provided arguments
+3. Runs `pytest` with any provided arguments
 4. Cleans up Xvfb on exit
 
-Example: `docker run medtech-test` → entrypoint calls `python -m pytest -v`
+Example: `docker run medtech-test` → entrypoint calls `pytest -v`
 
-Example: `docker run medtech-test -k "test_types"` → entrypoint calls `python -m pytest -k "test_types"`
+Example: `docker run medtech-test -k "test_types"` → entrypoint calls `pytest -k "test_types"`
 
 ## Why two images?
 
@@ -112,4 +112,4 @@ Example: `docker run medtech-test -k "test_types"` → entrypoint calls `python 
 - `docker compose run --rm ...` avoids leftover one-off containers after test
   completion.
 - All 130 tests (repo-level + modules) are collected and run via the unified
-  `python -m pytest` approach configured in the root `pyproject.toml`.
+  `pytest` approach configured in the root `pyproject.toml`.
