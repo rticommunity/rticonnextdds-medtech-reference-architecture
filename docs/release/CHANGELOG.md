@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-06-02
+
 ### Added
 
 - Added `docs/CONTRIBUTING.md` guidance for maintainers.
@@ -22,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Migrated the project baseline from RTI Connext DDS 7.3.1 to 7.7.0.
   - Updated C++ type-generation and source integration for IDL4 CPP.
   - Bumped required Python version to 3.10+.
+  - Explicitly disabled Monitoring2.0 when using security.
 - CI runner targeting and setup refined around `ubuntu-24.04`.
 - Test execution model unified around root-level `python -m pytest`
   across local runs, Docker test entrypoint, and contributor docs.
