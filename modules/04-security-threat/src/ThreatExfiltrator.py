@@ -1,6 +1,6 @@
-# 
+#
 # (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
-# 
+#
 # RTI grants Licensee a license to use, modify, compile, and create derivative
 # works of the software solely for use with RTI Connext DDS.  Licensee may
 # redistribute copies of the software provided that all such copies are
@@ -12,62 +12,74 @@
 
 from __future__ import annotations
 
-import sys
-import math
-import time
-import threading
 import signal
+import sys
+import threading
+import time
 from pathlib import Path
 
 import numpy as np
-
-from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QLabel, QFrame,
-    QHBoxLayout, QVBoxLayout, QPushButton,
-    QTextEdit, QSizePolicy, QGridLayout
-)
-from PySide6.QtCore import Qt, QTimer, Signal, QObject
-from PySide6.QtGui import QFont, QColor, QPalette, QPixmap, QIcon
-
 import pyqtgraph as pg
-
 import rti.connextdds as dds
-import PySide6.QtAsyncio as QtAsyncio
+from PySide6 import QtAsyncio
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QSizePolicy,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 # Import OR types
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
-if str(PROJECT_ROOT / "modules" / "01-operating-room" / "src") not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT / "modules" / "01-operating-room" / "src"))
+sys.path.insert(
+    0,
+    str(
+        Path(__file__).parent.parent.parent.parent.resolve()
+        / "modules"
+        / "01-operating-room"
+        / "src"
+    ),
+)
 import DdsUtils
-from Types import PatientMonitor, DdsEntities
 from ThreatTypes import ThreatEntities
+from Types import DdsEntities, PatientMonitor
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
 threat_entities = ThreatEntities.Constants
 entities = DdsEntities.Constants
 
-RTI_BLUE    = "#004C97"
-RTI_ORANGE  = "#ED8B00"
-BG_MAIN     = "#0A0E17"
-BG_PANEL    = "#0F1822"
-BG_HEADER   = "#071020"
-BORDER_DIM  = "#1A2535"
-COLOR_OK     = "#00E676"
-COLOR_WARN   = "#ED8B00"
-COLOR_BLOCKED    = "#FF4444"
-COLOR_IDLE       = "#445566"
+RTI_BLUE = "#004C97"
+RTI_ORANGE = "#ED8B00"
+BG_MAIN = "#0A0E17"
+BG_PANEL = "#0F1822"
+BG_HEADER = "#071020"
+BORDER_DIM = "#1A2535"
+COLOR_OK = "#00E676"
+COLOR_WARN = "#ED8B00"
+COLOR_BLOCKED = "#FF4444"
+COLOR_IDLE = "#445566"
 COLOR_ATTEMPTING = "#1E88E5"
-COLOR_GRANTED    = "#00C853"
+COLOR_GRANTED = "#00C853"
 
-COLOR_HR    = "#00E676"
-COLOR_SPO2  = "#00B0FF"
+COLOR_HR = "#00E676"
+COLOR_SPO2 = "#00B0FF"
 COLOR_ETCO2 = "#FFD600"
-COLOR_NIBP  = "#FF7043"
+COLOR_NIBP = "#FF7043"
 
 # ─── Left-panel button styles ─────────────────────────────────────────────
 _STYLE_MODE_INACTIVE = (
-    f"QPushButton {{ background-color: #0D1824; color: #4A6070; "
-    f"border: 1px solid #1A2A38; border-radius: 5px; padding: 0px 12px; "
-    f"font-size: 13px; font-weight: bold; text-align: left; }}"
-    f"QPushButton:hover {{ background-color: #162030; color: #90AAB8; border-color: #2A3A4A; }}"
+    "QPushButton { background-color: #0D1824; color: #4A6070; "
+    "border: 1px solid #1A2A38; border-radius: 5px; padding: 0px 12px; "
+    "font-size: 13px; font-weight: bold; text-align: left; }"
+    "QPushButton:hover { background-color: #162030; color: #90AAB8; border-color: #2A3A4A; }"
 )
 _STYLE_MODE_ACTIVE_UNSECURE = (
     f"QPushButton {{ background-color: #0A1E35; color: {COLOR_ATTEMPTING}; "
@@ -86,57 +98,58 @@ _STYLE_STOP_ENABLED = (
     f"QPushButton:hover {{ background-color: #2E1010; border-color: {COLOR_BLOCKED}; }}"
 )
 _STYLE_STOP_DISABLED = (
-    f"QPushButton {{ background-color: #0D1520; color: #2A3848; "
-    f"border: 1px solid #182028; border-radius: 5px; padding: 0px 12px; "
-    f"font-size: 13px; font-weight: bold; }}"
+    "QPushButton { background-color: #0D1520; color: #2A3848; "
+    "border: 1px solid #182028; border-radius: 5px; padding: 0px 12px; "
+    "font-size: 13px; font-weight: bold; }"
 )
 
 UPDATE_MS = 100
 DATA_TIMEOUT_S = 2.0
 
 # Attack mode constants
-MODE_UNSECURE     = "UNSECURE"
-MODE_ROGUE_CA     = "ROGUE CA"
+MODE_UNSECURE = "UNSECURE"
+MODE_ROGUE_CA = "ROGUE CA"
 MODE_FORGED_PERMS = "FORGED PERMS"
 MODE_EXPIRED_CERT = "EXPIRED CERT"
 
 MODE_TO_DP_NAME = {
-    MODE_UNSECURE:     threat_entities.EXFILTRATOR_UNSECURE_DP,
-    MODE_ROGUE_CA:     threat_entities.EXFILTRATOR_ROGUE_CA_DP,
+    MODE_UNSECURE: threat_entities.EXFILTRATOR_UNSECURE_DP,
+    MODE_ROGUE_CA: threat_entities.EXFILTRATOR_ROGUE_CA_DP,
     MODE_FORGED_PERMS: threat_entities.EXFILTRATOR_FORGED_PERMS_DP,
     MODE_EXPIRED_CERT: threat_entities.EXFILTRATOR_EXPIRED_CERT_DP,
 }
 
-SAMPLE_RATE  = 200
+SAMPLE_RATE = 200
 DISPLAY_SECS = 6
-BUFFER_LEN   = SAMPLE_RATE * DISPLAY_SECS
+BUFFER_LEN = SAMPLE_RATE * DISPLAY_SECS
 
 
 def _ecg_template(n_pts=SAMPLE_RATE):
     t = np.linspace(0, 1, n_pts)
-    p  = 0.15 * np.exp(-((t - 0.12) ** 2) / (2 * 0.008 ** 2))
-    q  = -0.08 * np.exp(-((t - 0.22) ** 2) / (2 * 0.004 ** 2))
-    r  = 1.00 * np.exp(-((t - 0.26) ** 2) / (2 * 0.003 ** 2))
-    s  = -0.15 * np.exp(-((t - 0.30) ** 2) / (2 * 0.004 ** 2))
-    tw = 0.30 * np.exp(-((t - 0.42) ** 2) / (2 * 0.015 ** 2))
+    p = 0.15 * np.exp(-((t - 0.12) ** 2) / (2 * 0.008**2))
+    q = -0.08 * np.exp(-((t - 0.22) ** 2) / (2 * 0.004**2))
+    r = 1.00 * np.exp(-((t - 0.26) ** 2) / (2 * 0.003**2))
+    s = -0.15 * np.exp(-((t - 0.30) ** 2) / (2 * 0.004**2))
+    tw = 0.30 * np.exp(-((t - 0.42) ** 2) / (2 * 0.015**2))
     return p + q + r + s + tw
 
 
 def _pleth_template(n_pts=SAMPLE_RATE):
     t = np.linspace(0, 1, n_pts)
     return np.clip(
-        np.exp(-((t - 0.35) ** 2) / (2 * 0.05 ** 2))
-        + 0.25 * np.exp(-((t - 0.55) ** 2) / (2 * 0.04 ** 2)),
-        0, 1
+        np.exp(-((t - 0.35) ** 2) / (2 * 0.05**2))
+        + 0.25 * np.exp(-((t - 0.55) ** 2) / (2 * 0.04**2)),
+        0,
+        1,
     )
 
 
 def _capno_template(n_pts=SAMPLE_RATE):
     t = np.linspace(0, 1, n_pts)
     w = np.zeros(n_pts)
-    rise  = (t >= 0.30) & (t < 0.60)
-    plat  = (t >= 0.60) & (t < 0.85)
-    fall  = (t >= 0.85) & (t < 0.95)
+    rise = (t >= 0.30) & (t < 0.60)
+    plat = (t >= 0.60) & (t < 0.85)
+    fall = (t >= 0.85) & (t < 0.95)
     w[rise] = (t[rise] - 0.30) / 0.30
     w[plat] = 1.0
     w[fall] = 1.0 - (t[fall] - 0.85) / 0.10
@@ -181,9 +194,7 @@ class VitalPanel(QFrame):
         top.addWidget(name_lbl)
         top.addStretch()
         unit_lbl = QLabel(self.unit)
-        unit_lbl.setStyleSheet(
-            f"color: {self.color}88; font-size: 14px; background: transparent;"
-        )
+        unit_lbl.setStyleSheet(f"color: {self.color}88; font-size: 14px; background: transparent;")
         unit_lbl.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight)
         top.addWidget(unit_lbl)
         root.addLayout(top)
@@ -260,9 +271,7 @@ class NiBPPanel(QFrame):
         top.addWidget(name_lbl)
         top.addStretch()
         unit_lbl = QLabel("mmHg")
-        unit_lbl.setStyleSheet(
-            f"color: {COLOR_NIBP}88; font-size: 14px; background: transparent;"
-        )
+        unit_lbl.setStyleSheet(f"color: {COLOR_NIBP}88; font-size: 14px; background: transparent;")
         top.addWidget(unit_lbl)
         root.addLayout(top)
 
@@ -326,8 +335,6 @@ class ThreatExfiltratorWindow(QMainWindow):
 
         self._build_ui()
 
-
-
     def _build_ui(self):
         central = QWidget()
         central.setStyleSheet(f"background-color: {BG_MAIN};")
@@ -355,9 +362,7 @@ class ThreatExfiltratorWindow(QMainWindow):
     def _build_header(self) -> QWidget:
         header = QWidget()
         header.setFixedHeight(80)
-        header.setStyleSheet(
-            f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};"
-        )
+        header.setStyleSheet(f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};")
         h = QHBoxLayout(header)
         h.setContentsMargins(20, 0, 20, 0)
 
@@ -365,7 +370,14 @@ class ThreatExfiltratorWindow(QMainWindow):
         if not _logo_px.isNull():
             logo = QLabel()
             logo.setStyleSheet("background: transparent;")
-            logo.setPixmap(_logo_px.scaled(52, 52, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            logo.setPixmap(
+                _logo_px.scaled(
+                    52,
+                    52,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
             h.addWidget(logo)
 
         rti_lbl = QLabel("RTI Connext")
@@ -394,14 +406,10 @@ class ThreatExfiltratorWindow(QMainWindow):
     def _build_footer(self) -> QWidget:
         footer = QWidget()
         footer.setFixedHeight(44)
-        footer.setStyleSheet(
-            f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};"
-        )
+        footer.setStyleSheet(f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};")
         f = QHBoxLayout(footer)
         f.setContentsMargins(20, 0, 20, 0)
-        lbl = QLabel(
-            "Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture"
-        )
+        lbl = QLabel("Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture")
         lbl.setStyleSheet(f"color: {COLOR_IDLE}; font-size: 18px; background: transparent;")
         f.addWidget(lbl)
         f.addStretch()
@@ -426,7 +434,12 @@ class ThreatExfiltratorWindow(QMainWindow):
         layout.addWidget(mode_lbl)
 
         self._mode_buttons: dict[str, QPushButton] = {}
-        for mode in [MODE_UNSECURE, MODE_ROGUE_CA, MODE_FORGED_PERMS, MODE_EXPIRED_CERT]:
+        for mode in [
+            MODE_UNSECURE,
+            MODE_ROGUE_CA,
+            MODE_FORGED_PERMS,
+            MODE_EXPIRED_CERT,
+        ]:
             btn = QPushButton(mode)
             btn.setFixedHeight(44)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -453,7 +466,7 @@ class ThreatExfiltratorWindow(QMainWindow):
             "and return to idle at any time."
         )
         info_lbl.setStyleSheet(
-            f"color: #607080; font-size: 12px; background: transparent; padding: 4px;"
+            "color: #607080; font-size: 12px; background: transparent; padding: 4px;"
         )
         info_lbl.setWordWrap(True)
         layout.addWidget(info_lbl)
@@ -478,17 +491,17 @@ class ThreatExfiltratorWindow(QMainWindow):
         )
         v.addWidget(lbl)
 
-        self.hr_panel    = VitalPanel("ECG / Heart Rate", "bpm",  COLOR_HR,    -0.2, 1.1)
-        self.spo2_panel  = VitalPanel("SpO₂",             "%",    COLOR_SPO2,  -0.1, 1.1)
-        self.etco2_panel = VitalPanel("EtCO₂",            "mmHg", COLOR_ETCO2, -0.1, 1.1)
-        self.nibp_panel  = NiBPPanel()
+        self.hr_panel = VitalPanel("ECG / Heart Rate", "bpm", COLOR_HR, -0.2, 1.1)
+        self.spo2_panel = VitalPanel("SpO₂", "%", COLOR_SPO2, -0.1, 1.1)
+        self.etco2_panel = VitalPanel("EtCO₂", "mmHg", COLOR_ETCO2, -0.1, 1.1)
+        self.nibp_panel = NiBPPanel()
 
         grid = QGridLayout()
         grid.setSpacing(8)
-        grid.addWidget(self.hr_panel,    0, 0)
-        grid.addWidget(self.spo2_panel,  0, 1)
+        grid.addWidget(self.hr_panel, 0, 0)
+        grid.addWidget(self.spo2_panel, 0, 1)
         grid.addWidget(self.etco2_panel, 1, 0)
-        grid.addWidget(self.nibp_panel,  1, 1)
+        grid.addWidget(self.nibp_panel, 1, 1)
         v.addLayout(grid, 1)
         return outer
 
@@ -509,14 +522,14 @@ class ThreatExfiltratorWindow(QMainWindow):
         v.addWidget(hdr)
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setStyleSheet(f"""
-            QTextEdit {{
+        self.log_text.setStyleSheet("""
+            QTextEdit {
                 background-color: #060C14;
                 color: #A0B0C0;
                 font-family: 'Courier New', monospace;
                 font-size: 12px;
                 border: none;
-            }}
+            }
         """)
         v.addWidget(self.log_text)
         return frame
@@ -526,7 +539,11 @@ class ThreatExfiltratorWindow(QMainWindow):
     def highlight_mode_button(self, active_mode: str | None) -> None:
         for mode, btn in self._mode_buttons.items():
             if mode == active_mode:
-                style = _STYLE_MODE_ACTIVE_UNSECURE if mode == MODE_UNSECURE else _STYLE_MODE_ACTIVE_THREAT
+                style = (
+                    _STYLE_MODE_ACTIVE_UNSECURE
+                    if mode == MODE_UNSECURE
+                    else _STYLE_MODE_ACTIVE_THREAT
+                )
                 btn.setStyleSheet(style)
             else:
                 btn.setStyleSheet(_STYLE_MODE_INACTIVE)
@@ -537,10 +554,10 @@ class ThreatExfiltratorWindow(QMainWindow):
     def set_data_status(self, status: str):
         """status: 'IDLE', 'ACCESS GRANTED', 'NO ACCESS', 'ATTACK FAILED'"""
         colors = {
-            "IDLE":          (COLOR_IDLE,       "#fff"),
-            "ACCESS GRANTED":(COLOR_GRANTED,    "#000"),
-            "NO ACCESS":     (COLOR_WARN,       "#000"),
-            "ATTACK FAILED": (COLOR_BLOCKED,    "#fff"),
+            "IDLE": (COLOR_IDLE, "#fff"),
+            "ACCESS GRANTED": (COLOR_GRANTED, "#000"),
+            "NO ACCESS": (COLOR_WARN, "#000"),
+            "ATTACK FAILED": (COLOR_BLOCKED, "#fff"),
         }
         bg, fg = colors.get(status, (COLOR_IDLE, "#fff"))
         self.status_badge.setText(status)
@@ -551,10 +568,10 @@ class ThreatExfiltratorWindow(QMainWindow):
 
     def log(self, level: str, msg: str):
         colors = {
-            "OK":       COLOR_OK,
-            "WARN":     COLOR_WARN,
-            "BLOCKED":  COLOR_BLOCKED,
-            "INFO":     "#6699AA",
+            "OK": COLOR_OK,
+            "WARN": COLOR_WARN,
+            "BLOCKED": COLOR_BLOCKED,
+            "INFO": "#6699AA",
             "SECURITY": "#FF6D00",
         }
         c = colors.get(level, "#C0D0E0")
@@ -562,9 +579,7 @@ class ThreatExfiltratorWindow(QMainWindow):
             f'<span style="color:{c}; font-weight:bold;">[{level}]</span>'
             f' <span style="color:#C0D0E0;">{msg}</span>'
         )
-        self.log_text.verticalScrollBar().setValue(
-            self.log_text.verticalScrollBar().maximum()
-        )
+        self.log_text.verticalScrollBar().setValue(self.log_text.verticalScrollBar().maximum())
 
     def reset_vitals(self):
         self.hr_panel.reset_to_dashes()
@@ -584,7 +599,7 @@ class ThreatExfiltratorApp:
         self._last_sample_time = 0.0
         self._cert_invalid = False
         self._prev_matched = None
-        self._ecg_tpl   = _ecg_template()
+        self._ecg_tpl = _ecg_template()
         self._pleth_tpl = _pleth_template()
         self._capno_tpl = _capno_template()
         self._prev_poll_time = time.monotonic()
@@ -663,8 +678,8 @@ class ThreatExfiltratorApp:
                 samples = []
 
         for sample in samples:
-            hr    = float(sample.hr)
-            spo2  = float(sample.spo2)
+            hr = float(sample.hr)
+            spo2 = float(sample.spo2)
             etco2 = float(sample.etco2)
             nibp_s = float(sample.nibp_s)
             nibp_d = float(sample.nibp_d)
@@ -674,12 +689,12 @@ class ThreatExfiltratorApp:
             self.window.etco2_panel.set_value(etco2)
             self.window.nibp_panel.set_values(nibp_s, nibp_d)
 
-            self.window.hr_panel.beat_rate    = hr / 60.0
-            self.window.hr_panel.amplitude    = 1.0
-            self.window.spo2_panel.beat_rate  = hr / 60.0
-            self.window.spo2_panel.amplitude  = 1.0
-            self.window.etco2_panel.beat_rate  = 15 / 60.0
-            self.window.etco2_panel.amplitude  = 1.0
+            self.window.hr_panel.beat_rate = hr / 60.0
+            self.window.hr_panel.amplitude = 1.0
+            self.window.spo2_panel.beat_rate = hr / 60.0
+            self.window.spo2_panel.amplitude = 1.0
+            self.window.etco2_panel.beat_rate = 15 / 60.0
+            self.window.etco2_panel.amplitude = 1.0
 
             self._last_sample_time = time.monotonic()
             self.window.set_data_status("ACCESS GRANTED")
@@ -687,7 +702,7 @@ class ThreatExfiltratorApp:
                 "OK",
                 f"Received Vitals — patient_id: {sample.patient_id}, "
                 f"hr: {sample.hr}, spo2: {sample.spo2}, "
-                f"etco2: {sample.etco2}, nibp: {sample.nibp_s}/{sample.nibp_d}"
+                f"etco2: {sample.etco2}, nibp: {sample.nibp_s}/{sample.nibp_d}",
             )
 
         # Data timeout → reset panels to dashes

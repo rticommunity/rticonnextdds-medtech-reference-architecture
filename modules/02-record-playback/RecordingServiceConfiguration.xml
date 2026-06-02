@@ -10,7 +10,7 @@ under no obligation to maintain or support the software.  RTI shall not be
 liable for any incidental or consequential damages arising out of the use or
 inability to use the software. -->
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-     xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_recording_service.xsd">
+     xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.7.0/rti_recording_service.xsd">
 
     <recording_service name="RecServCfg">
 
@@ -55,7 +55,7 @@ inability to use the software. -->
                 <!-- Using the same QoS profile we use in our applications -->
                 <datareader_qos base_name="DataFlowLibrary::Command"/>
             </topic>
-            
+
             <topic name="t/Vitals" participant_ref="recs/dp/OperationalData">
                 <topic_name>t/Vitals</topic_name>
                 <registered_type_name>PatientMonitor::Vitals</registered_type_name>

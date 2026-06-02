@@ -1,6 +1,6 @@
 # Module 02 — Test Suite
 
-Automated tests for the **Record & Playback** module.  
+Automated tests for the **Record & Playback** module.
 Tests verify that RTI Recording Service captures DDS data to a database
 and that RTI Replay Service re-publishes recorded samples.
 
@@ -8,8 +8,8 @@ and that RTI Replay Service re-publishes recorded samples.
 
 | Requirement | Notes |
 | --- | --- |
-| RTI Connext DDS 7.3.0+ | `NDDSHOME` must be set |
-| Python 3.9+ | With the Connext Python API (`rti.connextdds`) |
+| RTI Connext DDS 7.7.x | `NDDSHOME` must be set |
+| Python 3.10+ | With the Connext Python API (`rti.connextdds`) |
 | pytest | `pip install pytest` |
 | Module 01 C++ build complete | Run `python scripts/build.py` in `modules/01-operating-room/` |
 | `rtirecordingservice` | Must be present in `$NDDSHOME/bin/` |
@@ -24,13 +24,13 @@ From the `modules/02-record-playback/` directory:
 
 ```bash
 # All tests
-python -m pytest tests/ -v
+pytest tests/ -v
 
 # Only recording tests
-python -m pytest tests/test_recording.py -v
+pytest tests/test_recording.py -v
 
 # Only replay tests
-python -m pytest tests/test_replay.py -v
+pytest tests/test_replay.py -v
 ```
 
 ## Test Structure

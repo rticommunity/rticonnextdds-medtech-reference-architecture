@@ -15,14 +15,11 @@ Verifies that each application starts without crashing.
 GUI applications are marked so they can be skipped on headless systems.
 """
 
-import time
-
 import pytest
-from conftest import (
-    create_reader,
-    wait_for_data,
+from scripts.test_utils import (
+    GTK_ENV,
+    QT_ENV,
     wait_for_device_status,
-    wait_for_process_ready,
 )
 
 
@@ -30,15 +27,16 @@ class TestPatientSensor:
     """PatientSensor is a headless C++ app — no display needed."""
 
     def test_starts_and_stays_alive(self, proc_manager):
-        proc = proc_manager.start_app("PatientSensor")
-        wait_for_process_ready(proc)
-        assert proc.poll() is None, f"PatientSensor exited early with code {proc.returncode}"
+        proc_manager.start_app_ready("PatientSensor")
 
     def test_prints_launch_message(self, proc_manager):
-        proc = proc_manager.start_app("PatientSensor")
-        wait_for_process_ready(proc)
+        proc = proc_manager.start_app_ready("PatientSensor")
         # Read whatever is available, non-blocking
-        out = proc.stdout.read1(4096).decode(errors="replace") if hasattr(proc.stdout, "read1") else b""
+        out = (
+            proc.stdout.read1(4096).decode(errors="replace")
+            if hasattr(proc.stdout, "read1")
+            else b""
+        )
         # Fallback: terminate and capture
         if not out:
             proc.terminate()
@@ -51,83 +49,66 @@ class TestPatientSensor:
 class TestOrchestrator:
     """Orchestrator is a C++ GTK application."""
 
-    GTK_ENV = {"GDK_BACKEND": "x11"}
-
     def test_starts_and_stays_alive(self, proc_manager):
-        proc = proc_manager.start_app("Orchestrator", extra_env=self.GTK_ENV)
-        wait_for_process_ready(proc)
-        assert proc.poll() is None, f"Orchestrator exited early with code {proc.returncode}"
+        proc_manager.start_app_ready("Orchestrator", extra_env=GTK_ENV)
 
 
 @pytest.mark.gui
 class TestArmController:
     """ArmController is a C++ GTK application."""
 
-    GTK_ENV = {"GDK_BACKEND": "x11"}
-
     def test_starts_and_stays_alive(self, proc_manager):
-        proc = proc_manager.start_app("ArmController", extra_env=self.GTK_ENV)
-        wait_for_process_ready(proc)
-        assert proc.poll() is None, f"ArmController exited early with code {proc.returncode}"
+        proc_manager.start_app_ready("ArmController", extra_env=GTK_ENV)
 
 
 @pytest.mark.gui
 class TestPatientMonitor:
     """PatientMonitor is a Python/Qt application — use offscreen platform."""
 
-    QT_ENV = {"QT_QPA_PLATFORM": "offscreen"}
-
     def test_starts_and_stays_alive(self, proc_manager):
-        proc = proc_manager.start_app("PatientMonitor", extra_env=self.QT_ENV)
-        wait_for_process_ready(proc, timeout_sec=10)
-        assert proc.poll() is None, f"PatientMonitor exited early with code {proc.returncode}"
+        proc_manager.start_app_ready("PatientMonitor", extra_env=QT_ENV)
 
 
 @pytest.mark.gui
 class TestArm:
     """Arm is a Python/Qt application — use offscreen platform."""
 
-    QT_ENV = {"QT_QPA_PLATFORM": "offscreen"}
-
     def test_starts_and_stays_alive(self, proc_manager):
-        proc = proc_manager.start_app("Arm", extra_env=self.QT_ENV)
-        wait_for_process_ready(proc, timeout_sec=10)
-        assert proc.poll() is None, f"Arm exited early with code {proc.returncode}"
+        proc_manager.start_app_ready("Arm", extra_env=QT_ENV)
 
 
 @pytest.mark.gui
 class TestAllApps:
     """Launch all five applications simultaneously."""
 
-    QT_ENV = {"QT_QPA_PLATFORM": "offscreen"}
-    GTK_ENV = {"GDK_BACKEND": "x11"}
+    def test_all_apps_launch_together(self, proc_manager, nonsecure_utility_app):
+        from Types import Common
 
-    def test_all_apps_launch_together(self, proc_manager, dds_participant):
-        from Types import Common, Common_DeviceStatus
-
-        procs = {}
-        procs["PatientSensor"] = proc_manager.start_app("PatientSensor")
-        procs["Orchestrator"] = proc_manager.start_app("Orchestrator", extra_env=self.GTK_ENV)
-        procs["ArmController"] = proc_manager.start_app("ArmController", extra_env=self.GTK_ENV)
-        procs["PatientMonitor"] = proc_manager.start_app("PatientMonitor", extra_env=self.QT_ENV)
-        procs["Arm"] = proc_manager.start_app("Arm", extra_env=self.QT_ENV)
+        proc_manager.start_apps_ready(
+            [
+                "PatientSensor",
+                ("Orchestrator", GTK_ENV),
+                ("ArmController", GTK_ENV),
+                ("PatientMonitor", QT_ENV),
+                ("Arm", QT_ENV),
+            ]
+        )
 
         # Wait for all 4 device-type apps to report DeviceStatus
         # (Orchestrator doesn't publish DeviceStatus — it's the controller)
-        status_reader = create_reader(
-            dds_participant,
-            "t/DeviceStatus",
-            Common_DeviceStatus,
-            "DataFlowLibrary::Status",
-        )
+        status_reader = nonsecure_utility_app.device_status.reader
         expected = {
             Common.DeviceType.PATIENT_SENSOR,
             Common.DeviceType.ARM_CONTROLLER,
             Common.DeviceType.ARM,
             Common.DeviceType.PATIENT_MONITOR,
         }
-        seen = wait_for_device_status(status_reader, expected, timeout_sec=30)
-        assert seen == expected, f"Not all apps came online. Missing: {set(d.name for d in expected - seen)}"
-
-        for name, proc in procs.items():
-            assert proc.poll() is None, f"{name} crashed on startup (exit code {proc.returncode})"
+        seen = wait_for_device_status(
+            status_reader,
+            expected,
+            device_statuses=[Common.DeviceStatuses.ON],
+            timeout_sec=30,
+        )
+        assert seen == expected, (
+            f"Not all apps came online. Missing: {set(d.name for d in expected - seen)}"
+        )

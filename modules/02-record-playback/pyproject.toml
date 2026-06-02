@@ -1,6 +1,0 @@
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-markers = [
-    "slow: long-running recording/replay scenario",
-]
-addopts = "-rs"

@@ -17,7 +17,7 @@
 -->
 
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_routing_service.xsd">
+    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.7.0/rti_routing_service.xsd">
 
     <!-- PUBLIC_ADDRESS must be set as an environment variable to the publicly
             accessible IP address of this (Passive) side.
@@ -39,7 +39,7 @@
 
     <!-- RS that is not behind a well-known public IP address -->
     <routing_service name="RsConfigPassive">
-        <!-- The administration tag enables remote administration, and is 
+        <!-- The administration tag enables remote administration, and is
             required when using Admin Console. -->
         <administration>
             <domain_id>99</domain_id>
@@ -49,7 +49,7 @@
             </distributed_logger>
         </administration>
 
-        <!-- This is the Monitoring configuration for all the entities in 
+        <!-- This is the Monitoring configuration for all the entities in
             this routing service, and is required when using Admin Console. -->
         <monitoring>
             <!-- The domain id where to publish the monitoring information -->
@@ -104,7 +104,7 @@
                         <datawriter_qos base_name="DataFlowLibrary::Status"/>
                     </output>
                 </auto_topic_route>
-                
+
                 <auto_topic_route name="Local_to_WAN_Heartbeat_route">
                     <publish_with_original_info>true</publish_with_original_info>
                     <input participant="Local_domain">
@@ -118,7 +118,7 @@
                         <datawriter_qos base_name="DataFlowLibrary::Heartbeat"/>
                     </output>
                 </auto_topic_route>
-                
+
                 <auto_topic_route name="Local_to_WAN_Command_route">
                     <publish_with_original_info>true</publish_with_original_info>
                     <input participant="Local_domain">
@@ -132,7 +132,7 @@
                         <datawriter_qos base_name="DataFlowLibrary::Command"/>
                     </output>
                 </auto_topic_route>
-                
+
                 <auto_topic_route name="Local_to_WAN_Streaming_route">
                     <publish_with_original_info>true</publish_with_original_info>
                     <input participant="Local_domain">
@@ -162,7 +162,7 @@
                         <datawriter_qos base_name="DataFlowLibrary::Status"/>
                     </output>
                 </auto_topic_route>
-                
+
                 <auto_topic_route name="WAN_to_Local_Heartbeat_route">
                     <publish_with_original_info>true</publish_with_original_info>
                     <input participant="WAN_domain">
@@ -176,7 +176,7 @@
                         <datawriter_qos base_name="DataFlowLibrary::Heartbeat"/>
                     </output>
                 </auto_topic_route>
-                
+
                 <auto_topic_route name="WAN_to_Local_Command_route">
                     <publish_with_original_info>true</publish_with_original_info>
                     <input participant="WAN_domain">
@@ -190,7 +190,7 @@
                         <datawriter_qos base_name="DataFlowLibrary::Command"/>
                     </output>
                 </auto_topic_route>
-                
+
                 <auto_topic_route name="WAN_to_Local_Streaming_route">
                     <publish_with_original_info>true</publish_with_original_info>
                     <input participant="WAN_domain">

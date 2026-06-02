@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Added `docs/CONTRIBUTING.md` guidance for maintainers.
+- Root-level pytest marker `build_pipeline` in `pyproject.toml` for
+  build/configure pipeline tests, enabling marker-based CI selection.
+- Shared pytest support modules for module test suites:
+  `module01_test_support.py`, `module02_test_support.py`, and
+  `module04_test_support.py` to separate importable helpers from
+  pytest-only fixture wiring.
+
+### Changed
+
+- Migrated the project baseline from RTI Connext DDS 7.3.1 to 7.7.0.
+  - Updated C++ type-generation and source integration for IDL4 CPP.
+  - Bumped required Python version to 3.10+.
+- CI runner targeting and setup refined around `ubuntu-24.04`.
+- Test execution model unified around root-level `python -m pytest`
+  across local runs, Docker test entrypoint, and contributor docs.
+- Module test imports refactored to remove direct imports from
+  `conftest.py`; helper imports now resolve from dedicated support modules.
+- Project test naming clarified and aligned:
+  `tests/test_build.py` -> `tests/test_project_build_pipeline.py`,
+  `modules/01-operating-room/tests/test_build.py` ->
+  `test_build_and_types.py`, and module XML test filenames normalized.
+- Lint and quality tooling policy tightened through migration to
+  rumdl-based Markdown lint/format flows.
+- CI workflow (`.github/workflows/ci.yml`) simplified to lint + unified
+  root-level test execution, with marker-based exclusion of build-pipeline
+  tests and concurrency cancellation.
+- Ignore file hygiene and consistency improved across `.gitignore`,
+  `.dockerignore`, and nested security `.gitignore` files.
+
+### Fixed
+
+- Improved DDS test-process lifecycle handling to reduce orphaned
+  processes and cross-suite interference.
+- Module 02 orphaned Recording/Replay Service processes are now
+  explicitly reaped during teardown when tied to module test configs,
+  preventing cross-suite DDS endpoint leakage.
+- Module 04 secure exfiltrator tests now validate launch configuration
+  assumptions for secure OR and unsecured threat probe setup before
+  asserting expected security behavior.
+
+### Removed
+
+- Legacy `tests/run_tests.sh` wrapper script in favor of direct,
+  root-level pytest invocation.
+- Obsolete `.markdownlint.json` after migration to rumdl-based Markdown
+  checks.
+
 ## [1.2.1] - 2026-04-20
 
 ### Added
@@ -26,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   status check for the Module 04 threat security tree via `setup_threat_security.py --status`
 - Node.js 18 LTS (via NodeSource) to the Docker test image for `markdownlint-cli`
   compatibility; replaces the outdated system `nodejs` package
-- `tests/README.md` guidance on when to use `pytest`, `run_tests.sh`, or the
+- `tests/README.md` guidance on when to use root-level `pytest` and the
   Docker test image
 - **Module 01 pytest test suite** (`modules/01-operating-room/tests/`) with
   build, launch, DDS communication, and end-to-end demo-flow tests; includes

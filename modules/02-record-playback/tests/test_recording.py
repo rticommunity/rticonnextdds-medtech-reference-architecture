@@ -16,48 +16,38 @@ and verifies that data is captured to a SQLite database.
 """
 
 import time
-from pathlib import Path
 
 import pytest
-from conftest import (
-    MODULE_DIR,
+from module02_test_support import (
     RECORDING_DIR,
-    RECORDING_SERVICE,
-    wait_for_process_ready,
 )
 
 
+@pytest.mark.service
 @pytest.mark.slow
 class TestRecording:
     """RTI Recording Service should capture data from running applications."""
 
-    RECORDING_CONFIG = str(MODULE_DIR / "RecordingServiceConfiguration.xml")
-
-    def test_recording_creates_database(self, proc_manager, clean_recording_dir):
+    def test_recording_creates_database(
+        self, or_proc_manager, svc_proc_manager, clean_recording_dir
+    ):
         """Recording Service should create or_recording_database.dat."""
         # Start PatientSensor to produce t/Vitals data
-        ps = proc_manager.start_app("PatientSensor")
-        wait_for_process_ready(ps, timeout_sec=10)
-        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
+        or_proc_manager.start_app_ready("PatientSensor")
 
         # Start Recording Service
-        rec_proc = proc_manager.start(
-            [RECORDING_SERVICE, "-cfgFile", self.RECORDING_CONFIG, "-cfgName", "RecServCfg"],
-            cwd=MODULE_DIR,
-        )
-        # Record for ~8 seconds
-        time.sleep(8)
+        rec_proc = svc_proc_manager.start_app_ready("RecordingService")
+        # Record for ~3 seconds
+        time.sleep(3)
 
         # Verify Recording Service is still alive
-        assert rec_proc.poll() is None, f"Recording Service exited early with code {rec_proc.returncode}"
+        assert rec_proc.poll() is None, (
+            f"Recording Service exited early with code {rec_proc.returncode}"
+        )
 
-        # Stop recording service gracefully
-        rec_proc.terminate()
-        try:
-            rec_proc.wait(timeout=10)
-        except Exception:
-            rec_proc.kill()
-            rec_proc.wait(timeout=5)
+        # Kill PatientSensor and Recording Service to finalize the recording
+        or_proc_manager.shutdown_all()
+        svc_proc_manager.shutdown_all()
 
         # Verify the database file was created
         db_file = RECORDING_DIR / "or_recording_database.dat"
@@ -67,4 +57,6 @@ class TestRecording:
             f"{list(RECORDING_DIR.iterdir()) if RECORDING_DIR.is_dir() else 'dir not found'}"
         )
         # Database should have non-trivial size (at least a few KB of data)
-        assert db_file.stat().st_size > 1024, f"Recording database too small: {db_file.stat().st_size} bytes"
+        assert db_file.stat().st_size > 1024, (
+            f"Recording database too small: {db_file.stat().st_size} bytes"
+        )

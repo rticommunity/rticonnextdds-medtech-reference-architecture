@@ -9,31 +9,28 @@
 # under no obligation to maintain or support the software.  RTI shall not be
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
-"""Build verification tests for Module 01.
+"""Module 04 path constants and skip helpers.
 
-Ensures the CMake build succeeds, expected binaries are produced,
-and the generated Python types are importable.
+Bootstraps ``resource/python/`` onto sys.path so that every test file
+in this directory can ``from scripts.test_utils import …`` directly.
 """
+
+from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-import pytest
-from module01_test_support import MODULE_DIR
-
-sys.path.insert(0, str(MODULE_DIR.parent.parent / "resource" / "python"))
-from scripts import platform_setup
+# Add centralized scripts package to import path
+sys.path.insert(
+    0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python")
+)
 
 # ---------------------------------------------------------------------------
-# Build
+# Path bootstrapping
 # ---------------------------------------------------------------------------
-
-
-class TestBuild:
-    """Validate that the project-level CMake build produced expected binaries."""
-
-    @pytest.mark.parametrize("binary", ["PatientSensor", "Orchestrator", "ArmController"])
-    def test_binary_exists(self, binary: str):
-        """Compiled C++ binary exists and can be located."""
-        exe = platform_setup.find_executable(binary)
-        assert Path(exe).is_file(), f"Binary not found: {exe}"
+MODULE_DIR = Path(__file__).resolve().parent.parent  # modules/04-security-threat
+REPO_ROOT = MODULE_DIR.parent.parent
+MODULE_01_DIR = MODULE_DIR.parent / "01-operating-room"
+SYSTEM_ARCH_DIR = REPO_ROOT / "system_arch"
+THREAT_SRC_DIR = MODULE_DIR / "src"
+OR_SRC_DIR = MODULE_01_DIR / "src"

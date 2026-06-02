@@ -16,10 +16,9 @@ fields and enum members that this module's applications depend on.
 """
 
 import sys
-from pathlib import Path
 
 import pytest
-from conftest import SRC_DIR
+from module01_test_support import SRC_DIR
 
 # ---------------------------------------------------------------------------
 # Generated types
@@ -39,11 +38,8 @@ class TestPythonTypes:
             sys.path.insert(0, str(SRC_DIR))
 
         from Types import (
-            Common_DeviceHeartbeat,
             Common_DeviceStatus,
-            Orchestrator_DeviceCommand,
             PatientMonitor_Vitals,
-            SurgicalRobot_MotorControl,
         )
 
         # Smoke-check that we can instantiate them
@@ -70,36 +66,36 @@ class TestTypeInstantiation:
             sys.path.insert(0, str(SRC_DIR))
 
     def test_device_status_fields(self):
-        from Types import Common_DeviceStatus
+        from Types import Common
 
-        s = Common_DeviceStatus()
+        s = Common.DeviceStatus()
         assert hasattr(s, "device")
         assert hasattr(s, "status")
 
     def test_device_heartbeat_fields(self):
-        from Types import Common_DeviceHeartbeat
+        from Types import Common
 
-        h = Common_DeviceHeartbeat()
+        h = Common.DeviceHeartbeat()
         assert hasattr(h, "device")
 
     def test_motor_control_fields(self):
-        from Types import SurgicalRobot_MotorControl
+        from Types import SurgicalRobot
 
-        m = SurgicalRobot_MotorControl()
+        m = SurgicalRobot.MotorControl()
         assert hasattr(m, "id")
         assert hasattr(m, "direction")
 
     def test_device_command_fields(self):
-        from Types import Orchestrator_DeviceCommand
+        from Types import Orchestrator
 
-        c = Orchestrator_DeviceCommand()
+        c = Orchestrator.DeviceCommand()
         assert hasattr(c, "device")
         assert hasattr(c, "command")
 
     def test_vitals_fields(self):
-        from Types import PatientMonitor_Vitals
+        from Types import PatientMonitor
 
-        v = PatientMonitor_Vitals()
+        v = PatientMonitor.Vitals()
         for field in ("patient_id", "hr", "spo2", "etco2", "nibp_s", "nibp_d"):
             assert hasattr(v, field), f"Vitals missing field: {field}"
 
@@ -115,7 +111,14 @@ class TestEnumMembers:
     def test_device_type_enum(self):
         from Types import Common
 
-        expected = {"ARM_CONTROLLER", "ARM", "VIDEO_PUB", "VIDEO_SUB", "PATIENT_MONITOR", "PATIENT_SENSOR"}
+        expected = {
+            "ARM_CONTROLLER",
+            "ARM",
+            "VIDEO_PUB",
+            "VIDEO_SUB",
+            "PATIENT_MONITOR",
+            "PATIENT_SENSOR",
+        }
         actual = {e.name for e in Common.DeviceType}
         assert expected <= actual
 

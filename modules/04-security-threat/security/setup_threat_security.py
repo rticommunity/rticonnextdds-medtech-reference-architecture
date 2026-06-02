@@ -22,14 +22,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-MODULE_DIR = Path(__file__).parent.parent.resolve()
-PROJECT_ROOT = MODULE_DIR.parent.parent.resolve()
-MAIN_SECURITY_DIR = PROJECT_ROOT / "system_arch" / "security"
-MODULE_SECURITY_DIR = MODULE_DIR / "security"
-
 # Add the main security dir to the import path
-sys.path.insert(0, str(MAIN_SECURITY_DIR))
+sys.path.insert(
+    0,
+    str(Path(__file__).parent.parent.parent.parent.resolve() / "system_arch" / "security"),
+)
 
+from dds_security import generate_expired_identity
 from security_tree import (
     CA,
     App,
@@ -42,7 +41,11 @@ from security_tree import (
     TopicRule,
     scaffold_tree,
 )
-from dds_security import generate_expired_identity
+
+MODULE_DIR = Path(__file__).parent.parent.resolve()
+PROJECT_ROOT = MODULE_DIR.parent.parent.resolve()
+MAIN_SECURITY_DIR = PROJECT_ROOT / "system_arch" / "security"
+MODULE_SECURITY_DIR = MODULE_DIR / "security"
 
 # ---------------------------------------------------------------------------
 # Certificate authorities
@@ -73,8 +76,8 @@ TRUSTED_IDENTITY_CA = CA(
 #
 # The same ThreatDomain XML is signed by two CAs to enable the four threat
 # demonstrations:
-#   Threat 1 — Unauthorized subscriber  (TrustedIdentityCa identity  + TrustedPermissionsCa permissions)
-#   Threat 2 — Unauthorized publisher   (TrustedIdentityCa identity  + TrustedPermissionsCa permissions)
+#   Threat 1 — Unauth subscriber  (TrustedIdentityCa identity  + TrustedPermissionsCa permissions)
+#   Threat 2 — Unauth publisher   (TrustedIdentityCa identity  + TrustedPermissionsCa permissions)
 #   Threat 3 — Tampered permissions     (TrustedIdentityCa identity  + RogueCa-signed permissions)
 #   Threat 4 — Tampered governance      (TrustedIdentityCa identity  + RogueCa-signed governance)
 # ---------------------------------------------------------------------------
@@ -82,24 +85,26 @@ TRUSTED_IDENTITY_CA = CA(
 # Governance overrides for the threat module: no LogTopicV2 rule (threat apps
 # don't use the security log topic) and protection kinds set to NONE to match
 # the project's previous configuration.
-_THREAT_GOV_KWARGS = dict(
-    name="ThreatDomain",
-    discovery_protection_kind="NONE",
-    liveliness_protection_kind="NONE",
-    topic_rules=[TopicRule(topic_expression="*")],
-)
+_THREAT_GOV_KWARGS = {
+    "name": "ThreatDomain",
+    "discovery_protection_kind": "NONE",
+    "liveliness_protection_kind": "NONE",
+    "topic_rules": [TopicRule(topic_expression="*")],
+}
 
 THREAT_DOMAIN_TRUSTED = DomainScope(
     name="ThreatDomain",
     governance=Governance(issuer=TRUSTED_PERMISSIONS_CA, **_THREAT_GOV_KWARGS),
     permissions=[
         Permissions(
-            name="ThreatInjector", issuer=TRUSTED_PERMISSIONS_CA,
+            name="ThreatInjector",
+            issuer=TRUSTED_PERMISSIONS_CA,
             publish_topics=["t/MotorControl", "t/DeviceCommand"],
             subscribe_topics=["t/MotorControl", "t/DeviceCommand"],
         ),
         Permissions(
-            name="ThreatExfiltrator", issuer=TRUSTED_PERMISSIONS_CA,
+            name="ThreatExfiltrator",
+            issuer=TRUSTED_PERMISSIONS_CA,
             publish_topics=[],
             subscribe_topics=["t/Vitals"],
         ),
@@ -111,12 +116,14 @@ THREAT_DOMAIN_ROGUE = DomainScope(
     governance=Governance(issuer=ROGUE_CA, **_THREAT_GOV_KWARGS),
     permissions=[
         Permissions(
-            name="ThreatInjector", issuer=ROGUE_CA,
+            name="ThreatInjector",
+            issuer=ROGUE_CA,
             publish_topics=["t/MotorControl", "t/DeviceCommand"],
             subscribe_topics=["t/MotorControl", "t/DeviceCommand"],
         ),
         Permissions(
-            name="ThreatExfiltrator", issuer=ROGUE_CA,
+            name="ThreatExfiltrator",
+            issuer=ROGUE_CA,
             publish_topics=[],
             subscribe_topics=["t/Vitals"],
         ),
@@ -130,14 +137,20 @@ THREAT_DOMAIN_ROGUE = DomainScope(
 SECURITY_THREAT = Module(
     name="security-threat",
     apps=[
-        App(name="ThreatInjector", identities=[
-            Identity(name="ThreatInjector", issuer=TRUSTED_IDENTITY_CA),
-            Identity(name="ThreatInjector", issuer=ROGUE_CA),
-        ]),
-        App(name="ThreatExfiltrator", identities=[
-            Identity(name="ThreatExfiltrator", issuer=TRUSTED_IDENTITY_CA),
-            Identity(name="ThreatExfiltrator", issuer=ROGUE_CA),
-        ]),
+        App(
+            name="ThreatInjector",
+            identities=[
+                Identity(name="ThreatInjector", issuer=TRUSTED_IDENTITY_CA),
+                Identity(name="ThreatInjector", issuer=ROGUE_CA),
+            ],
+        ),
+        App(
+            name="ThreatExfiltrator",
+            identities=[
+                Identity(name="ThreatExfiltrator", issuer=TRUSTED_IDENTITY_CA),
+                Identity(name="ThreatExfiltrator", issuer=ROGUE_CA),
+            ],
+        ),
     ],
 )
 
@@ -159,19 +172,37 @@ SECURITY_TREE = SecurityTree(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate security artifacts for the security threat module.")
-    parser.add_argument("--scaffold", action="store_true",
-                        help="(Maintainer-only) Scaffold the directory tree from templates.")
-    parser.add_argument("--force", action="store_true",
-                        help="Re-generate artifacts even if they already exist.")
-    parser.add_argument("--strict", action="store_true",
-                        help="Promote warnings to fatal errors.")
-    parser.add_argument("--status", action="store_true",
-                        help="Report certificate expiry status and exit.")
-    parser.add_argument("--warn-days", type=int, default=30,
-                        help="Days-to-expiry warning threshold for --status (default: 30).")
-    parser.add_argument("-v", "--verbose", action="count", default=0,
-                        help="Increase logging verbosity (-v=INFO, -vv=DEBUG).")
+        description="Generate security artifacts for the security threat module."
+    )
+    parser.add_argument(
+        "--scaffold",
+        action="store_true",
+        help="(Maintainer-only) Scaffold the directory tree from templates.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-generate artifacts even if they already exist.",
+    )
+    parser.add_argument("--strict", action="store_true", help="Promote warnings to fatal errors.")
+    parser.add_argument(
+        "--status",
+        action="store_true",
+        help="Report certificate expiry status and exit.",
+    )
+    parser.add_argument(
+        "--warn-days",
+        type=int,
+        default=30,
+        help="Days-to-expiry warning threshold for --status (default: 30).",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Increase logging verbosity (-v=INFO, -vv=DEBUG).",
+    )
     args = parser.parse_args()
 
     level = (logging.WARNING, logging.INFO, logging.DEBUG)[min(args.verbose, 2)]
@@ -180,39 +211,52 @@ def main():
     if args.status:
         SECURITY_TREE.check_status(root=MODULE_SECURITY_DIR, warn_days=args.warn_days)
     elif args.scaffold:
-        scaffold_tree(SECURITY_TREE, root=MODULE_SECURITY_DIR,
-                      templates_dir=MAIN_SECURITY_DIR / "templates",
-                      strict=args.strict)
+        scaffold_tree(
+            SECURITY_TREE,
+            root=MODULE_SECURITY_DIR,
+            templates_dir=MAIN_SECURITY_DIR / "templates",
+            strict=args.strict,
+        )
         print(f"Security directory tree scaffolded under {MODULE_SECURITY_DIR}")
     else:
         SECURITY_TREE.generate_artifacts(
-            root=MODULE_SECURITY_DIR, force=args.force, strict=args.strict)
+            root=MODULE_SECURITY_DIR, force=args.force, strict=args.strict
+        )
 
         # Generate expired identity certs for the ExpiredCert attack mode.
         # These are signed by the TrustedIdentityCa (so the CA chain is
         # valid) but have notAfter in the past, causing Connext to reject
         # them at participant creation time.
         for app_name in ("ThreatInjector", "ThreatExfiltrator"):
-            id_dir = (MODULE_SECURITY_DIR / "identity" / "security-threat"
-                      / app_name / app_name)
-            expired_cert = (id_dir / "certs" / "TrustedIdentityCa"
-                            / "expired" / f"{app_name}.crt")
+            id_dir = MODULE_SECURITY_DIR / "identity" / "security-threat" / app_name / app_name
+            expired_cert = id_dir / "certs" / "TrustedIdentityCa" / "expired" / f"{app_name}.crt"
             generate_expired_identity(
                 key_path=id_dir / "private" / f"{app_name}.key",
                 cnf=id_dir / f"{app_name}.cnf",
                 out_cert=expired_cert,
-                issuer_cnf=(MAIN_SECURITY_DIR / "ca" / "TrustedIdentityCa"
-                            / "TrustedIdentityCa.cnf"),
-                issuer_key=(MAIN_SECURITY_DIR / "ca" / "TrustedIdentityCa"
-                            / "private" / "TrustedIdentityCa.key"),
-                issuer_cert=(MAIN_SECURITY_DIR / "ca" / "TrustedIdentityCa"
-                             / "certs" / "TrustedRootCa"
-                             / "TrustedIdentityCa.crt"),
+                issuer_cnf=(
+                    MAIN_SECURITY_DIR / "ca" / "TrustedIdentityCa" / "TrustedIdentityCa.cnf"
+                ),
+                issuer_key=(
+                    MAIN_SECURITY_DIR
+                    / "ca"
+                    / "TrustedIdentityCa"
+                    / "private"
+                    / "TrustedIdentityCa.key"
+                ),
+                issuer_cert=(
+                    MAIN_SECURITY_DIR
+                    / "ca"
+                    / "TrustedIdentityCa"
+                    / "certs"
+                    / "TrustedRootCa"
+                    / "TrustedIdentityCa.crt"
+                ),
                 issuer_cwd=MAIN_SECURITY_DIR / "ca" / "TrustedIdentityCa",
                 force=args.force,
             )
 
-        print(f"Threat security artifacts generated!")
+        print("Threat security artifacts generated!")
 
 
 if __name__ == "__main__":

@@ -3,8 +3,8 @@
 RTI grants Licensee a license to use, modify, compile, and create derivative
 works of the software solely for use with RTI Connext DDS. -->
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.3.0/rti_dds_profiles.xsd"
-    version="7.3.0">
+    xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.7.0/rti_dds_profiles.xsd"
+    version="7.7.0">
 
   <configuration_variables>
     <value>
@@ -26,6 +26,16 @@ works of the software solely for use with RTI Connext DDS. -->
       </element>
     </value>
   </configuration_variables>
+
+  <qos_library name="DPFactoryQosLib">
+    <qos_profile name="Default" is_default_participant_factory_profile="true">
+      <participant_factory_qos>
+        <monitoring>
+          <enable>false</enable>
+        </monitoring>
+      </participant_factory_qos>
+    </qos_profile>
+  </qos_library>
 
   <!-- ─── Common snippet: enable Security Plugins ──────────────────── -->
   <qos_library name="ThreatSecurityLib">

@@ -20,7 +20,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
-from conftest import SRC_DIR, SYSTEM_ARCH_DIR
+from module01_test_support import SRC_DIR, SYSTEM_ARCH_DIR
 
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
@@ -124,7 +124,14 @@ class TestDpQosLib:
     """Both NonSecureAppsQos.xml and SecureAppsQos.xml should define DpQosLib
     with per-participant profiles."""
 
-    EXPECTED_PROFILES = {"Arm", "ArmController", "Orchestrator", "PatientSensor", "PatientMonitor", "Test"}
+    EXPECTED_PROFILES = {
+        "Arm",
+        "ArmController",
+        "Orchestrator",
+        "PatientSensor",
+        "PatientMonitor",
+        "Test",
+    }
 
     @pytest.mark.parametrize("xml_file", [NON_SECURE_QOS_XML, SECURE_QOS_XML], ids=lambda p: p.name)
     def test_dpqoslib_profiles(self, xml_file: Path):
@@ -212,7 +219,12 @@ class TestParticipantLibrary:
                     if cf is not None:
                         devices_with_filter.add(dp_name)
         # All devices except Orchestrator (which publishes commands, not subscribes)
-        expected = {"dp/Arm", "dp/ArmController", "dp/PatientSensor", "dp/PatientMonitor"}
+        expected = {
+            "dp/Arm",
+            "dp/ArmController",
+            "dp/PatientSensor",
+            "dp/PatientMonitor",
+        }
         missing = expected - devices_with_filter
         assert not missing, f"Missing content filters on: {missing}"
 
@@ -261,7 +273,14 @@ class TestTypesXml:
                 for s in mod.findall("struct"):
                     if s.get("name") == "Vitals":
                         members = {m.get("name") for m in s.findall("member")}
-                        expected = {"patient_id", "hr", "spo2", "etco2", "nibp_s", "nibp_d"}
+                        expected = {
+                            "patient_id",
+                            "hr",
+                            "spo2",
+                            "etco2",
+                            "nibp_s",
+                            "nibp_d",
+                        }
                         assert expected <= members
                         return
         pytest.fail("PatientMonitor::Vitals struct not found")

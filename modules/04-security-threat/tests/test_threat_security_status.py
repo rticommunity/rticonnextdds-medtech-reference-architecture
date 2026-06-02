@@ -17,11 +17,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 MODULE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = MODULE_DIR.parent.parent
 SCRIPT = MODULE_DIR / "security" / "setup_threat_security.py"
 
 
+@pytest.mark.secure
 def test_threat_security_status_runs_clean() -> None:
     """Status report should run and not report expired threat artifacts."""
     result = subprocess.run(
@@ -29,6 +32,7 @@ def test_threat_security_status_runs_clean() -> None:
         cwd=PROJECT_ROOT,
         capture_output=True,
         text=True,
+        check=False,
     )
 
     output = f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"

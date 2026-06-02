@@ -1,50 +1,31 @@
-#
-# (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
-#
-# RTI grants Licensee a license to use, modify, compile, and create derivative
-# works of the software solely for use with RTI Connext DDS.  Licensee may
-# redistribute copies of the software provided that all such copies are
-# subject to this license. The software is provided "as is", with no warranty
-# of any type, including any warranty for fitness for any purpose. RTI is
-# under no obligation to maintain or support the software.  RTI shall not be
-# liable for any incidental or consequential damages arising out of the use or
-# inability to use the software.
-"""Shared fixtures for Module 04 — Security Threat tests.
+"""Pytest-only hooks and fixtures for Module 04 tests."""
 
-Provides environment setup for both Module 01 OR applications (in secure
-and non-secure modes) and Module 04 threat applications.  Auto-skips if
-security artifacts have not been generated.
-"""
-
-from __future__ import annotations
-
-import json
+import importlib
 import os
-import subprocess
 import sys
-import time
 from pathlib import Path
 
 import pytest
 
-# ---------------------------------------------------------------------------
-# Path bootstrapping
-# ---------------------------------------------------------------------------
-MODULE_DIR = Path(__file__).resolve().parent.parent  # modules/04-security-threat
-REPO_ROOT = MODULE_DIR.parent.parent
-MODULE_01_DIR = MODULE_DIR.parent / "01-operating-room"
-SYSTEM_ARCH_DIR = REPO_ROOT / "system_arch"
-THREAT_SRC_DIR = MODULE_DIR / "src"
-OR_SRC_DIR = MODULE_01_DIR / "src"
+TESTS_DIR = Path(__file__).resolve().parent
+RESOURCE_PYTHON_DIR = TESTS_DIR.parents[3] / "resource" / "python"
 
-# Add centralized scripts package to import path
-sys.path.insert(0, str(REPO_ROOT / "resource" / "python"))
+sys.path.insert(0, str(TESTS_DIR))
+sys.path.insert(0, str(RESOURCE_PYTHON_DIR))
 
-from scripts import module_runner  # noqa: E402
+module04_test_support = importlib.import_module("module04_test_support")
+module_runner = importlib.import_module("scripts.module_runner")
 
-# ---------------------------------------------------------------------------
-# Auto-skip logic
-# ---------------------------------------------------------------------------
+MODULE_01_DIR = module04_test_support.MODULE_01_DIR
+MODULE_DIR = module04_test_support.MODULE_DIR
+SYSTEM_ARCH_DIR = module04_test_support.SYSTEM_ARCH_DIR
+
+from scripts.test_utils import (  # noqa: E402
+    ProcessManager,
+    disable_monitoring,
+    has_display,
+    security_plugin_available,
+)
 
 
 def _or_security_artifacts_exist() -> bool:
@@ -59,86 +40,37 @@ def _threat_artifacts_exist() -> bool:
     return rogue_ca.is_file()
 
 
-def _has_display() -> bool:
-    if sys.platform == "darwin":
-        return True
-    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+@pytest.fixture(scope="session", autouse=True)
+def _monitoring_off():
+    """Disable RTI Monitoring 2.0 so in-process secure participants can be created."""
+    disable_monitoring()
 
 
 def pytest_collection_modifyitems(config, items):
-    has_security = _or_security_artifacts_exist() and _threat_artifacts_exist()
-    has_display = _has_display()
-
-    skip_sec = pytest.mark.skip(
-        reason="Security artifacts not generated (run setup_security.py and setup_threat_security.py)"
+    """Skip tests when prerequisites are missing."""
+    skip_gui = pytest.mark.skip(
+        reason="No graphical display available (need DISPLAY or WAYLAND_DISPLAY)",
     )
-    skip_gui = pytest.mark.skip(reason="No graphical display available")
+    skip_sec_artifacts = pytest.mark.skip(
+        reason="Security artifacts not generated (run setup_security.py)",
+    )
+    skip_sec_plugin = pytest.mark.skip(
+        reason="DDS Security runtime probe failed",
+    )
 
-    for item in items:
-        if not has_security:
-            item.add_marker(skip_sec)
-        if "gui" in item.keywords and not has_display:
+    _has_display = has_display()
+    __has_security_plugin = security_plugin_available()
+    _has_security_artifacts = _or_security_artifacts_exist() and _threat_artifacts_exist()
+
+    module_items = [i for i in items if Path(i.fspath).is_relative_to(TESTS_DIR)]
+
+    for item in module_items:
+        if "gui" in item.keywords and not _has_display:
             item.add_marker(skip_gui)
-
-
-# ---------------------------------------------------------------------------
-# Process management
-# ---------------------------------------------------------------------------
-
-
-class ProcessManager:
-    """Launch and track child processes, ensuring cleanup on teardown."""
-
-    def __init__(self, env: dict, apps: dict[str, list[str]], cwd: Path):
-        self.env = env
-        self.apps = apps
-        self.cwd = cwd
-        self._children: list[subprocess.Popen] = []
-
-    def start(self, cmd, cwd: Path | None = None, extra_env: dict | None = None, **kwargs) -> subprocess.Popen:
-        run_env = {**self.env, **(extra_env or {})}
-        proc = subprocess.Popen(
-            cmd if isinstance(cmd, list) else [cmd],
-            env=run_env,
-            cwd=cwd or self.cwd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            **kwargs,
-        )
-        self._children.append(proc)
-        return proc
-
-    def start_app(self, name: str, **kwargs) -> subprocess.Popen:
-        """Start an application by its module.json name."""
-        return self.start(self.apps[name], **kwargs)
-
-    def shutdown_all(self):
-        for p in self._children:
-            if p.poll() is None:
-                p.terminate()
-        deadline = time.monotonic() + 5
-        for p in self._children:
-            remaining = max(0, deadline - time.monotonic())
-            try:
-                p.wait(timeout=remaining)
-            except subprocess.TimeoutExpired:
-                p.kill()
-                p.wait(timeout=2)
-        self._children.clear()
-
-
-def wait_for_process_ready(proc, timeout_sec: float = 5.0):
-    """Wait until *proc* survives for *timeout_sec* or exits early."""
-    deadline = time.monotonic() + timeout_sec
-    while time.monotonic() < deadline:
-        if proc.poll() is not None:
-            return
-        time.sleep(0.25)
-
-
-# ---------------------------------------------------------------------------
-# Environment fixtures
-# ---------------------------------------------------------------------------
+        if "secure" in item.keywords and not _has_security_artifacts:
+            item.add_marker(skip_sec_artifacts)
+        elif "secure" in item.keywords and not __has_security_plugin:
+            item.add_marker(skip_sec_plugin)
 
 
 @pytest.fixture(scope="session")
@@ -157,15 +89,17 @@ def or_env_secure():
 
 @pytest.fixture(scope="session")
 def threat_env():
-    """Module 04 threat app environment.
-
-    Prepends Types.xml to NDDS_QOS_PROFILES so that type definitions are
-    available to the XML parser when creating participants from config.
-    """
+    """Module 04 threat app environment with Types.xml prepended."""
     env, apps = module_runner.load_module_config(MODULE_DIR)
-    # Types.xml is required for create_participant_from_config to resolve type_ref
     types_xml = str(SYSTEM_ARCH_DIR / "Types.xml")
     env["NDDS_QOS_PROFILES"] = types_xml + ";" + env["NDDS_QOS_PROFILES"]
+    # Propagate security artifact paths into os.environ so that in-process
+    # DDS QosProvider calls can resolve $(THREAT_SECURITY_ARTIFACTS_DIR) and
+    # $(RTI_SECURITY_ARTIFACTS_DIR) from ThreatQos.xml.  load_module_config
+    # already resolved these to absolute paths via ${MODULE_DIR}/${SYSTEM_ARCH}.
+    for key in ("THREAT_SECURITY_ARTIFACTS_DIR", "RTI_SECURITY_ARTIFACTS_DIR"):
+        if key in env:
+            os.environ[key] = env[key]
     return env, apps
 
 
@@ -185,61 +119,10 @@ def or_pm_secure(or_env_secure):
     pm.shutdown_all()
 
 
-# ---------------------------------------------------------------------------
-# DDS observer subprocess helper
-# ---------------------------------------------------------------------------
-
-
-def run_dds_observer(
-    env: dict,
-    cwd: Path,
-    topic_name: str,
-    type_class: str,
-    qos_profile: str,
-    timeout_sec: float = 12.0,
-    min_count: int = 1,
-) -> list[dict]:
-    """Run a DDS subscriber in a subprocess and return collected data.
-
-    Uses a fresh process to avoid QosProvider XML namespace collisions.
-    """
-    script = f"""\
-import sys, time, json
-sys.path.insert(0, "{OR_SRC_DIR}")
-import rti.connextdds as dds
-from Types import {type_class}, idl
-
-provider = dds.QosProvider.default
-participant_qos = provider.participant_qos_from_profile("DpQosLib::Test")
-participant = dds.DomainParticipant(domain_id=0, qos=participant_qos)
-
-ts = idl.get_type_support({type_class})
-dds.DomainParticipant.register_idl_type({type_class}, ts.type_name)
-topic = dds.Topic(participant, "{topic_name}", {type_class})
-dr_qos = provider.datareader_qos_from_profile("{qos_profile}")
-subscriber = dds.Subscriber(participant)
-reader = dds.DataReader(subscriber, topic, dr_qos)
-
-collected = []
-deadline = time.monotonic() + {timeout_sec}
-while time.monotonic() < deadline and len(collected) < {min_count}:
-    for s in reader.take():
-        if s.info.valid:
-            collected.append(str(s.data))
-    if len(collected) < {min_count}:
-        time.sleep(0.1)
-
-participant.close()
-print(json.dumps(collected))
-"""
-    result = subprocess.run(
-        [sys.executable, "-c", script],
-        env=env,
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        timeout=int(timeout_sec) + 10,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"DDS observer failed (exit {result.returncode}):\n{result.stderr}")
-    return json.loads(result.stdout.strip())
+@pytest.fixture(scope="class")
+def or_pm_secure_class(or_env_secure):
+    """Class-scoped secure ProcessManager — reuses PatientSensor across tests."""
+    env, apps = or_env_secure
+    pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
+    yield pm
+    pm.shutdown_all()

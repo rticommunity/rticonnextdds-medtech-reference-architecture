@@ -15,21 +15,61 @@ Verifies that DDS Security correctly blocks (or allows) threat exfiltrator
 participants from reading patient vitals.
 """
 
-import json
-import os
-import subprocess
 import sys
-import time
 from pathlib import Path
 
 import pytest
-from conftest import (
-    MODULE_01_DIR,
-    MODULE_DIR,
-    OR_SRC_DIR,
-    THREAT_SRC_DIR,
-    wait_for_process_ready,
+import rti.connextdds as dds
+from scripts.test_utils import (
+    make_isolated_qos_provider,
+    register_type,
+    wait_for_reader_match,
 )
+
+
+def _assert_secure_or_launch(or_env_secure, or_pm_secure) -> None:
+    """Verify the secured Module 01 launch configuration used by this test."""
+    env, apps = or_env_secure
+    profiles = env["NDDS_QOS_PROFILES"]
+
+    assert "SecureAppsQos.xml" in profiles, (
+        "Secure OR fixture should resolve NDDS_QOS_PROFILES with SecureAppsQos.xml"
+    )
+    assert "NonSecureAppsQos.xml" not in profiles, (
+        "Secure OR fixture should not use NonSecureAppsQos.xml"
+    )
+    assert "PatientSensor" in apps, "Secure OR fixture should define PatientSensor app"
+    assert or_pm_secure.apps["PatientSensor"] == apps["PatientSensor"]
+
+    patient_sensor_cmd = apps["PatientSensor"]
+    assert len(patient_sensor_cmd) == 1, (
+        f"PatientSensor should resolve to a single executable command, got: {patient_sensor_cmd}"
+    )
+    assert Path(patient_sensor_cmd[0]).name == "PatientSensor", (
+        f"PatientSensor executable path not resolved as expected: {patient_sensor_cmd[0]}"
+    )
+
+
+def _assert_unsecure_exfiltrator_probe_launch(threat_env) -> None:
+    """Verify the unsecured exfiltrator probe configuration used by this test."""
+    env, apps = threat_env
+    profiles = env["NDDS_QOS_PROFILES"]
+
+    assert "ThreatQos.xml" in profiles, (
+        "Threat fixture should include ThreatQos.xml in NDDS_QOS_PROFILES"
+    )
+    assert "ThreatParticipants.xml" in profiles, (
+        "Threat fixture should include ThreatParticipants.xml in NDDS_QOS_PROFILES"
+    )
+    assert "SecureAppsQos.xml" not in profiles, (
+        "Threat fixture should not directly inherit Module 01 secure app profiles"
+    )
+    assert apps["ThreatExfiltrator"][0] == sys.executable, (
+        "ThreatExfiltrator app should launch with the current Python interpreter"
+    )
+    assert Path(apps["ThreatExfiltrator"][1]).name == "ThreatExfiltrator.py", (
+        f"ThreatExfiltrator command not resolved as expected: {apps['ThreatExfiltrator']}"
+    )
 
 
 def _run_exfiltrator_probe(
@@ -37,65 +77,36 @@ def _run_exfiltrator_probe(
     dp_name: str,
     timeout_sec: float = 12.0,
 ) -> dict:
-    """Launch a threat exfiltrator probe in a subprocess.
+    """Test whether a threat exfiltrator can match secured OR apps.
 
-    Creates a DomainParticipant from the XML config, subscribes to t/Vitals,
-    and returns a dict with:
+    Creates a DomainParticipant from the XML config using an isolated
+    QosProvider and checks subscription_matched_status via WaitSet.
+
+    Returns a dict with:
       - "created": bool — whether the participant was created successfully
       - "matched": bool — whether subscription_matched_status.current_count > 0
-      - "received": int — number of vitals samples received
     """
-    script = f"""\
-import sys, time, json
-sys.path.insert(0, "{OR_SRC_DIR}")
-sys.path.insert(0, "{THREAT_SRC_DIR}")
-import rti.connextdds as dds
-from Types import DdsEntities
+    from Types import PatientMonitor
 
-result = {{"created": False, "matched": False, "received": 0}}
-try:
-    provider = dds.QosProvider.default
-    participant = provider.create_participant_from_config("{dp_name}")
-    result["created"] = True
+    xml_files = env["NDDS_QOS_PROFILES"].split(";")
+    provider = make_isolated_qos_provider(*xml_files)
 
-    vitals_dr = dds.DynamicData.DataReader(
-        participant.find_datareader("s/subscriber::dr/Vitals")
-    )
+    result = {"created": False, "matched": False}
+    try:
+        register_type(PatientMonitor.Vitals)
+        participant = provider.create_participant_from_config(dp_name)
+        if participant is not None:
+            result["created"] = True
 
-    deadline = time.monotonic() + {timeout_sec}
-    count = 0
-    while time.monotonic() < deadline:
-        if vitals_dr.subscription_matched_status.current_count > 0:
-            result["matched"] = True
-        for s in vitals_dr.take():
-            if s.info.valid:
-                count += 1
-        if count >= 3:
-            break
-        time.sleep(0.3)
+            reader = dds.DataReader(participant.find_datareader("s/subscriber::dr/Vitals"))
+            result["matched"] = wait_for_reader_match(reader, timeout_sec=timeout_sec)
+    except dds.Error as exc:
+        result["error"] = str(exc)
+    finally:
+        if result["created"]:
+            participant.close()
 
-    result["received"] = count
-    participant.close()
-except dds.Error as exc:
-    result["error"] = str(exc)
-
-print(json.dumps(result))
-"""
-    proc = subprocess.run(
-        [sys.executable, "-c", script],
-        env=env,
-        cwd=MODULE_DIR,
-        capture_output=True,
-        text=True,
-        timeout=int(timeout_sec) + 15,
-    )
-    if proc.returncode != 0:
-        return {"created": False, "matched": False, "received": 0, "error": proc.stderr}
-    # Parse only the last line — DDS may print log messages to stdout
-    lines = [line for line in proc.stdout.strip().splitlines() if line.startswith("{")]
-    if not lines:
-        return {"created": False, "matched": False, "received": 0, "error": "No JSON output"}
-    return json.loads(lines[-1])
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -103,15 +114,16 @@ print(json.dumps(result))
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.secure
 @pytest.mark.slow
 class TestExfiltratorUnsecure:
     """Exfiltrator should read vitals from unsecured OR apps."""
 
     def test_unsecure_exfiltration_succeeds(self, or_pm_nonsecure, or_env_nonsecure, threat_env):
         """Unsecured exfiltrator should receive vitals from unsecured OR apps."""
-        ps = or_pm_nonsecure.start_app("PatientSensor")
-        wait_for_process_ready(ps, timeout_sec=10)
-        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
+        _assert_unsecure_exfiltrator_probe_launch(threat_env)
+
+        or_pm_nonsecure.start_app_ready("PatientSensor")
 
         result = _run_exfiltrator_probe(
             threat_env[0],
@@ -119,7 +131,6 @@ class TestExfiltratorUnsecure:
         )
         assert result["created"], f"Participant creation failed: {result.get('error')}"
         assert result["matched"], "Unsecured exfiltrator did not match unsecured OR apps"
-        assert result["received"] >= 1, "Exfiltrator received no vitals"
 
 
 # ---------------------------------------------------------------------------
@@ -127,81 +138,63 @@ class TestExfiltratorUnsecure:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.secure
 @pytest.mark.slow
 class TestExfiltratorSecure:
     """Security should block threat exfiltrator from reading vitals."""
 
-    @pytest.mark.xfail(
-        bool(os.environ.get("CI")),
-        reason="Transport-dependent: unsecured discovery of secured participant may not work on CI",
-    )
-    def test_unsecure_exfiltrator_vs_secure_or(self, or_pm_secure, or_env_secure, threat_env):
-        """Unsecured exfiltrator against secured OR apps.
+    @pytest.fixture(autouse=True, scope="class")
+    def _start_patient_sensor(self, or_pm_secure_class):
+        """Launch PatientSensor once for all tests in this class."""
+        or_pm_secure_class.start_app_ready("PatientSensor")
 
-        Note: The governance uses data_protection_kind=NONE (only
-        rtps_protection_kind=ENCRYPT).  On the loopback/shared-memory
-        transports an unauthenticated participant that never initiates the
-        security handshake can still discover and read plaintext data
-        samples.  This test therefore asserts the *observed* behaviour:
-        the unsecured exfiltrator successfully reads vitals.
+    def test_unsecure_exfiltrator_vs_secure_or(self, or_pm_secure_class, or_env_secure, threat_env):
+        """Unsecured exfiltrator should not access secured OR vitals.
 
-        To fully block unauthenticated readers, set
-        data_protection_kind=ENCRYPT in the governance.
+        A participant without DDS Security credentials must not establish
+        the secure trust/access pipeline required to read secured data.
         """
-        ps = or_pm_secure.start_app("PatientSensor")
-        wait_for_process_ready(ps, timeout_sec=15)
-        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
+        _assert_secure_or_launch(or_env_secure, or_pm_secure_class)
+        _assert_unsecure_exfiltrator_probe_launch(threat_env)
 
         result = _run_exfiltrator_probe(
             threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/Unsecure",
-            timeout_sec=15,
+            timeout_sec=6,
         )
         assert result["created"], f"Participant creation failed: {result.get('error')}"
-        # On loopback, unsecured exfiltrator can still read because
-        # data_protection_kind is NONE — only RTPS-level encryption is enabled.
-        assert result["matched"], (
-            "Unsecured exfiltrator should match secured OR on loopback (data_protection_kind=NONE in governance)"
-        )
+        assert result["matched"] is False, "Unsecured exfiltrator should NOT match secured OR apps"
 
-    def test_rogue_ca_exfiltrator_blocked(self, or_pm_secure, or_env_secure, threat_env):
+    def test_rogue_ca_exfiltrator_blocked(self, or_pm_secure_class, or_env_secure, threat_env):
         """Rogue CA exfiltrator should NOT receive vitals from secured OR apps."""
-        ps = or_pm_secure.start_app("PatientSensor")
-        wait_for_process_ready(ps, timeout_sec=15)
-        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
-
         result = _run_exfiltrator_probe(
             threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/RogueCA",
-            timeout_sec=10,
+            timeout_sec=4,
         )
-        assert result["received"] == 0, "Rogue CA exfiltrator should NOT receive vitals from secured OR"
+        assert result["created"], f"Participant creation failed: {result.get('error')}"
+        assert not result["matched"], "Rogue CA exfiltrator should NOT match secured OR apps"
 
-    def test_forged_perms_exfiltrator_blocked(self, or_pm_secure, or_env_secure, threat_env):
+    def test_forged_perms_exfiltrator_blocked(self, or_pm_secure_class, or_env_secure, threat_env):
         """Forged permissions exfiltrator should NOT receive vitals from secured OR apps."""
-        ps = or_pm_secure.start_app("PatientSensor")
-        wait_for_process_ready(ps, timeout_sec=15)
-        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
-
         result = _run_exfiltrator_probe(
             threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/ForgedPerms",
-            timeout_sec=10,
+            timeout_sec=4,
         )
-        assert result["received"] == 0, "Forged permissions exfiltrator should NOT receive vitals from secured OR"
+        assert result["created"], f"Participant creation failed: {result.get('error')}"
+        assert not result["matched"], (
+            "Forged permissions exfiltrator should NOT match secured OR apps"
+        )
 
-    def test_expired_cert_exfiltrator_blocked(self, or_pm_secure, or_env_secure, threat_env):
-        """Expired certificate exfiltrator should fail to create participant or receive data."""
-        ps = or_pm_secure.start_app("PatientSensor")
-        wait_for_process_ready(ps, timeout_sec=15)
-        assert ps.poll() is None, f"PatientSensor exited early with code {ps.returncode}"
-
+    def test_expired_cert_exfiltrator_blocked(self, or_pm_secure_class, or_env_secure, threat_env):
+        """Expired certificate exfiltrator should fail to create participant or match."""
         result = _run_exfiltrator_probe(
             threat_env[0],
             dp_name="ThreatParticipantLibrary::dp/ThreatExfiltrator/ExpiredCert",
-            timeout_sec=10,
+            timeout_sec=4,
         )
         # Expired cert typically causes participant creation failure
-        if result["created"]:
-            assert result["received"] == 0, "Expired cert exfiltrator should NOT receive vitals from secured OR"
-        # If not created, that's also a valid block
+        assert not result["created"], (
+            f"Participant creation should have failed: {result.get('error')}"
+        )

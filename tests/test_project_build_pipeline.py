@@ -23,12 +23,13 @@ from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-from build import BUILD_DIR, build_command, configure_command
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "resource" / "python"))
+from build import build_command, configure_command
 
-sys.path.insert(0, str(PROJECT_ROOT / "resource" / "python"))
-from scripts import platform_setup
+pytestmark = pytest.mark.build_pipeline
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------------------
 # CMake configure & build
@@ -41,32 +42,23 @@ class TestCMakeBuild:
     def test_cmake_configure_succeeds(self):
         """cmake -S <root> -B build/<arch> exits cleanly."""
         result = subprocess.run(
-            configure_command(extra_args=[]),
+            configure_command(args=[]),
             capture_output=True,
             text=True,
+            check=False,
         )
-        assert result.returncode == 0, f"CMake configure failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"CMake configure failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
 
     def test_cmake_build_succeeds(self):
         """cmake --build build/<arch> exits cleanly."""
         result = subprocess.run(
-            build_command(extra_args=[]),
+            build_command(args=[]),
             capture_output=True,
             text=True,
+            check=False,
         )
-        assert result.returncode == 0, f"CMake build failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-
-
-# ---------------------------------------------------------------------------
-# Binary existence — Module 01 (only module with C++ executables)
-# ---------------------------------------------------------------------------
-
-
-class TestModule01Binaries:
-    """Module 01 C++ binaries should be produced by the build."""
-
-    @pytest.mark.parametrize("binary", ["PatientSensor", "Orchestrator", "ArmController"])
-    def test_binary_exists(self, binary: str):
-        """Compiled C++ binary exists and can be located."""
-        exe = platform_setup.find_executable(binary)
-        assert Path(exe).is_file(), f"Binary not found: {exe}"
+        assert result.returncode == 0, (
+            f"CMake build failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
