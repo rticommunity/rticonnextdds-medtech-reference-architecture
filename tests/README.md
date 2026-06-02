@@ -16,7 +16,14 @@ Module-specific tests live under each module's own `tests/` directory.
 From the repository root, after sourcing the RTI environment and activating the Python venv:
 
 ```bash
-# Run all 130 tests (repo-level + all modules)
+# Install dev dependencies
+pip install -r requirements-dev.txt
+
+# If you want to run the security tests
+python3 system_arch/security/setup_security.py
+python modules/04-security-threat/security/setup_threat_security.py
+
+# Run all 110+ tests (repo-level + all modules)
 pytest
 
 # Run with verbose output

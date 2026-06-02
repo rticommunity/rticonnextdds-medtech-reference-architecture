@@ -111,5 +111,5 @@ Example: `docker run medtech-test -k "test_types"` → entrypoint calls `pytest 
   build stage so secure tests can run.
 - `docker compose run --rm ...` avoids leftover one-off containers after test
   completion.
-- All 130 tests (repo-level + modules) are collected and run via the unified
+- All 110+ tests (repo-level + modules) are collected and run via the unified
   `pytest` approach configured in the root `pyproject.toml`.
