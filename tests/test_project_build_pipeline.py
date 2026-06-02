@@ -42,7 +42,7 @@ class TestCMakeBuild:
     def test_cmake_configure_succeeds(self):
         """cmake -S <root> -B build/<arch> exits cleanly."""
         result = subprocess.run(
-            configure_command(extra_args=[]),
+            configure_command(args=[]),
             capture_output=True,
             text=True,
             check=False,
@@ -54,7 +54,7 @@ class TestCMakeBuild:
     def test_cmake_build_succeeds(self):
         """cmake --build build/<arch> exits cleanly."""
         result = subprocess.run(
-            build_command(extra_args=[]),
+            build_command(args=[]),
             capture_output=True,
             text=True,
             check=False,
