@@ -23,7 +23,13 @@ inability to use the software. -->
                 <domains>
                     <id>0</id>
                 </domains>
+                <partitions>
+                    <partition>*</partition>
+                </partitions>
                 <subscribe>
+                    <partitions>
+                        <partition>*</partition>
+                    </partitions>
                     <topics>
                         <topic>DDS:Security:LogTopicV2</topic>
                     </topics>

@@ -10,11 +10,13 @@ This README describes how we've approached QoS in this reference architecture. F
 - [Qos.xml](#qosxml)
   - [SystemLibrary](#systemlibrary)
     - [SystemLibrary::DefaultParticipant profile](#systemlibrarydefaultparticipant-profile)
+    - [SystemLibrary::WanConfig profile](#systemlibrarywanconfig-profile)
   - [DataFlowLibrary](#dataflowlibrary)
     - [DataFlowLibrary::Streaming profile](#dataflowlibrarystreaming-profile)
     - [DataFlowLibrary::Status profile](#dataflowlibrarystatus-profile)
     - [DataFlowLibrary::Command profile](#dataflowlibrarycommand-profile)
     - [DataFlowLibrary::Heartbeat profile](#dataflowlibraryheartbeat-profile)
+    - [DataFlowLibrary::SecureLog profile](#dataflowlibrarysecurelog-profile)
 - [Application-specific QoS: NonSecureAppsQos.xml and SecureAppsQos.xml](#application-specific-qos-nonsecureappsqosxml-and-secureappsqosxml)
 - [XML QoS Best Practices](#xml-qos-best-practices)
 
@@ -78,10 +80,20 @@ This reference architecture defines the following QoS Libraries in [Qos.xml](./Q
 | QoS Profile | Intended Use
 | ----------- | ------------
 | [*DefaultParticipant*](#systemlibrarydefaultparticipant-profile) | Configuration common to all DomainParticipants.
+| [*WanConfig*](#systemlibrarywanconfig-profile) | WAN transport configuration, used by Module 03: Remote Teleoperation.
 
 #### ***SystemLibrary::DefaultParticipant* profile**
 
 This QoS profile acts as a common base configuration for all DomainParticipants in the system to provide a level of consistency. It inherits from a builtin profile called *BuiltinQosLib::Generic.Common* through the `base_name` XML attribute.
+
+#### ***SystemLibrary::WanConfig* profile**
+
+This QoS profile configures the DomainParticipant for communication over the Wide Area Network (WAN). It inherits from *BuiltinQosLib::Generic.Common* and additionally:
+
+- Enables the **UDPv4_WAN** builtin transport (via the `transport_builtin` mask), which provides the RTI Real-Time WAN Transport's NAT-traversal capabilities.
+- Shortens the participant liveliness assert period to speed up discovery over the WAN.
+
+It is used by Module 03: Remote Teleoperation. See the [Module 03 README](../../modules/03-remote-teleoperation/README.md) for the WAN scenarios that rely on it.
 
 ### ***DataFlowLibrary***
 
@@ -93,6 +105,7 @@ This QoS profile acts as a common base configuration for all DomainParticipants 
 | [*Status*](#dataflowlibrarystatus-profile) | *RELIABLE* | *KEEP_LAST 1* | *TRANSIENT_LOCAL* | -- | "Current status"-like Topics, sent once at the beginning of operation and again only upon change to the status.
 | [*Command*](#dataflowlibrarycommand-profile) | *RELIABLE* | *KEEP_LAST 1* | *VOLATILE* | -- | Topics that transmit commands or trigger some action in the system.
 | [*Heartbeat*](#dataflowlibraryheartbeat-profile) | *BEST_EFFORT* | *KEEP_LAST 1* | *VOLATILE* | *200 ms* | To assert and detect the presence of system components.
+| [*SecureLog*](#dataflowlibrarysecurelog-profile) | *RELIABLE* | *KEEP_LAST 64* | *TRANSIENT_LOCAL* | -- | Delivery of the DDS Security builtin secure-log Topic.
 
 #### ***DataFlowLibrary::Streaming* profile**
 
@@ -140,6 +153,16 @@ It inherits from the *Streaming* QoS profile and sets:
 Since this QoS profile uses *BEST_EFFORT* Reliability QoS, a minimal amount of sample loss may occur without repairing. This is accounted for by using a larger Deadline period than the period applications should publish to the `t/DeviceHeartbeat` Topic.
 
 >**Best Practice:** Publish samples on Topics for which the DataWriter QoS defines a finite Deadline QoS period, at a rate that is 2x-4x that of the configured Deadline period. This ensures an infrequent drop in sample does not falsely trigger the `REQUESTED_DEADLINE_MISSED` status for DataReaders.
+
+#### ***DataFlowLibrary::SecureLog* profile**
+
+This QoS profile is used by the *dr/SecureLog* DataReader (under the *dp/SecureLogReader* DomainParticipant) to consume the RTI Security Plugins builtin secure-logging Topic.
+
+It inherits from *BuiltinQosLib::Generic.KeepLastReliable.TransientLocal* and applies:
+
+- *RELIABLE* Reliability QoS and *TRANSIENT_LOCAL* Durability QoS, matching the QoS the Security Plugins use for their builtin secure-logging writers.
+- *KEEP_LAST, depth=64* History QoS (with a matching `max_samples` resource limit), the default history depth used by the secure-logging writers.
+- Dynamic memory allocation for the DataReader cache, since the secure-logging type is unbounded.
 
 ## Application-specific QoS: [NonSecureAppsQos.xml](NonSecureAppsQos.xml) and [SecureAppsQos.xml](SecureAppsQos.xml)
 

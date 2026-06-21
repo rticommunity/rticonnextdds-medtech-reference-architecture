@@ -376,8 +376,8 @@ and update them as part of the release process.
 
 | Dependency | Current Minimum Version | Tracked In |
 | --- | --- | --- |
-| RTI Connext DDS | 7.3.0 | CMakeLists.txt, README.md |
-| RTI Code Generator | 4.3.0 | Generated source headers |
+| RTI Connext DDS | 7.7.0 | README.md, `.github/workflows/ci.yml` |
+| RTI Code Generator | Bundled with Connext 7.7.0 | Generated source headers |
 | CMake | 3.17 | CMakeLists.txt |
 
 **When a dependency version changes:**

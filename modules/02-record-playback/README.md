@@ -48,6 +48,8 @@ Module-specific notes:
 ## Run the Demo
 
 > Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+>
+> Tip: the predefined `record` and `replay` scenarios bundle the operating room apps and the corresponding service into a single command (e.g. `python3 launch.py --scenario record`). The step-by-step flow below instead runs them in separate terminals so you can start and stop the service independently of the OR apps. Run `python3 launch.py --list-scenarios` to see all scenarios.
 
 ### 1. Run Operating Room Applications
 

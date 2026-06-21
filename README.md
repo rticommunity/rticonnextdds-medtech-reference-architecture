@@ -15,8 +15,6 @@ This repository contains documentation and module demo applications showcasing d
   - [Module 04: Security Threat Demonstration](#module-04-security-threat-demonstration)
 - [Hands-On: Architecture](#hands-on-architecture)
 - [Architecture Overview](#architecture-overview)
-- [Hands-On: Architecture](#hands-on-architecture)
-- [Architecture Overview](#architecture-overview)
   - [Data Types](#data-types)
   - [Quality of Service (QoS)](#quality-of-service-qos)
   - [Domains & Topics](#domains--topics)
@@ -139,6 +137,12 @@ The RTI MedTech Reference Architecture demonstrates use cases and capabilities o
 
 Use the module-specific READMEs when you want to run a demo. They describe what each workflow launches, why it exists, and the exact `launch.py` commands to use from the repository root.
 
+`launch.py` accepts either a single module (`python3 launch.py <module> [apps ...] [-s]`) or a **predefined scenario** that launches a curated set of applications across modules in one command (`python3 launch.py --scenario <name> [-s]`). Scenarios are declared in [`resource/config/scenarios.json`](./resource/config/scenarios.json) and cover common multi-component workflows (e.g. `record`, `replay`, `teleop-or-side`, `security-threat`). List them with:
+
+```bash
+python3 launch.py --list-scenarios
+```
+
 ### [Module 01: Digital Operating Room](./modules/01-operating-room/)
 
 ### [Module 02: RTI Recording Service & RTI Replay Service](./modules/02-record-playback/)
@@ -220,10 +224,12 @@ This reference architecture defines the following QoS Profiles in [Qos.xml](./sy
 | Qos Library | Qos Profile | Intended Use
 | ----------- | --------- | -----------
 | System | DefaultParticipant | Common, or base, *system configuration* (e.g. transport, network interfaces, discovery, thread priorities, etc.)
+| System | WanConfig | WAN transport (UDPv4_WAN) configuration, used by Module 03: Remote Teleoperation
 | DataFlow | Streaming | Periodic data that is published at a high frequency (i.e. frequencies <1 second)
 | DataFlow | Status | "Current status"-like data, sent once at the beginning of operation and again only upon change to the status
 | DataFlow | Command | Data that represents commands or trigger some action in the system
 | DataFlow | Heartbeat | Assert and detect the presence of system devices
+| DataFlow | SecureLog | Reliable, transient-local delivery for the DDS Security builtin secure-log topic
 
 ### Domains & Topics
 
@@ -242,11 +248,12 @@ Legend:
 
 This reference architecture defines the following Domains in [DomainLibrary.xml](./system_arch/xml_app_creation/DomainLibrary.xml):
 
-| Domain | Intended Use
-| ------ | -----------
-| OperationalDataDomain | Real-time operational medical device data
+| Domain | Domain ID | Intended Use
+| ------ | --------- | -----------
+| OperationalDataDomain | 0 | Real-time operational medical device data
+| SecureLogDomain | 0 | DDS Security builtin secure logging (consumed by the SecureLogReader participant)
 
-*Note, this reference architecture defines just a single Domain. As a Connext system design scales over time, additional domains could be defined for monitoring, logging, etc. Those additional domains should not affect the performance of our operational data, and therefore should belong to a different domain.*
+*Note, both domains are defined with the same Domain ID (`0`), so they currently resolve to the **same** DDS domain. `SecureLogDomain` is defined separately to keep the secure-logging configuration distinct, so that as a Connext system design scales over time, logging (and other concerns such as monitoring) can be moved to a different Domain ID without touching the operational data configuration. Isolating such data on a separate domain ensures it does not affect the performance of operational data.*
 
 This reference architecture defines the following Topics in [DomainLibrary.xml](./system_arch/xml_app_creation/DomainLibrary.xml):
 
@@ -257,6 +264,7 @@ This reference architecture defines the following Topics in [DomainLibrary.xml](
 | OperationalDataDomain | `t/DeviceHeartbeat` | Assert that a unique system component is alive
 | OperationalDataDomain | `t/DeviceCommand` | Command initiating a status (e.g. `START`, `SHUTDOWN`) to a unique system component
 | OperationalDataDomain | `t/Vitals` | Data representative of a unique patient's collected vital signs
+| SecureLogDomain | `DDS:Security:LogTopicV2` | DDS Security builtin logging topic, carrying the `DDSSecurity::BuiltinLoggingTypeV2` type
 
 *Note, this reference architecture defines a unique Topic for each Data Type defined. While a Topic may only reference a single Data Type, a multi-purpose Data Type can be associated with multiple Topics. It is a **best practice** to limit the number of defined Topics, but in doing so, it may be feasible to reuse a Data Type for several Topics.*
 
@@ -302,6 +310,7 @@ This reference architecture defines the following DomainParticipants in [Partici
 | OperationalDataDomain | Orchestrator | `t/DeviceStatus`, `t/DeviceHeartbeat` | `t/DeviceCommand` | Administer device-level commands and monitor presence and status of all devices.
 | OperationalDataDomain | PatientSensor | `t/DeviceCommand` | `t/Vitals`, `t/DeviceStatus`, `t/DeviceHeartbeat` | Stream simulated patient vitals.
 | OperationalDataDomain | PatientMonitor | `t/DeviceCommand`, `t/Vitals` | `t/DeviceStatus`, `t/DeviceHeartbeat` | Process and display patient vitals.
+| SecureLogDomain | SecureLogReader | `DDS:Security:LogTopicV2` | -- | Subscribe to the DDS Security builtin secure-log topic.
 
 *Note, this reference architecture utilizes one DomainParticipant for each device application. It is a **best practice** to define one DomainParticipant per application. However, in more complex systems, an application may be required to operate on multiple Domains. This requires defining multiple DomainParticipants for those applications that run in parallel.*
 
@@ -315,8 +324,8 @@ The reference architecture configures security in [SecureAppsQos.xml](./system_a
 
 | Component | Security Features
 | ---------------------- | -----------------
-| **LAN Communications** | Domain 0 governance, participant-specific certificates and permissions
-| **WAN Communications** | Domain 1 governance for WAN connections
+| **LAN Communications** | `OperationalDomain` governance, participant-specific certificates and permissions
+| **WAN Communications** | `TeleopWanDomain` governance for WAN connections (Module 03), including PSK-protected RTPS
 | **RTI Services** | Dedicated security profiles for Recording/Replay Services and Routing Services
 
 Security Artifacts Structure in [security](./system_arch/security/):

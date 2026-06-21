@@ -42,6 +42,7 @@ Certificates expiring within 30 days are flagged as warnings. Use `--warn-days N
 | --- | --- |
 | *(no flags)* | Generate artifacts (skip existing) |
 | `--force` | Re-generate all artifacts, overwriting existing ones |
+| `--scaffold` | Re-generate the committed `.cnf`, governance, and permissions files from the Jinja2 templates (maintainer-only — see [Scaffolding](#scaffolding-maintainer-only)) |
 | `--strict` | Promote warnings to fatal errors |
 | `--status` | Report certificate expiry status and exit |
 | `--warn-days N` | Days-to-expiry warning threshold for `--status` (default: 30) |
@@ -82,7 +83,7 @@ system_arch/security/
 - **Chain files:** Identity certificates include a `.chain.pem` containing both the leaf cert and its issuing CA cert, as required by the RTI Security Plugins.
 - **Signed XML:** Governance and permissions XML files are S/MIME-signed by the appropriate intermediate CA. The signed `.p7s` files are what Connext loads at runtime.
 - **Per-participant permissions:** Each participant has its own permissions document specifying the exact topics it may publish/subscribe to, with a default `DENY` rule.
-- **PSK passphrases:** Pre-Shared Key seed files (`.psk`) are generated per domain scope and stored alongside the governance/permissions artifacts (e.g. `domain_scope/TeleopWanDomain/TeleopWanDomain.psk`). The file format is `<id>:<seed>` where `<id>` is an integer in [0, 254] for Connext 7.3.x. Participants load the passphrase via the `dds.sec.crypto.rtps_psk_secret_passphrase` property.
+- **PSK passphrases:** Pre-Shared Key seed files (`.psk`) are generated per domain scope and stored alongside the governance/permissions artifacts (e.g. `domain_scope/TeleopWanDomain/TeleopWanDomain.psk`). The file format is `<id>:<seed>` where `<id>` is an integer in [0, 254]. Participants load the passphrase via the `dds.sec.crypto.rtps_psk_secret_passphrase` property.
 
 ## Good Practices for DDS Security
 

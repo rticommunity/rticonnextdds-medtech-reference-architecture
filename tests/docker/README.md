@@ -30,7 +30,7 @@ export RTI_LICENSE_FILE=/path/to/rti_license.dat
 ### Using Docker Compose (recommended)
 
 ```bash
-# Run all tests (default: verbose output)
+# Run all tests (default: the full suite over the repo)
 docker compose -f tests/docker/docker-compose.yml run --rm --build test
 
 # Run specific test file with custom pytest args
@@ -59,7 +59,7 @@ docker compose -f tests/docker/docker-compose.yml down --remove-orphans
 docker build -f tests/docker/Dockerfile --target build -t medtech-build .
 docker build -f tests/docker/Dockerfile --target test  -t medtech-test .
 
-# 2. Run all tests (mounts license, default pytest with -v)
+# 2. Run all tests (mounts license; runs the full suite)
 docker run --rm \
     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_license.dat:ro \
     medtech-test
@@ -91,7 +91,7 @@ The Docker entrypoint (`tests/docker/entrypoint.sh`):
 3. Runs `pytest` with any provided arguments
 4. Cleans up Xvfb on exit
 
-Example: `docker run medtech-test` → entrypoint calls `pytest -v`
+Example: `docker run medtech-test` → entrypoint calls `pytest .` (the full suite)
 
 Example: `docker run medtech-test -k "test_types"` → entrypoint calls `pytest -k "test_types"`
 

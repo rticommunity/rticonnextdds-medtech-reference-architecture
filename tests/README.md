@@ -142,4 +142,3 @@ pytest -m "gui"
 | `test_project_build_pipeline.py` | CMake configure & build; Module 01 C++ binaries & shared libraries exist |
 | `test_config_parsing.py` | Module JSON schemas and configuration parsing for all modules |
 | `test_security_status.py` | Security artifacts generation and availability for secure tests |
-| `test_markdown_lint.py` | Project documentation (README, Scenario, etc.) passes rumdl checks |

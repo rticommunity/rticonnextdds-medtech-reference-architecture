@@ -87,6 +87,8 @@ Ensure the RTI Security Plugins are installed on every machine that will run a s
 ## Run the Demo
 
 > Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+>
+> Tip: the predefined `security-threat`, `threat-inject`, and `threat-exfiltrate` scenarios bundle the operating room apps with the threat application(s) in a single command (e.g. `python3 launch.py --scenario threat-inject`). The step-by-step flow below runs them in separate terminals so you can switch the OR between unsecured and secured modes independently. Run `python3 launch.py --list-scenarios` to see all scenarios.
 
 ### 1. Run Operating Room Applications
 
