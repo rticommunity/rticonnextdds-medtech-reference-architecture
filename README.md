@@ -310,6 +310,7 @@ This reference architecture defines the following DomainParticipants in [Partici
 | OperationalDataDomain | Orchestrator | `t/DeviceStatus`, `t/DeviceHeartbeat` | `t/DeviceCommand` | Administer device-level commands and monitor presence and status of all devices.
 | OperationalDataDomain | PatientSensor | `t/DeviceCommand` | `t/Vitals`, `t/DeviceStatus`, `t/DeviceHeartbeat` | Stream simulated patient vitals.
 | OperationalDataDomain | PatientMonitor | `t/DeviceCommand`, `t/Vitals` | `t/DeviceStatus`, `t/DeviceHeartbeat` | Process and display patient vitals.
+| OperationalDataDomain | SystemObserver (external/optional) | All available topics | -- | Read-only observer integration: subscribes to every operational Topic and publishes nothing. Its DDS Security permissions allow subscribe on any Topic and deny all publication.
 | SecureLogDomain | SecureLogReader | `DDS:Security:LogTopicV2` | -- | Subscribe to the DDS Security builtin secure-log topic.
 
 *Note, this reference architecture utilizes one DomainParticipant for each device application. It is a **best practice** to define one DomainParticipant per application. However, in more complex systems, an application may be required to operate on multiple Domains. This requires defining multiple DomainParticipants for those applications that run in parallel.*
@@ -327,6 +328,10 @@ The reference architecture configures security in [SecureAppsQos.xml](./system_a
 | **LAN Communications** | `OperationalDomain` governance, participant-specific certificates and permissions
 | **WAN Communications** | `TeleopWanDomain` governance for WAN connections (Module 03), including PSK-protected RTPS
 | **RTI Services** | Dedicated security profiles for Recording/Replay Services and Routing Services
+
+For independent, security-specific observer integrations (not part of the demo applications), use [SecureExternalAppsQos.xml](./system_arch/qos/SecureExternalAppsQos.xml). It provides the `SecureExternalAppsQosLib::SecureSystemObserver` QoS snippet, which is intended to be composed into external DomainParticipants.
+
+This external snippet is ideal for Connext Studio when configuring an RTI Spy source: include [SecureExternalAppsQos.xml](./system_arch/qos/SecureExternalAppsQos.xml) and apply `SecureSystemObserver` so Spy can attach as a read-only secure observer.
 
 Security Artifacts Structure in [security](./system_arch/security/):
 

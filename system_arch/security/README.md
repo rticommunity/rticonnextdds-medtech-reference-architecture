@@ -47,6 +47,7 @@ Certificates expiring within 30 days are flagged as warnings. Use `--warn-days N
 | `--status` | Report certificate expiry status and exit |
 | `--warn-days N` | Days-to-expiry warning threshold for `--status` (default: 30) |
 | `--connext-version X.Y.Z` | Override auto-detected Connext version |
+| `--generate-resolved-qos` | Generate resolved QoS XML files in `system_arch/security/resolved_qos/` with absolute security artifact paths; skips existing files unless `--force` is set |
 
 ## Directory Layout
 
@@ -82,7 +83,7 @@ system_arch/security/
 - **CA hierarchy:** A self-signed root CA (`TrustedRootCa`) issues two intermediate CAs — one for identity certificates (`TrustedIdentityCa`) and one for permissions/governance signing (`TrustedPermissionsCa`).
 - **Chain files:** Identity certificates include a `.chain.pem` containing both the leaf cert and its issuing CA cert, as required by the RTI Security Plugins.
 - **Signed XML:** Governance and permissions XML files are S/MIME-signed by the appropriate intermediate CA. The signed `.p7s` files are what Connext loads at runtime.
-- **Per-participant permissions:** Each participant has its own permissions document specifying the exact topics it may publish/subscribe to, with a default `DENY` rule.
+- **Per-participant permissions:** Each participant has its own permissions document specifying the exact topics it may publish/subscribe to, with a default `DENY` rule. For example, the `SystemObserver` participant grants `subscribe` on any topic and no `publish` rule at all — a least-privilege, read-only observer that can watch the full data flow but can never write to the bus.
 - **PSK passphrases:** Pre-Shared Key seed files (`.psk`) are generated per domain scope and stored alongside the governance/permissions artifacts (e.g. `domain_scope/TeleopWanDomain/TeleopWanDomain.psk`). The file format is `<id>:<seed>` where `<id>` is an integer in [0, 254]. Participants load the passphrase via the `dds.sec.crypto.rtps_psk_secret_passphrase` property.
 
 ## Good Practices for DDS Security

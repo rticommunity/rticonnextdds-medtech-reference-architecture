@@ -18,6 +18,7 @@ This README describes how we've approached QoS in this reference architecture. F
     - [DataFlowLibrary::Heartbeat profile](#dataflowlibraryheartbeat-profile)
     - [DataFlowLibrary::SecureLog profile](#dataflowlibrarysecurelog-profile)
 - [Application-specific QoS: NonSecureAppsQos.xml and SecureAppsQos.xml](#application-specific-qos-nonsecureappsqosxml-and-secureappsqosxml)
+- [External security snippets: SecureExternalAppsQos.xml](#external-security-snippets-secureexternalappsqosxml)
 - [XML QoS Best Practices](#xml-qos-best-practices)
 
 ## QoS Profile Configuration
@@ -177,11 +178,51 @@ Both files contain only 1 QoS library: ***DpQosLib***. This QoS library contains
 
 [NonSecureAppsQos.xml](./NonSecureAppsQos.xml) contains one profile for each DomainParticipant. For the simplified demonstration, each profile inherits from *SystemLibrary::DefaultParticipant* in [Qos.xml](./Qos.xml). No additional configuration is applied for any given DomainParticipant.
 
-[SecureAppsQos.xml](./SecureAppsQos.xml) also defines one profile for each DomainParticipant in a similar way to that of **NonSecureAppsQos.xml**, but with security configuration added.
+[SecureAppsQos.xml](./SecureAppsQos.xml) defines secure profiles for the demo DomainParticipants and services in a similar way to **NonSecureAppsQos.xml**, but with security configuration added.
 
 [SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *LanCommonSecurityConfig* defines common configuration to enable security for local domains (LAN connections). It references common permissions CA, identity CA, and governance files.
 
 [SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *WanCommonSecurityConfig* defines common configuration to enable security for remote domains (WAN connections). It references common permissions CA, identity CA, and governance files.
+
+## External security snippets: [SecureExternalAppsQos.xml](SecureExternalAppsQos.xml)
+
+[SecureExternalAppsQos.xml](./SecureExternalAppsQos.xml) provides standalone QoS snippets for participants that are **not** part of the demo applications themselves. Unlike the profiles in [SecureAppsQos.xml](./SecureAppsQos.xml), these are independent, Security-specific configurations meant to plug external observers into the secured system.
+
+The file currently defines one snippet:
+
+- **`SecureExternalAppsQosLib::SecureSystemObserver`** — a reusable [QoS Snippet](https://community.rti.com/best-practices/qos-profile-inheritance-and-composition-guidance#h.wr6u1ebybeff) that encapsulates the complete DDS Security property set for a read-only System Observer:
+  - Composes `BuiltinQosSnippetLib::Feature.Security.Enable` to activate the Security Plugins
+  - Permissions CA and Identity CA trust anchors
+  - Operational domain governance
+  - SystemObserver identity certificate and private key
+  - SystemObserver signed permissions document
+  - Secure logging disabled (`mode_mask=BUILTIN`, `verbosity=SILENT`) because the observer has no publish permissions
+
+### Usage
+
+Compose the snippet into any DomainParticipant QoS using the `<base_name>` element:
+
+```xml
+<domain_participant_qos>
+  <base_name>
+    <element>SecureExternalAppsQosLib::SecureSystemObserver</element>
+  </base_name>
+</domain_participant_qos>
+```
+
+### Connext Studio (Spy source)
+
+This configuration is ideal for use with **RTI Connext Studio**. To observe the secured domain with the Spy data source:
+
+1. From the repository root, generate resolved QoS files with absolute security-artifact paths:
+
+  ```bash
+  python3 system_arch/security/setup_security.py --generate-resolved-qos
+  ```
+
+2. In Connext Studio, add a Spy Source and configure the source with the configuration under
+`SecureExternalAppsQosLib::SecureSystemObserver` snippet from the `system_arch/security/resolved_qos/SecureExternalAppsQos.xml`.
+3. Spy will join the secured Operational Domain as a read-only observer — able to subscribe to all Topics without publish permissions.
 
 ## XML QoS Best Practices
 
@@ -189,4 +230,4 @@ Both files contain only 1 QoS library: ***DpQosLib***. This QoS library contains
 >
 >**Best Practice:** Inherit from [Built-in QoS Profiles](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Built_in_QoS_Profiles.htm). Builtin profiles provide starting points to frequently used and tuned QoS combinations.
 
-Please take a look at the comments inside the profiles in [Qos.xml](./Qos.xml), [NonSecureAppsQos.xml](./NonSecureAppsQos.xml), and [SecureAppsQos.xml](./SecureAppsQos.xml) for further details on each QoS policy and more **best practices** related to QoS configuration.
+Please take a look at the comments inside the profiles and snippets in [Qos.xml](./Qos.xml), [NonSecureAppsQos.xml](./NonSecureAppsQos.xml), [SecureAppsQos.xml](./SecureAppsQos.xml), and [SecureExternalAppsQos.xml](./SecureExternalAppsQos.xml) for further details on each QoS policy and more **best practices** related to QoS configuration.

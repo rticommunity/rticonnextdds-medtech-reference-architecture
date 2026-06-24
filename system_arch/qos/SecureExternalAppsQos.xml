@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+
+RTI grants Licensee a license to use, modify, compile, and create derivative
+works of the software solely for use with RTI Connext DDS.  Licensee may
+redistribute copies of the software provided that all such copies are
+subject to this license. The software is provided "as is", with no warranty
+of any type, including any warranty for fitness for any purpose. RTI is
+under no obligation to maintain or support the software.  RTI shall not be
+liable for any incidental or consequential damages arising out of the use or
+inability to use the software. -->
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.7.0/rti_dds_profiles.xsd" version="7.7.0">
+
+  <configuration_variables>
+    <value>
+      <element>
+        <!-- Path to security folder to find artifacts.
+              This path is relative to the "current working directory" when
+              running the application (i.e. from the `modules` folder).
+              It can be overridden by setting the RTI_SECURITY_ARTIFACTS_DIR
+              environment variable.
+        -->
+        <name>RTI_SECURITY_ARTIFACTS_DIR</name>
+        <value>../../system_arch/security</value>
+      </element>
+    </value>
+  </configuration_variables>
+
+  <qos_library name="SecureExternalAppsQosLib">
+    <!-- Snippet: SecureSystemObserver
+         Provides full DDS Security configuration for a read-only System Observer.
+         This is not a runnable profile on its own; compose it into a
+         DomainParticipant QoS (e.g. in Connext Studio's Spy source) via:
+           <base_name>
+             <element>SecureExternalAppsQosLib::SecureSystemObserver</element>
+           </base_name>
+    -->
+    <qos_profile name="SecureSystemObserver">
+      <?rti-qos_snippet?>
+      <domain_participant_qos>
+        <base_name>
+          <element>BuiltinQosSnippetLib::Feature.Security.Enable</element>
+        </base_name>
+        <property>
+          <value>
+            <!-- Permissions CA: validates S/MIME signatures on governance and permissions XMLs.
+                 Points to the intermediate Permissions CA that signs these documents. -->
+            <element>
+              <name>dds.sec.access.permissions_ca</name>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/ca/TrustedPermissionsCa/certs/TrustedRootCa/TrustedPermissionsCa.crt</value>
+            </element>
+            <!-- Identity CA: validates identity certificate chains.
+                 Points to the intermediate Identity CA that signs participant certs. -->
+            <element>
+              <name>dds.sec.auth.identity_ca</name>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/ca/TrustedIdentityCa/certs/TrustedRootCa/TrustedIdentityCa.crt</value>
+            </element>
+            <element>
+              <name>dds.sec.access.governance</name>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/domain_scope/OperationalDomain/governance/OperationalDomain/signed/TrustedPermissionsCa/OperationalDomain.p7s</value>
+            </element>
+            <element>
+              <name>dds.sec.auth.identity_certificate</name>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/identity/operating-room/SystemObserver/SystemObserver/certs/TrustedIdentityCa/SystemObserver.chain.pem</value>
+            </element>
+            <element>
+              <name>dds.sec.auth.private_key</name>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/identity/operating-room/SystemObserver/SystemObserver/private/SystemObserver.key</value>
+            </element>
+            <element>
+              <name>dds.sec.access.permissions</name>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/domain_scope/OperationalDomain/permissions/SystemObserver/signed/TrustedPermissionsCa/SystemObserver.p7s</value>
+            </element>
+            <!-- Read-only observer: it has no publish permissions, so it must not
+                 emit to the distributed secure-log topic. Disable secure logging. -->
+            <element>
+              <name>com.rti.serv.secure.logging.mode_mask</name>
+              <value>BUILTIN</value>
+            </element>
+            <element>
+              <name>com.rti.serv.secure.logging.verbosity</name>
+              <value>SILENT</value>
+            </element>
+          </value>
+        </property>
+      </domain_participant_qos>
+    </qos_profile>
+  </qos_library>
+
+</dds>
