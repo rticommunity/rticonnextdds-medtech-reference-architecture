@@ -180,9 +180,9 @@ Both files contain only 1 QoS library: ***DpQosLib***. This QoS library contains
 
 [SecureAppsQos.xml](./SecureAppsQos.xml) defines secure profiles for the demo DomainParticipants and services in a similar way to **NonSecureAppsQos.xml**, but with security configuration added.
 
-[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *LanCommonSecurityConfig* defines common configuration to enable security for local domains (LAN connections). It references common permissions CA, identity CA, and governance files.
+[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *LanCommonSecurityConfig* defines common configuration to enable security for local domains (LAN connections). It references common permissions CA, identity CA, governance files, and the OperationalDomain PSK seed file. The governance uses `rtps_protection_kind=ENCRYPT_WITH_ORIGIN_AUTHENTICATION` with `rtps_psk_protection_kind=ENCRYPT` for domain-level protection, plus topic-level protection (`metadata_protection_kind=ENCRYPT`) on `t/Vitals` and `t/MotorControl`.
 
-[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *WanCommonSecurityConfig* defines common configuration to enable security for remote domains (WAN connections). It references common permissions CA, identity CA, and governance files.
+[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *WanCommonSecurityConfig* defines common configuration to enable security for remote domains (WAN connections). It references common permissions CA, identity CA, governance files, and the TeleopWanDomain PSK seed file. The same domain-level protection applies (`rtps_protection_kind=ENCRYPT_WITH_ORIGIN_AUTHENTICATION`, `rtps_psk_protection_kind=ENCRYPT`), but the WAN governance applies *stricter* topic-level protection: a catch-all `*` rule with `metadata_protection_kind=ENCRYPT` protects the submessage metadata of **every** topic, rather than only `t/Vitals` and `t/MotorControl`. The secure log topic `DDS:Security:LogTopicV2` keeps its own `SIGN`/`ENCRYPT`.
 
 ## External security snippets: [SecureExternalAppsQos.xml](SecureExternalAppsQos.xml)
 

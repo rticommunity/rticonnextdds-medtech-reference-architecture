@@ -37,6 +37,7 @@ from security_tree import (
     Permissions,
     PskSeed,
     SecurityTree,
+    TopicRule,
     detect_connext_version,
     scaffold_tree,
 )
@@ -61,10 +62,32 @@ OPERATIONAL_DOMAIN = DomainScope(
         name="OperationalDomain",
         issuer=TRUSTED_PERMISSIONS_CA,
         # Explicitly NONE: the reference architecture does not protect
-        # discovery or liveliness metadata (RTPS payload is encrypted).
+        # discovery or liveliness metadata (already protected through RTPS ENCRYPT_WITH_ORIGIN_AUTHENTICATION).
         discovery_protection_kind="NONE",
         liveliness_protection_kind="NONE",
+        rtps_protection_kind="ENCRYPT_WITH_ORIGIN_AUTHENTICATION",
+        rtps_psk_protection_kind="ENCRYPT",
+        topic_rules=[
+            TopicRule(
+                topic_expression="t/Vitals",
+                metadata_protection_kind="ENCRYPT",
+            ),
+            TopicRule(
+                topic_expression="t/MotorControl",
+                metadata_protection_kind="ENCRYPT",
+            ),
+            TopicRule(topic_expression="*"),
+            TopicRule(
+                topic_expression="DDS:Security:LogTopicV2",
+                enable_write_access_control=False,
+                metadata_protection_kind="SIGN",
+                data_protection_kind="ENCRYPT",
+            ),
+        ],
     ),
+    psk_seeds=[
+        PskSeed(filename="OperationalDomain.psk"),
+    ],
     permissions=[
         Permissions(
             name="Arm",
@@ -148,8 +171,35 @@ TELEOP_WAN_DOMAIN = DomainScope(
     governance=Governance(
         name="TeleopWanDomain",
         issuer=TRUSTED_PERMISSIONS_CA,
+        # Explicitly NONE: the reference architecture does not protect
+        # discovery or liveliness metadata (already protected through RTPS ENCRYPT_WITH_ORIGIN_AUTHENTICATION).
         discovery_protection_kind="NONE",
         liveliness_protection_kind="NONE",
+        rtps_protection_kind="ENCRYPT_WITH_ORIGIN_AUTHENTICATION",
+        rtps_psk_protection_kind="ENCRYPT",
+        # WAN governance protects ALL topics with topic-level insider
+        # protection: a catch-all "*" rule with metadata_protection_kind=ENCRYPT
+        # encrypts the submessage metadata of every topic, so only
+        # participants with matching permissions can decrypt it. This is
+        # stricter than the OperationalDomain (LAN) governance, which only
+        # applies metadata ENCRYPT to t/Vitals and t/MotorControl.
+        #
+        # Rule order matters: DDS evaluates topic rules first-match, top-down,
+        # so the specific DDS:Security:LogTopicV2 rule must precede the "*"
+        # catch-all or it would be shadowed (and the secure log would lose its
+        # SIGN metadata / ENCRYPT data protection).
+        topic_rules=[
+            TopicRule(
+                topic_expression="DDS:Security:LogTopicV2",
+                enable_write_access_control=False,
+                metadata_protection_kind="SIGN",
+                data_protection_kind="ENCRYPT",
+            ),
+            TopicRule(
+                topic_expression="*",
+                metadata_protection_kind="ENCRYPT",
+            ),
+        ],
     ),
     permissions=[
         Permissions(name="RsActiveWan", issuer=TRUSTED_PERMISSIONS_CA),

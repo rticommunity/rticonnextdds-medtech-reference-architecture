@@ -321,12 +321,13 @@ DDS Security defines authentication, access control, and encryption capabilities
 
 DDS Security is meant to be a pluggable component to the system architecture. This reference architecture demonstrates the flexibility of the RTI Security Plugins, and how a system can be secured purely through configuration. It should be noted that enabling security does have an effect on performance - both at initialization due to authentication and in steady-state operation due to encryption. It is because of this, that a system's architecture should be designed with security in mind, even if application code has no dependency on the use of security.
 
-The reference architecture configures security in [SecureAppsQos.xml](./system_arch/qos/SecureAppsQos.xml) with:
+The reference architecture configures security in [SecureAppsQos.xml](./system_arch/qos/SecureAppsQos.xml) following the [Builtin Security Plugins domain-level protection](https://community.rti.com/static/documentation/connext-dds/current/doc/manuals/connext_dds_secure/users_manual/p3_advanced/threat_modeling.html#dds-security-threat-protection) pattern with topic-level protection for sensitive topics:
 
 | Component | Security Features
 | ---------------------- | -----------------
-| **LAN Communications** | `OperationalDomain` governance, participant-specific certificates and permissions
-| **WAN Communications** | `TeleopWanDomain` governance for WAN connections (Module 03), including PSK-protected RTPS
+| **LAN Communications** | `OperationalDomain` governance with `ENCRYPT_WITH_ORIGIN_AUTHENTICATION` RTPS protection, PSK encryption (`OperationalDomain.psk`), participant-specific certificates and permissions
+| **WAN Communications** | `TeleopWanDomain` governance with `ENCRYPT_WITH_ORIGIN_AUTHENTICATION` RTPS protection, PSK encryption (`TeleopWanDomain.psk`) for WAN connections (Module 03)
+| **Topic-level protection** | `t/Vitals` and `t/MotorControl` topics use `metadata_protection_kind=ENCRYPT` for insider confidentiality protection
 | **RTI Services** | Dedicated security profiles for Recording/Replay Services and Routing Services
 
 For independent, security-specific observer integrations (not part of the demo applications), use [SecureExternalAppsQos.xml](./system_arch/qos/SecureExternalAppsQos.xml). It provides the `SecureExternalAppsQosLib::SecureSystemObserver` QoS snippet, which is intended to be composed into external DomainParticipants.
@@ -352,12 +353,12 @@ Check out the the [system_arch](./system_arch/) folder, where the system archite
 - [RTI XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/XMLAppCreationGSG_title.htm#)
 - [RTI System Designer](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/tools/system_designer/index.html)
 - [RTI Core Libraries Users Manual](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/title.htm#)
-- [RTI Security Plugins](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/index.html)
+- [RTI Security Plugins](https://community.rti.com/static/documentation/connext-dds/current/doc/manuals/connext_dds_secure/users_manual/index.html)
 - [RTI Connext Modern C++ API](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/api/connext_dds/api_cpp2/index.html) *, used in Module 01: Digital Operating Room*
 - [RTI Connext Python API](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/api/connext_dds/api_python/index.html) *, used in Module 01: Digital Operating Room*
 - [RTI Recording Service & Replay Service](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/services/recording_service/introduction.html) *, used in Module 02: RTI Recording Service & RTI Replay Service*
 - [Connext Real-Time WAN Transport](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/PartRealtimeWAN.htm) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
 - [RTI Routing Service](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/services/routing_service/index.html) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
 - [RTI Cloud Discovery Service](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/addon_products/cloud_discovery_service/index.html) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
-- [RTI Security Plugins Users Manual](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/index.html) *, used in Module 04: Security Threat Demonstration*
+- [RTI Security Plugins Users Manual](https://community.rti.com/static/documentation/connext-dds/current/doc/manuals/connext_dds_secure/users_manual/index.html) *, used in Module 04: Security Threat Demonstration*
 - [RTI Connext Third-Party Software](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/release_notes_3rdparty/index.html)

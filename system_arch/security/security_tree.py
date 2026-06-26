@@ -96,9 +96,10 @@ class Governance:
     domain_id_max: Optional[int] = None  # None = no upper bound
     allow_unauthenticated_participants: bool = False
     enable_join_access_control: bool = True
-    discovery_protection_kind: str = "SIGN"
-    liveliness_protection_kind: str = "SIGN"
-    rtps_protection_kind: str = "ENCRYPT"
+    discovery_protection_kind: str = "NONE"
+    liveliness_protection_kind: str = "NONE"
+    rtps_protection_kind: str = "ENCRYPT_WITH_ORIGIN_AUTHENTICATION"
+    rtps_psk_protection_kind: str = "ENCRYPT"
     enable_key_revision: bool = True
     topic_rules: list[TopicRule] = field(
         default_factory=lambda: [
@@ -903,6 +904,7 @@ def scaffold_tree(
                 "discovery_protection_kind": gov.discovery_protection_kind,
                 "liveliness_protection_kind": gov.liveliness_protection_kind,
                 "rtps_protection_kind": gov.rtps_protection_kind,
+                "rtps_psk_protection_kind": gov.rtps_psk_protection_kind,
                 "enable_key_revision": gov.enable_key_revision,
                 "connext_version": tree.connext_version or (0, 0, 0),
                 "connext_version_str": _version_str(tree.connext_version),

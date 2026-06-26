@@ -37,7 +37,7 @@ Together, the RTI Real-Time WAN Transport, RTI Security Plugins, and RTI Cloud D
 
 - **Low-latency communication** across WAN connections
 - **Automatic NAT traversal** capabilities
-- **Secure data transmission** with built-in authentication, encryption and access control
+- **Secure data transmission** with domain-level protection (`ENCRYPT_WITH_ORIGIN_AUTHENTICATION` + PSK encryption) and topic-level encryption for sensitive topics (`t/Vitals`, `t/MotorControl`)
 - **Bandwidth optimization** for efficient data transfer (when compared to TCP-based communication)
 - **Connection resilience** with automatic reconnection
 
