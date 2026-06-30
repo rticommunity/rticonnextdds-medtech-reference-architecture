@@ -162,6 +162,8 @@ Watch the threat app's Activity Log: when the secured OR comes up, the injector'
 
 Each attack mode corresponds to a different stage of the DDS Security handshake. Even if an attacker passes one layer, subsequent layers still block the attack:
 
+> **Note:** All three attack modes share a common `InsiderBase` profile (in [ThreatQos.xml](xml_config/ThreatQos.xml)) that supplies the genuine `OperationalDomain.psk` seed via `dds.sec.crypto.rtps_psk_secret_passphrase`. This deliberately models an *insider* who has already obtained the domain pre-shared key, so the attacker clears the outer `rtps_psk_protection_kind=ENCRYPT` layer. The block therefore happens at the authentication, access-control, or certificate-validation stage below — demonstrating that the domain PSK alone is not sufficient to join the secured OR.
+
 | Mode | What happens | Why |
 | --- | --- | --- |
 | **Rogue CA** | Participant is created but never matches | The identity certificate is signed by an untrusted CA root. The OR participants do not list the rogue CA in their `identity_ca` trust store, so the authentication handshake fails. |

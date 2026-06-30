@@ -94,6 +94,8 @@ This QoS profile configures the DomainParticipant for communication over the Wid
 - Enables the **UDPv4_WAN** builtin transport (via the `transport_builtin` mask), which provides the RTI Real-Time WAN Transport's NAT-traversal capabilities.
 - Shortens the participant liveliness assert period to speed up discovery over the WAN.
 
+When security is enabled, WAN participants compose the *WanCommonSecurityConfig* snippet from [SecureAppsQos.xml](SecureAppsQos.xml), which uses the [TeleopWanDomain.xml](../security/domain_scope/TeleopWanDomain/governance/TeleopWanDomain/TeleopWanDomain.xml) governance (and the matching `TeleopWanDomain.psk` seed) instead of the LAN-side *OperationalDomain* governance. *TeleopWanDomain* applies the same domain-level protection but extends metadata encryption to **every** topic. See [SecureAppsQos.xml](#application-specific-qos-nonsecureappsqosxml-and-secureappsqosxml) for details.
+
 It is used by Module 03: Remote Teleoperation. See the [Module 03 README](../../modules/03-remote-teleoperation/README.md) for the WAN scenarios that rely on it.
 
 ### ***DataFlowLibrary***
@@ -214,15 +216,21 @@ Compose the snippet into any DomainParticipant QoS using the `<base_name>` eleme
 
 This configuration is ideal for use with **RTI Connext Studio**. To observe the secured domain with the Spy data source:
 
-1. From the repository root, generate resolved QoS files with absolute security-artifact paths:
+1. From the repository root, generate the DDS Security artifacts (identity/permissions CAs, certificates, PSK seeds, and signed governance/permissions). A regular `setup_security.py` run (no flags) creates these under the security tree:
+
+  ```bash
+  python3 system_arch/security/setup_security.py
+  ```
+
+2. Generate resolved QoS files with absolute security-artifact paths. `--generate-resolved-qos` only emits the QoS files — it does **not** generate the artifacts themselves, so the previous step must be run first:
 
   ```bash
   python3 system_arch/security/setup_security.py --generate-resolved-qos
   ```
 
-2. In Connext Studio, add a Spy Source and configure the source with the configuration under
+3. In Connext Studio, add a Spy Source and configure the source with the configuration under
 `SecureExternalAppsQosLib::SecureSystemObserver` snippet from the `system_arch/security/resolved_qos/SecureExternalAppsQos.xml`.
-3. Spy will join the secured Operational Domain as a read-only observer — able to subscribe to all Topics without publish permissions.
+4. Spy will join the secured Operational Domain as a read-only observer — able to subscribe to all Topics without publish permissions.
 
 ## XML QoS Best Practices
 

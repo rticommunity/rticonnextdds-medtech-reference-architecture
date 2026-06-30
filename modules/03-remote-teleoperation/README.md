@@ -18,7 +18,7 @@ All run commands in this README are launched from the repository root. The proje
 
 This module extends the Digital Operating Room from Module 01 to demonstrate WAN communication capabilities. The RTI Real-Time WAN Transport enables secure, reliable communication across geographical distances, allowing medical professionals to operate remotely while maintaining real-time control and monitoring.
 
-RTI Connext abstracts the underlying transport, such that the api usage and much of the configuration can remain consistent regardless of which transport is used. This is true for the Real-Time WAN Transport, and this module shows that the same applications communicating locally can be extended to work over a remote connection without modification to code, QoS, or security configuration.
+RTI Connext abstracts the underlying transport, such that the api usage and much of the configuration can remain consistent regardless of which transport is used. This is true for the Real-Time WAN Transport, and this module shows that the same applications communicating locally can be extended to work over a remote connection without modification to application code. The WAN deployment does select a WAN-specific transport profile and, when security is enabled, a stricter WAN governance (see below), but the application logic itself is unchanged.
 
 ![diagram](../../resource/images/module-03-diagram-teleoperation.svg)
 
@@ -37,7 +37,7 @@ Together, the RTI Real-Time WAN Transport, RTI Security Plugins, and RTI Cloud D
 
 - **Low-latency communication** across WAN connections
 - **Automatic NAT traversal** capabilities
-- **Secure data transmission** with domain-level protection (`ENCRYPT_WITH_ORIGIN_AUTHENTICATION` + PSK encryption) and topic-level encryption for sensitive topics (`t/Vitals`, `t/MotorControl`)
+- **Secure data transmission** with domain-level protection (`ENCRYPT_WITH_ORIGIN_AUTHENTICATION` + PSK encryption) and topic-level encryption applied to **every** topic. Over the WAN, participants use the *TeleopWanDomain* governance, which is identical to the LAN-side *OperationalDomain* governance (used in Modules 01 and 04) except for one difference: it extends metadata encryption to all topics via a catch-all rule, rather than encrypting only the sensitive topics `t/Vitals` and `t/MotorControl`.
 - **Bandwidth optimization** for efficient data transfer (when compared to TCP-based communication)
 - **Connection resilience** with automatic reconnection
 
