@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arm Controller — Digital Operating Room</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <span class="brand">RTI</span>
+    <span class="sep">|</span>
+    <span class="title">Arm Controller</span>
+    <span id="device-status"></span>
+</header>
+
+<main>
+    <section class="motors" id="motors"></section>
+
+    <aside>
+        <h2>ALL JOINTS</h2>
+        <div class="play-all-row">
+            <button id="btn-play-all">Play All</button>
+            <button id="btn-stop-all">Stop All</button>
+        </div>
+    </aside>
+
+    <section id="alerts"></section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

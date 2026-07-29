@@ -1,0 +1,141 @@
+/*
+ * RTI Connext DDS — Arm Controller Web UI Stylesheet
+ * Brand colors: RTI Blue #004C97  |  RTI Orange #ED8B00
+ */
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background-color: #0A0E17;
+    color: #C8D8E8;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background-color: #071020;
+    border-bottom: 2px solid #004C97;
+}
+
+header .brand { color: #004C97; font-size: 22px; font-weight: bold; }
+header .sep { color: #334455; font-size: 26px; }
+header .title { color: #E0E8F0; font-size: 26px; font-weight: bold; flex: 1; }
+
+#device-status {
+    font-size: 13px;
+    font-weight: bold;
+    padding: 4px 10px;
+    border-radius: 12px;
+}
+
+#device-status.status-on { color: #00E676; background-color: #00331A; border: 1px solid #006633; }
+#device-status.status-paused { color: #ED8B00; background-color: #1A0D00; border: 1px solid #664400; }
+#device-status.status-off { color: #FF5555; background-color: #1A0505; border: 1px solid #662200; }
+
+#shutdown-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(5, 8, 14, 0.92);
+    color: #FF5555;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 22px;
+    font-weight: bold;
+    z-index: 1000;
+}
+#shutdown-overlay span { color: #8899AA; font-size: 15px; font-weight: normal; }
+
+main {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    padding: 20px;
+}
+
+.motors {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.motor-row {
+    background-color: #0F1822;
+    border-radius: 6px;
+    border: 1px solid #1A2A3A;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+}
+
+.motor-name { font-size: 22px; font-weight: bold; min-width: 130px; }
+.motor-name.BASE { color: #004C97; }
+.motor-name.SHOULDER { color: #ED8B00; }
+.motor-name.ELBOW { color: #00BFFF; }
+.motor-name.WRIST { color: #7CFC00; }
+.motor-name.HAND { color: #DA70D6; }
+
+.motor-row button {
+    padding: 8px 14px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid #334455;
+    background-color: #1A2A3A;
+    color: #C8D8E8;
+    user-select: none;
+}
+
+.motor-row button:active { background-color: #223355; }
+
+.motor-row button.play-toggle.active {
+    background-color: #004C97;
+    border-color: #6699CC;
+    color: #FFFFFF;
+}
+
+.play-all-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.play-all-row button {
+    flex: 1;
+    padding: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid #334455;
+    background-color: #1A2A3A;
+    color: #C8D8E8;
+}
+
+#alerts {
+    grid-column: 1 / -1;
+    background-color: #060F0A;
+    color: #00CC66;
+    border: 2px solid #1A2A3A;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: "Courier New", monospace;
+    font-size: 15px;
+    height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+}
+
+aside h2 {
+    font-size: 16px;
+    letter-spacing: 1px;
+    margin: 0 0 8px 0;
+}

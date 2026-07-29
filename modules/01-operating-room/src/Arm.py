@@ -15,9 +15,11 @@ import signal
 import sys
 import threading
 import time
+from pathlib import Path
 
 import rti.connextdds as dds
 from DdsUtils import register_type
+from web_server_utils import start_web_server
 from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
 from PySide6.QtGui import (
     QBrush,
@@ -520,7 +522,7 @@ class ArmApp:
             hb_writer.write(hb)
             time.sleep(0.05)
 
-    # ── DDS poll timer callback (Qt main thread) ─────────────────────
+    # ── DDS poll timer callback (Qt main thread, or headless loop) ────
     def _poll_dds(self):
         # Motor control samples
         samples = self.motor_control_reader.take_data()
@@ -534,7 +536,8 @@ class ArmApp:
                     self.directions[sample.id] = "DECREMENT"
                 else:
                     self.directions[sample.id] = "STATIONARY"
-            self.window.update_joint(sample.id, self.angles[sample.id], self.directions[sample.id])
+            if self.window:
+                self.window.update_joint(sample.id, self.angles[sample.id], self.directions[sample.id])
 
         # Command samples
         cmd_samples = self.cmd_reader.take_data()
@@ -542,16 +545,25 @@ class ArmApp:
             if sample.command == Orchestrator.DeviceCommands.START:
                 print("Arm received Start Command")
                 self.arm_status.status = Common.DeviceStatuses.ON
-                self.window.set_state("ON")
+                if self.window:
+                    self.window.set_state("ON")
+                else:
+                    self._log_alert_web("Received START Command from Orchestrator")
             elif sample.command == Orchestrator.DeviceCommands.PAUSE:
                 print("Arm received Pause Command")
                 self.arm_status.status = Common.DeviceStatuses.PAUSED
-                self.window.set_state("PAUSED")
+                if self.window:
+                    self.window.set_state("PAUSED")
+                else:
+                    self._log_alert_web("Received PAUSE Command from Orchestrator")
             else:
                 print("Arm received Shutdown Command")
                 self.arm_status.status = Common.DeviceStatuses.OFF
-                self.window.set_state("OFF")
-                QApplication.quit()
+                if self.window:
+                    self.window.set_state("OFF")
+                    QApplication.quit()
+                else:
+                    self._log_alert_web("Received SHUTDOWN Command from Orchestrator")
             self.status_writer.write(self.arm_status)
 
     def _cleanup(self):
@@ -616,7 +628,60 @@ class ArmApp:
 
         self.arm_status.status = Common.DeviceStatuses.OFF
 
+    # ── Headless web-mode entry point ───────────────────────────────
+    def run_web(self, port: int):
+        self.connext_setup()
+        self._state_lock = threading.Lock()
+        self._alerts = []
+
+        hb_thread = threading.Thread(target=self.write_hb, args=[self.hb_writer], daemon=True)
+        hb_thread.start()
+
+        self._running = True
+        signal.signal(signal.SIGINT, lambda *_: setattr(self, "_running", False))
+
+        web_dir = Path(__file__).resolve().parent.parent / "web-arm"
+        httpd = start_web_server(web_dir, self._get_state_web, port)
+        print(f"Arm web UI listening on http://localhost:{port}/")
+        print("Started Arm")
+
+        try:
+            while self._running and self.arm_status.status != Common.DeviceStatuses.OFF:
+                self._poll_dds()
+                time.sleep(UPDATE_MS / 1000.0)
+        finally:
+            httpd.shutdown()
+            self.arm_status.status = Common.DeviceStatuses.OFF
+
+    def _get_state_web(self) -> dict:
+        status_names = {
+            Common.DeviceStatuses.ON: "ON",
+            Common.DeviceStatuses.PAUSED: "PAUSED",
+            Common.DeviceStatuses.OFF: "OFF",
+        }
+        with self._state_lock:
+            return {
+                "status": status_names.get(self.arm_status.status, "OFF"),
+                "angles": {JOINT_NAMES[m]: self.angles[m] for m in _MOTORS_ORDERED},
+                "directions": {JOINT_NAMES[m]: self.directions[m] for m in _MOTORS_ORDERED},
+                "alerts": list(self._alerts),
+            }
+
+    def _log_alert_web(self, msg: str):
+        ts = time.strftime("%Y-%m-%d %H:%M:%S")
+        with self._state_lock:
+            self._alerts.append(f"{ts} - {msg}")
+            del self._alerts[:-200]
+
 
 if __name__ == "__main__":
+    web_mode = "--web" in sys.argv
+    web_port = 8092
+    if "--port" in sys.argv:
+        web_port = int(sys.argv[sys.argv.index("--port") + 1])
+
     arm = ArmApp()
-    arm.run()
+    if web_mode:
+        arm.run_web(web_port)
+    else:
+        arm.run()

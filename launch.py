@@ -18,6 +18,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import threading
+import webbrowser
 from pathlib import Path
 
 try:
@@ -63,6 +65,44 @@ def _resolve_module(
         commands = list(all_apps.values())
 
     return commands, module_dir, env
+
+
+def _apply_web_flag(module_name: str, commands: list[list[str]]) -> None:
+    """Switch supported GUI apps to their browser-based UI and auto-open tabs.
+
+    Only 01-operating-room's Orchestrator, ArmController, Arm, and
+    PatientMonitor apps currently support --web. Each gets its own fixed
+    port so they can all run side by side.
+    """
+    if module_name != "01-operating-room":
+        print(f"Note: --web has no effect for module '{module_name}'.")
+        return
+
+    # App name (by executable/script basename) -> web UI port.
+    web_ports = {
+        "Orchestrator": 8090,
+        "ArmController": 8091,
+        "Arm.py": 8092,
+        "PatientMonitor.py": 8093,
+    }
+
+    opened_urls = []
+    for cmd in commands:
+        if not cmd:
+            continue
+        for app_name, port in web_ports.items():
+            if any(Path(part).name == app_name for part in cmd):
+                cmd.extend(["--web", "--port", str(port)])
+                opened_urls.append(f"http://localhost:{port}/")
+                break
+
+    if not opened_urls:
+        print("Note: --web has no effect since no web-capable app was launched.")
+        return
+
+    print("Web UIs: " + ", ".join(opened_urls) + " (opening browser tabs shortly...)")
+    for i, url in enumerate(opened_urls):
+        threading.Timer(1.5 + i * 0.5, webbrowser.open_new_tab, args=(url,)).start()
 
 
 def _list_scenarios() -> None:
@@ -142,6 +182,12 @@ def main() -> None:
         action="store_true",
         help="Launch with Security enabled.",
     )
+    parser.add_argument(
+        "--web",
+        action="store_true",
+        help="Launch 01-operating-room's Orchestrator, ArmController, Arm, and "
+        "PatientMonitor with browser-based UIs instead of native GTK/Qt windows.",
+    )
 
     if argcomplete:
         argcomplete.autocomplete(parser)
@@ -167,6 +213,8 @@ def main() -> None:
         cmds, mod_dir, env = _resolve_module(args.module, args.apps or None, args.security)
         app_label = ", ".join(args.apps) if args.apps else "all"
         print(f"Launching from {args.module}: {app_label}")
+        if args.web:
+            _apply_web_flag(args.module, cmds)
         module_runner.launch(cmds, mod_dir, env)
 
     else:
