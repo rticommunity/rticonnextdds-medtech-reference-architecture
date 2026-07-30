@@ -14,11 +14,13 @@ import signal
 import sys
 import threading
 import time
+from pathlib import Path
 
 import numpy as np
 import pyqtgraph as pg
 import rti.connextdds as dds
 from DdsUtils import register_type
+from web_server_utils import start_web_server
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
@@ -320,6 +322,7 @@ class PatientMonitorWindow(QMainWindow):
         self._nibp_s = 120.0
         self._nibp_d = 80.0
         self.paused = False
+        self.data_stale = False
 
         # Frames per tick derived from timer interval
         self._timer_ms = 40
@@ -445,7 +448,7 @@ class PatientMonitorWindow(QMainWindow):
 
     # ── Animation tick ───────────────────────────────────────────────
     def _tick(self):
-        if self.paused:
+        if self.paused or self.data_stale:
             return
         # ECG — rate driven by HR (beats per minute → bps)
         self.hr_panel.beat_rate = self._hr / 60.0
@@ -488,6 +491,11 @@ class PatientMonitorWindow(QMainWindow):
             f"font-weight: bold; padding: 3px 10px; border-radius: 4px; margin-left: 10px;"
         )
 
+    def set_data_stale(self, stale: bool):
+        """Freeze the waveform animation when the Patient Sensor stops
+        publishing fresh vitals (e.g. it was paused independently)."""
+        self.data_stale = stale
+
 
 # ─── Application class ────────────────────────────────────────────────────
 class PatientMonitorApp:
@@ -499,6 +507,13 @@ class PatientMonitorApp:
         self.cmd_reader = None
         self.bridge = DdsBridge()
         self.window = None
+        self._vitals = (60.0, 98.0, 38.0, 120.0, 80.0)
+        self._last_vitals_time = time.monotonic()
+        # If no fresh vitals sample has arrived in this long, treat the feed
+        # as stale (e.g. the Patient Sensor was paused independently) and
+        # freeze the waveform instead of animating on stale data. Set well
+        # above the sensor's ~50 ms publish period to tolerate normal jitter.
+        self.DATA_STALE_S = 1.5
 
     # ── DDS heartbeat thread ─────────────────────────────────────────
     def write_hb(self):
@@ -508,35 +523,52 @@ class PatientMonitorApp:
             self.hb_writer.write(hb)
             time.sleep(0.05)
 
-    # ── DDS polling (called by Qt timer every 150 ms) ────────────────
+    # ── DDS polling (called by Qt timer every 150 ms, or headless loop) ──
     def _poll_dds(self):
         # Vitals
         if self.pm_status.status == Common.DeviceStatuses.ON:
             samples = self.vitals_reader.take_data()
             for sample in samples:
-                self.window.update_vitals(
+                self._vitals = (
                     float(sample.hr),
                     float(sample.spo2),
                     float(sample.etco2),
                     float(sample.nibp_s),
                     float(sample.nibp_d),
                 )
+                self._last_vitals_time = time.monotonic()
+                if self.window:
+                    self.window.update_vitals(*self._vitals)
+
+        data_stale = (time.monotonic() - self._last_vitals_time) > self.DATA_STALE_S
+        if self.window:
+            self.window.set_data_stale(data_stale)
+
         # Commands
         cmd_samples = self.cmd_reader.take_data()
         for sample in cmd_samples:
             if sample.command == Orchestrator.DeviceCommands.START:
                 print("Patient Monitor received Start command")
                 self.pm_status.status = Common.DeviceStatuses.ON
-                self.window.set_state("ON")
+                if self.window:
+                    self.window.set_state("ON")
+                else:
+                    self._log_alert_web("Received START Command from Orchestrator")
             elif sample.command == Orchestrator.DeviceCommands.PAUSE:
                 print("Patient Monitor received Pause command")
                 self.pm_status.status = Common.DeviceStatuses.PAUSED
-                self.window.set_state("PAUSED")
+                if self.window:
+                    self.window.set_state("PAUSED")
+                else:
+                    self._log_alert_web("Received PAUSE Command from Orchestrator")
             else:
                 print("Patient Monitor received Shutdown command")
                 self.pm_status.status = Common.DeviceStatuses.OFF
-                self.window.set_state("OFF")
-                QApplication.quit()
+                if self.window:
+                    self.window.set_state("OFF")
+                    QApplication.quit()
+                else:
+                    self._log_alert_web("Received SHUTDOWN Command from Orchestrator")
             self.status_writer.write(self.pm_status)
 
     # ── Connext setup ────────────────────────────────────────────────
@@ -599,6 +631,66 @@ class PatientMonitorApp:
     def _cleanup(self):
         print("Shutting down Patient Monitor")
 
+    # ── Headless web-mode entry point ───────────────────────────────
+    def run_web(self, port: int):
+        self.connext_setup()
+        self._state_lock = threading.Lock()
+        self._alerts = []
+
+        hb_thread = threading.Thread(target=self.write_hb, daemon=True)
+        hb_thread.start()
+
+        self._running = True
+        signal.signal(signal.SIGINT, lambda *_: setattr(self, "_running", False))
+
+        web_dir = Path(__file__).resolve().parent.parent / "web-patientmonitor"
+        httpd = start_web_server(web_dir, self._get_state_web, port)
+        print(f"Patient Monitor web UI listening on http://localhost:{port}/")
+        print("Started Patient Monitor")
+
+        try:
+            while self._running and self.pm_status.status != Common.DeviceStatuses.OFF:
+                self._poll_dds()
+                time.sleep(0.15)
+        finally:
+            httpd.shutdown()
+            self.pm_status.status = Common.DeviceStatuses.OFF
+
+    def _get_state_web(self) -> dict:
+        status_names = {
+            Common.DeviceStatuses.ON: "ON",
+            Common.DeviceStatuses.PAUSED: "PAUSED",
+            Common.DeviceStatuses.OFF: "OFF",
+        }
+        hr, spo2, etco2, nibp_s, nibp_d = self._vitals
+        data_stale = (time.monotonic() - self._last_vitals_time) > self.DATA_STALE_S
+        with self._state_lock:
+            return {
+                "status": status_names.get(self.pm_status.status, "OFF"),
+                "hr": hr,
+                "spo2": spo2,
+                "etco2": etco2,
+                "nibp_s": nibp_s,
+                "nibp_d": nibp_d,
+                "data_stale": data_stale,
+                "alerts": list(self._alerts),
+            }
+
+    def _log_alert_web(self, msg: str):
+        ts = time.strftime("%Y-%m-%d %H:%M:%S")
+        with self._state_lock:
+            self._alerts.append(f"{ts} - {msg}")
+            del self._alerts[:-200]
+
 
 if __name__ == "__main__":
-    PatientMonitorApp().run()
+    web_mode = "--web" in sys.argv
+    web_port = 8093
+    if "--port" in sys.argv:
+        web_port = int(sys.argv[sys.argv.index("--port") + 1])
+
+    pm = PatientMonitorApp()
+    if web_mode:
+        pm.run_web(web_port)
+    else:
+        pm.run()

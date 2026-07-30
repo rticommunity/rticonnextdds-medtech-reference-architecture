@@ -50,6 +50,8 @@ The *Orchestrator* application primarily acts as a system application state obse
 
 It displays current device statuses, presents buttons to administer device commands, and shows an "Alerts" panel to display observed events.
 
+The Orchestrator also supports a browser-based UI as an alternative to the native GTK window — see [Web UI mode](#web-ui-mode) below.
+
 ## Setup and Installation
 
 Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. That covers prerequisites, environment setup, the project-level build, and security artifact generation.
@@ -86,6 +88,26 @@ python3 launch.py 01-operating-room -s
 2. Launch the application executables.
 
 *Note, applications can be launched individually by name, e.g. `python3 launch.py 01-operating-room Arm PatientMonitor`. Refer to [module.json](./module.json) for the list of available app names and QoS configuration.*
+
+### Web UI mode
+
+The *Orchestrator*, *ArmController*, *Arm*, and *PatientMonitor* applications can run headless with browser-based UIs instead of their native GTK/Qt windows — useful when a display/desktop environment isn't available (e.g. remote or cloud-hosted evaluation). Pass `--web` to `launch.py`:
+
+```bash
+# From the repository root
+python3 launch.py 01-operating-room --web
+```
+
+This launches each supported app with an embedded HTTP server and opens the UI in your default browser. The web UI polls a JSON API (`GET /api/state`, `POST /api/command`) rather than using a persistent WebSocket connection, so it works reliably behind simple HTTP proxies.
+
+### VS Code tab mode
+
+To open those same UIs in VS Code editor tabs, package and install the bundled [MedTech Web Tabs extension](../../vscode-extension/README.md) once, then run:
+
+```bash
+# From the repository root
+python3 launch.py 01-operating-room --vscode
+```
 
 ### 2. Observe the application behavior
 

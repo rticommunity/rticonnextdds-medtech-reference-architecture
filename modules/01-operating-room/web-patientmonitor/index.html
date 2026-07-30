@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patient Monitor — Digital Operating Room</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <span class="brand">RTI</span>
+    <span class="sep">|</span>
+    <span class="title">Patient Monitor</span>
+    <span id="device-status"></span>
+</header>
+
+<main>
+    <section class="vital-panel" id="panel-hr">
+        <div class="top-row">
+            <span class="name">ECG / Heart Rate</span>
+            <span class="unit">bpm</span>
+        </div>
+        <div class="value" id="value-hr">---</div>
+        <canvas id="wave-hr" width="500" height="130"></canvas>
+    </section>
+
+    <section class="vital-panel" id="panel-spo2">
+        <div class="top-row">
+            <span class="name">SpO&#8322;</span>
+            <span class="unit">%</span>
+        </div>
+        <div class="value" id="value-spo2">---</div>
+        <canvas id="wave-spo2" width="500" height="130"></canvas>
+    </section>
+
+    <section class="vital-panel" id="panel-etco2">
+        <div class="top-row">
+            <span class="name">EtCO&#8322;</span>
+            <span class="unit">mmHg</span>
+        </div>
+        <div class="value" id="value-etco2">---</div>
+        <canvas id="wave-etco2" width="500" height="130"></canvas>
+    </section>
+
+    <section class="vital-panel" id="panel-nibp">
+        <div class="top-row">
+            <span class="name">NiBP</span>
+            <span class="unit">mmHg</span>
+        </div>
+        <div class="bp-row">
+            <span class="sys" id="value-sys">---</span>
+            <span class="sep">/</span>
+            <span class="dia" id="value-dia">---</span>
+        </div>
+        <div class="sub">Systolic / Diastolic</div>
+        <div class="sub" id="value-map">MAP: ---</div>
+    </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
