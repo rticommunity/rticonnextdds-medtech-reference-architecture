@@ -65,6 +65,27 @@ header .title {
     border: 1px solid #C17900;
 }
 
+#shutdown-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(5, 8, 14, 0.92);
+    color: #FF5555;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 22px;
+    font-weight: bold;
+    z-index: 1000;
+}
+
+#shutdown-overlay span {
+    color: #8899AA;
+    font-size: 15px;
+    font-weight: normal;
+}
+
 main {
     display: grid;
     grid-template-columns: 2fr 1fr;

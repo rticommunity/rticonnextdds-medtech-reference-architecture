@@ -665,14 +665,20 @@ public:
         Common::DeviceHeartbeat sample;
         reader.key_value(sample, status.last_instance_handle());
 
-        std::lock_guard<std::mutex> lock(state_mutex);
-        std::string &current = status_map[sample.device];
-        if (current != "OFF") {
-            current = "OFF";
-            std::stringstream ss;
-            ss << sample.device
-               << " is no longer sending heartbeats. Updating Status to OFF.";
-            log_alert(ss.str());
+        std::string alert;
+        {
+            std::lock_guard<std::mutex> lock(state_mutex);
+            std::string &current = status_map[sample.device];
+            if (current != "OFF") {
+                current = "OFF";
+                std::stringstream ss;
+                ss << sample.device
+                   << " is no longer sending heartbeats. Updating Status to OFF.";
+                alert = ss.str();
+            }
+        }
+        if (!alert.empty()) {
+            log_alert(std::move(alert));
         }
     }
 

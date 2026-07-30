@@ -14,6 +14,8 @@ const POLL_INTERVAL_MS = 1000;
 
 let selectedDevice = null;
 let lastAlertCount = 0;
+let shutdownHandled = false;
+let consecutiveFailures = 0;
 
 const devicesEl = document.getElementById("devices");
 const alertsEl = document.getElementById("alerts");
@@ -22,6 +24,17 @@ const securityEl = document.getElementById("security-indicator");
 const btnStart = document.getElementById("btn-start");
 const btnPause = document.getElementById("btn-pause");
 const btnOff = document.getElementById("btn-off");
+
+function handleShutdown() {
+    if (shutdownHandled) return;
+    shutdownHandled = true;
+    const overlay = document.createElement("div");
+    overlay.id = "shutdown-overlay";
+    overlay.innerHTML = "Orchestrator shut down<span>You can close this tab.</span>";
+    document.body.appendChild(overlay);
+    clearInterval(pollTimer);
+    setTimeout(() => window.close(), 1200);
+}
 
 function statusClass(status) {
     if (status.indexOf("ON") !== -1) return "status-on";
@@ -89,12 +102,14 @@ async function pollState() {
         const res = await fetch("/api/state", { cache: "no-store" });
         if (!res.ok) return;
         const state = await res.json();
+        consecutiveFailures = 0;
         renderDevices(state.devices || []);
         renderSecurity(state.security);
         renderAlerts(state.alerts || []);
     } catch (err) {
-        // Network hiccup — the next poll will retry.
         console.warn("Failed to fetch /api/state:", err);
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= 3) handleShutdown();
     }
 }
 
@@ -116,4 +131,4 @@ btnPause.addEventListener("click", () => sendCommand("PAUSE"));
 btnOff.addEventListener("click", () => sendCommand("SHUTDOWN"));
 
 pollState();
-setInterval(pollState, POLL_INTERVAL_MS);
+const pollTimer = setInterval(pollState, POLL_INTERVAL_MS);

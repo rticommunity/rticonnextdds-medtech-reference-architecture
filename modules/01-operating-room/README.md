@@ -91,14 +91,23 @@ python3 launch.py 01-operating-room -s
 
 ### Web UI mode
 
-The *Orchestrator* application can run headless with a browser-based UI instead of its native GTK window — useful when a display/desktop environment isn't available (e.g. remote or cloud-hosted evaluation). Pass `--web` to `launch.py`:
+The *Orchestrator*, *ArmController*, *Arm*, and *PatientMonitor* applications can run headless with browser-based UIs instead of their native GTK/Qt windows — useful when a display/desktop environment isn't available (e.g. remote or cloud-hosted evaluation). Pass `--web` to `launch.py`:
 
 ```bash
 # From the repository root
 python3 launch.py 01-operating-room --web
 ```
 
-This launches the *Orchestrator* with an embedded HTTP server (default port `8090`, override with `--web-port`) and opens your default browser to it automatically. The web UI polls a JSON API (`GET /api/state`, `POST /api/command`) rather than using a persistent WebSocket connection, so it works reliably behind simple HTTP proxies. `--web` only affects the *Orchestrator* app; other apps in the module are unaffected and still require a native desktop environment.
+This launches each supported app with an embedded HTTP server and opens the UI in your default browser. The web UI polls a JSON API (`GET /api/state`, `POST /api/command`) rather than using a persistent WebSocket connection, so it works reliably behind simple HTTP proxies.
+
+### VS Code tab mode
+
+To open those same UIs in VS Code editor tabs, package and install the bundled [MedTech Web Tabs extension](../../vscode-extension/README.md) once, then run:
+
+```bash
+# From the repository root
+python3 launch.py 01-operating-room --vscode
+```
 
 ### 2. Observe the application behavior
 

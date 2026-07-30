@@ -1,0 +1,17 @@
+{
+  "name": "medtech-web-tabs",
+  "displayName": "MedTech Web Tabs",
+  "description": "Opens MedTech demo web UIs in VS Code editor tabs.",
+  "version": "0.1.0",
+  "publisher": "rti",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onUri"
+  ],
+  "main": "./extension.js"
+}
