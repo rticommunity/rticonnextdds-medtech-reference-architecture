@@ -41,7 +41,8 @@ class TestPatientSensorReadOnly:
     """
 
     @pytest.fixture(scope="class", autouse=True)
-    def start_apps(self, class_proc_manager):
+    @classmethod
+    def start_apps(cls, class_proc_manager):
         """PatientSensor should launch and stay alive for the duration of the tests."""
         class_proc_manager.start_app_ready("PatientSensor")
         yield

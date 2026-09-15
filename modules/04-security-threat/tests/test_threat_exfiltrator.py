@@ -144,7 +144,8 @@ class TestExfiltratorSecure:
     """Security should block threat exfiltrator from reading vitals."""
 
     @pytest.fixture(autouse=True, scope="class")
-    def _start_patient_sensor(self, or_pm_secure_class):
+    @classmethod
+    def _start_patient_sensor(cls, or_pm_secure_class):
         """Launch PatientSensor once for all tests in this class."""
         or_pm_secure_class.start_app_ready("PatientSensor")
 
