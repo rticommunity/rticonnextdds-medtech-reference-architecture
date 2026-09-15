@@ -173,7 +173,7 @@ This Domain Library will hold all Domains defined as part of this reference arch
 
 In this reference architecture, you will find two Domain definitions — *OperationalDataDomain* and *SecureLogDomain* — both configured for Domain ID `0`. Because they share the same Domain ID, they currently resolve to the **same** DDS domain.
 
-*OperationalDataDomain* is named as such because as the system design scales over time, additional domains could be defined for monitoring, logging, etc. Those additional domains should not affect the performance of our operational data, and therefore should belong to a different domain. Keeping *SecureLogDomain* as a separate definition (see below) makes that future split straightforward: only its `domain_id` would need to change.
+*OperationalDataDomain* is named as such because as the system design scales over time, additional domains could be defined for monitoring, logging, etc. Those additional domains should not affect the performance of our operational data, and therefore should belong to a different domain. Keeping *SecureLogDomain* as a separate definition (see below) makes that separation clear.
 
 *OperationalDataDomain* contains the following Topics (`<topic>`):
 
@@ -189,7 +189,7 @@ In this reference architecture, you will find two Domain definitions — *Operat
 
 ##### ***ConnextDomainLib::SecureLogDomain***
 
-*SecureLogDomain* holds the RTI Security Plugins builtin secure-logging Topic. It is consumed by the *dp/SecureLogReader* DomainParticipant. It is configured for Domain ID `0` (the same Domain as *OperationalDataDomain*) but defined separately so secure logging can later be isolated onto its own Domain ID without changing the operational configuration.
+*SecureLogDomain* holds the RTI Security Plugins builtin secure-logging Topic. It is consumed by the *dp/SecureLogReader* DomainParticipant. It is configured for Domain ID `0` (the same Domain as *OperationalDataDomain*) but defined separately.
 
 *SecureLogDomain* contains the following Topic (`<topic>`):
 

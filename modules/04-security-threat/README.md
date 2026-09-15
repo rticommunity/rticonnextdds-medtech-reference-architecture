@@ -176,7 +176,7 @@ Beyond authentication and permissions, the system also enforces **cryptographic 
 - **Domain-level protection from insiders:** `rtps_protection_kind=ENCRYPT_WITH_ORIGIN_AUTHENTICATION` ensures all RTPS traffic is encrypted with per-writer keys and origin-authenticated — even an authenticated insider cannot forge another participant's messages.
 - **Topic-level protetion from insiders:** `t/Vitals` and `t/MotorControl` use `metadata_protection_kind=ENCRYPT`, meaning their submessage metadata is encrypted with keys shared only among authorized endpoints — a compromised participant without topic-level permissions cannot decrypt these topics.
 
-For a deeper dive into the DDS Security handshake, refer to the [RTI Security Plugins User's Manual](https://community.rti.com/static/documentation/connext-dds/current/doc/manuals/connext_dds_secure/users_manual/p2_core/authentication.html#handshake).
+For a deeper dive into the DDS Security handshake, refer to the [RTI Security Plugins User's Manual](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p2_core/authentication.html#handshake).
 
 ---
 
