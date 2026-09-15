@@ -125,7 +125,7 @@ Let's try replaying just `t/Vitals`, while still recording both Topics.
 
 2. Comment out the `<topic>` tag and contained content within it, for `t/MotorControl` in [RecordingServiceConfiguration.xml](./RecordingServiceConfiguration.xml).
 
-    *Note, you should undo this configuration change after completing this demonstration.*
+   *Note, you should undo this configuration change after completing this demonstration.*
 
 3. Relaunch the operating room applications and RTI Recording Service for 10-20 seconds.
 
@@ -135,7 +135,7 @@ Let's try replaying just `t/Vitals`, while still recording both Topics.
 
 6. While monitoring the *Arm* and *Patient Monitor* application GUIs, start RTI Replay Service.
 
-    >**Observe:** You should see the *Patient Monitor* receiving data, but *Arm* should appear as if there is no motor movement. This is because while RTI Replay Service is configured to replay data on both `t/MotorControl` and `t/Vitals` Topics, only data for `t/Vitals` was recorded.
+   >**Observe:** You should see the *Patient Monitor* receiving data, but *Arm* should appear as if there is no motor movement. This is because while RTI Replay Service is configured to replay data on both `t/MotorControl` and `t/Vitals` Topics, only data for `t/Vitals` was recorded.
 
 7. Undo the QoS change to revert to the recommended configuration.
 
@@ -177,7 +177,7 @@ Let's try using RTI Admin Console to administer RTI Recording Service.
     1. From RTI Admin Console, while viewing the RTI Recording Service process, click the "Shutdown" button to stop and kill the RTI Recording Service process.
     2. Confirm in the popup that you would like to shut down the service.
 
-    >**Observe:** You should see the RTI Recording Service process has been stopped gracefully in the terminal which you launched it.
+   >**Observe:** You should see the RTI Recording Service process has been stopped gracefully in the terminal which you launched it.
 
 ## Next Steps
 

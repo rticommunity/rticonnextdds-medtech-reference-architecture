@@ -580,7 +580,10 @@ class SecurityTree:
                     log.info("Generated PSK seed file: %s", psk_file)
                     summary["psk_seeds_generated"] += 1
                 else:
-                    log.warning("PSK seed file already exists, skipping: %s — remove the file or use --force to regenerate", psk_file)
+                    log.warning(
+                        "PSK seed file already exists, skipping: %s — remove the file or use --force to regenerate",
+                        psk_file,
+                    )
                     summary["psk_seeds_skipped"] += 1
 
         # Identities

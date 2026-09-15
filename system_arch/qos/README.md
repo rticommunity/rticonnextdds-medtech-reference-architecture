@@ -218,15 +218,15 @@ This configuration is ideal for use with **RTI Connext Studio**. To observe the 
 
 1. From the repository root, generate the DDS Security artifacts (identity/permissions CAs, certificates, PSK seeds, and signed governance/permissions). A regular `setup_security.py` run (no flags) creates these under the security tree:
 
-  ```bash
-  python3 system_arch/security/setup_security.py
-  ```
+   ```bash
+   python3 system_arch/security/setup_security.py
+   ```
 
 2. Generate resolved QoS files with absolute security-artifact paths. `--generate-resolved-qos` only emits the QoS files — it does **not** generate the artifacts themselves, so the previous step must be run first:
 
-  ```bash
-  python3 system_arch/security/setup_security.py --generate-resolved-qos
-  ```
+   ```bash
+   python3 system_arch/security/setup_security.py --generate-resolved-qos
+   ```
 
 3. In Connext Studio, add a Spy Source and configure the source with the configuration under
 `SecureExternalAppsQosLib::SecureSystemObserver` snippet from the `system_arch/security/resolved_qos/SecureExternalAppsQos.xml`.

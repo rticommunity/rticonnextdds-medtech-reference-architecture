@@ -72,21 +72,21 @@ Select the appropriate scenario based on your network configuration:
 
 - #### Scenario 1 - Direct Peer-to-Peer Communication with Public IP Address
 
-    **Use if either machine is directly reachable at a public IP address.**
+  **Use if either machine is directly reachable at a public IP address.**
 
-    Follow the detailed instructions in [Scenario1.md](Scenario1.md) to set up peer-to-peer communication with a public IP address.
+  Follow the detailed instructions in [Scenario1.md](Scenario1.md) to set up peer-to-peer communication with a public IP address.
 
 - #### Scenario 2 - Direct Peer-to-Peer Communication Using RTI Cloud Discovery Service
 
-    **Use if either machine is reachable behind a Cone NAT.**
+  **Use if either machine is reachable behind a Cone NAT.**
 
-    Follow the detailed instructions in [Scenario2.md](Scenario2.md) to set up communication using RTI Cloud Discovery Service for NAT traversal.
+  Follow the detailed instructions in [Scenario2.md](Scenario2.md) to set up communication using RTI Cloud Discovery Service for NAT traversal.
 
 - #### Scenario 3 - Relayed Communication Using RTI Routing Service
 
-    **Use if none of the scenarios above apply or you are unsure of your setup.**
+  **Use if none of the scenarios above apply or you are unsure of your setup.**
 
-    Follow the detailed instructions in [Scenario3.md](Scenario3.md) to set up relayed communication using RTI Routing Service.
+  Follow the detailed instructions in [Scenario3.md](Scenario3.md) to set up relayed communication using RTI Routing Service.
 
 ## Hands-On: Going Further
 
@@ -102,7 +102,7 @@ Test how the system handles network interruptions.
 
 3. Reconnect after 10-30 seconds.
 
-    >**Observe:** DDS discovery across the WAN using the Real-Time WAN Transport should allow automatic reconnection and resume data flow without application-level intervention.
+   >**Observe:** DDS discovery across the WAN using the Real-Time WAN Transport should allow automatic reconnection and resume data flow without application-level intervention.
 
 ## Next Steps
 

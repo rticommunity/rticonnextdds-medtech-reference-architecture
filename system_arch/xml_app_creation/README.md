@@ -34,15 +34,15 @@ Applications can be implemented via any supported Connext Professional API langu
 1. Register Types
    To use generated Type-Support code (via [RTI Code Generator](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/code_generator/users_manual/code_generator/users_manual/UsersManual_Title.htm)), named *types* in the XML configuration must be registered with the DomainParticipant. This is necessary for the DomainParticipant to serialize and deserialize the data using the generated code.
 
-    Documentation:
+   Documentation:
    - [Using User-Generated Types](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/UsingGeneratingTypes.htm#4.7.5_Using_User-Generated_Types)
 
 2. Load XML Configuration
    One or multiple XML files should be loaded by an application to understand the complete configuration for a single DomainParticipant.
 
-    In this reference architecture, it is recommended to use `NDDS_QOS_PROFILES` environment variable to point to the defined XML files.
+   In this reference architecture, it is recommended to use `NDDS_QOS_PROFILES` environment variable to point to the defined XML files.
 
-    For example, this bash statement will allow Connext to load the following files:
+   For example, this bash statement will allow Connext to load the following files:
    - [Qos.xml](../qos/Qos.xml)
    - [NonSecureAppsQos.xml](../qos/NonSecureAppsQos.xml)
    - [DomainLibrary.xml](./DomainLibrary.xml)
@@ -58,11 +58,11 @@ Applications can be implemented via any supported Connext Professional API langu
 3. Create Defined DDS Entities
    DomainParticipants, and all underlying entities configured (Topics, Publishers, DataWriters, Subscribers, DataReaders), can be created with an API-specific implementation of the `create_participant_from_config()`.
 
-    DomainParticipants are referred to by their fully-qualified name in configuration. Please see the referred documentation for more details.
+   DomainParticipants are referred to by their fully-qualified name in configuration. Please see the referred documentation for more details.
 
-    All DDS entities will be created with the names and QoS as described in the XML.
+   All DDS entities will be created with the names and QoS as described in the XML.
 
-    For example, to create the ArmController DomainParticipant defined in [ParticipantLibrary.xml](ParticipantLibrary.xml#L48), the following C++ code can be used:
+   For example, to create the ArmController DomainParticipant defined in [ParticipantLibrary.xml](ParticipantLibrary.xml#L48), the following C++ code can be used:
 
     ```c++
     auto default_provider = dds::core::QosProvider::Default();
@@ -71,16 +71,16 @@ Applications can be implemented via any supported Connext Professional API langu
             "MedicalDemoParticipantLibrary::dp/ArmController");
     ```
 
-    Documentation:
+   Documentation:
    - [Creating and Retrieving Entities Configured in an XML File](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/CreatingEntities.htm)
    - [Referring to Entities and Other Elements within XML Files](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ReferringToEntitiesElements.htm#4.6.1_Referring_to_Entities_and_Other_Elements_within_XML_Files)
 
 4. Retrieve Created Entities by Name
    Commonly, configured named DDS entities must be retrieved for use (e.g. publishing to or subscribing to data) or preconfiguration before enabling (e.g. runtime QoS configuration).
 
-    DDS entities can be retrieved by name via API-specific "find" or "lookup" functions. Entities are referred to by their fully-qualified name in configuration. Please see the referred documentation for entity-specifics.
+   DDS entities can be retrieved by name via API-specific "find" or "lookup" functions. Entities are referred to by their fully-qualified name in configuration. Please see the referred documentation for entity-specifics.
 
-    For example, to find the DeviceCommand DataReader defined in [ParticipantLibrary.xml](ParticipantLibrary.xml#L68), the following C++ code can be used:
+   For example, to find the DeviceCommand DataReader defined in [ParticipantLibrary.xml](ParticipantLibrary.xml#L68), the following C++ code can be used:
 
     ```c++
     dds::sub::DataReader<Orchestrator::DeviceCommand> cmd_reader =
@@ -88,7 +88,7 @@ Applications can be implemented via any supported Connext Professional API langu
                 participant, "s/subscriber::dr/DeviceCommand");
     ```
 
-    Documentation:
+   Documentation:
    - [Accessing Entities Defined in XML Configuration from an Application](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/Accessing_Entit.htm#4.4_Accessing_Entities_Defined_in_XML_Configuration_from_an_Application)
    - [Referring to Entities and Other Elements within XML Files](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ReferringToEntitiesElements.htm#4.6.1_Referring_to_Entities_and_Other_Elements_within_XML_Files)
 
