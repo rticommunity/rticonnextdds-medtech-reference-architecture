@@ -274,11 +274,16 @@ def main():
         )
         print(
             "Breakdown: "
-            f"CA certs {summary['ca_certs_generated']} generated/{summary['ca_certs_skipped']} skipped; "
-            f"signed governance {summary['signed_governance_generated']}/{summary['signed_governance_skipped']}; "
-            f"signed permissions {summary['signed_permissions_generated']}/{summary['signed_permissions_skipped']}; "
-            f"identity certs {summary['identity_certs_generated']}/{summary['identity_certs_skipped']}; "
-            f"PSK seeds {summary['psk_seeds_generated']}/{summary['psk_seeds_skipped']}; "
+            f"CA certs {summary['ca_certs_generated']} "
+            f"generated/{summary['ca_certs_skipped']} skipped; "
+            f"signed governance {summary['signed_governance_generated']}"
+            f"/{summary['signed_governance_skipped']}; "
+            f"signed permissions {summary['signed_permissions_generated']}"
+            f"/{summary['signed_permissions_skipped']}; "
+            f"identity certs {summary['identity_certs_generated']}"
+            f"/{summary['identity_certs_skipped']}; "
+            f"PSK seeds {summary['psk_seeds_generated']}"
+            f"/{summary['psk_seeds_skipped']}; "
             f"expired identity certs {expired_generated}/{expired_skipped}."
         )
 

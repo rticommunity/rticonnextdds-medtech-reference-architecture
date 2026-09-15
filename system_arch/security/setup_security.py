@@ -62,7 +62,8 @@ OPERATIONAL_DOMAIN = DomainScope(
         name="OperationalDomain",
         issuer=TRUSTED_PERMISSIONS_CA,
         # Explicitly NONE: the reference architecture does not protect
-        # discovery or liveliness metadata (already protected through RTPS ENCRYPT_WITH_ORIGIN_AUTHENTICATION).
+        # discovery or liveliness metadata (already protected through RTPS
+        # ENCRYPT_WITH_ORIGIN_AUTHENTICATION).
         discovery_protection_kind="NONE",
         liveliness_protection_kind="NONE",
         rtps_protection_kind="ENCRYPT_WITH_ORIGIN_AUTHENTICATION",
@@ -172,7 +173,8 @@ TELEOP_WAN_DOMAIN = DomainScope(
         name="TeleopWanDomain",
         issuer=TRUSTED_PERMISSIONS_CA,
         # Explicitly NONE: the reference architecture does not protect
-        # discovery or liveliness metadata (already protected through RTPS ENCRYPT_WITH_ORIGIN_AUTHENTICATION).
+        # discovery or liveliness metadata (already protected through RTPS
+        # ENCRYPT_WITH_ORIGIN_AUTHENTICATION).
         discovery_protection_kind="NONE",
         liveliness_protection_kind="NONE",
         rtps_protection_kind="ENCRYPT_WITH_ORIGIN_AUTHENTICATION",
@@ -361,7 +363,8 @@ def generate_resolved_qos(security_dir: Path, force: bool = False) -> None:
         dest = out_dir / filename
         if dest.exists() and not force:
             log.warning(
-                "Resolved QoS file already exists, skipping: %s - remove the file or use --force to regenerate",
+                "Resolved QoS file already exists, skipping: %s - remove the file or "
+                "use --force to regenerate",
                 dest,
             )
             skipped_count += 1
@@ -372,7 +375,8 @@ def generate_resolved_qos(security_dir: Path, force: bool = False) -> None:
         written_count += 1
 
     print(
-        f"Resolved QoS generation complete: {written_count} written, {skipped_count} skipped; output directory: {out_dir}"
+        f"Resolved QoS generation complete: {written_count} written, "
+        f"{skipped_count} skipped; output directory: {out_dir}"
     )
 
 
@@ -456,11 +460,16 @@ def main():
         )
         print(
             "Breakdown: "
-            f"CA certs {summary['ca_certs_generated']} generated/{summary['ca_certs_skipped']} skipped; "
-            f"signed governance {summary['signed_governance_generated']}/{summary['signed_governance_skipped']}; "
-            f"signed permissions {summary['signed_permissions_generated']}/{summary['signed_permissions_skipped']}; "
-            f"identity certs {summary['identity_certs_generated']}/{summary['identity_certs_skipped']}; "
-            f"PSK seeds {summary['psk_seeds_generated']}/{summary['psk_seeds_skipped']}."
+            f"CA certs {summary['ca_certs_generated']} "
+            f"generated/{summary['ca_certs_skipped']} skipped; "
+            f"signed governance {summary['signed_governance_generated']}"
+            f"/{summary['signed_governance_skipped']}; "
+            f"signed permissions {summary['signed_permissions_generated']}"
+            f"/{summary['signed_permissions_skipped']}; "
+            f"identity certs {summary['identity_certs_generated']}"
+            f"/{summary['identity_certs_skipped']}; "
+            f"PSK seeds {summary['psk_seeds_generated']}"
+            f"/{summary['psk_seeds_skipped']}."
         )
 
 

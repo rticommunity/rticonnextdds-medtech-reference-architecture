@@ -439,7 +439,8 @@ def generate_root_ca(
     """(b) Generate a root CA private key and self-signed certificate."""
     if out_cert.is_file() and not force:
         log.warning(
-            "Root CA cert already exists, skipping: %s — remove the file or use --force to regenerate",
+            "Root CA cert already exists, skipping: %s — remove the file or use "
+            "--force to regenerate",
             out_cert,
         )
         return out_cert
@@ -477,7 +478,8 @@ def generate_intermediate_ca(
     """(d-f) Generate an intermediate CA: private key, CSR, and signed certificate."""
     if out_cert.is_file() and not force:
         log.warning(
-            "Intermediate CA cert already exists, skipping: %s — remove the file or use --force to regenerate",
+            "Intermediate CA cert already exists, skipping: %s — remove the file or "
+            "use --force to regenerate",
             out_cert,
         )
         return out_cert
@@ -535,7 +537,8 @@ def generate_identity(
     """
     if out_cert.is_file() and not force:
         log.warning(
-            "Identity cert already exists, skipping: %s — remove the file or use --force to regenerate",
+            "Identity cert already exists, skipping: %s — remove the file or use "
+            "--force to regenerate",
             out_cert,
         )
         return out_cert
@@ -581,7 +584,8 @@ def generate_expired_identity(
     """
     if out_cert.is_file() and not force:
         log.warning(
-            "Expired identity cert already exists, skipping: %s — remove the file or use --force to regenerate",
+            "Expired identity cert already exists, skipping: %s — remove the file or "
+            "use --force to regenerate",
             out_cert,
         )
         return out_cert
@@ -627,11 +631,15 @@ def revoke_certificate(
     """
     revoke_cert(issuer_cnf, issuer_key, issuer_cert, cert_path, cwd=issuer_cwd)
     if out_crl is not None:
-        return generate_crl(issuer_cnf, issuer_key, issuer_cert, out_crl, cwd=issuer_cwd)
+        return generate_crl(
+            issuer_cnf, issuer_key, issuer_cert, out_crl, cwd=issuer_cwd
+        )
     return None
 
 
-def scaffold_governance(template: Path, out_xml: Path, context: dict | None = None) -> None:
+def scaffold_governance(
+    template: Path, out_xml: Path, context: dict | None = None
+) -> None:
     """(l) Scaffold a governance XML file from *template*."""
     render_template(template, out_xml, context)
 
@@ -647,14 +655,17 @@ def sign_governance(
     """(m) Sign a governance XML with S/MIME v3.2."""
     if out_p7s.is_file() and not force:
         log.warning(
-            "Signed governance already exists, skipping: %s — remove the file or use --force to regenerate",
+            "Signed governance already exists, skipping: %s — remove the file or use "
+            "--force to regenerate",
             out_p7s,
         )
         return out_p7s
     return sign_xml(key_path, cert_path, xml_path, out_p7s)
 
 
-def scaffold_permissions(template: Path, out_xml: Path, context: dict | None = None) -> None:
+def scaffold_permissions(
+    template: Path, out_xml: Path, context: dict | None = None
+) -> None:
     """(n) Scaffold a permissions XML file from *template*."""
     render_template(template, out_xml, context)
 
@@ -670,7 +681,8 @@ def sign_permissions(
     """(o) Sign a permissions XML with S/MIME v3.2."""
     if out_p7s.is_file() and not force:
         log.warning(
-            "Signed permissions already exists, skipping: %s — remove the file or use --force to regenerate",
+            "Signed permissions already exists, skipping: %s — remove the file or use "
+            "--force to regenerate",
             out_p7s,
         )
         return out_p7s
