@@ -44,8 +44,7 @@ def _check_security() -> bool:
     params.ignore_user_profile = True
     params.ignore_environment_profile = True
     params.ignore_resource_profile = False
-    dds.QosProvider.default_provider_params = params
-    provider = dds.QosProvider(uri="")
+    provider = dds.QosProvider(params)
     qos = provider.participant_qos_from_profile(
         profile_name="BuiltinQosSnippetLib::Feature.Security.Enable"
     )

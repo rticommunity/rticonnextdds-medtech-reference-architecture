@@ -40,14 +40,3 @@ services:
       PYTHONUNBUFFERED: "1"
     volumes:
       - ${RTI_LICENSE_FILE:?Set RTI_LICENSE_FILE to the path of your rti_license.dat}:/opt/rti.com/rti_license.dat:ro
-
-  # Test with Connext 7.3 LTS to validate backward compatibility.
-  # Note: this service is NOT run as part of CI.
-  test-connext-73:
-    extends:
-      service: test
-    build:
-      args:
-        CONNEXT_VERSION: "7.3.1"
-        PYTHON_VERSION: "3.9"
-    image: medtech-test:7.3.1
