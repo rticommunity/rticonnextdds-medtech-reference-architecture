@@ -69,7 +69,8 @@ class TestQosProfiles:
     """Qos.xml should define the expected QoS libraries and profiles."""
 
     @pytest.fixture(scope="class")
-    def qos_root(self):
+    @classmethod
+    def qos_root(cls):
         return ET.parse(QOS_XML).getroot()
 
     def _profile_names(self, root, library_name: str) -> list[str]:
@@ -162,7 +163,8 @@ class TestDomainLibrary:
     }
 
     @pytest.fixture(scope="class")
-    def domain_root(self):
+    @classmethod
+    def domain_root(cls):
         return ET.parse(DOMAIN_LIB_XML).getroot()
 
     def test_operational_domain_exists(self, domain_root):
@@ -196,7 +198,8 @@ class TestParticipantLibrary:
     }
 
     @pytest.fixture(scope="class")
-    def participant_root(self):
+    @classmethod
+    def participant_root(cls):
         return ET.parse(PARTICIPANT_LIB_XML).getroot()
 
     def test_all_participants_defined(self, participant_root):
@@ -238,7 +241,8 @@ class TestTypesXml:
     """Types.xml should define all required DDS types."""
 
     @pytest.fixture(scope="class")
-    def types_root(self):
+    @classmethod
+    def types_root(cls):
         return ET.parse(TYPES_XML).getroot()
 
     def test_common_module_enums(self, types_root):

@@ -96,9 +96,10 @@ class Governance:
     domain_id_max: Optional[int] = None  # None = no upper bound
     allow_unauthenticated_participants: bool = False
     enable_join_access_control: bool = True
-    discovery_protection_kind: str = "SIGN"
-    liveliness_protection_kind: str = "SIGN"
-    rtps_protection_kind: str = "ENCRYPT"
+    discovery_protection_kind: str = "NONE"
+    liveliness_protection_kind: str = "NONE"
+    rtps_protection_kind: str = "ENCRYPT_WITH_ORIGIN_AUTHENTICATION"
+    rtps_psk_protection_kind: str = "ENCRYPT"
     enable_key_revision: bool = True
     topic_rules: list[TopicRule] = field(
         default_factory=lambda: [
@@ -287,20 +288,39 @@ class SecurityTree:
 
     # -- Artifact generation ------------------------------------------------
 
-    def generate_artifacts(self, root: Path, force: bool = False, strict: bool = False) -> None:
+    def generate_artifacts(
+        self, root: Path, force: bool = False, strict: bool = False
+    ) -> dict[str, int]:
         """Generate all keys, certificates, and signed XML files.
 
         Args:
             root:   Root directory for artifact output.
             force:  Re-generate even if artifacts already exist.
             strict: Promote warnings to fatal errors.
+
+        Returns:
+            Summary counters for generated and skipped artifacts.
         """
 
         warnings: list[str] = []
+        summary: dict[str, int] = {
+            "warnings": 0,
+            "ca_certs_generated": 0,
+            "ca_certs_skipped": 0,
+            "signed_governance_generated": 0,
+            "signed_governance_skipped": 0,
+            "signed_permissions_generated": 0,
+            "signed_permissions_skipped": 0,
+            "psk_seeds_generated": 0,
+            "psk_seeds_skipped": 0,
+            "identity_certs_generated": 0,
+            "identity_certs_skipped": 0,
+        }
 
         def _warn(msg: str) -> None:
             """Log a warning; in strict mode, collect for later abort."""
             log.warning(msg)
+            summary["warnings"] += 1
             if strict:
                 warnings.append(msg)
 
@@ -436,20 +456,30 @@ class SecurityTree:
             _check_key_perms(_ca_key(ca_def))
 
             if ca_def.self_signed:
+                out_cert = _ca_cert(ca_def)
+                if out_cert.is_file() and not force:
+                    summary["ca_certs_skipped"] += 1
+                else:
+                    summary["ca_certs_generated"] += 1
                 cert = generate_root_ca(
                     _ca_key(ca_def),
                     _ca_cnf(ca_def),
-                    _ca_cert(ca_def),
+                    out_cert,
                     force=force,
                 )
                 _check_cert_validity(cert, f"Root CA '{ca_def.name}'")
             else:
                 issuer_cert = _resolve_ca(ca_def.issuer)
                 issuer_dir = self._ca_dir(root, ca_def.issuer)
+                out_cert = _ca_cert(ca_def, ca_def.issuer)
+                if out_cert.is_file() and not force:
+                    summary["ca_certs_skipped"] += 1
+                else:
+                    summary["ca_certs_generated"] += 1
                 cert = generate_intermediate_ca(
                     _ca_key(ca_def),
                     _ca_cnf(ca_def),
-                    _ca_cert(ca_def, ca_def.issuer),
+                    out_cert,
                     issuer_cnf=_ca_cnf(ca_def.issuer),
                     issuer_key=_ca_key(ca_def.issuer),
                     issuer_cert=issuer_cert,
@@ -500,13 +530,19 @@ class SecurityTree:
             if not gov_xml.is_file():
                 _warn(f"Governance XML not found: {gov_xml} — did you run --scaffold first?")
 
+            gov_p7s = gov_dir / "signed" / gov.issuer.name / f"{gov.name}.p7s"
+            gov_p7s_preexisting = gov_p7s.is_file()
             sign_governance(
                 perm_ca_key,
                 perm_ca_cert,
                 gov_xml,
-                gov_dir / "signed" / gov.issuer.name / f"{gov.name}.p7s",
+                gov_p7s,
                 force=force,
             )
+            if gov_p7s_preexisting and not force:
+                summary["signed_governance_skipped"] += 1
+            else:
+                summary["signed_governance_generated"] += 1
 
             for perm in scope.permissions:
                 p_ca_cert = _resolve_ca(perm.issuer)
@@ -518,13 +554,19 @@ class SecurityTree:
                 if not perm_xml.is_file():
                     _warn(f"Permissions XML not found: {perm_xml} — did you run --scaffold first?")
 
+                perm_p7s = perm_dir / "signed" / perm.issuer.name / f"{perm.name}.p7s"
+                perm_p7s_preexisting = perm_p7s.is_file()
                 sign_permissions(
                     p_ca_key,
                     p_ca_cert,
                     perm_xml,
-                    perm_dir / "signed" / perm.issuer.name / f"{perm.name}.p7s",
+                    perm_p7s,
                     force=force,
                 )
+                if perm_p7s_preexisting and not force:
+                    summary["signed_permissions_skipped"] += 1
+                else:
+                    summary["signed_permissions_generated"] += 1
 
         # PSK seed files (per domain scope)
         for scope in self.domain_scopes:
@@ -536,8 +578,14 @@ class SecurityTree:
                     seed = generate_psk_seed(psk.length)
                     psk_file.write_text(f"{psk.id}:{seed}")
                     log.info("Generated PSK seed file: %s", psk_file)
+                    summary["psk_seeds_generated"] += 1
                 else:
-                    log.info("PSK seed file exists, skipping: %s", psk_file)
+                    log.warning(
+                        "PSK seed file already exists, skipping: %s — remove the file "
+                        "or use --force to regenerate",
+                        psk_file,
+                    )
+                    summary["psk_seeds_skipped"] += 1
 
         # Identities
         for module in self.modules:
@@ -559,6 +607,10 @@ class SecurityTree:
 
                     _check_key_perms(id_key)
 
+                    if id_cert.is_file() and not force:
+                        summary["identity_certs_skipped"] += 1
+                    else:
+                        summary["identity_certs_generated"] += 1
                     generate_identity(
                         id_key,
                         id_cnf,
@@ -597,6 +649,23 @@ class SecurityTree:
                     )
 
         _check_strict()
+
+        summary["total_generated"] = (
+            summary["ca_certs_generated"]
+            + summary["signed_governance_generated"]
+            + summary["signed_permissions_generated"]
+            + summary["psk_seeds_generated"]
+            + summary["identity_certs_generated"]
+        )
+        summary["total_skipped"] = (
+            summary["ca_certs_skipped"]
+            + summary["signed_governance_skipped"]
+            + summary["signed_permissions_skipped"]
+            + summary["psk_seeds_skipped"]
+            + summary["identity_certs_skipped"]
+        )
+
+        return summary
 
     # -- Validation helpers -------------------------------------------------
 
@@ -839,6 +908,7 @@ def scaffold_tree(
                 "discovery_protection_kind": gov.discovery_protection_kind,
                 "liveliness_protection_kind": gov.liveliness_protection_kind,
                 "rtps_protection_kind": gov.rtps_protection_kind,
+                "rtps_psk_protection_kind": gov.rtps_psk_protection_kind,
                 "enable_key_revision": gov.enable_key_revision,
                 "connext_version": tree.connext_version or (0, 0, 0),
                 "connext_version_str": _version_str(tree.connext_version),

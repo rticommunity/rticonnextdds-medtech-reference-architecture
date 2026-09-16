@@ -15,11 +15,15 @@ Usage::
     # committing them to the repo.
     python3 setup_security.py --scaffold
 
+    # Generate QoS XML files with fully resolved absolute paths
+    python3 setup_security.py --generate-resolved-qos
+
 Prerequisite: ``NDDSHOME`` must be set to the Connext installation path.
 """
 
 import argparse
 import logging
+import re
 import subprocess
 from pathlib import Path
 
@@ -33,6 +37,7 @@ from security_tree import (
     Permissions,
     PskSeed,
     SecurityTree,
+    TopicRule,
     detect_connext_version,
     scaffold_tree,
 )
@@ -57,10 +62,33 @@ OPERATIONAL_DOMAIN = DomainScope(
         name="OperationalDomain",
         issuer=TRUSTED_PERMISSIONS_CA,
         # Explicitly NONE: the reference architecture does not protect
-        # discovery or liveliness metadata (RTPS payload is encrypted).
+        # discovery or liveliness metadata (already protected through RTPS
+        # ENCRYPT_WITH_ORIGIN_AUTHENTICATION).
         discovery_protection_kind="NONE",
         liveliness_protection_kind="NONE",
+        rtps_protection_kind="ENCRYPT_WITH_ORIGIN_AUTHENTICATION",
+        rtps_psk_protection_kind="ENCRYPT",
+        topic_rules=[
+            TopicRule(
+                topic_expression="t/Vitals",
+                metadata_protection_kind="ENCRYPT",
+            ),
+            TopicRule(
+                topic_expression="t/MotorControl",
+                metadata_protection_kind="ENCRYPT",
+            ),
+            TopicRule(topic_expression="*"),
+            TopicRule(
+                topic_expression="DDS:Security:LogTopicV2",
+                enable_write_access_control=False,
+                metadata_protection_kind="SIGN",
+                data_protection_kind="ENCRYPT",
+            ),
+        ],
     ),
+    psk_seeds=[
+        PskSeed(filename="OperationalDomain.psk"),
+    ],
     permissions=[
         Permissions(
             name="Arm",
@@ -116,6 +144,16 @@ OPERATIONAL_DOMAIN = DomainScope(
             publish_topics=[],
             subscribe_topics=["DDS:Security:LogTopicV2"],
         ),
+        # Read-only system observer: may subscribe to any topic, may publish
+        # to none. The committed SystemObserver.xml is hand-edited to grant
+        # subscribe on all topics/partitions (<topic>*</topic>), mirroring the
+        # SecureLogReader pattern; publish is intentionally empty.
+        Permissions(
+            name="SystemObserver",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=[],
+            subscribe_topics=["*"],
+        ),
         Permissions(
             name="Test",
             issuer=TRUSTED_PERMISSIONS_CA,
@@ -134,8 +172,36 @@ TELEOP_WAN_DOMAIN = DomainScope(
     governance=Governance(
         name="TeleopWanDomain",
         issuer=TRUSTED_PERMISSIONS_CA,
+        # Explicitly NONE: the reference architecture does not protect
+        # discovery or liveliness metadata (already protected through RTPS
+        # ENCRYPT_WITH_ORIGIN_AUTHENTICATION).
         discovery_protection_kind="NONE",
         liveliness_protection_kind="NONE",
+        rtps_protection_kind="ENCRYPT_WITH_ORIGIN_AUTHENTICATION",
+        rtps_psk_protection_kind="ENCRYPT",
+        # WAN governance protects ALL topics with topic-level insider
+        # protection: a catch-all "*" rule with metadata_protection_kind=ENCRYPT
+        # encrypts the submessage metadata of every topic, so only
+        # participants with matching permissions can decrypt it. This is
+        # stricter than the OperationalDomain (LAN) governance, which only
+        # applies metadata ENCRYPT to t/Vitals and t/MotorControl.
+        #
+        # Rule order matters: DDS evaluates topic rules first-match, top-down,
+        # so the specific DDS:Security:LogTopicV2 rule must precede the "*"
+        # catch-all or it would be shadowed (and the secure log would lose its
+        # SIGN metadata / ENCRYPT data protection).
+        topic_rules=[
+            TopicRule(
+                topic_expression="DDS:Security:LogTopicV2",
+                enable_write_access_control=False,
+                metadata_protection_kind="SIGN",
+                data_protection_kind="ENCRYPT",
+            ),
+            TopicRule(
+                topic_expression="*",
+                metadata_protection_kind="ENCRYPT",
+            ),
+        ],
     ),
     permissions=[
         Permissions(name="RsActiveWan", issuer=TRUSTED_PERMISSIONS_CA),
@@ -178,6 +244,10 @@ OPERATING_ROOM = Module(
         App(
             name="PatientSensor",
             identities=[Identity(name="PatientSensor", issuer=TRUSTED_IDENTITY_CA)],
+        ),
+        App(
+            name="SystemObserver",
+            identities=[Identity(name="SystemObserver", issuer=TRUSTED_IDENTITY_CA)],
         ),
         App(name="Test", identities=[Identity(name="Test", issuer=TRUSTED_IDENTITY_CA)]),
     ],
@@ -242,6 +312,74 @@ SECURITY_TREE = SecurityTree(
 )
 
 
+QOS_DIR = SECURITY_DIR.parent / "qos"
+
+# QoS XML files to process when --generate-resolved-qos is used
+_QOS_FILES_TO_RESOLVE = [
+    "SecureAppsQos.xml",
+    "SecureExternalAppsQos.xml",
+]
+
+# Regex matching the <configuration_variables> block that defines
+# RTI_SECURITY_ARTIFACTS_DIR (including surrounding whitespace).
+_CONFIG_VARS_RE = re.compile(
+    r"\n\s*<configuration_variables>.*?</configuration_variables>\n",
+    re.DOTALL,
+)
+
+
+def generate_resolved_qos(security_dir: Path, force: bool = False) -> None:
+    """Generate QoS XML files with $(RTI_SECURITY_ARTIFACTS_DIR) resolved to absolute paths.
+
+    Reads each source file from the qos/ directory, replaces the variable
+    reference with the absolute security directory path, removes the
+    <configuration_variables> block (no longer needed), and writes the
+    result to <security_dir>/resolved_qos/.
+
+    Existing files are skipped unless ``force`` is True.
+    """
+    log = logging.getLogger(__name__)
+    out_dir = security_dir / "resolved_qos"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    abs_security_path = str(security_dir)
+    written_count = 0
+    skipped_count = 0
+
+    for filename in _QOS_FILES_TO_RESOLVE:
+        src = QOS_DIR / filename
+        if not src.is_file():
+            log.warning("QoS source file not found, skipping: %s", src)
+            continue
+
+        content = src.read_text()
+
+        # Replace the variable reference with the absolute path
+        content = content.replace("$(RTI_SECURITY_ARTIFACTS_DIR)", abs_security_path)
+
+        # Remove the <configuration_variables> block since paths are now absolute
+        content = _CONFIG_VARS_RE.sub("\n", content)
+
+        dest = out_dir / filename
+        if dest.exists() and not force:
+            log.warning(
+                "Resolved QoS file already exists, skipping: %s - remove the file or "
+                "use --force to regenerate",
+                dest,
+            )
+            skipped_count += 1
+            continue
+
+        dest.write_text(content)
+        log.info("Resolved QoS file written: %s", dest)
+        written_count += 1
+
+    print(
+        f"Resolved QoS generation complete: {written_count} written, "
+        f"{skipped_count} skipped; output directory: {out_dir}"
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Generate DDS Security artifacts for the reference architecture."
@@ -280,6 +418,14 @@ def main():
         help="Override Connext version (e.g. '7.5.0'). "
         "Auto-detected from rti.connextdds if not set.",
     )
+    parser.add_argument(
+        "--generate-resolved-qos",
+        action="store_true",
+        help="Generate QoS XML files (SecureAppsQos.xml, SecureExternalAppsQos.xml) "
+        "with $(RTI_SECURITY_ARTIFACTS_DIR) resolved to absolute paths. "
+        "Output is written to a 'resolved_qos' subfolder under the security directory. "
+        "Existing files are skipped unless --force is set.",
+    )
     args = parser.parse_args()
 
     level = (logging.WARNING, logging.INFO, logging.DEBUG)[min(args.verbose, 2)]
@@ -300,9 +446,31 @@ def main():
     elif args.scaffold:
         scaffold_tree(SECURITY_TREE, root=SECURITY_DIR, strict=args.strict)
         print(f"Security directory tree scaffolded under {SECURITY_DIR}")
+    elif args.generate_resolved_qos:
+        generate_resolved_qos(SECURITY_DIR, force=args.force)
     else:
-        SECURITY_TREE.generate_artifacts(root=SECURITY_DIR, force=args.force, strict=args.strict)
-        print("Security artifacts generated!")
+        summary = SECURITY_TREE.generate_artifacts(
+            root=SECURITY_DIR, force=args.force, strict=args.strict
+        )
+        print(
+            "Security artifact generation complete: "
+            f"{summary['total_generated']} generated, "
+            f"{summary['total_skipped']} skipped, "
+            f"{summary['warnings']} validation warning(s)."
+        )
+        print(
+            "Breakdown: "
+            f"CA certs {summary['ca_certs_generated']} "
+            f"generated/{summary['ca_certs_skipped']} skipped; "
+            f"signed governance {summary['signed_governance_generated']}"
+            f"/{summary['signed_governance_skipped']}; "
+            f"signed permissions {summary['signed_permissions_generated']}"
+            f"/{summary['signed_permissions_skipped']}; "
+            f"identity certs {summary['identity_certs_generated']}"
+            f"/{summary['identity_certs_skipped']}; "
+            f"PSK seeds {summary['psk_seeds_generated']}"
+            f"/{summary['psk_seeds_skipped']}."
+        )
 
 
 if __name__ == "__main__":

@@ -118,7 +118,7 @@ Let's try testing how modifying QoS Profiles can adjust system behavior without 
 
 2. Increase the `<datareader_qos>` Deadline period in QoS Profile *DataFlow::Heartbeat* in [Qos.xml](../../system_arch/qos/Qos.xml) to **5 seconds**.
 
-    *Note, you should undo this configuration change after completing this demonstration.*
+   *Note, you should undo this configuration change after completing this demonstration.*
 
     ```xml
     <deadline>
@@ -133,7 +133,7 @@ Let's try testing how modifying QoS Profiles can adjust system behavior without 
 
 4. While monitoring the *Orchestrator* "Alerts" panel, ungracefully terminate the *Patient Monitor* application by closing the respective application window.
 
-    >**Observe:** You should see the alert mentioned above logged, 5 seconds after the *Patient Monitor* application has been closed.
+   >**Observe:** You should see the alert mentioned above logged, 5 seconds after the *Patient Monitor* application has been closed.
 
 5. Undo the QoS change to revert to the recommended configuration.
 
@@ -149,13 +149,13 @@ Let's try testing how removing a content filter can adjust system behavior witho
 
 2. Comment out the `<content_filter>` tag and contained content within it, for *dr/DeviceCommand* under *dp/PatientMonitor* in [ParticipantLibrary.xml](../../system_arch/xml_app_creation/ParticipantLibrary.xml).
 
-    *Note, you should undo this configuration change after completing this demonstration.*
+   *Note, you should undo this configuration change after completing this demonstration.*
 
 3. Relaunch the operating room applications.
 
 4. While monitoring both the *Arm Controller* and *Patient Monitor* application windows, send a "Shut Down" command from the *Orchestrator* application **for the *Arm Controller* application only**.
 
-    >**Observe:** You should see both the *Arm Controller* and *Patient Monitor* applications shut down and exit. This is because the *Patient Monitor* is no longer configured to receive only device commands for Patient Monitor apps but any app.
+   >**Observe:** You should see both the *Arm Controller* and *Patient Monitor* applications shut down and exit. This is because the *Patient Monitor* is no longer configured to receive only device commands for Patient Monitor apps but any app.
 
 5. Undo the Content Filter change to revert to the recommended configuration.
 

@@ -165,3 +165,47 @@ jobs:
         with:
           name: test-results
           path: results.xml
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Validate release tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.[0-9]+)?$ ]]; then
+            echo "Invalid release tag: $TAG"
+            exit 1
+          fi
+
+          if [[ "$(git cat-file -t "$TAG")" != "tag" ]]; then
+            echo "Release tag must be annotated: $TAG"
+            exit 1
+          fi
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          args=(
+            "$TAG"
+            --verify-tag
+            --title "$TAG"
+            --generate-notes
+          )
+
+          if [[ "$TAG" == *-* ]]; then
+            args+=(--prerelease --latest=false)
+          fi
+
+          gh release create "${args[@]}"

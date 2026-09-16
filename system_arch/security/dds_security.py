@@ -438,7 +438,11 @@ def generate_root_ca(
 ) -> Path:
     """(b) Generate a root CA private key and self-signed certificate."""
     if out_cert.is_file() and not force:
-        log.info("Root CA cert exists, skipping: %s", out_cert)
+        log.warning(
+            "Root CA cert already exists, skipping: %s — remove the file or use "
+            "--force to regenerate",
+            out_cert,
+        )
         return out_cert
     generate_key(key_path)
     return self_sign(key_path, cnf, out_cert, days=days)
@@ -473,7 +477,11 @@ def generate_intermediate_ca(
 ) -> Path:
     """(d-f) Generate an intermediate CA: private key, CSR, and signed certificate."""
     if out_cert.is_file() and not force:
-        log.info("Intermediate CA cert exists, skipping: %s", out_cert)
+        log.warning(
+            "Intermediate CA cert already exists, skipping: %s — remove the file or "
+            "use --force to regenerate",
+            out_cert,
+        )
         return out_cert
     generate_key(key_path)
     csr = out_cert.with_suffix(".csr")
@@ -528,7 +536,11 @@ def generate_identity(
     intermediate (not directly the root).
     """
     if out_cert.is_file() and not force:
-        log.info("Identity cert exists, skipping: %s", out_cert)
+        log.warning(
+            "Identity cert already exists, skipping: %s — remove the file or use "
+            "--force to regenerate",
+            out_cert,
+        )
         return out_cert
     generate_key(key_path)
     csr = out_cert.with_suffix(".csr")
@@ -571,7 +583,11 @@ def generate_expired_identity(
     creation time.
     """
     if out_cert.is_file() and not force:
-        log.info("Expired identity cert exists, skipping: %s", out_cert)
+        log.warning(
+            "Expired identity cert already exists, skipping: %s — remove the file or "
+            "use --force to regenerate",
+            out_cert,
+        )
         return out_cert
     generate_key(key_path)
     csr = out_cert.with_suffix(".csr")
@@ -634,7 +650,11 @@ def sign_governance(
 ) -> Path:
     """(m) Sign a governance XML with S/MIME v3.2."""
     if out_p7s.is_file() and not force:
-        log.info("Signed governance exists, skipping: %s", out_p7s)
+        log.warning(
+            "Signed governance already exists, skipping: %s — remove the file or use "
+            "--force to regenerate",
+            out_p7s,
+        )
         return out_p7s
     return sign_xml(key_path, cert_path, xml_path, out_p7s)
 
@@ -654,7 +674,11 @@ def sign_permissions(
 ) -> Path:
     """(o) Sign a permissions XML with S/MIME v3.2."""
     if out_p7s.is_file() and not force:
-        log.info("Signed permissions exists, skipping: %s", out_p7s)
+        log.warning(
+            "Signed permissions already exists, skipping: %s — remove the file or use "
+            "--force to regenerate",
+            out_p7s,
+        )
         return out_p7s
     return sign_xml(key_path, cert_path, xml_path, out_p7s)
 

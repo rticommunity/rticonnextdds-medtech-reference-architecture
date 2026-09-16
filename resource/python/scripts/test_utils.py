@@ -323,14 +323,7 @@ def make_isolated_qos_provider(*xml_files: str) -> dds.QosProvider:
     params.ignore_environment_profile = True
     params.ignore_user_profile = True
     params.url_profile = [str(Path(f).resolve()) for f in xml_files]
-
-    # Connext 7.7.0 supports constructing a QosProvider with params,
-    # but 7.3.1 does not. For compatibility with 7.3.1, we create a
-    # default provider and then assign the params and reload profiles.
-    provider = dds.QosProvider(uri="")
-    provider.provider_params = params
-    provider.reload_profiles()
-    return provider
+    return dds.QosProvider(params)
 
 
 def wait_for_writer_match(writer, timeout_sec: float = 2.0, count: int = 1) -> bool:

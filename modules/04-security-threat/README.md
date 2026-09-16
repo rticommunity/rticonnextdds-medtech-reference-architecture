@@ -87,6 +87,8 @@ Ensure the RTI Security Plugins are installed on every machine that will run a s
 ## Run the Demo
 
 > Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+>
+> Tip: the predefined `security-threat`, `threat-inject`, and `threat-exfiltrate` scenarios bundle the operating room apps with the threat application(s) in a single command (e.g. `python3 launch.py --scenario threat-inject`). The step-by-step flow below runs them in separate terminals so you can switch the OR between unsecured and secured modes independently. Run `python3 launch.py --list-scenarios` to see all scenarios.
 
 ### 1. Run Operating Room Applications
 
@@ -158,7 +160,9 @@ Watch the threat app's Activity Log: when the secured OR comes up, the injector'
 
 ### 2. Understanding Why Each Attack Is Blocked
 
-Each attack mode corresponds to a different stage of the DDS Security handshake:
+Each attack mode corresponds to a different stage of the DDS Security handshake. Even if an attacker passes one layer, subsequent layers still block the attack:
+
+> **Note:** All three attack modes share a common `InsiderBase` profile (in [ThreatQos.xml](xml_config/ThreatQos.xml)) that supplies the genuine `OperationalDomain.psk` seed via `dds.sec.crypto.rtps_psk_secret_passphrase`. This deliberately models an *insider* who has already obtained the domain pre-shared key, so the attacker clears the outer `rtps_psk_protection_kind=ENCRYPT` layer. The block therefore happens at the authentication, access-control, or certificate-validation stage below — demonstrating that the domain PSK alone is not sufficient to join the secured OR.
 
 | Mode | What happens | Why |
 | --- | --- | --- |
@@ -166,7 +170,13 @@ Each attack mode corresponds to a different stage of the DDS Security handshake:
 | **Forged Permissions** | Participant is created but never matches | Authentication succeeds (identity signed by trusted CA), but the permissions document is signed by the rogue CA. Since the OR's `permissions_ca` is the trusted CA, the signature mismatch causes access control validation to fail. |
 | **Expired Certificate** | Participant creation fails immediately | The identity certificate was signed by the trusted CA but its `notAfter` field is in the past. The DDS Security authentication plugin validates certificate expiration during identity validation — for the local participant, this occurs during DomainParticipant creation, causing it to fail immediately. The status badge shows **ATTACK FAILED** (red). |
 
-For a deeper dive into the DDS Security handshake, refer to the [RTI Security Plugins User's Manual](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/index.htm).
+Beyond authentication and permissions, the system also enforces **cryptographic protection at multiple levels**:
+
+- **Domain-level protection from outsiders:** `rtps_psk_protection_kind=ENCRYPT` protects pre-authentication traffic, preventing passive eavesdropping before the handshake completes.
+- **Domain-level protection from insiders:** `rtps_protection_kind=ENCRYPT_WITH_ORIGIN_AUTHENTICATION` ensures all RTPS traffic is encrypted with per-writer keys and origin-authenticated — even an authenticated insider cannot forge another participant's messages.
+- **Topic-level protetion from insiders:** `t/Vitals` and `t/MotorControl` use `metadata_protection_kind=ENCRYPT`, meaning their submessage metadata is encrypted with keys shared only among authorized endpoints — a compromised participant without topic-level permissions cannot decrypt these topics.
+
+For a deeper dive into the DDS Security handshake, refer to the [RTI Security Plugins User's Manual](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p2_core/authentication.html#handshake).
 
 ---
 

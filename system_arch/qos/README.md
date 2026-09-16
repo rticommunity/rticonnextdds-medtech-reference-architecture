@@ -10,12 +10,15 @@ This README describes how we've approached QoS in this reference architecture. F
 - [Qos.xml](#qosxml)
   - [SystemLibrary](#systemlibrary)
     - [SystemLibrary::DefaultParticipant profile](#systemlibrarydefaultparticipant-profile)
+    - [SystemLibrary::WanConfig profile](#systemlibrarywanconfig-profile)
   - [DataFlowLibrary](#dataflowlibrary)
     - [DataFlowLibrary::Streaming profile](#dataflowlibrarystreaming-profile)
     - [DataFlowLibrary::Status profile](#dataflowlibrarystatus-profile)
     - [DataFlowLibrary::Command profile](#dataflowlibrarycommand-profile)
     - [DataFlowLibrary::Heartbeat profile](#dataflowlibraryheartbeat-profile)
+    - [DataFlowLibrary::SecureLog profile](#dataflowlibrarysecurelog-profile)
 - [Application-specific QoS: NonSecureAppsQos.xml and SecureAppsQos.xml](#application-specific-qos-nonsecureappsqosxml-and-secureappsqosxml)
+- [External security snippets: SecureExternalAppsQos.xml](#external-security-snippets-secureexternalappsqosxml)
 - [XML QoS Best Practices](#xml-qos-best-practices)
 
 ## QoS Profile Configuration
@@ -78,10 +81,22 @@ This reference architecture defines the following QoS Libraries in [Qos.xml](./Q
 | QoS Profile | Intended Use
 | ----------- | ------------
 | [*DefaultParticipant*](#systemlibrarydefaultparticipant-profile) | Configuration common to all DomainParticipants.
+| [*WanConfig*](#systemlibrarywanconfig-profile) | WAN transport configuration, used by Module 03: Remote Teleoperation.
 
 #### ***SystemLibrary::DefaultParticipant* profile**
 
 This QoS profile acts as a common base configuration for all DomainParticipants in the system to provide a level of consistency. It inherits from a builtin profile called *BuiltinQosLib::Generic.Common* through the `base_name` XML attribute.
+
+#### ***SystemLibrary::WanConfig* profile**
+
+This QoS profile configures the DomainParticipant for communication over the Wide Area Network (WAN). It inherits from *BuiltinQosLib::Generic.Common* and additionally:
+
+- Enables the **UDPv4_WAN** builtin transport (via the `transport_builtin` mask), which provides the RTI Real-Time WAN Transport's NAT-traversal capabilities.
+- Shortens the participant liveliness assert period to speed up discovery over the WAN.
+
+When security is enabled, WAN participants compose the *WanCommonSecurityConfig* snippet from [SecureAppsQos.xml](SecureAppsQos.xml), which uses the [TeleopWanDomain.xml](../security/domain_scope/TeleopWanDomain/governance/TeleopWanDomain/TeleopWanDomain.xml) governance (and the matching `TeleopWanDomain.psk` seed) instead of the LAN-side *OperationalDomain* governance. *TeleopWanDomain* applies the same domain-level protection but extends metadata encryption to **every** topic. See [SecureAppsQos.xml](#application-specific-qos-nonsecureappsqosxml-and-secureappsqosxml) for details.
+
+It is used by Module 03: Remote Teleoperation. See the [Module 03 README](../../modules/03-remote-teleoperation/README.md) for the WAN scenarios that rely on it.
 
 ### ***DataFlowLibrary***
 
@@ -93,6 +108,7 @@ This QoS profile acts as a common base configuration for all DomainParticipants 
 | [*Status*](#dataflowlibrarystatus-profile) | *RELIABLE* | *KEEP_LAST 1* | *TRANSIENT_LOCAL* | -- | "Current status"-like Topics, sent once at the beginning of operation and again only upon change to the status.
 | [*Command*](#dataflowlibrarycommand-profile) | *RELIABLE* | *KEEP_LAST 1* | *VOLATILE* | -- | Topics that transmit commands or trigger some action in the system.
 | [*Heartbeat*](#dataflowlibraryheartbeat-profile) | *BEST_EFFORT* | *KEEP_LAST 1* | *VOLATILE* | *200 ms* | To assert and detect the presence of system components.
+| [*SecureLog*](#dataflowlibrarysecurelog-profile) | *RELIABLE* | *KEEP_LAST 64* | *TRANSIENT_LOCAL* | -- | Delivery of the DDS Security builtin secure-log Topic.
 
 #### ***DataFlowLibrary::Streaming* profile**
 
@@ -141,6 +157,16 @@ Since this QoS profile uses *BEST_EFFORT* Reliability QoS, a minimal amount of s
 
 >**Best Practice:** Publish samples on Topics for which the DataWriter QoS defines a finite Deadline QoS period, at a rate that is 2x-4x that of the configured Deadline period. This ensures an infrequent drop in sample does not falsely trigger the `REQUESTED_DEADLINE_MISSED` status for DataReaders.
 
+#### ***DataFlowLibrary::SecureLog* profile**
+
+This QoS profile is used by the *dr/SecureLog* DataReader (under the *dp/SecureLogReader* DomainParticipant) to consume the RTI Security Plugins builtin secure-logging Topic.
+
+It inherits from *BuiltinQosLib::Generic.KeepLastReliable.TransientLocal* and applies:
+
+- *RELIABLE* Reliability QoS and *TRANSIENT_LOCAL* Durability QoS, matching the QoS the Security Plugins use for their builtin secure-logging writers.
+- *KEEP_LAST, depth=64* History QoS (with a matching `max_samples` resource limit), the default history depth used by the secure-logging writers.
+- Dynamic memory allocation for the DataReader cache, since the secure-logging type is unbounded.
+
 ## Application-specific QoS: [NonSecureAppsQos.xml](NonSecureAppsQos.xml) and [SecureAppsQos.xml](SecureAppsQos.xml)
 
 In addition to the [Qos.xml](#qosxml) file, this reference architecture describes *per-application* QoS in 2 additional XML files:
@@ -154,11 +180,57 @@ Both files contain only 1 QoS library: ***DpQosLib***. This QoS library contains
 
 [NonSecureAppsQos.xml](./NonSecureAppsQos.xml) contains one profile for each DomainParticipant. For the simplified demonstration, each profile inherits from *SystemLibrary::DefaultParticipant* in [Qos.xml](./Qos.xml). No additional configuration is applied for any given DomainParticipant.
 
-[SecureAppsQos.xml](./SecureAppsQos.xml) also defines one profile for each DomainParticipant in a similar way to that of **NonSecureAppsQos.xml**, but with security configuration added.
+[SecureAppsQos.xml](./SecureAppsQos.xml) defines secure profiles for the demo DomainParticipants and services in a similar way to **NonSecureAppsQos.xml**, but with security configuration added.
 
-[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *LanCommonSecurityConfig* defines common configuration to enable security for local domains (LAN connections). It references common permissions CA, identity CA, and governance files.
+[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *LanCommonSecurityConfig* defines common configuration to enable security for local domains (LAN connections). It references common permissions CA, identity CA, governance files, and the OperationalDomain PSK seed file. The governance uses `rtps_protection_kind=ENCRYPT_WITH_ORIGIN_AUTHENTICATION` with `rtps_psk_protection_kind=ENCRYPT` for domain-level protection, plus topic-level protection (`metadata_protection_kind=ENCRYPT`) on `t/Vitals` and `t/MotorControl`.
 
-[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *WanCommonSecurityConfig* defines common configuration to enable security for remote domains (WAN connections). It references common permissions CA, identity CA, and governance files.
+[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *WanCommonSecurityConfig* defines common configuration to enable security for remote domains (WAN connections). It references common permissions CA, identity CA, governance files, and the TeleopWanDomain PSK seed file. The same domain-level protection applies (`rtps_protection_kind=ENCRYPT_WITH_ORIGIN_AUTHENTICATION`, `rtps_psk_protection_kind=ENCRYPT`), but the WAN governance applies *stricter* topic-level protection: a catch-all `*` rule with `metadata_protection_kind=ENCRYPT` protects the submessage metadata of **every** topic, rather than only `t/Vitals` and `t/MotorControl`. The secure log topic `DDS:Security:LogTopicV2` keeps its own `SIGN`/`ENCRYPT`.
+
+## External security snippets: [SecureExternalAppsQos.xml](SecureExternalAppsQos.xml)
+
+[SecureExternalAppsQos.xml](./SecureExternalAppsQos.xml) provides standalone QoS snippets for participants that are **not** part of the demo applications themselves. Unlike the profiles in [SecureAppsQos.xml](./SecureAppsQos.xml), these are independent, Security-specific configurations meant to plug external observers into the secured system.
+
+The file currently defines one snippet:
+
+- **`SecureExternalAppsQosLib::SecureSystemObserver`** — a reusable [QoS Snippet](https://community.rti.com/best-practices/qos-profile-inheritance-and-composition-guidance#h.wr6u1ebybeff) that encapsulates the complete DDS Security property set for a read-only System Observer:
+  - Composes `BuiltinQosSnippetLib::Feature.Security.Enable` to activate the Security Plugins
+  - Permissions CA and Identity CA trust anchors
+  - Operational domain governance
+  - SystemObserver identity certificate and private key
+  - SystemObserver signed permissions document
+  - Secure logging disabled (`mode_mask=BUILTIN`, `verbosity=SILENT`) because the observer has no publish permissions
+
+### Usage
+
+Compose the snippet into any DomainParticipant QoS using the `<base_name>` element:
+
+```xml
+<domain_participant_qos>
+  <base_name>
+    <element>SecureExternalAppsQosLib::SecureSystemObserver</element>
+  </base_name>
+</domain_participant_qos>
+```
+
+### Connext Studio (Spy source)
+
+This configuration is ideal for use with **RTI Connext Studio**. To observe the secured domain with the Spy data source:
+
+1. From the repository root, generate the DDS Security artifacts (identity/permissions CAs, certificates, PSK seeds, and signed governance/permissions). A regular `setup_security.py` run (no flags) creates these under the security tree:
+
+   ```bash
+   python3 system_arch/security/setup_security.py
+   ```
+
+2. Generate resolved QoS files with absolute security-artifact paths. `--generate-resolved-qos` only emits the QoS files — it does **not** generate the artifacts themselves, so the previous step must be run first:
+
+   ```bash
+   python3 system_arch/security/setup_security.py --generate-resolved-qos
+   ```
+
+3. In Connext Studio, add a Spy Source and configure the source with the configuration under
+`SecureExternalAppsQosLib::SecureSystemObserver` snippet from the `system_arch/security/resolved_qos/SecureExternalAppsQos.xml`.
+4. Spy will join the secured Operational Domain as a read-only observer — able to subscribe to all Topics without publish permissions.
 
 ## XML QoS Best Practices
 
@@ -166,4 +238,4 @@ Both files contain only 1 QoS library: ***DpQosLib***. This QoS library contains
 >
 >**Best Practice:** Inherit from [Built-in QoS Profiles](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Built_in_QoS_Profiles.htm). Builtin profiles provide starting points to frequently used and tuned QoS combinations.
 
-Please take a look at the comments inside the profiles in [Qos.xml](./Qos.xml), [NonSecureAppsQos.xml](./NonSecureAppsQos.xml), and [SecureAppsQos.xml](./SecureAppsQos.xml) for further details on each QoS policy and more **best practices** related to QoS configuration.
+Please take a look at the comments inside the profiles and snippets in [Qos.xml](./Qos.xml), [NonSecureAppsQos.xml](./NonSecureAppsQos.xml), [SecureAppsQos.xml](./SecureAppsQos.xml), and [SecureExternalAppsQos.xml](./SecureExternalAppsQos.xml) for further details on each QoS policy and more **best practices** related to QoS configuration.

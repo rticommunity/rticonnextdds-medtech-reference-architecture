@@ -99,7 +99,8 @@ class TestInjectorSecure:
     """Security should block threat injector participants from matching secured OR apps."""
 
     @pytest.fixture(autouse=True, scope="class")
-    def _start_patient_sensor(self, or_pm_secure_class):
+    @classmethod
+    def _start_patient_sensor(cls, or_pm_secure_class):
         """Launch PatientSensor once for all tests in this class."""
         or_pm_secure_class.start_app_ready("PatientSensor")
 

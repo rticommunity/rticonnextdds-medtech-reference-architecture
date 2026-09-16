@@ -42,10 +42,12 @@ Certificates expiring within 30 days are flagged as warnings. Use `--warn-days N
 | --- | --- |
 | *(no flags)* | Generate artifacts (skip existing) |
 | `--force` | Re-generate all artifacts, overwriting existing ones |
+| `--scaffold` | Re-generate the committed `.cnf`, governance, and permissions files from the Jinja2 templates (maintainer-only — see [Scaffolding](#scaffolding-maintainer-only)) |
 | `--strict` | Promote warnings to fatal errors |
 | `--status` | Report certificate expiry status and exit |
 | `--warn-days N` | Days-to-expiry warning threshold for `--status` (default: 30) |
 | `--connext-version X.Y.Z` | Override auto-detected Connext version |
+| `--generate-resolved-qos` | Generate resolved QoS XML files in `system_arch/security/resolved_qos/` with absolute security artifact paths; skips existing files unless `--force` is set |
 
 ## Directory Layout
 
@@ -57,6 +59,7 @@ system_arch/security/
 │   └── TrustedPermissionsCa/                    #   Intermediate CA for permissions signing
 ├── domain_scope/                                # Per-domain governance & permissions
 │   ├── OperationalDomain/
+│   │   ├── OperationalDomain.psk                #     PSK passphrase seed (generated)
 │   │   ├── governance/<name>/<name>.xml         #     Governance XML (committed)
 │   │   │                └── signed/<issuer>/     #     Signed governance (.p7s)
 │   │   └── permissions/<role>/<role>.xml         #     Permissions XML (committed)
@@ -81,8 +84,10 @@ system_arch/security/
 - **CA hierarchy:** A self-signed root CA (`TrustedRootCa`) issues two intermediate CAs — one for identity certificates (`TrustedIdentityCa`) and one for permissions/governance signing (`TrustedPermissionsCa`).
 - **Chain files:** Identity certificates include a `.chain.pem` containing both the leaf cert and its issuing CA cert, as required by the RTI Security Plugins.
 - **Signed XML:** Governance and permissions XML files are S/MIME-signed by the appropriate intermediate CA. The signed `.p7s` files are what Connext loads at runtime.
-- **Per-participant permissions:** Each participant has its own permissions document specifying the exact topics it may publish/subscribe to, with a default `DENY` rule.
-- **PSK passphrases:** Pre-Shared Key seed files (`.psk`) are generated per domain scope and stored alongside the governance/permissions artifacts (e.g. `domain_scope/TeleopWanDomain/TeleopWanDomain.psk`). The file format is `<id>:<seed>` where `<id>` is an integer in [0, 254] for Connext 7.3.x. Participants load the passphrase via the `dds.sec.crypto.rtps_psk_secret_passphrase` property.
+- **Per-participant permissions:** Each participant has its own permissions document specifying the exact topics it may publish/subscribe to, with a default `DENY` rule. For example, the `SystemObserver` participant grants `subscribe` on any topic and no `publish` rule at all — a least-privilege, read-only observer that can watch the full data flow but can never write to the bus.
+- **PSK passphrases:** Pre-Shared Key seed files (`.psk`) are generated per domain scope and stored alongside the governance/permissions artifacts (e.g. `domain_scope/OperationalDomain/OperationalDomain.psk`, `domain_scope/TeleopWanDomain/TeleopWanDomain.psk`). The file format is `<id>:<seed>` where `<id>` is an integer in [0, 254]. Participants load the passphrase via the `dds.sec.crypto.rtps_psk_secret_passphrase` property. Both domains use `rtps_psk_protection_kind=ENCRYPT` in their governance to protect pre-authentication RTPS traffic.
+- **Domain-level protection:** Both `OperationalDomain` and `TeleopWanDomain` use the [Builtin Security Plugins for domain-level protection](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/threat_modeling.html#dds-security-threat-protection) pattern: `rtps_protection_kind=ENCRYPT_WITH_ORIGIN_AUTHENTICATION` provides insider integrity and availability protection; `rtps_psk_protection_kind=ENCRYPT` secures pre-authentication traffic.
+- **Topic-level protection:** In the `OperationalDomain` (LAN) governance, the `t/Vitals` and `t/MotorControl` topics use `metadata_protection_kind=ENCRYPT` for [topic-level protection](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/threat_modeling.html#dds-security-threat-protection), ensuring only participants with matching permissions can decrypt those topics' submessage metadata — even if authenticated to the domain. The `TeleopWanDomain` (WAN) governance is stricter: a catch-all `*` rule applies `metadata_protection_kind=ENCRYPT` to **every** topic, with the `DDS:Security:LogTopicV2` rule ordered ahead of it so the secure log retains its own `SIGN`/`ENCRYPT` protection.
 
 ## Good Practices for DDS Security
 

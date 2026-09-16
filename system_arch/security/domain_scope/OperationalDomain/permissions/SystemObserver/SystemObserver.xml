@@ -12,13 +12,16 @@ inability to use the software. -->
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.7.0/dds_security_permissions.xsd">
     <permissions>
-        <grant name="SecureLogReaderParticipant">
-            <subject_name>/C=US/ST=CA/O=Company Name/emailAddress=securelogreader@company_name.com/CN=SecureLogReader</subject_name>
+        <grant name="SystemObserverParticipant">
+            <subject_name>/C=US/ST=CA/O=Company Name/emailAddress=systemobserver@company_name.com/CN=SystemObserver</subject_name>
             <validity>
                 <!-- Format is CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm] in GMT -->
                 <not_before>2024-06-01T13:00:00</not_before>
                 <not_after>2037-06-01T13:00:00</not_after>
             </validity>
+            <!-- Read-only observer: may subscribe to ANY topic on ANY partition,
+                 and may NOT publish anything. The default DENY rule blocks all
+                 publication (no <publish> rule is granted). -->
             <allow_rule>
                 <domains>
                     <id>0</id>
@@ -31,7 +34,7 @@ inability to use the software. -->
                         <partition>*</partition>
                     </partitions>
                     <topics>
-                        <topic>DDS:Security:LogTopicV2</topic>
+                        <topic>*</topic>
                     </topics>
                 </subscribe>
             </allow_rule>

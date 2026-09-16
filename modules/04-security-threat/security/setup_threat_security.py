@@ -219,7 +219,7 @@ def main():
         )
         print(f"Security directory tree scaffolded under {MODULE_SECURITY_DIR}")
     else:
-        SECURITY_TREE.generate_artifacts(
+        summary = SECURITY_TREE.generate_artifacts(
             root=MODULE_SECURITY_DIR, force=args.force, strict=args.strict
         )
 
@@ -227,9 +227,17 @@ def main():
         # These are signed by the TrustedIdentityCa (so the CA chain is
         # valid) but have notAfter in the past, causing Connext to reject
         # them at participant creation time.
+        expired_generated = 0
+        expired_skipped = 0
         for app_name in ("ThreatInjector", "ThreatExfiltrator"):
             id_dir = MODULE_SECURITY_DIR / "identity" / "security-threat" / app_name / app_name
             expired_cert = id_dir / "certs" / "TrustedIdentityCa" / "expired" / f"{app_name}.crt"
+            # Mirror generate_expired_identity's own skip logic so the summary
+            # reflects what it actually did.
+            if expired_cert.is_file() and not args.force:
+                expired_skipped += 1
+            else:
+                expired_generated += 1
             generate_expired_identity(
                 key_path=id_dir / "private" / f"{app_name}.key",
                 cnf=id_dir / f"{app_name}.cnf",
@@ -256,7 +264,28 @@ def main():
                 force=args.force,
             )
 
-        print("Threat security artifacts generated!")
+        total_generated = summary["total_generated"] + expired_generated
+        total_skipped = summary["total_skipped"] + expired_skipped
+        print(
+            "Threat security artifact generation complete: "
+            f"{total_generated} generated, "
+            f"{total_skipped} skipped, "
+            f"{summary['warnings']} validation warning(s)."
+        )
+        print(
+            "Breakdown: "
+            f"CA certs {summary['ca_certs_generated']} "
+            f"generated/{summary['ca_certs_skipped']} skipped; "
+            f"signed governance {summary['signed_governance_generated']}"
+            f"/{summary['signed_governance_skipped']}; "
+            f"signed permissions {summary['signed_permissions_generated']}"
+            f"/{summary['signed_permissions_skipped']}; "
+            f"identity certs {summary['identity_certs_generated']}"
+            f"/{summary['identity_certs_skipped']}; "
+            f"PSK seeds {summary['psk_seeds_generated']}"
+            f"/{summary['psk_seeds_skipped']}; "
+            f"expired identity certs {expired_generated}/{expired_skipped}."
+        )
 
 
 if __name__ == "__main__":

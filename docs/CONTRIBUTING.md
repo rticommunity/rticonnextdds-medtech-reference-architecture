@@ -87,17 +87,28 @@ the commit is recorded:
 
 | Hook | What it checks / fixes |
 | --- | --- |
-| `ruff` | Python lint — auto-fixes where possible |
+| `ruff-check` | Python lint — auto-fixes where possible |
 | `ruff-format` | Python formatting — auto-reformats files |
 | `trailing-whitespace` | Removes trailing whitespace from all text files |
 | `end-of-file-fixer` | Ensures files end with a single newline |
-| `check-yaml` | Validates YAML syntax |
+| `check-yaml` | Validates YAML syntax (excludes `.clang-format`) |
+| `check-json` | Validates JSON syntax |
+| `check-toml` | Validates TOML syntax |
 | `check-xml` | Validates XML syntax |
+| `check-merge-conflict` | Blocks committed merge-conflict markers |
+| `check-case-conflict` | Blocks names that collide on case-insensitive filesystems |
+| `check-illegal-windows-names` | Blocks filenames invalid on Windows |
+| `check-executables-have-shebangs` / `check-shebang-scripts-are-executable` | Keep executable bits and shebangs consistent |
+| `detect-private-key` | Blocks accidentally committed private keys |
+| `requirements-txt-fixer` | Normalizes `requirements*.txt` ordering |
+| `mixed-line-ending` | Enforces LF (CRLF for batch files) |
+| `name-tests-test` | Enforces `test_*` naming for pytest files |
 | `check-added-large-files` | Blocks files larger than 500 KB |
 | `codespell` | Checks spelling for source and docs using `pyproject.toml` settings |
 | `clang-format` | Reformats C/C++ source files |
-| `rumdl` | Markdown lint + auto-fix |
-| `rumdl-fmt` | Markdown formatting pass |
+| `rumdl` / `rumdl-fmt` | Markdown lint + auto-fix and formatting pass |
+
+See `.pre-commit-config.yaml` for the authoritative hook list and configuration.
 
 If a hook **modifies files**, the commit is aborted. Re-stage the modified
 files and commit again:
@@ -120,25 +131,23 @@ committing. In exceptional circumstances you can bypass hooks with
 | `git commit` | git hook (local) | All pre-commit hooks (lint, format, whitespace, clang-format, markdown via rumdl) |
 | `git push` / open PR | GitHub Actions | Full CI pipeline (see below) |
 | PR merge to `main` | Blocked until CI passes | — |
+| Push annotated `v*` tag | GitHub Actions | Full CI, then GitHub Release publication |
 
 ### CI pipeline (`.github/workflows/ci.yml`)
 
+The pipeline has two CI jobs; `test` runs only after `lint` passes. A conditional
+`release` job runs only for pushed `v*` tags and only after `test` passes:
+
 | Job | What it does |
 | --- | --- |
-| Lint & Format | `ruff check`, `ruff format --check`, codespell, clang-format dry-run, markdown lint via `rvben/rumdl` action |
-| Build | CMake configure + build all C++ modules |
-| Project-level Tests | `pytest tests/` |
-| Unit Tests | Fast Python type/script/QoS tests |
-| DDS Communication Tests | Non-GUI DDS pub/sub tests |
-| Integration Tests | Slow end-to-end demo flow tests |
-| GUI Tests | Headless Qt application tests |
-| Security Tests | DDS Security plugin tests |
-| Module 02 Tests | Record/Playback module tests |
-| Module 04 Tests | Security Threat module tests |
+| `lint` (Lint & Format) | Runs **all** pre-commit hooks across the repo (`pre-commit/action` with `--all-files`) — the same ruff, ruff-format, codespell, clang-format, rumdl, and hygiene hooks you run locally. |
+| `test` (Build & Test) | Installs Connext (apt) and Python deps, builds all C++ modules with `python build.py`, generates the system and Module 04 security artifacts, starts Xvfb, then runs the full suite from the repo root with `python -m pytest -v -m "not build_pipeline"` and uploads `results.xml`. |
+| `release` (Publish GitHub Release) | Validates the annotated SemVer tag and publishes generated release notes. Pre-release tags are marked accordingly. |
 
-CI uses a pinned Ruff version (see [Upgrading Ruff](#upgrading-ruff)). If
-pre-commit and CI share the same pin, a clean local commit will not produce
-lint failures in CI.
+Because the `lint` job runs `pre-commit` itself, CI and your local hooks execute
+the **exact same** hook versions (pinned in `.pre-commit-config.yaml`). A clean
+local commit will therefore not produce lint failures in CI. See
+[Upgrading Ruff](#upgrading-ruff) for how the Ruff pin is managed.
 
 ## Testing CI Locally with act (Optional)
 
@@ -191,8 +200,9 @@ docker compose -f tests/docker/docker-compose.yml run --rm --build test \
     modules/01-operating-room/tests/test_types.py -v
 ```
 
-> **Note:** The Docker default command runs `pytest -v` via the
-> test entrypoint. It executes functional/behavioral tests. It does **not** run Ruff lint,
+> **Note:** With no arguments, the Docker test entrypoint runs `pytest` over the
+> whole repo (it passes any arguments you supply straight through to pytest).
+> It executes functional/behavioral tests. It does **not** run Ruff lint,
 > rumdl markdown lint, or clang-format; those are enforced by pre-commit
 > (locally) and the CI lint job (on push/PR).
 
@@ -228,37 +238,37 @@ Before opening a PR, verify:
 
 ## Upgrading Ruff
 
-Ruff is pinned in two places so that local pre-commit hooks and CI produce
-identical results. When upgrading, update **both together**:
+The CI `lint` job runs `pre-commit`, so there is a **single** Ruff pin that
+governs both local hooks and CI: the `astral-sh/ruff-pre-commit` revision in
+`.pre-commit-config.yaml`. Bump that one pin to upgrade Ruff everywhere.
 
-| File | Setting to change |
-| --- | --- |
-| `.github/workflows/ci.yml` | `pip install ruff==<new-version>` |
-| `.pre-commit-config.yaml` | `rev: v<new-version>` under `astral-sh/ruff-pre-commit` |
+| File | Setting to change | When |
+| --- | --- | --- |
+| `.pre-commit-config.yaml` | `rev: v<new-version>` under `astral-sh/ruff-pre-commit` | Every Ruff bump (this is the authoritative pin used by CI). |
+| `pyproject.toml` | `required-version = ">=<major.minor>"` | Only when raising the minimum supported version. |
+| `requirements-dev.txt` | `ruff>=<major.minor>` | Only when raising the minimum supported version. |
 
-`pyproject.toml` carries a minimum version (`required-version = ">=0.15"`) and
-`requirements-dev.txt` carries a matching lower bound (`ruff>=0.15`). These do
-**not** need to change on every Ruff bump unless the new version introduces a
-breaking change to the configuration format.
+The `pyproject.toml` and `requirements-dev.txt` bounds are lower bounds for
+developers who run Ruff outside pre-commit; they do **not** need to change on
+every Ruff bump unless the new version introduces a breaking change to the
+configuration format.
 
 ### Procedure
 
 ```bash
-# 1. Update the two pinned locations (ci.yml and .pre-commit-config.yaml)
-
-# 2. Update your local pre-commit environment
+# 1. Update the pin in .pre-commit-config.yaml
 pre-commit autoupdate --freeze    # or manually set the rev
 
-# 3. Run the full pre-commit suite to surface any new lint findings
+# 2. Run the full pre-commit suite to surface any new lint findings
 pre-commit run --all-files
 
-# 4. Fix any new violations introduced by the new Ruff version
+# 3. Fix any new violations introduced by the new Ruff version
 
-# 5. Update the minimum version bounds if appropriate
+# 4. Update the minimum version bounds only if appropriate
 #    pyproject.toml:      required-version = ">=<new-major.minor>"
 #    requirements-dev.txt: ruff>=<new-major.minor>
 
-# 6. Commit everything together
-git add .pre-commit-config.yaml .github/workflows/ci.yml pyproject.toml requirements-dev.txt
+# 5. Commit everything together
+git add .pre-commit-config.yaml pyproject.toml requirements-dev.txt
 git commit -m "chore: bump Ruff to <new-version>"
 ```

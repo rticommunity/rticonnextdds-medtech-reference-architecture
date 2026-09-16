@@ -34,15 +34,15 @@ Applications can be implemented via any supported Connext Professional API langu
 1. Register Types
    To use generated Type-Support code (via [RTI Code Generator](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/code_generator/users_manual/code_generator/users_manual/UsersManual_Title.htm)), named *types* in the XML configuration must be registered with the DomainParticipant. This is necessary for the DomainParticipant to serialize and deserialize the data using the generated code.
 
-    Documentation:
+   Documentation:
    - [Using User-Generated Types](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/UsingGeneratingTypes.htm#4.7.5_Using_User-Generated_Types)
 
 2. Load XML Configuration
    One or multiple XML files should be loaded by an application to understand the complete configuration for a single DomainParticipant.
 
-    In this reference architecture, it is recommended to use `NDDS_QOS_PROFILES` environment variable to point to the defined XML files.
+   In this reference architecture, it is recommended to use `NDDS_QOS_PROFILES` environment variable to point to the defined XML files.
 
-    For example, this bash statement will allow Connext to load the following files:
+   For example, this bash statement will allow Connext to load the following files:
    - [Qos.xml](../qos/Qos.xml)
    - [NonSecureAppsQos.xml](../qos/NonSecureAppsQos.xml)
    - [DomainLibrary.xml](./DomainLibrary.xml)
@@ -58,11 +58,11 @@ Applications can be implemented via any supported Connext Professional API langu
 3. Create Defined DDS Entities
    DomainParticipants, and all underlying entities configured (Topics, Publishers, DataWriters, Subscribers, DataReaders), can be created with an API-specific implementation of the `create_participant_from_config()`.
 
-    DomainParticipants are referred to by their fully-qualified name in configuration. Please see the referred documentation for more details.
+   DomainParticipants are referred to by their fully-qualified name in configuration. Please see the referred documentation for more details.
 
-    All DDS entities will be created with the names and QoS as described in the XML.
+   All DDS entities will be created with the names and QoS as described in the XML.
 
-    For example, to create the ArmController DomainParticipant defined in [ParticipantLibrary.xml](ParticipantLibrary.xml#L48), the following C++ code can be used:
+   For example, to create the ArmController DomainParticipant defined in [ParticipantLibrary.xml](ParticipantLibrary.xml#L48), the following C++ code can be used:
 
     ```c++
     auto default_provider = dds::core::QosProvider::Default();
@@ -71,16 +71,16 @@ Applications can be implemented via any supported Connext Professional API langu
             "MedicalDemoParticipantLibrary::dp/ArmController");
     ```
 
-    Documentation:
+   Documentation:
    - [Creating and Retrieving Entities Configured in an XML File](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/CreatingEntities.htm)
    - [Referring to Entities and Other Elements within XML Files](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ReferringToEntitiesElements.htm#4.6.1_Referring_to_Entities_and_Other_Elements_within_XML_Files)
 
 4. Retrieve Created Entities by Name
    Commonly, configured named DDS entities must be retrieved for use (e.g. publishing to or subscribing to data) or preconfiguration before enabling (e.g. runtime QoS configuration).
 
-    DDS entities can be retrieved by name via API-specific "find" or "lookup" functions. Entities are referred to by their fully-qualified name in configuration. Please see the referred documentation for entity-specifics.
+   DDS entities can be retrieved by name via API-specific "find" or "lookup" functions. Entities are referred to by their fully-qualified name in configuration. Please see the referred documentation for entity-specifics.
 
-    For example, to find the DeviceCommand DataReader defined in [ParticipantLibrary.xml](ParticipantLibrary.xml#L68), the following C++ code can be used:
+   For example, to find the DeviceCommand DataReader defined in [ParticipantLibrary.xml](ParticipantLibrary.xml#L68), the following C++ code can be used:
 
     ```c++
     dds::sub::DataReader<Orchestrator::DeviceCommand> cmd_reader =
@@ -88,7 +88,7 @@ Applications can be implemented via any supported Connext Professional API langu
                 participant, "s/subscriber::dr/DeviceCommand");
     ```
 
-    Documentation:
+   Documentation:
    - [Accessing Entities Defined in XML Configuration from an Application](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/Accessing_Entit.htm#4.4_Accessing_Entities_Defined_in_XML_Configuration_from_an_Application)
    - [Referring to Entities and Other Elements within XML Files](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/UnderstandingXMLBased/ReferringToEntitiesElements.htm#4.6.1_Referring_to_Entities_and_Other_Elements_within_XML_Files)
 
@@ -167,12 +167,13 @@ This Domain Library will hold all Domains defined as part of this reference arch
 | Domain | Domain ID | Intended Use
 | ------ | --------- | ------------
 | [*OperationalDataDomain*](#connextdomainliboperationaldatadomain) | 0 | Real-time operational medical device data
+| [*SecureLogDomain*](#connextdomainlibsecurelogdomain) | 0 | DDS Security builtin secure logging
 
 ##### ***ConnextDomainLib::OperationalDataDomain***
 
-In this reference architecture, you will find a single Domain defined, called *OperationalDataDomain* for Domain 0.
+In this reference architecture, you will find two Domain definitions — *OperationalDataDomain* and *SecureLogDomain* — both configured for Domain ID `0`. Because they share the same Domain ID, they currently resolve to the **same** DDS domain.
 
-*OperationalDataDomain* is named as such because as the system design scales over time, additional domains could be defined for monitoring, logging, etc. Those additional domains should not affect the performance of our operational data, and therefore should belong to a different domain.
+*OperationalDataDomain* is named as such because as the system design scales over time, additional domains could be defined for monitoring, logging, etc. Those additional domains should not affect the performance of our operational data, and therefore should belong to a different domain. Keeping *SecureLogDomain* as a separate definition (see below) makes that separation clear.
 
 *OperationalDataDomain* contains the following Topics (`<topic>`):
 
@@ -185,6 +186,16 @@ In this reference architecture, you will find a single Domain defined, called *O
 | *t/Vitals* | *PatientMonitor::Vitals* | Data representative of a unique patient's collected vital signs
 
 *Please refer to the data types referenced in the table above in [Types.xml](../Types.xml)*
+
+##### ***ConnextDomainLib::SecureLogDomain***
+
+*SecureLogDomain* holds the RTI Security Plugins builtin secure-logging Topic. It is consumed by the *dp/SecureLogReader* DomainParticipant. It is configured for Domain ID `0` (the same Domain as *OperationalDataDomain*) but defined separately.
+
+*SecureLogDomain* contains the following Topic (`<topic>`):
+
+| Topic | Data Type | Intended Use
+| ----- | --------- | ------------
+| *DDS:Security:LogTopicV2* | *DDSSecurity::BuiltinLoggingTypeV2* | DDS Security builtin secure-logging stream
 
 ### Domain Library Best Practices
 
@@ -327,6 +338,7 @@ This reference architecture defines the following DomainParticipants in [Partici
 | [*dp/Orchestrator*](#medicaldemoparticipantlibrarydporchestrator) | [*ConnextDomainLib::OperationalDataDomain*](#connextdomainliboperationaldatadomain)
 | [*dp/PatientSensor*](#medicaldemoparticipantlibrarydppatientsensor) | [*ConnextDomainLib::OperationalDataDomain*](#connextdomainliboperationaldatadomain)
 | [*dp/PatientMonitor*](#medicaldemoparticipantlibrarydppatientmonitor) | [*ConnextDomainLib::OperationalDataDomain*](#connextdomainliboperationaldatadomain)
+| [*dp/SecureLogReader*](#medicaldemoparticipantlibrarydpsecurelogreader) | [*ConnextDomainLib::SecureLogDomain*](#connextdomainlibsecurelogdomain)
 
 ##### ***MedicalDemoParticipantLibrary::dp/Arm***
 
@@ -416,6 +428,16 @@ The *PatientMonitor* DomainParticipant is intended to process (display) patient 
 | ---------- | ----- | ----------- | -------------- | ------------
 | *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand-profile) | `device = 'PATIENT_MONITOR'` | Receive and process device commands targeting this PatientMonitor
 | *dr/Vitals* | *t/Vitals* | [*DataFlowLibrary::Streaming*](../qos/README.md#dataflowlibrarystreaming-profile) | -- | Receive and process patient vitals data stream
+
+##### ***MedicalDemoParticipantLibrary::dp/SecureLogReader***
+
+The *SecureLogReader* DomainParticipant subscribes to the RTI Security Plugins builtin secure-logging Topic, demonstrating how secure-log events can be consumed by an application. It operates on [*SecureLogDomain*](#connextdomainlibsecurelogdomain).
+
+*dp/SecureLogReader* contains the following DataReaders (`<data_reader>`):
+
+| DataReader | Topic | QoS Profile | Content Filter | Intended Use
+| ---------- | ----- | ----------- | -------------- | ------------
+| *dr/SecureLog* | *DDS:Security:LogTopicV2* | [*DataFlowLibrary::SecureLog*](../qos/README.md#dataflowlibrarysecurelog-profile) | -- | Receive DDS Security builtin secure-log samples
 
 ### DomainParticipant Library Best Practices
 

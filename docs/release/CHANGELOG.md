@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-16
+
+### Added
+
+- Added a least-privilege `SecureSystemObserver` QoS configuration and security
+  identity for observing secured domains through Connext Studio Spy.
+- Added `--generate-resolved-qos` support for generating QoS files with absolute
+  security-artifact paths.
+- Added automatic GitHub Release publication after successful CI for pushed,
+  annotated SemVer tags, including pre-release handling and generated notes.
+
+### Changed
+
+- Improved security artifact generation output with generated and skipped
+  counts and clearer warnings for existing artifacts.
+- Updated SecureLogReader permissions to support all partitions for Connext
+  Studio integration.
+- Updated release and contributor guidance for the automated, tag-driven
+  release process.
+
+### Fixed
+
+- Updated `QosProvider` construction for the Connext DDS 7.7 Python API.
+- Eliminated pytest fixture warnings under Python 3.14.
+
+### Security
+
+- Strengthened LAN, WAN, and threat-example governance with RTPS origin
+  authentication and pre-authentication PSK encryption.
+- Added topic-level metadata encryption for `t/Vitals` and `t/MotorControl`,
+  with encryption applied to all topics over WAN connections.
+- Restricted the external System Observer to read-only access across topics
+  and partitions.
+
+### Removed
+
+- Removed remaining Connext DDS 7.3 compatibility workarounds and the
+  `test-connext-73` Docker Compose service.
+
 ## [1.3.0] - 2026-06-02
 
 ### Added

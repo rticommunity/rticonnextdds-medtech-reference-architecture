@@ -232,7 +232,14 @@ When a release is warranted, the maintainer must complete the following steps:
 - [ ] Update the `CHANGELOG.md` with the new version number, date, and changes
 - [ ] If a `VERSION` file exists, update it
 - [ ] Update any version references in documentation if applicable
-- [ ] Commit these changes to `main` with message: `chore: prepare release vX.Y.Z`
+- [ ] Finalize these updates in the last feature PR when it completes the
+  intended release, or open and merge a separate release-preparation PR when
+  bundling multiple changes
+
+A dedicated release-preparation PR should use the commit message
+`chore: prepare release vX.Y.Z`. A feature PR does not need to use that commit
+message. In either case, the final merge must leave `main` ready to tag as
+`vX.Y.Z`.
 
 ### 3. Create the Git Tag
 
@@ -247,50 +254,27 @@ git push origin vX.Y.Z
 > **Important:** Always use annotated tags (`-a`), not lightweight tags. Annotated
 > tags store the tagger, date, and message — essential metadata for releases.
 
-### 4. Create the GitHub Release
+### 4. Automated Verification and Publication
 
-1. Navigate to the repository on GitHub → **Releases** → **Draft a new release**
-2. Select the tag `vX.Y.Z` that was just pushed
-3. Set the release title: `vX.Y.Z — <brief description>`
-4. Write release notes (see [Release Notes Template](#release-notes-template))
-5. Attach any relevant binary artifacts if applicable
-6. Mark as **pre-release** if appropriate (see
-   [Pre-release Policy](#pre-release-and-release-candidate-policy))
-7. Click **Publish release**
+Pushing a tag beginning with `v` starts the CI workflow against the exact tagged
+commit. After lint, build, and test jobs pass, the workflow:
+
+1. Verifies that the tag is an annotated SemVer tag using one of these forms:
+   `vX.Y.Z`, `vX.Y.Z-alpha.N`, `vX.Y.Z-beta.N`, or `vX.Y.Z-rc.N`
+2. Creates the GitHub Release and generates release notes from merged pull
+   requests
+3. Marks tags with a pre-release suffix as GitHub pre-releases and does not mark
+   them as the latest release
+
+If verification fails because of a transient infrastructure problem, rerun the
+failed workflow. If the tagged commit itself is defective, do not move or delete
+the tag; prepare and tag a new version.
 
 ### 5. Post-Release Actions
 
 - [ ] Verify the GitHub Release page is correct and links work
 - [ ] Announce the release to stakeholders if applicable
 - [ ] If a hotfix branch was used, merge it back to `main`
-
-### Release Notes Template
-
-```markdown
-## What's New
-
-- <Feature or change summary>
-
-## Bug Fixes
-
-- <Bug fix summary>
-
-## Breaking Changes
-
-- <Breaking change summary and migration guidance>
-
-## Dependencies
-
-- <Dependency version changes>
-
-## Contributors
-
-- @username — <contribution summary>
-
-## Full Changelog
-
-<https://github.com/><org>/<repo>/compare/vPREVIOUS...vX.Y.Z
-```
 
 ---
 
@@ -376,8 +360,8 @@ and update them as part of the release process.
 
 | Dependency | Current Minimum Version | Tracked In |
 | --- | --- | --- |
-| RTI Connext DDS | 7.3.0 | CMakeLists.txt, README.md |
-| RTI Code Generator | 4.3.0 | Generated source headers |
+| RTI Connext DDS | 7.7.0 | README.md, `.github/workflows/ci.yml` |
+| RTI Code Generator | Bundled with Connext 7.7.0 | Generated source headers |
 | CMake | 3.17 | CMakeLists.txt |
 
 **When a dependency version changes:**
