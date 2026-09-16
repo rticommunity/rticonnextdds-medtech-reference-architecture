@@ -631,15 +631,11 @@ def revoke_certificate(
     """
     revoke_cert(issuer_cnf, issuer_key, issuer_cert, cert_path, cwd=issuer_cwd)
     if out_crl is not None:
-        return generate_crl(
-            issuer_cnf, issuer_key, issuer_cert, out_crl, cwd=issuer_cwd
-        )
+        return generate_crl(issuer_cnf, issuer_key, issuer_cert, out_crl, cwd=issuer_cwd)
     return None
 
 
-def scaffold_governance(
-    template: Path, out_xml: Path, context: dict | None = None
-) -> None:
+def scaffold_governance(template: Path, out_xml: Path, context: dict | None = None) -> None:
     """(l) Scaffold a governance XML file from *template*."""
     render_template(template, out_xml, context)
 
@@ -663,9 +659,7 @@ def sign_governance(
     return sign_xml(key_path, cert_path, xml_path, out_p7s)
 
 
-def scaffold_permissions(
-    template: Path, out_xml: Path, context: dict | None = None
-) -> None:
+def scaffold_permissions(template: Path, out_xml: Path, context: dict | None = None) -> None:
     """(n) Scaffold a permissions XML file from *template*."""
     render_template(template, out_xml, context)
 
