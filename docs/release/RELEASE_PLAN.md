@@ -244,22 +244,22 @@ message. In either case, the final merge must leave `main` ready to tag as
 ### 3. Create the Git Tag
 
 ```bash
-# Create an annotated tag (preferred — includes metadata)
+# Create an annotated tag (recommended — includes metadata)
 git tag -a vX.Y.Z -m "Release vX.Y.Z: <brief summary>"
 
 # Push the tag to the remote
 git push origin vX.Y.Z
 ```
 
-> **Important:** Always use annotated tags (`-a`), not lightweight tags. Annotated
-> tags store the tagger, date, and message — essential metadata for releases.
+> **Recommendation:** Use annotated tags (`-a`) because they store the tagger,
+> date, and release message. The release workflow also accepts lightweight tags.
 
 ### 4. Automated Verification and Publication
 
 Pushing a tag beginning with `v` starts the CI workflow against the exact tagged
 commit. After lint, build, and test jobs pass, the workflow:
 
-1. Verifies that the tag is an annotated SemVer tag using one of these forms:
+1. Verifies that the tag is a SemVer tag using one of these forms:
    `vX.Y.Z`, `vX.Y.Z-alpha.N`, `vX.Y.Z-beta.N`, or `vX.Y.Z-rc.N`
 2. Creates the GitHub Release and generates release notes from merged pull
    requests

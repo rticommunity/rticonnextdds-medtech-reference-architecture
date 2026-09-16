@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Added `--generate-resolved-qos` support for generating QoS files with absolute
   security-artifact paths.
 - Added automatic GitHub Release publication after successful CI for pushed,
-  annotated SemVer tags, including pre-release handling and generated notes.
+  SemVer tags, including pre-release handling and generated notes.
 
 ### Changed
 
