@@ -131,15 +131,18 @@ committing. In exceptional circumstances you can bypass hooks with
 | `git commit` | git hook (local) | All pre-commit hooks (lint, format, whitespace, clang-format, markdown via rumdl) |
 | `git push` / open PR | GitHub Actions | Full CI pipeline (see below) |
 | PR merge to `main` | Blocked until CI passes | — |
+| Push annotated `v*` tag | GitHub Actions | Full CI, then GitHub Release publication |
 
 ### CI pipeline (`.github/workflows/ci.yml`)
 
-The pipeline has two jobs; `test` runs only after `lint` passes:
+The pipeline has two CI jobs; `test` runs only after `lint` passes. A conditional
+`release` job runs only for pushed `v*` tags and only after `test` passes:
 
 | Job | What it does |
 | --- | --- |
 | `lint` (Lint & Format) | Runs **all** pre-commit hooks across the repo (`pre-commit/action` with `--all-files`) — the same ruff, ruff-format, codespell, clang-format, rumdl, and hygiene hooks you run locally. |
 | `test` (Build & Test) | Installs Connext (apt) and Python deps, builds all C++ modules with `python build.py`, generates the system and Module 04 security artifacts, starts Xvfb, then runs the full suite from the repo root with `python -m pytest -v -m "not build_pipeline"` and uploads `results.xml`. |
+| `release` (Publish GitHub Release) | Validates the annotated SemVer tag and publishes generated release notes. Pre-release tags are marked accordingly. |
 
 Because the `lint` job runs `pre-commit` itself, CI and your local hooks execute
 the **exact same** hook versions (pinned in `.pre-commit-config.yaml`). A clean
