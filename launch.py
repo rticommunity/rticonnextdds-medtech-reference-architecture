@@ -21,7 +21,10 @@ import platform
 import subprocess
 import sys
 import threading
+import time
+import urllib.error
 import urllib.parse
+import urllib.request
 import webbrowser
 from pathlib import Path
 
@@ -89,6 +92,23 @@ def _open_vscode_uri(vscode_uri: str) -> None:
         webbrowser.open(vscode_uri)
 
 
+def _open_when_ready(url: str, callback, title: str | None = None) -> None:
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=1) as response:
+                if response.status == 200:
+                    if title is None:
+                        callback(url)
+                    else:
+                        callback(url, title)
+                    return
+        except (OSError, urllib.error.URLError):
+            pass
+        time.sleep(0.25)
+    print(f"Web UI did not become ready: {url}", file=sys.stderr)
+
+
 def _apply_web_flag(module_name: str, commands: list[list[str]], *, vscode: bool = False) -> None:
     """Switch supported GUI apps to their browser-based UI and open their UIs.
 
@@ -125,12 +145,13 @@ def _apply_web_flag(module_name: str, commands: list[list[str]], *, vscode: bool
     urls = [url for _, url in opened_urls]
     destination = "VS Code tabs" if vscode else "browser tabs"
     print("Web UIs: " + ", ".join(urls) + f" (opening {destination} shortly...)")
-    for i, (title, url) in enumerate(opened_urls):
-        if vscode:
-            callback, callback_args = _open_vscode_tab, (url, title)
-        else:
-            callback, callback_args = webbrowser.open_new_tab, (url,)
-        threading.Timer(1.5 + i * 0.5, callback, args=callback_args).start()
+    for title, url in opened_urls:
+        callback = _open_vscode_tab if vscode else webbrowser.open_new_tab
+        threading.Thread(
+            target=_open_when_ready,
+            args=(url, callback, title if vscode else None),
+            daemon=True,
+        ).start()
 
 
 def _list_scenarios() -> None:
