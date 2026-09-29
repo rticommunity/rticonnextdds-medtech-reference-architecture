@@ -36,6 +36,7 @@ def test_web_server_head_static_file(tmp_path):
     try:
         connection.request("HEAD", "/")
         response = connection.getresponse()
+        assert response.version == 11
         assert response.status == 200
         assert response.getheader("Content-Type") == "text/html"
         assert response.getheader("Content-Length") == "13"

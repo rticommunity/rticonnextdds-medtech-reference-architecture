@@ -29,6 +29,8 @@ from typing import Callable
 
 
 class _Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
     def __init__(self, *args, web_dir: Path, get_state: Callable[[], dict], **kwargs):
         self._web_dir = web_dir
         self._get_state = get_state
