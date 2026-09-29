@@ -15,11 +15,40 @@ Ensures that ``module_runner.load_module_config()`` produces a correct
 environment and that all referenced XML files actually exist.
 """
 
+import http.client
+import importlib.util
 from pathlib import Path
 
 import pytest
 from module01_test_support import MODULE_DIR
 from scripts import module_runner, platform_setup
+
+
+def test_web_server_head_static_file(tmp_path):
+    module_path = MODULE_DIR / "src" / "web_server_utils.py"
+    spec = importlib.util.spec_from_file_location("web_server_utils", module_path)
+    web_server_utils = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(web_server_utils)
+
+    (tmp_path / "index.html").write_text("webview ready")
+    server = web_server_utils.start_web_server(tmp_path, lambda: {}, 0)
+    connection = http.client.HTTPConnection("127.0.0.1", server.server_port)
+    try:
+        connection.request("HEAD", "/")
+        response = connection.getresponse()
+        assert response.status == 200
+        assert response.getheader("Content-Type") == "text/html"
+        assert response.getheader("Content-Length") == "13"
+        assert response.read() == b""
+
+        connection.request("GET", "/")
+        response = connection.getresponse()
+        assert response.status == 200
+        assert response.read() == b"webview ready"
+    finally:
+        connection.close()
+        server.shutdown()
+        server.server_close()
 
 # ---------------------------------------------------------------------------
 # module_runner.load_module_config()

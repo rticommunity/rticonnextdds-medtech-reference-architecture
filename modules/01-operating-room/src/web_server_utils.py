@@ -50,7 +50,10 @@ class _Handler(BaseHTTPRequestHandler):
 
         self._serve_static()
 
-    def _serve_static(self):
+    def do_HEAD(self):
+        self._serve_static(send_body=False)
+
+    def _serve_static(self, send_body=True):
         rel_path = self.path.split("?", 1)[0].lstrip("/")
         if rel_path == "":
             rel_path = "index.html"
@@ -78,7 +81,8 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        if send_body:
+            self.wfile.write(body)
 
 
 def start_web_server(web_dir: Path, get_state: Callable[[], dict], port: int) -> ThreadingHTTPServer:
