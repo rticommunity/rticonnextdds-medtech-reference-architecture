@@ -10,6 +10,9 @@ This local VS Code extension receives the URLs emitted by `launch.py --vscode` a
 	- Bottom-left: Orchestrator
 	- Bottom-right: Patient Monitor
 - Closes only these MedTech web tabs when the launcher exits, including after `Ctrl+C`.
+- Closing a device tab manually kills its launcher-owned process, stopping DDS heartbeats.
+	Keep Orchestrator open to observe the disconnect; the tutorial's Restore button starts
+	only the stopped device. Plain browser tabs (`--web`) do not have this behavior.
 - Accepts only HTTP(S) URLs hosted at `localhost`, `127.0.0.1`, or `::1`.
 
 ## Install or update

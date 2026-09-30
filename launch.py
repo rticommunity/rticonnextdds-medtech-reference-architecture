@@ -17,15 +17,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 import webbrowser
+from functools import partial
 from pathlib import Path
 
 try:
@@ -73,15 +77,38 @@ def _resolve_module(
     return commands, module_dir, env
 
 
-def _open_vscode_tab(url: str, title: str) -> None:
+def _open_vscode_tab(url: str, title: str, *, close_token: str | None = None) -> None:
     """Open a localhost app in the MedTech VS Code web-tab extension."""
-    query = urllib.parse.urlencode({"url": url, "title": title})
+    parameters = {"url": url, "title": title}
+    if close_token is not None:
+        parameters["closeToken"] = close_token
+    query = urllib.parse.urlencode(parameters)
     _open_vscode_uri(f"vscode://rti.medtech-web-tabs/open?{query}")
 
 
-def _close_vscode_tabs() -> None:
-    """Close all MedTech webview tabs in VS Code."""
-    _open_vscode_uri("vscode://rti.medtech-web-tabs/close")
+def _watch_tab_closures(children, close_tokens, stopped, state_dir=None) -> None:
+    """Consume one-shot close requests for this launch's exact child processes."""
+    if state_dir is None:
+        state_dir = Path(tempfile.gettempdir()) / f"medtech-web-tabs-{os.getuid()}"
+    pending = dict(close_tokens)
+    while pending and not stopped.wait(0.1):
+        for index, token in list(pending.items()):
+            request = state_dir / f"{token}.close"
+            child = children[index]
+            if request.exists():
+                if child.poll() is None:
+                    child.kill()
+                request.unlink(missing_ok=True)
+                del pending[index]
+            elif child.poll() is not None:
+                del pending[index]
+
+
+def _close_vscode_tabs(titles: list[str] | None = None) -> None:
+    """Close the specified MedTech tabs, or all tabs for a full demo launch."""
+    for title in titles or [None]:
+        query = "?" + urllib.parse.urlencode({"title": title}) if title else ""
+        _open_vscode_uri(f"vscode://rti.medtech-web-tabs/close{query}")
 
 
 def _open_vscode_uri(vscode_uri: str) -> None:
@@ -109,7 +136,10 @@ def _open_when_ready(url: str, callback, title: str | None = None) -> None:
     print(f"Web UI did not become ready: {url}", file=sys.stderr)
 
 
-def _apply_web_flag(module_name: str, commands: list[list[str]], *, vscode: bool = False) -> None:
+def _apply_web_flag(
+    module_name: str, commands: list[list[str]], *, vscode: bool = False,
+    close_tokens: dict[int, str] | None = None,
+) -> None:
     """Switch supported GUI apps to their browser-based UI and open their UIs.
 
     Only 01-operating-room's Orchestrator, ArmController, Arm, and
@@ -128,25 +158,33 @@ def _apply_web_flag(module_name: str, commands: list[list[str]], *, vscode: bool
         "PatientMonitor.py": 8093,
     }
 
-    opened_urls: list[tuple[str, str]] = []
-    for cmd in commands:
+    opened_urls: list[tuple[str, str, str | None]] = []
+    for index, cmd in enumerate(commands):
         if not cmd:
             continue
         for app_name, port in web_ports.items():
             if any(Path(part).name == app_name for part in cmd):
                 cmd.extend(["--web", "--port", str(port)])
-                opened_urls.append((app_name.removesuffix(".py"), f"http://localhost:{port}/"))
+                token = None
+                if vscode and close_tokens is not None:
+                    token = uuid.uuid4().hex
+                    close_tokens[index] = token
+                opened_urls.append(
+                    (app_name.removesuffix(".py"), f"http://localhost:{port}/", token)
+                )
                 break
 
     if not opened_urls:
         print("Note: --web has no effect since no web-capable app was launched.")
         return
 
-    urls = [url for _, url in opened_urls]
+    urls = [url for _, url, _ in opened_urls]
     destination = "VS Code tabs" if vscode else "browser tabs"
     print("Web UIs: " + ", ".join(urls) + f" (opening {destination} shortly...)")
-    for title, url in opened_urls:
-        callback = _open_vscode_tab if vscode else webbrowser.open_new_tab
+    for title, url, token in opened_urls:
+        callback = (
+            partial(_open_vscode_tab, close_token=token) if vscode else webbrowser.open_new_tab
+        )
         threading.Thread(
             target=_open_when_ready,
             args=(url, callback, title if vscode else None),
@@ -269,13 +307,30 @@ def main() -> None:
         cmds, mod_dir, env = _resolve_module(args.module, args.apps or None, args.security)
         app_label = ", ".join(args.apps) if args.apps else "all"
         print(f"Launching from {args.module}: {app_label}")
+        close_tokens = {}
+        stopped = threading.Event()
+        watchers = []
+
+        def watch_children(children):
+            watcher = threading.Thread(
+                target=_watch_tab_closures, args=(children, close_tokens, stopped), daemon=True
+            )
+            watchers.append(watcher)
+            watcher.start()
+
         if args.web or args.vscode:
-            _apply_web_flag(args.module, cmds, vscode=args.vscode)
+            _apply_web_flag(args.module, cmds, vscode=args.vscode, close_tokens=close_tokens)
         try:
-            module_runner.launch(cmds, mod_dir, env)
-        finally:
             if args.vscode:
-                _close_vscode_tabs()
+                module_runner.launch(cmds, mod_dir, env, on_started=watch_children)
+            else:
+                module_runner.launch(cmds, mod_dir, env)
+        finally:
+            stopped.set()
+            for watcher in watchers:
+                watcher.join()
+            if args.vscode:
+                _close_vscode_tabs(args.apps or None)
 
     else:
         parser.error("Specify a module or --scenario")
