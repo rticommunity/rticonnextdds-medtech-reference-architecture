@@ -2,7 +2,7 @@
 
 Module 01 simulates a Digital Operating Room.
 
-The applications have been tested to work in Debian-based environments with a GUI, including those in [WSL2 with GUI support](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps#install-support-for-linux-gui-apps) (Windows 10 and 11), as well as on macOS.
+The applications serve browser-based UIs without a desktop display, GTK, Qt, NumPy, or pyqtgraph. A clean Linux cloud-image build and real DDS runtime have been validated.
 
 All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
 
@@ -50,7 +50,7 @@ The *Orchestrator* application primarily acts as a system application state obse
 
 It displays current device statuses, presents buttons to administer device commands, and shows an "Alerts" panel to display observed events.
 
-The Orchestrator also supports a browser-based UI as an alternative to the native GTK window — see [Web UI mode](#web-ui-mode) below.
+All four interactive devices use browser-based UIs; native GTK/Qt device windows have been removed on this branch.
 
 ## Setup and Installation
 
@@ -91,7 +91,7 @@ python3 launch.py 01-operating-room -s
 
 ### Web UI mode
 
-The *Orchestrator*, *ArmController*, *Arm*, and *PatientMonitor* applications can run headless with browser-based UIs instead of their native GTK/Qt windows — useful when a display/desktop environment isn't available (e.g. remote or cloud-hosted evaluation). Pass `--web` to `launch.py`:
+The *Orchestrator*, *ArmController*, *Arm*, and *PatientMonitor* applications always start headless HTTP servers on ports 8090, 8091, 8092, and 8093 respectively. With no UI flag, open those URLs manually. Pass `--web` to `launch.py` to open browser tabs automatically:
 
 ```bash
 # From the repository root

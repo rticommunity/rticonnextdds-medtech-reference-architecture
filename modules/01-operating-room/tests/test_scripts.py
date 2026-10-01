@@ -17,11 +17,36 @@ environment and that all referenced XML files actually exist.
 
 import http.client
 import importlib.util
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 from module01_test_support import MODULE_DIR
 from scripts import module_runner, platform_setup
+
+
+@pytest.mark.parametrize("module, app_class", [("Arm", "ArmApp"), ("PatientMonitor", "PatientMonitorApp")])
+def test_web_backend_imports_without_desktop_dependencies(module, app_class):
+    code = f"""
+import importlib
+import importlib.abc
+import sys
+
+class RejectDesktop(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path, target=None):
+        if fullname.split('.')[0] in {{'PySide6', 'pyqtgraph', 'numpy'}}:
+            raise AssertionError(f'Unexpected desktop dependency: {{fullname}}')
+
+sys.meta_path.insert(0, RejectDesktop())
+app = getattr(importlib.import_module({module!r}), {app_class!r})()
+assert callable(app.run_web)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], cwd=MODULE_DIR / "src",
+        capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_web_server_head_static_file(tmp_path):
