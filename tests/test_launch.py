@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import os
 import subprocess
 import sys
@@ -15,6 +16,17 @@ from urllib.error import URLError
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 launch = importlib.import_module("launch")
+
+
+def test_cloud_uri_is_queued_without_desktop_browser(monkeypatch, tmp_path):
+    monkeypatch.setenv("MEDTECH_CLOUD", "1")
+    monkeypatch.setattr(launch.tempfile, "gettempdir", lambda: str(tmp_path))
+    uri = "vscode://rti.medtech-web-tabs/open?url=http%3A%2F%2Flocalhost%3A8092%2F&title=Arm"
+    launch._open_vscode_uri(uri)
+    requests = list((tmp_path / f"medtech-web-tabs-{os.getuid()}" / "requests").iterdir())
+    assert len(requests) == 1
+    assert requests[0].suffix == ".json"
+    assert json.loads(requests[0].read_text()) == {"uri": uri}
 
 
 def test_tab_close_kills_only_its_owned_process(tmp_path):

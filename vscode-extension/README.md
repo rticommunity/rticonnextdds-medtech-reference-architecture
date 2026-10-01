@@ -1,14 +1,10 @@
 # MedTech Web Tabs
 
-This local VS Code extension receives the URLs emitted by `launch.py --vscode` and opens each Digital Operating Room UI in VS Code editor tabs.
+This VS Code extension receives the URLs emitted by `launch.py --vscode` and opens each Digital Operating Room UI in editor tabs. In code-server it also provides a native guided tutorial side panel.
 
 ## What it does
 
-- Opens the four browser-based Digital Operating Room applications in a 2x2 editor grid:
-	- Top-left: Arm Controller
-	- Top-right: Surgical Arm Monitor
-	- Bottom-left: Orchestrator
-	- Bottom-right: Patient Monitor
+- Opens Arm Controller, Surgical Arm Monitor, Orchestrator, and Patient Monitor in a 2x2 editor grid.
 - Closes only these MedTech web tabs when the launcher exits, including after `Ctrl+C`.
 - Closing a device tab manually kills its launcher-owned process, stopping DDS heartbeats.
 	Keep Orchestrator open to observe the disconnect; the tutorial's Restore button starts
@@ -39,6 +35,22 @@ python3 launch.py 01-operating-room --vscode
 ```
 
 The launcher starts the web apps and opens the four tabs in the configured grid. Use `Ctrl+C` in that launcher terminal to stop the apps and close the MedTech tabs.
+
+## Cloud IDE
+
+Open the browser IDE at `http://127.0.0.1:8080/?folder=/config/workspace`, trust this
+workspace, and run `./tutorial/launch_all.sh --cloud` from `/config/workspace` once.
+The launcher installs this extension directly into `/config/extensions`. Reload the
+browser IDE once after an initial installation or update if the Digital Operating
+Room activity icon is missing, and select that icon before launching when multiple
+IDE windows are open.
+
+The ten-step tutorial lives in a native side panel; device frames use code-server's
+`/proxy/<port>/` routes. Launcher requests are atomically queued in the container's
+temporary directory, with a single focused extension host consuming them. No
+desktop `vscode://` URI handler is needed. Tab closure and Restore controls retain
+their DDS process lifecycle behavior. Stop the launch terminal with Ctrl+C before
+starting another demo; merely closing a separate browser page does not stop it.
 
 ## Troubleshooting
 

@@ -11,7 +11,16 @@
     "Other"
   ],
   "activationEvents": [
-    "onUri"
+    "onUri",
+    "onStartupFinished"
   ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [{ "id": "medtech-tutorial", "title": "Digital Operating Room", "icon": "tutorial.svg" }]
+    },
+    "views": {
+      "medtech-tutorial": [{ "id": "rti.medtechTutorial", "name": "Tutorial", "type": "webview" }]
+    }
+  },
   "main": "./extension.js"
 }

@@ -17,6 +17,11 @@ const demoPanels = new Set();
 const appPanels = new Map();
 const appColumns = new Map();
 const tabStateDir = path.join(os.tmpdir(), `medtech-web-tabs-${process.getuid()}`);
+const cloudWorkspace = fs.existsSync("/app/code-server");
+
+function cloudTargetUrl(targetUrl, origin = process.env.MEDTECH_CLOUD_URL || "http://127.0.0.1:8080") {
+    return new URL(`${origin.replace(/\/$/, "")}/proxy/${targetUrl.port}${targetUrl.pathname}${targetUrl.search}`);
+}
 
 function tabStatePath(title) {
     return path.join(tabStateDir, title);
@@ -83,8 +88,24 @@ function createAppPanel(title, targetUrl, closeToken) {
 }
 
 function activate(context) {
-    context.subscriptions.push(vscode.window.registerUriHandler({
+    let tutorialView;
+    if (cloudWorkspace) {
+        const { TutorialView } = require("./tutorial-view");
+        tutorialView = new TutorialView(context);
+        context.subscriptions.push(vscode.window.registerWebviewViewProvider("rti.medtechTutorial", tutorialView, {
+            webviewOptions: { retainContextWhenHidden: true },
+        }));
+        context.subscriptions.push({ dispose: () => tutorialView.stop() });
+    }
+    const uriHandler = {
         async handleUri(uri) {
+            if (uri.path === "/tutorial" && tutorialView) {
+                tutorialView.secure = new URLSearchParams(uri.query).get("secure") === "1";
+                tutorialView.active = true;
+                tutorialView.startupDeadline = Date.now() + 15000;
+                await vscode.commands.executeCommand("rti.medtechTutorial.focus");
+                return;
+            }
             if (uri.path === "/close") {
                 const title = new URLSearchParams(uri.query).get("title");
                 if (title) {
@@ -94,6 +115,7 @@ function activate(context) {
                         panel.dispose();
                     }
                 } else {
+                    tutorialView?.stop();
                     for (const panel of demoPanels) {
                         panel.closedByLauncher = true;
                         panel.dispose();
@@ -133,6 +155,9 @@ function activate(context) {
             }
 
             const title = requestedTitle || targetUrl.host;
+            if (cloudWorkspace) {
+                targetUrl = cloudTargetUrl(targetUrl);
+            }
             if (APP_VIEW_COLUMNS[title]) {
                 await createDemoGrid();
             }
@@ -180,7 +205,39 @@ function activate(context) {
                 createAppPanel(title, targetUrl, closeToken);
             }
         }
-    }));
+    };
+    context.subscriptions.push(vscode.window.registerUriHandler(uriHandler));
+    if (cloudWorkspace) {
+        const requests = path.join(tabStateDir, "requests");
+        fs.mkdirSync(requests, { recursive: true });
+        const owner = path.join(tabStateDir, "owner");
+        const claim = () => fs.writeFileSync(owner, String(process.pid));
+        tutorialView.claim = claim;
+        claim();
+        context.subscriptions.push(vscode.window.onDidChangeWindowState(state => {
+            if (state.focused) claim();
+        }));
+        let busy = false;
+        const timer = setInterval(async () => {
+            if (busy || fs.readFileSync(owner, "utf8") !== String(process.pid)) return;
+            busy = true;
+            try {
+                for (const name of fs.readdirSync(requests).filter(name => name.endsWith(".json")).sort()) {
+                    const file = path.join(requests, name);
+                    const request = JSON.parse(fs.readFileSync(file, "utf8"));
+                    fs.unlinkSync(file);
+                    const uri = new URL(request.uri);
+                    if (uri.protocol !== "vscode:" || uri.hostname !== "rti.medtech-web-tabs") continue;
+                    await uriHandler.handleUri({ path: uri.pathname, query: uri.search.slice(1) });
+                }
+            } catch (error) {
+                vscode.window.showErrorMessage(`MedTech launcher: ${error.message}`);
+            } finally {
+                busy = false;
+            }
+        }, 200);
+        context.subscriptions.push({ dispose: () => clearInterval(timer) });
+    }
 }
 
 function webviewHtml(targetUrl, title) {
@@ -203,4 +260,4 @@ function deactivate() {
     }
 }
 
-module.exports = { activate, deactivate };
+module.exports = { activate, deactivate, cloudTargetUrl };

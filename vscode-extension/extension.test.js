@@ -5,6 +5,130 @@ const path = require("node:path");
 const vm = require("node:vm");
 const test = require("node:test");
 
+test("cloud frames use code-server proxy paths on port 8080", () => {
+    const sandbox = {
+        module: { exports: {} }, process, URL, URLSearchParams,
+        require(name) {
+            if (name === "vscode") return { ViewColumn: {} };
+            return require(name);
+        },
+    };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, "extension.js"), "utf8"), sandbox);
+    assert.equal(sandbox.module.exports.cloudTargetUrl(new URL("http://localhost:8092/")).href,
+        "http://127.0.0.1:8080/proxy/8092/");
+});
+
+test("tutorial sidebar includes all steps, recovery, and escaped file actions", () => {
+    const sandbox = {
+        module: { exports: {} },
+        require(name) { return name === "vscode" ? {} : require(name); },
+    };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, "tutorial-view.js"), "utf8"), sandbox);
+    const tutorial = JSON.parse(fs.readFileSync(path.join(__dirname, "../../tutorial/digital-or-tutorial.json"), "utf8"));
+    tutorial.steps[0].body.push("<script>unsafe</script>");
+    const html = sandbox.module.exports.tutorialHtml(tutorial);
+    assert.equal((html.match(/<details /g) || []).length, 10);
+    assert.equal((html.match(/<button data-action="restore"/g) || []).length, 4);
+    assert.ok(html.includes("Open Types.xml"));
+    assert.ok(html.includes("&lt;script&gt;unsafe&lt;/script&gt;"));
+    assert.ok(!html.includes("<script>unsafe"));
+});
+
+test("only the focused cloud extension host consumes launcher requests", async () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "medtech-owner-test-"));
+    const hosts = [];
+    try {
+        for (const pid of [101, 202]) {
+            const host = { commands: [] };
+            const vscode = {
+                ViewColumn: {},
+                commands: { executeCommand: async name => host.commands.push(name) },
+                window: {
+                    registerUriHandler: () => ({}), registerWebviewViewProvider: () => ({}),
+                    onDidChangeWindowState(callback) { host.focus = callback; return {}; },
+                    showErrorMessage(message) { throw new Error(message); },
+                },
+            };
+            const sandbox = {
+                module: { exports: {} }, URL, URLSearchParams,
+                process: { pid, getuid: process.getuid, env: {} },
+                setInterval(callback) { host.tick = callback; return 1; }, clearInterval() {},
+                require(name) {
+                    if (name === "vscode") return vscode;
+                    if (name === "./tutorial-view") return { TutorialView: class { stop() {} } };
+                    if (name === "os") return { tmpdir: () => directory };
+                    if (name === "fs") return { ...fs, existsSync: file => file === "/app/code-server" || fs.existsSync(file) };
+                    return require(name);
+                },
+            };
+            vm.runInNewContext(fs.readFileSync(path.join(__dirname, "extension.js"), "utf8"), sandbox);
+            sandbox.module.exports.activate({ subscriptions: [] });
+            hosts.push(host);
+        }
+        const requests = path.join(directory, `medtech-web-tabs-${process.getuid()}`, "requests");
+        const send = () => fs.writeFileSync(path.join(requests, "test.json"), JSON.stringify({ uri: "vscode://rti.medtech-web-tabs/tutorial" }));
+        send();
+        await hosts[0].tick();
+        assert.equal(hosts[0].commands.length, 0);
+        await hosts[1].tick();
+        assert.deepEqual(hosts[1].commands, ["rti.medtechTutorial.focus"]);
+        hosts[0].focus({ focused: true });
+        send();
+        await hosts[1].tick();
+        await hosts[0].tick();
+        assert.deepEqual(hosts[0].commands, ["rti.medtechTutorial.focus"]);
+        assert.equal(hosts[1].commands.length, 1);
+    } finally {
+        fs.rmSync(directory, { recursive: true, force: true });
+    }
+});
+
+test("sidebar recovery cannot start devices before a full demo launch", async () => {
+    let spawned = false;
+    const sandbox = {
+        module: { exports: {} },
+        require(name) {
+            if (name === "vscode") return {};
+            if (name === "child_process") return { spawn() { spawned = true; } };
+            return require(name);
+        },
+    };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, "tutorial-view.js"), "utf8"), sandbox);
+    const view = new sandbox.module.exports.TutorialView({ subscriptions: [] });
+    await view.handleMessage({ action: "restore", name: "Arm" });
+    assert.equal(spawned, false);
+    assert.equal(view.active, false);
+});
+
+test("restored devices have owned process groups that shutdown stops together", async () => {
+    const signals = [];
+    let options;
+    const sandbox = {
+        module: { exports: {} },
+        process: { env: {}, kill: (pid, signal) => signals.push([pid, signal]) },
+        require(name) {
+            if (name === "vscode") return {};
+            if (name === "http") return { get: () => ({
+                setTimeout() {}, on(_event, callback) { callback({ code: "ECONNREFUSED" }); },
+            }) };
+            if (name === "child_process") return { spawn(_command, _args, value) {
+                options = value;
+                return { pid: 12345, exitCode: null, on() {} };
+            } };
+            return require(name);
+        },
+    };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, "tutorial-view.js"), "utf8"), sandbox);
+    const view = new sandbox.module.exports.TutorialView({ subscriptions: [] });
+    view.root = "/workspace";
+    view.active = true;
+    await view.handleMessage({ action: "restore", name: "Arm" });
+    assert.equal(options.detached, true);
+    view.stop();
+    assert.deepEqual(signals, [[-12345, "SIGTERM"]]);
+    assert.equal(view.active, false);
+});
+
 test("concurrent opens reuse one panel and disposal explicitly reports closed", async () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "medtech-tabs-test-"));
     const panels = [];

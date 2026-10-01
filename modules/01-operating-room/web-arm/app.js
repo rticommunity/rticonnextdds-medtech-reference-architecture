@@ -162,7 +162,7 @@ function drawArm(angles) {
 
 async function pollState() {
     try {
-        const res = await fetch("/api/state", { cache: "no-store" });
+        const res = await fetch("api/state", { cache: "no-store" });
         if (!res.ok) return;
         const state = await res.json();
         consecutiveFailures = 0;

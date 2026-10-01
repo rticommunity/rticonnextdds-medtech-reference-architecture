@@ -113,7 +113,14 @@ def _close_vscode_tabs(titles: list[str] | None = None) -> None:
 
 def _open_vscode_uri(vscode_uri: str) -> None:
     """Dispatch a URI to the MedTech VS Code extension."""
-    if platform.system() == "Darwin":
+    if os.environ.get("MEDTECH_CLOUD") == "1":
+        requests = Path(tempfile.gettempdir()) / f"medtech-web-tabs-{os.getuid()}" / "requests"
+        requests.mkdir(parents=True, exist_ok=True)
+        request = requests / f"{time.time_ns()}-{uuid.uuid4().hex}.json"
+        pending = request.with_suffix(".tmp")
+        pending.write_text(json.dumps({"uri": vscode_uri}))
+        pending.replace(request)
+    elif platform.system() == "Darwin":
         subprocess.run(["open", "-a", "Visual Studio Code", vscode_uri], check=False)
     else:
         webbrowser.open(vscode_uri)

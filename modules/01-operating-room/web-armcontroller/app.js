@@ -113,7 +113,7 @@ function renderAlerts(alerts) {
 
 async function pollState() {
     try {
-        const res = await fetch("/api/state", { cache: "no-store" });
+        const res = await fetch("api/state", { cache: "no-store" });
         if (!res.ok) return;
         const state = await res.json();
         consecutiveFailures = 0;
@@ -130,7 +130,7 @@ async function pollState() {
 
 async function sendMotor(motorId, action) {
     try {
-        await fetch("/api/motor", {
+        await fetch("api/motor", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ motor: motorId, action }),
@@ -142,7 +142,7 @@ async function sendMotor(motorId, action) {
 
 async function sendPlay(motorId, active) {
     try {
-        await fetch("/api/play", {
+        await fetch("api/play", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ motor: motorId, active }),
@@ -154,7 +154,7 @@ async function sendPlay(motorId, active) {
 
 async function sendPlayAll(active) {
     try {
-        await fetch("/api/play_all", {
+        await fetch("api/play_all", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ active }),

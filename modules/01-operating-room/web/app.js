@@ -99,7 +99,7 @@ function renderAlerts(alerts) {
 
 async function pollState() {
     try {
-        const res = await fetch("/api/state", { cache: "no-store" });
+        const res = await fetch("api/state", { cache: "no-store" });
         if (!res.ok) return;
         const state = await res.json();
         consecutiveFailures = 0;
@@ -116,7 +116,7 @@ async function pollState() {
 async function sendCommand(command) {
     if (!selectedDevice) return;
     try {
-        await fetch("/api/command", {
+        await fetch("api/command", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ device: selectedDevice, command }),
