@@ -52,8 +52,10 @@ The ten-step tutorial lives in a native side panel; device frames use code-serve
 `/proxy/<port>/` routes. Launcher requests are atomically queued in the container's
 temporary directory, with a single focused extension host consuming them. No
 desktop `vscode://` URI handler is needed. Device recovery is controlled by Orchestrator
-Start, not the tutorial sidebar. Stop the launch terminal with Ctrl+C before
-starting another demo; merely closing a separate browser page does not stop it.
+Start, not the tutorial sidebar. After setup, `launch_all.sh` runs the demo in the
+background and returns the terminal prompt. Use `./tutorial/stop_all.sh` to stop
+it or `./tutorial/restart_all.sh` to restart it. Closing a terminal or separate
+browser page does not stop the background demo.
 
 ## Troubleshooting
 

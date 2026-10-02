@@ -4,11 +4,13 @@
 // cloud-IDE port-forwarding proxy) that may not support the WS upgrade.
 
 const DEVICE_LABELS = {
-    ARM: "Arm",
     ARM_CONTROLLER: "Arm Controller",
     PATIENT_SENSOR: "Patient Sensor",
+    ARM: "Arm",
     PATIENT_MONITOR: "Patient Monitor",
 };
+
+const DEVICE_ORDER = new Map(Object.keys(DEVICE_LABELS).map((id, index) => [id, index]));
 
 const POLL_INTERVAL_MS = 250;
 
@@ -82,7 +84,9 @@ function statusClass(status) {
 
 function renderDevices(devices) {
     devicesEl.innerHTML = "";
-    devices.forEach((device) => {
+    const orderedDevices = [...devices].sort((left, right) =>
+        (DEVICE_ORDER.get(left.id) ?? DEVICE_ORDER.size) - (DEVICE_ORDER.get(right.id) ?? DEVICE_ORDER.size));
+    orderedDevices.forEach((device) => {
         deviceStatuses.set(device.id, device.status);
         const deadline = startingDevices.get(device.id);
         if (deadline && (device.status.includes("ON") || device.status.includes("PAUSED") || Date.now() > deadline)) {

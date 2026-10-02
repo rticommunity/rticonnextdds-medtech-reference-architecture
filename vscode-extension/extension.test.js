@@ -81,6 +81,29 @@ function tutorialModule(vscode) {
     return sandbox.module.exports;
 }
 
+test("Orchestrator device grid keeps the requested order regardless of API order", () => {
+    const cards = [];
+    const element = () => ({ textContent: "", classList: { toggle() {} }, addEventListener() {}, appendChild() {}, dataset: {} });
+    const devicesEl = { appendChild(card) { cards.push(card); }, set innerHTML(value) { cards.length = 0; } };
+    const sandbox = {
+        window: { addEventListener() {} },
+        document: { getElementById: id => id === "devices" ? devicesEl : element(), createElement: element },
+        fetch: async () => ({ ok: false }), setInterval() {}, console,
+    };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../modules/01-operating-room/web/app.js"), "utf8"), sandbox);
+    const expected = ["ARM_CONTROLLER", "PATIENT_SENSOR", "ARM", "PATIENT_MONITOR"];
+    for (const order of [["ARM", "ARM_CONTROLLER", "PATIENT_MONITOR", "PATIENT_SENSOR"], [...expected].reverse()]) {
+        const devices = Object.freeze(order.map(id => Object.freeze({ id, status: "ON" })));
+        sandbox.renderDevices(devices);
+        assert.deepEqual(cards.map(card => card.dataset.deviceId), expected);
+        assert.deepEqual(devices.map(device => device.id), order);
+        cards[2].classList.toggle = (_name, selected) => assert.equal(selected, true);
+        sandbox.document.querySelectorAll = () => cards;
+        sandbox.selectDevice("ARM");
+        cards[2].classList.toggle = () => {};
+    }
+});
+
 test("Orchestrator Start uses recovery for stopped apps and DDS for running apps", async () => {
     for (const [state, deviceStatus, shutdownRequested] of [["starting", "OFF"], ["running", "PAUSED"], ["unknown", "OFF"], ["starting", "ON", true]]) {
         const elements = new Map();
