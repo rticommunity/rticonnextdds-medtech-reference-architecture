@@ -6,8 +6,8 @@ const path = require("path");
 const LOCALHOST_NAMES = new Set(["localhost", "127.0.0.1", "::1"]);
 const APP_VIEW_COLUMNS = {
     ArmController: vscode.ViewColumn.One,
-    Arm: vscode.ViewColumn.Two,
-    Orchestrator: vscode.ViewColumn.Three,
+    Arm: vscode.ViewColumn.Three,
+    Orchestrator: vscode.ViewColumn.Two,
     PatientMonitor: vscode.ViewColumn.Four,
 };
 const DEMO_GRID_LAYOUT = {
@@ -156,8 +156,17 @@ function activate(context) {
                 await vscode.commands.executeCommand("rti.medtechTutorial.focus");
                 return;
             }
-            if (uri.path === "/close") {
-                const title = new URLSearchParams(uri.query).get("title");
+            if (uri.path === "/close" || uri.path === "/close-owned") {
+                const parameters = new URLSearchParams(uri.query);
+                const token = parameters.get("closeToken");
+                if (uri.path === "/close-owned" && token === null) return;
+                let title = parameters.get("title");
+                if (token !== null) {
+                    if (!/^[a-f0-9]{32}$/.test(token)) return;
+                    const owned = [...appPanels].find(([, panel]) => panel.closeToken === token);
+                    if (!owned) return;
+                    title = owned[0];
+                }
                 if (title) {
                     const panel = appPanels.get(title);
                     if (panel) {

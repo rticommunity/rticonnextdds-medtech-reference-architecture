@@ -59,6 +59,17 @@ def test_tab_close_kills_only_its_owned_process(tmp_path):
             child.stdin.close()
 
 
+def test_exited_child_closes_only_its_owned_tab(monkeypatch, tmp_path):
+    uris = []
+    monkeypatch.setattr(launch, "_open_vscode_uri", uris.append)
+    child = subprocess.Popen([sys.executable, "-c", "pass"])
+    child.wait(timeout=5)
+    stopped = threading.Event()
+    token = "a" * 32
+    launch._watch_tab_closures([child], {0: token}, stopped, tmp_path)
+    assert uris == [f"vscode://rti.medtech-web-tabs/close-owned?closeToken={token}"]
+
+
 def test_sensor_process_record_tracks_exit_without_a_web_port(tmp_path):
     state = {"returncode": None}
     child = SimpleNamespace(pid=12345, poll=lambda: state["returncode"])

@@ -7,6 +7,9 @@
 
 body {
     margin: 0;
+    height: 100dvh;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
     background-color: #0A0E17;
     color: #C8D8E8;
     font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -15,20 +18,18 @@ body {
 header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 20px;
+    gap: 8px;
+    padding: 8px 12px;
     background-color: #071020;
     border-bottom: 2px solid #004C97;
 }
 
-header .brand { color: #004C97; font-size: 22px; font-weight: bold; }
-header .sep { color: #334455; font-size: 26px; }
-header .title { color: #E0E8F0; font-size: 26px; font-weight: bold; flex: 1; }
+header .title { color: #E0E8F0; font-size: 18px; font-weight: bold; flex: 1; min-width: 0; }
 
 #device-status {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: bold;
-    padding: 4px 10px;
+    padding: 3px 8px;
     border-radius: 12px;
 }
 
@@ -54,15 +55,18 @@ header .title { color: #E0E8F0; font-size: 26px; font-weight: bold; flex: 1; }
 
 main {
     display: grid;
-    grid-template-columns: 1fr 320px;
-    gap: 20px;
-    padding: 20px;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px;
+    min-height: 0;
 }
 
 .joints {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
+    min-width: 0;
 }
 
 .joint-row {
@@ -71,11 +75,11 @@ main {
     border-radius: 6px;
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 10px 16px;
+    gap: 8px;
+    padding: 10px;
 }
 
-.joint-name { font-size: 22px; font-weight: bold; min-width: 130px; }
+.joint-name { font-size: 18px; font-weight: bold; flex: 1; min-width: 0; }
 .joint-name.BASE { color: #004C97; }
 .joint-name.SHOULDER { color: #ED8B00; }
 .joint-name.ELBOW { color: #00BFFF; }
@@ -84,15 +88,15 @@ main {
 
 .joint-angle {
     font-family: "Courier New", monospace;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: bold;
     min-width: 70px;
 }
 
 .joint-dir {
-    font-size: 14px;
+    font-size: 11px;
     font-weight: bold;
-    padding: 3px 8px;
+    padding: 3px 4px;
     border-radius: 4px;
 }
 
@@ -100,8 +104,42 @@ main {
 .joint-dir.DECREMENT { color: #FF4444; background-color: #1A0505; }
 .joint-dir.STATIONARY { color: #445566; background-color: #0F151C; }
 
-#arm-viz {
+.arm-visualization {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
     background-color: #0F1822;
     border: 1px solid #1A2A3A;
     border-radius: 6px;
+}
+
+.viz-toolbar { display: flex; align-items: center; gap: 4px; padding: 6px 8px; }
+.viz-toolbar h2 { flex: 1; min-width: 0; margin: 0; font-size: 11px; color: #8899AA; }
+.viz-toolbar button {
+    min-width: 28px;
+    height: 28px;
+    padding: 2px 6px;
+    font-size: 14px;
+    color: #C8D8E8;
+    background-color: #1A2A3A;
+    border: 1px solid #334455;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#arm-viz {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    touch-action: none;
+    cursor: grab;
+}
+
+@media (max-width: 480px) {
+    main { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); padding: 8px; gap: 8px; }
+    .joints { gap: 4px; }
+    .joint-row { padding: 5px 8px; }
 }

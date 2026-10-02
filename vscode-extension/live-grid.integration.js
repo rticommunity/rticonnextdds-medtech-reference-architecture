@@ -1,8 +1,8 @@
 const assert = require("node:assert/strict");
 const vscode = require("vscode");
 
-const titles = ["ArmController", "Arm", "Orchestrator", "PatientMonitor"];
-const ports = [8091, 8092, 8090, 8093];
+const titles = ["ArmController", "Orchestrator", "Arm", "PatientMonitor"];
+const ports = [8091, 8090, 8092, 8093];
 
 async function waitFor(predicate) {
     for (let attempt = 0; attempt < 100; attempt++) {

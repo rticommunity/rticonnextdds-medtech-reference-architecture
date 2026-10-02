@@ -17,6 +17,10 @@ const statusEl = document.getElementById("device-status");
 const canvas = document.getElementById("arm-viz");
 const ctx = canvas.getContext("2d");
 
+const armView = { zoom: 1, panX: 0, panY: 0 };
+let displayedAngles = {};
+let panStart = null;
+
 let renderedOnce = false;
 let shutdownHandled = false;
 let consecutiveFailures = 0;
@@ -82,30 +86,27 @@ function renderStatus(status) {
 }
 
 function drawArm(angles) {
-    const w = canvas.width;
-    const h = canvas.height;
+    displayedAngles = angles;
+    const bounds = canvas.getBoundingClientRect();
+    const pixelRatio = window.devicePixelRatio || 1;
+    const pixelWidth = Math.max(1, Math.round(bounds.width * pixelRatio));
+    const pixelHeight = Math.max(1, Math.round(bounds.height * pixelRatio));
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
+    }
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    const w = bounds.width;
+    const h = bounds.height;
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = "#0F1822";
     ctx.fillRect(0, 0, w, h);
 
-    ctx.fillStyle = "#445566";
-    ctx.font = "bold 13px monospace";
-    ctx.fillText("ARM VISUALIZATION", 12, 22);
-
-    const usableH = h - 70;
-    let seg = Math.floor((usableH * 0.9) / JOINT_ORDER.length);
-    seg = Math.max(seg, 40);
-
-    const bx = w / 2;
-    const by = h - 36;
-
-    // Ground line
-    ctx.strokeStyle = "#334455";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(bx - 80, by);
-    ctx.lineTo(bx + 80, by);
-    ctx.stroke();
+    const seg = Math.max(1, (h - Math.min(48, h * 0.18)) / JOINT_ORDER.length) * armView.zoom;
+    const jointRadius = Math.min(8, seg / 4);
+    const markerRadius = Math.min(10, seg / 3);
+    const bx = w / 2 + armView.panX;
+    const by = h - Math.min(24, h * 0.08) + armView.panY;
 
     // Forward kinematics — 180deg = straight up; deviations bend the arm.
     let cumulDir = Math.PI / 2;
@@ -124,10 +125,17 @@ function drawArm(angles) {
         y = ny;
     });
 
+    ctx.strokeStyle = "#334455";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(bx - 60, by);
+    ctx.lineTo(bx + 60, by);
+    ctx.stroke();
+
     // Links
     JOINT_ORDER.forEach((j, i) => {
         ctx.strokeStyle = JOINT_COLORS[j];
-        ctx.lineWidth = 7;
+        ctx.lineWidth = Math.min(7, seg / 5);
         ctx.lineCap = "round";
         ctx.beginPath();
         ctx.moveTo(points[i][0], points[i][1]);
@@ -140,25 +148,65 @@ function drawArm(angles) {
         const [cx, cy] = points[i];
         ctx.fillStyle = JOINT_COLORS[j];
         ctx.beginPath();
-        ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+        ctx.arc(cx, cy, jointRadius, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = JOINT_COLORS[j];
-        ctx.font = "bold 13px monospace";
-        ctx.fillText(j.slice(0, 3), cx + 12, cy + 4);
+        ctx.font = `bold ${Math.min(13, Math.max(9, seg * 0.6))}px monospace`;
+        ctx.fillText(j.slice(0, 3), cx + jointRadius + 4, cy + 4);
     });
 
     // End effector marker
     const [ex, ey] = points[points.length - 1];
     ctx.fillStyle = JOINT_COLORS.HAND;
     ctx.beginPath();
-    ctx.moveTo(ex, ey - 10);
-    ctx.lineTo(ex + 10, ey);
-    ctx.lineTo(ex, ey + 10);
-    ctx.lineTo(ex - 10, ey);
+    ctx.moveTo(ex, ey - markerRadius);
+    ctx.lineTo(ex + markerRadius, ey);
+    ctx.lineTo(ex, ey + markerRadius);
+    ctx.lineTo(ex - markerRadius, ey);
     ctx.closePath();
     ctx.fill();
+    return points;
 }
+
+function zoomArm(factor) {
+    armView.zoom = Math.max(0.1, Math.min(4, armView.zoom * factor));
+    drawArm(displayedAngles);
+}
+
+function fitArmView() {
+    armView.zoom = 1;
+    armView.panX = 0;
+    armView.panY = 0;
+    const points = drawArm(displayedAngles);
+    const bounds = canvas.getBoundingClientRect();
+    const minX = Math.min(...points.map(point => point[0] - 12));
+    const maxX = Math.max(...points.map(point => point[0] + 44));
+    const minY = Math.min(...points.map(point => point[1] - 12));
+    const maxY = Math.max(...points.map(point => point[1] + 12));
+    const scale = Math.max(0.01, Math.min((bounds.width - 24) / (maxX - minX), (bounds.height - 24) / (maxY - minY)));
+    armView.zoom = scale;
+    armView.panX = (bounds.width - (maxX - minX) * scale) / 2 + (bounds.width / 2 - minX) * scale - bounds.width / 2;
+    const baseY = bounds.height - Math.min(24, bounds.height * 0.08);
+    armView.panY = (bounds.height - (maxY - minY) * scale) / 2 + (baseY - minY) * scale - baseY;
+    drawArm(displayedAngles);
+}
+
+document.getElementById("btn-zoom-out").addEventListener("click", () => zoomArm(0.8));
+document.getElementById("btn-zoom-in").addEventListener("click", () => zoomArm(1.25));
+document.getElementById("btn-fit-arm").addEventListener("click", fitArmView);
+canvas.addEventListener("pointerdown", event => {
+    panStart = { x: event.clientX, y: event.clientY, panX: armView.panX, panY: armView.panY };
+    canvas.setPointerCapture(event.pointerId);
+});
+canvas.addEventListener("pointermove", event => {
+    if (!panStart) return;
+    armView.panX = panStart.panX + event.clientX - panStart.x;
+    armView.panY = panStart.panY + event.clientY - panStart.y;
+    drawArm(displayedAngles);
+});
+canvas.addEventListener("pointerup", () => { panStart = null; });
+canvas.addEventListener("pointercancel", () => { panStart = null; });
 
 async function pollState() {
     try {

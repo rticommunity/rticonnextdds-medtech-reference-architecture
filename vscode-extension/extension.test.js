@@ -5,6 +5,73 @@ const path = require("node:path");
 const vm = require("node:vm");
 const test = require("node:test");
 
+test("arm drawing keeps upstream joints fixed when a downstream joint moves", () => {
+    const source = fs.readFileSync(path.join(__dirname, "../modules/01-operating-room/web-arm/app.js"), "utf8");
+    const circles = [];
+    const ctx = Object.fromEntries(["setTransform", "clearRect", "fillRect", "fillText", "beginPath", "moveTo", "lineTo", "stroke", "fill", "closePath"].map(name => [name, () => {}]));
+    ctx.arc = (horizontal, vertical) => circles.push([horizontal, vertical]);
+    const sandbox = {
+        ctx, canvas: { width: 270, height: 285, getBoundingClientRect: () => ({ width: 270, height: 285 }) },
+        window: { devicePixelRatio: 1 }, JOINT_ORDER: ["BASE", "SHOULDER", "ELBOW", "WRIST", "HAND"],
+        JOINT_COLORS: {}, armView: { zoom: 1, panX: 0, panY: 0 }, displayedAngles: {},
+        document: { getElementById: () => ({ addEventListener() {} }) },
+    };
+    sandbox.canvas.addEventListener = () => {};
+    vm.runInNewContext(source.slice(source.indexOf("function drawArm("), source.indexOf("\nasync function pollState(")), sandbox);
+    const angles = { BASE: 180, SHOULDER: 180, ELBOW: 180, WRIST: 180, HAND: 180 };
+    sandbox.drawArm(angles);
+    const initial = circles.splice(0);
+    assert.ok(initial[0][1] - initial[4][1] >= 150, "Default arm must occupy most of the pane height");
+    sandbox.drawArm({ ...angles, WRIST: 240 });
+    assert.deepEqual(circles.slice(0, 4), initial.slice(0, 4));
+    assert.notDeepEqual(circles[4], initial[4]);
+    for (let angle = 0; angle <= 360; angle += 30) {
+        circles.length = 0;
+        sandbox.drawArm(Object.fromEntries(Object.keys(angles).map(joint => [joint, angle])));
+        assert.deepEqual(circles[0], initial[0]);
+        sandbox.fitArmView();
+        const fitted = circles.slice(-5);
+        assert.ok(fitted.every(([horizontal, vertical]) => horizontal >= 8 && horizontal <= 262 && vertical >= 8 && vertical <= 277));
+        sandbox.armView.zoom = 1;
+        sandbox.armView.panX = 0;
+        sandbox.armView.panY = 0;
+    }
+});
+
+test("device logs simplify known DDS prefixes and apply each app's scroll policy", () => {
+    for (const app of ["web", "web-armcontroller"]) {
+        const source = fs.readFileSync(path.join(__dirname, `../modules/01-operating-room/${app}/app.js`), "utf8");
+        const alertsEl = { textContent: "", scrollHeight: 0, clientHeight: 80, scrollTop: 0 };
+        const sandbox = { alertsEl };
+        vm.runInNewContext('let lastAlertText = "";\n' + source.slice(
+            source.indexOf("function formatAlert("), source.indexOf("\nasync function pollState(")), sandbox);
+        const cases = [
+            ["2026-10-02 18:00:00 - Started Arm Controller (web mode)", "2026-10-02 18:00:00 - Started Arm Controller"],
+            ["Started Orchestrator (web mode)", "Started Orchestrator"],
+            ["Writing DeviceCommands::SHUTDOWN to DeviceType::ARM_CONTROLLER", "Writing SHUTDOWN to ARM_CONTROLLER"],
+            ["Received DeviceStatuses::ON status message from DeviceType::ARM", "Received ON status message from ARM"],
+            ["Unknown::VALUE and MyDeviceType::ARM remain unchanged", "Unknown::VALUE and MyDeviceType::ARM remain unchanged"],
+            ["The (web mode) setting is enabled", "The (web mode) setting is enabled"],
+        ];
+        for (const [raw, expected] of cases) assert.equal(sandbox.formatAlert(raw), expected);
+        const rawAlerts = Object.freeze(cases.map(([raw]) => raw));
+        sandbox.renderAlerts(rawAlerts);
+        assert.equal(alertsEl.textContent, cases.map(([, expected]) => expected).join("\n"));
+        assert.deepEqual(rawAlerts, cases.map(([raw]) => raw));
+        alertsEl.scrollHeight = 300;
+        alertsEl.scrollTop = 220;
+        sandbox.renderAlerts(["DeviceCommands::START"]);
+        assert.equal(alertsEl.scrollTop, 300);
+        alertsEl.scrollTop = 20;
+        sandbox.renderAlerts(["DeviceCommands::PAUSE"]);
+        assert.equal(alertsEl.textContent, "PAUSE");
+        assert.equal(alertsEl.scrollTop, app === "web" ? 300 : 20);
+        alertsEl.scrollTop = 20;
+        sandbox.renderAlerts(["DeviceCommands::PAUSE"]);
+        assert.equal(alertsEl.scrollTop, 20);
+    }
+});
+
 function tutorialModule(vscode) {
     const sandbox = {
         module: { exports: {} }, process,
@@ -533,8 +600,8 @@ test("restoring Arm keeps all four tabs in separate grid slots", async () => {
                     viewColumn,
                     slot: title === "Arm" && layoutCommands.length > 1 && !emptyArmSlot
                         ? "bottom-left" : {
-                            ArmController: "top-left", Arm: "top-right",
-                            Orchestrator: "bottom-left", PatientMonitor: "bottom-right",
+                            ArmController: "top-left", Arm: "bottom-left",
+                            Orchestrator: "top-right", PatientMonitor: "bottom-right",
                         }[title],
                     webview: { html: "" },
                     reveal(column) {
@@ -578,22 +645,22 @@ test("restoring Arm keeps all four tabs in separate grid slots", async () => {
         await open("Arm", 8092);
         await open("Orchestrator", 8094);
         await open("PatientMonitor", 8093);
-        panels[1].viewColumn = vscode.ViewColumn.Three;
+        panels[1].viewColumn = vscode.ViewColumn.Two;
         panels[1].onChangeViewState?.();
         panels[1].dispose();
         await open("Arm", 8092);
         assert.equal(layoutCommands.length, 1);
         assert.equal(panels.length, 5);
         const currentPanels = [panels[0], panels[4], panels[2], panels[3]];
-        assert.deepEqual(currentPanels.map((panel) => panel.viewColumn), [1, 2, 3, 4]);
+        assert.deepEqual(currentPanels.map((panel) => panel.viewColumn), [1, 3, 2, 4]);
         assert.deepEqual(currentPanels.map((panel) => panel.slot),
-            ["top-left", "top-right", "bottom-left", "bottom-right"]);
+            ["top-left", "bottom-left", "top-right", "bottom-right"]);
         panels[4].dispose();
         await open("Arm", 8092);
         assert.equal(layoutCommands.length, 1);
         assert.equal(panels.length, 6);
-        assert.deepEqual([panels[0], panels[5], panels[2], panels[3]].map((panel) => panel.viewColumn), [1, 2, 3, 4]);
-        assert.equal(panels[5].slot, "top-right");
+        assert.deepEqual([panels[0], panels[5], panels[2], panels[3]].map((panel) => panel.viewColumn), [1, 3, 2, 4]);
+        assert.equal(panels[5].slot, "bottom-left");
         assert.deepEqual(settings, [false]);
         await sandbox.module.exports.deactivate();
         assert.deepEqual(settings, [false, undefined]);
@@ -736,9 +803,19 @@ test("restoring ArmController preserves the Orchestrator panel and focus", async
         assert.equal(layoutCount, 1);
         assert.equal(panels.get("Orchestrator"), orchestrator);
         assert.equal(panels.get("ArmController").column, vscode.ViewColumn.One);
-        assert.equal(panels.get("Orchestrator").column, vscode.ViewColumn.Three);
+        assert.equal(panels.get("Orchestrator").column, vscode.ViewColumn.Two);
         assert.equal(fs.readFileSync(path.join(stateDir, "Orchestrator"), "utf8"), String(process.pid));
         assert.equal(fs.existsSync(path.join(stateDir, `${"b".repeat(32)}.close`)), false);
+        await handler.handleUri({ path: "/close-owned", query: "" });
+        await handler.handleUri({ path: "/close-owned", query: "closeToken=invalid" });
+        await handler.handleUri({ path: "/close-owned", query: `closeToken=${"a".repeat(32)}` });
+        assert.equal(panels.get("ArmController").closedByLauncher, undefined);
+        assert.equal(orchestrator.closedByLauncher, undefined);
+        await handler.handleUri({ path: "/close-owned", query: `closeToken=${"c".repeat(32)}` });
+        await new Promise((resolve) => setImmediate(resolve));
+        assert.equal(panels.get("ArmController").closedByLauncher, true);
+        assert.equal(orchestrator.closedByLauncher, undefined);
+        assert.equal(fs.existsSync(path.join(stateDir, `${"c".repeat(32)}.close`)), false);
         panels.get("Orchestrator").dispose();
         await new Promise((resolve) => setImmediate(resolve));
         assert.equal(fs.existsSync(path.join(stateDir, `${"b".repeat(32)}.close`)), true);

@@ -13,7 +13,7 @@ const MOTOR_ORDER = ["BASE", "SHOULDER", "ELBOW", "WRIST", "HAND"];
 const POLL_INTERVAL_MS = 500;
 const JOG_REPEAT_MS = 50;
 
-let lastAlertCount = 0;
+let lastAlertText = "";
 let renderedOnce = false;
 let shutdownHandled = false;
 let consecutiveFailures = 0;
@@ -104,11 +104,19 @@ function renderStatus(status) {
     statusEl.className = statusClass(status);
 }
 
+function formatAlert(message) {
+    return message.replace(/\b(?:DeviceCommands|DeviceType|DeviceStatuses)::/g, "")
+        .replace(/ \(web mode\)$/, "");
+}
+
 function renderAlerts(alerts) {
-    if (alerts.length === lastAlertCount) return;
-    lastAlertCount = alerts.length;
-    alertsEl.textContent = alerts.join("\n");
-    alertsEl.scrollTop = alertsEl.scrollHeight;
+    const text = alerts.map(formatAlert).join("\n");
+    if (text === lastAlertText) return;
+    const followLatest = alertsEl.scrollHeight - alertsEl.clientHeight - alertsEl.scrollTop <= 2;
+    const previousScroll = alertsEl.scrollTop;
+    lastAlertText = text;
+    alertsEl.textContent = text;
+    alertsEl.scrollTop = followLatest ? alertsEl.scrollHeight : previousScroll;
 }
 
 async function pollState() {

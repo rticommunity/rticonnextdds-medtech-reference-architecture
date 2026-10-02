@@ -167,6 +167,28 @@ public:
     {
     }
 
+    void record_status(Common::DeviceType device, const std::string &status)
+    {
+        reported_status[device] = status;
+    }
+
+    void on_data_available(
+            dds::sub::DataReader<Common::DeviceHeartbeat> &reader) override
+    {
+        auto samples = reader.take();
+        std::lock_guard<std::mutex> lock(state_mutex);
+        for (const auto &sample : samples) {
+            if (sample.info().valid()) {
+                auto device = sample.data().device;
+                auto reported = reported_status.find(device);
+                if (reported != reported_status.end()
+                        && status_map[device] == "OFF") {
+                    status_map[device] = reported->second;
+                }
+            }
+        }
+    }
+
     void on_requested_deadline_missed(
             dds::sub::DataReader<Common::DeviceHeartbeat> &reader,
             const dds::core::status::RequestedDeadlineMissedStatus &status)
@@ -195,6 +217,7 @@ public:
 private:
     std::mutex &state_mutex;
     std::map<Common::DeviceType, std::string> &status_map;
+    std::map<Common::DeviceType, std::string> reported_status;
     std::function<void(std::string)> log_alert;
 };
 
@@ -332,6 +355,7 @@ private:
                 {
                     std::lock_guard<std::mutex> lock(state_mutex);
                     device_status[sample.data().device] = status_str;
+                    hb_listener->record_status(sample.data().device, status_str);
                 }
 
                 std::stringstream ss_log;

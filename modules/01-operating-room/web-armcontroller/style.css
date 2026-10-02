@@ -7,6 +7,9 @@
 
 body {
     margin: 0;
+    height: 100dvh;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
     background-color: #0A0E17;
     color: #C8D8E8;
     font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -15,20 +18,18 @@ body {
 header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 20px;
+    gap: 8px;
+    padding: 8px 12px;
     background-color: #071020;
     border-bottom: 2px solid #004C97;
 }
 
-header .brand { color: #004C97; font-size: 22px; font-weight: bold; }
-header .sep { color: #334455; font-size: 26px; }
-header .title { color: #E0E8F0; font-size: 26px; font-weight: bold; flex: 1; }
+header .title { color: #E0E8F0; font-size: 18px; font-weight: bold; flex: 1; min-width: 0; }
 
 #device-status {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: bold;
-    padding: 4px 10px;
+    padding: 3px 8px;
     border-radius: 12px;
 }
 
@@ -54,15 +55,19 @@ header .title { color: #E0E8F0; font-size: 26px; font-weight: bold; flex: 1; }
 
 main {
     display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 20px;
-    padding: 20px;
+    grid-template-columns: max-content minmax(180px, 1fr);
+    grid-template-rows: auto minmax(64px, 1fr);
+    gap: 8px 10px;
+    padding: 10px;
+    min-height: 0;
 }
 
 .motors {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 6px;
+    grid-row: 1 / 3;
+    min-width: 0;
 }
 
 .motor-row {
@@ -71,11 +76,11 @@ main {
     border: 1px solid #1A2A3A;
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 12px 16px;
+    gap: 6px;
+    padding: 5px 8px;
 }
 
-.motor-name { font-size: 22px; font-weight: bold; min-width: 130px; }
+.motor-name { font-size: 17px; font-weight: bold; flex: 0 0 82px; }
 .motor-name.BASE { color: #004C97; }
 .motor-name.SHOULDER { color: #ED8B00; }
 .motor-name.ELBOW { color: #00BFFF; }
@@ -83,8 +88,10 @@ main {
 .motor-name.HAND { color: #DA70D6; }
 
 .motor-row button {
-    padding: 8px 14px;
-    font-size: 18px;
+    padding: 4px 8px;
+    min-width: 30px;
+    min-height: 30px;
+    font-size: 15px;
     font-weight: bold;
     border-radius: 4px;
     cursor: pointer;
@@ -104,13 +111,13 @@ main {
 
 .play-all-row {
     display: flex;
-    gap: 12px;
-    margin-top: 4px;
+    gap: 6px;
 }
 
 .play-all-row button {
     flex: 1;
-    padding: 10px;
+    padding: 6px;
+    min-height: 32px;
     font-size: 16px;
     font-weight: bold;
     border-radius: 4px;
@@ -120,22 +127,51 @@ main {
     color: #C8D8E8;
 }
 
+#btn-play-all {
+    background-color: #002A15;
+    color: #00CC66;
+    border-color: #006633;
+}
+
+#btn-stop-all {
+    background-color: #1A0505;
+    color: #FF5555;
+    border-color: #662200;
+}
+
 #alerts {
-    grid-column: 1 / -1;
+    grid-column: 2;
+    grid-row: 2;
     background-color: #060F0A;
     color: #00CC66;
     border: 2px solid #1A2A3A;
     border-radius: 8px;
-    padding: 12px 16px;
+    padding: 6px 8px;
     font-family: "Courier New", monospace;
-    font-size: 15px;
-    height: 200px;
+    font-size: 14px;
+    line-height: 20px;
+    min-height: 64px;
+    min-width: 0;
     overflow-y: auto;
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    scrollbar-color: #334455 #060F0A;
+    scrollbar-width: thin;
 }
 
 aside h2 {
     font-size: 16px;
-    letter-spacing: 1px;
-    margin: 0 0 8px 0;
+    letter-spacing: 0;
+    margin: 0 0 6px 0;
+}
+
+@media (max-width: 480px) {
+    main { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(112px, 1fr); padding: 8px; row-gap: 4px; }
+    aside { grid-row: 1; display: flex; align-items: center; gap: 8px; }
+    aside h2 { margin: 0; }
+    .play-all-row { flex: 1; }
+    .motors { grid-row: 2; gap: 4px; }
+    .motor-row { padding: 2px 8px; }
+    .motor-row button { min-height: 28px; }
+    #alerts { grid-column: 1; grid-row: 3; }
 }

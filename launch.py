@@ -122,9 +122,15 @@ def _watch_tab_closures(children, close_tokens, stopped, state_dir=None, sensor_
                 request.unlink(missing_ok=True)
                 del pending[index]
             elif child.poll() is not None:
+                _close_vscode_tab(token)
                 del pending[index]
     if sensor is not None and sensor.poll() is not None:
         record_sensor(None)
+
+
+def _close_vscode_tab(close_token: str) -> None:
+    """Close only the tab owned by this exact launched process."""
+    _open_vscode_uri(f"vscode://rti.medtech-web-tabs/close-owned?closeToken={close_token}")
 
 
 def _close_vscode_tabs(titles: list[str] | None = None) -> None:
@@ -368,7 +374,11 @@ def main() -> None:
             for watcher in watchers:
                 watcher.join()
             if args.vscode:
-                _close_vscode_tabs(args.apps or None)
+                if args.apps:
+                    for token in close_tokens.values():
+                        _close_vscode_tab(token)
+                else:
+                    _close_vscode_tabs()
 
     else:
         parser.error("Specify a module or --scenario")

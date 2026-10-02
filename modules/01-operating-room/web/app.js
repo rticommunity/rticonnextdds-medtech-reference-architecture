@@ -13,7 +13,7 @@ const DEVICE_LABELS = {
 const POLL_INTERVAL_MS = 250;
 
 let selectedDevice = null;
-let lastAlertCount = 0;
+let lastAlertText = "";
 let shutdownHandled = false;
 let consecutiveFailures = 0;
 let launcherOrigin = null;
@@ -135,10 +135,16 @@ function renderSecurity(security) {
     }
 }
 
+function formatAlert(message) {
+    return message.replace(/\b(?:DeviceCommands|DeviceType|DeviceStatuses)::/g, "")
+        .replace(/ \(web mode\)$/, "");
+}
+
 function renderAlerts(alerts) {
-    if (alerts.length === lastAlertCount) return;
-    lastAlertCount = alerts.length;
-    alertsEl.textContent = alerts.join("\n");
+    const text = alerts.map(formatAlert).join("\n");
+    if (text === lastAlertText) return;
+    lastAlertText = text;
+    alertsEl.textContent = text;
     alertsEl.scrollTop = alertsEl.scrollHeight;
 }
 
