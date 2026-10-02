@@ -74,6 +74,7 @@ function orchestrator() {
     const element = () => ({ textContent: "", classList: { toggle() {} }, addEventListener() {}, appendChild() {}, dataset: {} });
     const devicesEl = { appendChild(card) { cards.push(card); }, set innerHTML(value) { cards.length = 0; } };
     const sandbox = {
+        window: { addEventListener() {} },
         document: { getElementById: id => id === "devices" ? devicesEl : element(), createElement: element, querySelectorAll: () => cards },
         fetch: async (url, options) => { requests.push({ url, options }); return { ok: true, json: async () => ({ devices: [] }) }; },
         setInterval() {}, console,

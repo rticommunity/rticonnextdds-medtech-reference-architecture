@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import importlib
+import json
 import os
 import signal
 import subprocess
 import sys
+import threading
 from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,6 +19,26 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 launch = importlib.import_module("launch")
+
+
+def test_cloud_grid_uri_is_queued_without_a_desktop_browser(monkeypatch, tmp_path):
+    monkeypatch.setenv("MEDTECH_CLOUD", "1")
+    monkeypatch.setattr(launch.tempfile, "gettempdir", lambda: str(tmp_path))
+    uri = "vscode://rti.medtech-web-tabs/session?secure=1"
+    launch._open_vscode_uri(uri)
+    requests = list((tmp_path / f"medtech-web-tabs-{os.getuid()}" / "requests").iterdir())
+    assert len(requests) == 1
+    assert json.loads(requests[0].read_text()) == {"uri": uri}
+
+
+def test_exited_child_closes_only_its_owned_tab(monkeypatch, tmp_path):
+    uris = []
+    monkeypatch.setattr(launch, "_open_vscode_uri", uris.append)
+    child = subprocess.Popen([sys.executable, "-c", "pass"])
+    child.wait(timeout=5)
+    token = "a" * 32
+    launch._watch_tab_closures([child], {0: token}, threading.Event(), tmp_path)
+    assert uris == [f"vscode://rti.medtech-web-tabs/close-owned?closeToken={token}"]
 
 
 def test_cloud_web_mode_does_not_open_a_container_browser(monkeypatch):
