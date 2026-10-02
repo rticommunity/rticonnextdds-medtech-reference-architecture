@@ -60,8 +60,6 @@ Install the system build dependencies for your platform:
 sudo apt install \
     build-essential \
     cmake \
-    pkg-config \
-    libgtkmm-3.0-dev \
     python3-venv
 ```
 
@@ -75,7 +73,7 @@ sudo apt install \
 
 ```bash
 xcode-select --install          # compiler toolchain (if not already installed)
-brew install cmake pkg-config gtkmm3 python3
+brew install cmake python3
 ```
 
 > Homebrew's `python3` includes `pip` and `venv` — no separate installs needed.
@@ -101,6 +99,11 @@ pip install rti.connext.activated -f $NDDSHOME/resource/python_api
 # Alternatively, if the above path is not available, install from PyPI:
 # pip install rti.connext==7.7.0
 ```
+
+Module 01 is web-only and needs no GTK, Qt, NumPy, or pyqtgraph. Module 04's
+desktop threat tools additionally need
+`pip install -r modules/04-security-threat/requirements.txt`; they are not included
+in the web-only cloud image.
 
 ### 4. Build the C++ Modules
 

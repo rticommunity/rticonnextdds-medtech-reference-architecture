@@ -69,6 +69,13 @@ Complete the shared setup in the root [Quick Start](../../README.md#quick-start)
 
 Module-specific setup:
 
+The threat tools remain desktop applications and are not included in the web-only
+cloud image. Install their additional dependencies in a desktop environment:
+
+```bash
+pip install -r modules/04-security-threat/requirements.txt
+```
+
 The shared trusted system security artifacts are covered in the root [Quick Start](../../README.md#quick-start). Complete that setup first so the generated keys and trust stores are available on whichever machines will run this module.
 
 Generate the module-specific threat artifacts from the repository root:

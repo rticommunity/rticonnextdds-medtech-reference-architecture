@@ -2,7 +2,7 @@
 
 Module 01 simulates a Digital Operating Room.
 
-The applications have been tested to work in Debian-based environments with a GUI, including those in [WSL2 with GUI support](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps#install-support-for-linux-gui-apps) (Windows 10 and 11), as well as on macOS.
+The applications serve browser-based UIs without a desktop display, GTK, Qt, NumPy, or pyqtgraph. A clean Linux cloud-image build and real DDS runtime have been validated.
 
 All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
 
@@ -50,6 +50,8 @@ The *Orchestrator* application primarily acts as a system application state obse
 
 It displays current device statuses, presents buttons to administer device commands, and shows an "Alerts" panel to display observed events.
 
+All four interactive devices use browser-based UIs; native GTK/Qt device windows have been removed on this branch.
+
 ## Setup and Installation
 
 Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. That covers prerequisites, environment setup, the project-level build, and security artifact generation.
@@ -87,13 +89,24 @@ python3 launch.py 01-operating-room -s
 
 *Note, applications can be launched individually by name, e.g. `python3 launch.py 01-operating-room Arm PatientMonitor`. Refer to [module.json](./module.json) for the list of available app names and QoS configuration.*
 
+### Web UI mode
+
+The *Orchestrator*, *ArmController*, *Arm*, and *PatientMonitor* applications always start headless HTTP servers on ports 8090, 8091, 8092, and 8093 respectively. With no UI flag, open those URLs manually. Pass `--web` to `launch.py` to open browser tabs automatically:
+
+```bash
+# From the repository root
+python3 launch.py 01-operating-room --web
+```
+
+This launches each supported app with an embedded HTTP server and opens the UI in your default browser. The web UI polls a JSON API (`GET /api/state`, `POST /api/command`) rather than using a persistent WebSocket connection, so it works reliably behind simple HTTP proxies.
+
 ### 2. Observe the application behavior
 
 Observe and play around with the interactive operating room applications. The following are some ideas to get started:
 
 - From the *Orchestrator* application, send a "PAUSE" command to the *Patient Sensor* Medical Device. Observe the effect in the *Patient Monitor* GUI application. Resume the *Patient Sensor* by sending a "START" command.
 - From the *Arm Controller* application, send a command to stop all *Arm* motors. Observe the effect in the *Arm* GUI application. Resume just the *Elbow* motor by clicking the respective "PLAY" button in the *Arm Controller* application. While still stopped, increment or decrement the *Wrist* motor angle by clicking the respective "+" or "-" buttons in the *Arm Controller* application. Resume all *Arm* motors by pressing "PLAY ALL".
-- Ungracefully terminate the *Arm* application by closing the application window. Observe the effect in the *Orchestrator* application "Alerts" panel.
+- Terminate the *Arm* process by PID and observe the effect in the *Orchestrator* application "Alerts" panel. Closing a browser tab does not terminate its application.
 - Initiate a graceful remote shutdown of the *Arm Controller* by sending the appropriate command from the *Orchestrator*. Observe the effect of the *Arm Controller* application.
 
 ### 3. Kill the applications

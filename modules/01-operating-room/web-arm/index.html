@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arm — Digital Operating Room</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <span class="title">Surgical Arm Monitor</span>
+    <span id="device-status"></span>
+</header>
+
+<main>
+    <section class="joints" id="joints"></section>
+    <section class="arm-visualization">
+        <div class="viz-toolbar">
+            <h2>ARM VISUALIZATION</h2>
+            <button id="btn-zoom-out" title="Zoom out" aria-label="Zoom out">-</button>
+            <button id="btn-fit-arm" title="Fit arm in view">Fit</button>
+            <button id="btn-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+        </div>
+        <canvas id="arm-viz" width="300" height="500"></canvas>
+    </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -30,6 +30,8 @@ import os
 import re
 import subprocess
 import sys
+import threading
+from collections.abc import Callable
 from pathlib import Path
 
 from . import platform_setup
@@ -235,19 +237,26 @@ def _shutdown(children: list[subprocess.Popen]) -> None:
             child.kill()
 
 
-def launch(commands: list[list[str]], module_dir: Path, env: dict[str, str]) -> None:
+def launch(
+    commands: list[list[str]], module_dir: Path, env: dict[str, str],
+    *, on_started: Callable[[list[subprocess.Popen]], None] | None = None,
+    keep_alive: bool = False,
+) -> None:
     """Spawn *commands* as child processes under *module_dir* and wait.
 
     All processes are launched concurrently.  ``KeyboardInterrupt``
     triggers a graceful shutdown (SIGTERM, then SIGKILL after 1 s).
     """
     children: list[subprocess.Popen] = []
-    for cmd in commands:
-        children.append(subprocess.Popen(cmd, env=env, cwd=module_dir))
-
     try:
+        for cmd in commands:
+            children.append(subprocess.Popen(cmd, env=env, cwd=module_dir))
+        if on_started is not None:
+            on_started(children)
         for child in children:
             child.wait()
+        if keep_alive:
+            threading.Event().wait()
     except KeyboardInterrupt:
         _shutdown(children)
 

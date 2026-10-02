@@ -14,23 +14,6 @@
 # the Software.
 #
 
-# Use the package PkgConfig to detect GTK headers/library files.
-# gtkmm-3.0 is optional: when not found the C++ GUI applications
-# (ArmController, Orchestrator) are skipped; PatientSensor and the
-# Python GUIs still build/run normally.
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_check_modules(GTKMM gtkmm-3.0)
-endif()
-
-if(GTKMM_FOUND)
-    link_directories(${GTKMM_LIBRARY_DIRS})
-    include_directories(${GTKMM_INCLUDE_DIRS})
-    message(STATUS "gtkmm-3.0 found — ArmController and Orchestrator will be built")
-else()
-    message(STATUS "gtkmm-3.0 not found — skipping ArmController and Orchestrator (Python GUIs still available)")
-endif()
-
 # RTI Connext DDS is found by the project-level CMakeLists.txt.
 
 # Run Codegen to generate the C++11 source code files for the types
@@ -126,41 +109,32 @@ target_include_directories(PatientSensor
 )
 set_property(TARGET PatientSensor PROPERTY CXX_STANDARD 17)
 
-# GTK applications (ArmController, Orchestrator) require gtkmm
-set(GTK_APPLICATIONS "")
+set(WEB_APPLICATIONS ArmController Orchestrator)
 
-if(GTKMM_FOUND)
-    set(GTK_APPLICATIONS ArmController Orchestrator)
+foreach(application ${WEB_APPLICATIONS})
+    add_executable(${application}
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/${application}.cxx"
+    )
 
-    foreach(application ${GTK_APPLICATIONS})
-        add_executable(${application}
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/${application}.cxx"
-        )
+    target_link_libraries(${application}
+        PRIVATE
+        RTIConnextDDS::cpp2_api
+        refArchTypes
+    )
+    target_include_directories(${application}
+        PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        "${CMAKE_CURRENT_BINARY_DIR}/src"
+    )
+    set_property(TARGET ${application}
+        PROPERTY
+        CXX_STANDARD 17)
+endforeach()
 
-        target_link_libraries(${application}
-            PRIVATE
-            ${GTKMM_LIBRARIES}
-            RTIConnextDDS::cpp2_api
-            refArchTypes
-        )
-        if(APPLE)
-            target_link_libraries(${application} PRIVATE "-framework AppKit")
-        endif()
-        target_include_directories(${application}
-            PRIVATE
-            "${CMAKE_CURRENT_SOURCE_DIR}/src"
-            "${CMAKE_CURRENT_BINARY_DIR}/src"
-        )
-        set_property(TARGET ${application}
-            PROPERTY
-            CXX_STANDARD 17)
-    endforeach()
-
-    if(RTI_SECURITY_AVAILABLE)
-        target_compile_definitions(Orchestrator PRIVATE RTI_SECURITY_AVAILABLE)
-    endif()
+if(RTI_SECURITY_AVAILABLE)
+    target_compile_definitions(Orchestrator PRIVATE RTI_SECURITY_AVAILABLE)
 endif()
 
 # Convenience target: build all Module 01 executables
-set(APPLICATIONS PatientSensor ${GTK_APPLICATIONS})
+set(APPLICATIONS PatientSensor ${WEB_APPLICATIONS})
 add_custom_target(module-01 DEPENDS ${APPLICATIONS})

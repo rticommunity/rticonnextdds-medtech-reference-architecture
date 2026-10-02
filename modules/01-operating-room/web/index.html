@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orchestrator — Digital Operating Room</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <span class="title">Orchestrator</span>
+    <span id="security-indicator"></span>
+</header>
+
+<main>
+    <section class="devices" id="devices"></section>
+
+    <section class="commands">
+        <h2>COMMANDS</h2>
+        <div>Selected device: <strong id="selected-device">—</strong></div>
+        <button id="btn-start" disabled>Start</button>
+        <button id="btn-pause" disabled>Pause</button>
+        <button id="btn-off" disabled>Shut Down</button>
+        <div id="command-status" role="status"></div>
+    </section>
+
+    <section id="alerts"></section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

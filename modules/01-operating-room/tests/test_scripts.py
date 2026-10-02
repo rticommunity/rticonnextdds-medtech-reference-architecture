@@ -15,11 +15,66 @@ Ensures that ``module_runner.load_module_config()`` produces a correct
 environment and that all referenced XML files actually exist.
 """
 
+import http.client
+import importlib.util
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 from module01_test_support import MODULE_DIR
 from scripts import module_runner, platform_setup
+
+
+@pytest.mark.parametrize("module, app_class", [("Arm", "ArmApp"), ("PatientMonitor", "PatientMonitorApp")])
+def test_web_backend_imports_without_desktop_dependencies(module, app_class):
+    code = f"""
+import importlib
+import importlib.abc
+import sys
+
+class RejectDesktop(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path, target=None):
+        if fullname.split('.')[0] in {{'PySide6', 'pyqtgraph', 'numpy'}}:
+            raise AssertionError(f'Unexpected desktop dependency: {{fullname}}')
+
+sys.meta_path.insert(0, RejectDesktop())
+app = getattr(importlib.import_module({module!r}), {app_class!r})()
+assert callable(app.run_web)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], cwd=MODULE_DIR / "src",
+        capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_web_server_head_static_file(tmp_path):
+    module_path = MODULE_DIR / "src" / "web_server_utils.py"
+    spec = importlib.util.spec_from_file_location("web_server_utils", module_path)
+    web_server_utils = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(web_server_utils)
+
+    (tmp_path / "index.html").write_text("webview ready")
+    server = web_server_utils.start_web_server(tmp_path, lambda: {}, 0)
+    connection = http.client.HTTPConnection("127.0.0.1", server.server_port)
+    try:
+        connection.request("HEAD", "/")
+        response = connection.getresponse()
+        assert response.version == 11
+        assert response.status == 200
+        assert response.getheader("Content-Type") == "text/html"
+        assert response.getheader("Content-Length") == "13"
+        assert response.read() == b""
+
+        connection.request("GET", "/")
+        response = connection.getresponse()
+        assert response.status == 200
+        assert response.read() == b"webview ready"
+    finally:
+        connection.close()
+        server.shutdown()
+        server.server_close()
 
 # ---------------------------------------------------------------------------
 # module_runner.load_module_config()
