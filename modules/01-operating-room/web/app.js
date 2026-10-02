@@ -10,12 +10,18 @@ const DEVICE_LABELS = {
     PATIENT_MONITOR: "Patient Monitor",
 };
 
-const POLL_INTERVAL_MS = 1000;
+const POLL_INTERVAL_MS = 250;
 
 let selectedDevice = null;
 let lastAlertCount = 0;
 let shutdownHandled = false;
 let consecutiveFailures = 0;
+let launcherOrigin = null;
+let nextRequestId = 0;
+const startRequests = new Map();
+const startingDevices = new Map();
+const deviceStatuses = new Map();
+const stoppingDevices = new Set();
 
 const devicesEl = document.getElementById("devices");
 const alertsEl = document.getElementById("alerts");
@@ -24,6 +30,38 @@ const securityEl = document.getElementById("security-indicator");
 const btnStart = document.getElementById("btn-start");
 const btnPause = document.getElementById("btn-pause");
 const btnOff = document.getElementById("btn-off");
+const commandStatus = document.getElementById("command-status");
+
+window.addEventListener("message", event => {
+    if (event.source !== window.parent) return;
+    if (event.data?.type === "medtech-launcher-ready") {
+        launcherOrigin = event.origin;
+    } else if (event.origin === launcherOrigin && event.data?.type === "medtech-device-start-result") {
+        startRequests.get(event.data.requestId)?.(event.data.status);
+    }
+});
+
+function requestStart(device) {
+    return new Promise((resolve, reject) => {
+        const requestId = ++nextRequestId;
+        const timer = setTimeout(() => {
+            startRequests.delete(requestId);
+            reject(new Error("Launcher did not respond"));
+        }, 5000);
+        startRequests.set(requestId, status => {
+            clearTimeout(timer);
+            startRequests.delete(requestId);
+            resolve(status);
+        });
+        window.parent.postMessage({ type: "medtech-device-start", device, requestId, stopped: stoppingDevices.has(device) || deviceStatuses.get(device) === "OFF" }, launcherOrigin);
+    });
+}
+
+function updateCommands() {
+    const pending = startingDevices.has(selectedDevice);
+    [btnStart, btnPause, btnOff].forEach(button => { button.disabled = !selectedDevice || pending; });
+    btnStart.textContent = pending ? "Starting..." : "Start";
+}
 
 function handleShutdown() {
     if (shutdownHandled) return;
@@ -45,6 +83,12 @@ function statusClass(status) {
 function renderDevices(devices) {
     devicesEl.innerHTML = "";
     devices.forEach((device) => {
+        deviceStatuses.set(device.id, device.status);
+        const deadline = startingDevices.get(device.id);
+        if (deadline && (device.status.includes("ON") || device.status.includes("PAUSED") || Date.now() > deadline)) {
+            startingDevices.delete(device.id);
+            if (Date.now() > deadline) commandStatus.textContent = "Device startup timed out";
+        }
         const card = document.createElement("div");
         card.className = "device-card" + (device.id === selectedDevice ? " selected" : "");
         card.dataset.deviceId = device.id;
@@ -54,14 +98,15 @@ function renderDevices(devices) {
         name.textContent = DEVICE_LABELS[device.id] || device.id;
 
         const status = document.createElement("span");
-        status.className = "status-badge " + statusClass(device.status);
-        status.textContent = device.status;
+        status.className = "status-badge " + (startingDevices.has(device.id) ? "status-paused" : statusClass(device.status));
+        status.textContent = startingDevices.has(device.id) ? "STARTING" : device.status;
 
         card.appendChild(name);
         card.appendChild(status);
         card.addEventListener("click", () => selectDevice(device.id));
         devicesEl.appendChild(card);
     });
+    updateCommands();
 }
 
 function selectDevice(deviceId) {
@@ -70,7 +115,7 @@ function selectDevice(deviceId) {
     document.querySelectorAll(".device-card").forEach((card) => {
         card.classList.toggle("selected", card.dataset.deviceId === deviceId);
     });
-    [btnStart, btnPause, btnOff].forEach((btn) => (btn.disabled = false));
+    updateCommands();
 }
 
 function renderSecurity(security) {
@@ -115,14 +160,33 @@ async function pollState() {
 
 async function sendCommand(command) {
     if (!selectedDevice) return;
+    const device = selectedDevice;
+    if (startingDevices.has(device)) return;
+    commandStatus.textContent = "";
+    if (command === "SHUTDOWN") stoppingDevices.add(device);
     try {
-        await fetch("api/command", {
+        if (command === "START" && launcherOrigin) {
+            startingDevices.set(device, Date.now() + 15000);
+            updateCommands();
+            const status = await requestStart(device);
+            if (status === "starting" || status === "running") stoppingDevices.delete(device);
+            if (status === "starting") return;
+            startingDevices.delete(device);
+            if (status !== "running") throw new Error("Device cannot be started: " + status);
+        }
+        const response = await fetch("api/command", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ device: selectedDevice, command }),
+            body: JSON.stringify({ device, command }),
         });
+        if (!response.ok) throw new Error("Command failed (" + response.status + ")");
     } catch (err) {
+        startingDevices.delete(device);
+        if (command === "SHUTDOWN") stoppingDevices.delete(device);
+        commandStatus.textContent = err.message;
         console.warn("Failed to send command:", err);
+    } finally {
+        updateCommands();
     }
 }
 

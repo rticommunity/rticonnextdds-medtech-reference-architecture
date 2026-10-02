@@ -22,7 +22,7 @@ async function verify(label, expected = titles) {
     const layout = await vscode.commands.executeCommand("vscode.getEditorLayout");
     const actual = positions();
     console.log("GRID CHECK", label, JSON.stringify(layout), JSON.stringify(actual));
-    assert.equal(layout.orientation, 0);
+    assert.equal(layout.orientation, 1);
     assert.equal(layout.groups.length, 2);
     assert.deepEqual(layout.groups.map((group) => group.groups?.length), [2, 2]);
     assert.ok(layout.groups.every((group) => group.size > 100

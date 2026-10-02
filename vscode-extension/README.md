@@ -7,8 +7,11 @@ This VS Code extension receives the URLs emitted by `launch.py --vscode` and ope
 - Opens Arm Controller, Surgical Arm Monitor, Orchestrator, and Patient Monitor in a 2x2 editor grid.
 - Closes only these MedTech web tabs when the launcher exits, including after `Ctrl+C`.
 - Closing a device tab manually kills its launcher-owned process, stopping DDS heartbeats.
-	Keep Orchestrator open to observe the disconnect; the tutorial's Restore button starts
-	only the stopped device. Plain browser tabs (`--web`) do not have this behavior.
+	Keep Orchestrator open to observe the disconnect; select the device and use **Start**
+	to relaunch it and reopen its tab. Start also resumes paused devices. Patient Sensor
+	can be restarted without a tab. Plain browser tabs (`--web`) do not have launcher recovery.
+- Use **Digital Operating Room: Open Orchestrator** in the Command Palette if the
+  Orchestrator itself was closed or stopped. The full demo must have been launched first.
 - Accepts only HTTP(S) URLs hosted at `localhost`, `127.0.0.1`, or `::1`.
 
 ## Install or update
@@ -48,8 +51,8 @@ IDE windows are open.
 The ten-step tutorial lives in a native side panel; device frames use code-server's
 `/proxy/<port>/` routes. Launcher requests are atomically queued in the container's
 temporary directory, with a single focused extension host consuming them. No
-desktop `vscode://` URI handler is needed. Tab closure and Restore controls retain
-their DDS process lifecycle behavior. Stop the launch terminal with Ctrl+C before
+desktop `vscode://` URI handler is needed. Device recovery is controlled by Orchestrator
+Start, not the tutorial sidebar. Stop the launch terminal with Ctrl+C before
 starting another demo; merely closing a separate browser page does not stop it.
 
 ## Troubleshooting

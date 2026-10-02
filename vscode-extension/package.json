@@ -15,6 +15,7 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "commands": [{ "command": "rti.medtech.openOrchestrator", "title": "Digital Operating Room: Open Orchestrator" }],
     "viewsContainers": {
       "activitybar": [{ "id": "medtech-tutorial", "title": "Digital Operating Room", "icon": "tutorial.svg" }]
     },

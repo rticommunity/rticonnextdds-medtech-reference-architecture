@@ -1,10 +1,12 @@
 const vscode = require("vscode");
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 const http = require("http");
 const { spawn } = require("child_process");
 
 const PORTS = { ArmController: 8091, Orchestrator: 8090, Arm: 8092, PatientMonitor: 8093 };
+const DEVICE_NAMES = { ARM: "Arm", ARM_CONTROLLER: "ArmController", PATIENT_MONITOR: "PatientMonitor", PATIENT_SENSOR: "PatientSensor" };
 
 function escape(value) {
     return String(value).replace(/[&<>"']/g, character => ({
@@ -39,10 +41,9 @@ details { border-bottom: 1px solid var(--vscode-panel-border); padding: 12px 0; 
 summary { font-weight: 600; line-height: 1.4; cursor: pointer; }
 button { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: 0; border-radius: 2px; padding: 7px 8px; margin: 3px 0; cursor: pointer; font: inherit; max-width: 100%; overflow-wrap: anywhere; }
 button:hover { background: var(--vscode-button-hoverBackground); } button:disabled { opacity: .45; cursor: default; }
-.devices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 nav { display: flex; justify-content: space-between; margin-top: 12px; }
 </style></head><body><h2>${escape(tutorial.title)}</h2>
-<div class="devices">${Object.keys(PORTS).map(name => `<button data-action="restore" data-name="${name}" disabled>Restore ${name}</button>`).join("")}</div>
 ${steps}<nav><button id="previous">Previous</button><button id="next">Next</button></nav>
 <script nonce="medtech-tutorial">
 const api = acquireVsCodeApi();
@@ -60,11 +61,6 @@ document.getElementById('previous').onclick = () => select(current - 1);
 document.getElementById('next').onclick = () => select(current + 1);
 document.querySelectorAll('[data-action]').forEach(button => button.onclick = () => {
     api.postMessage({action: button.dataset.action, step: Number(button.dataset.step), index: Number(button.dataset.index), name: button.dataset.name});
-    if (button.dataset.action === 'restore') button.disabled = true;
-});
-window.addEventListener('message', event => {
-    if (event.data.type !== 'health') return;
-    document.querySelectorAll('[data-action="restore"]').forEach(button => { button.disabled = event.data.devices[button.dataset.name] !== false; });
 });
 select(current);
 </script></body></html>`;
@@ -81,6 +77,18 @@ function deviceRunning(port) {
     });
 }
 
+function sensorRunning() {
+    try {
+        const record = JSON.parse(fs.readFileSync(path.join(os.tmpdir(), `medtech-web-tabs-${process.getuid()}`, "PatientSensor.process"), "utf8"));
+        if (record.pid === null) return false;
+        if (!Number.isSafeInteger(record.pid) || record.pid <= 0) return null;
+        process.kill(record.pid, 0);
+        return true;
+    } catch (error) {
+        return error.code === "ESRCH" ? false : null;
+    }
+}
+
 class TutorialView {
     constructor(context) {
         this.context = context;
@@ -88,6 +96,10 @@ class TutorialView {
         this.secure = false;
         this.active = false;
         this.startupDeadline = 0;
+        this.seenDevices = new Set();
+        this.pendingRestores = new Map();
+        this.checkingDevices = new Set();
+        this.ownedChildren = new Set();
     }
 
     resolveWebviewView(view) {
@@ -107,35 +119,111 @@ class TutorialView {
         view.webview.options = { enableScripts: true };
         view.webview.html = tutorialHtml(this.tutorial);
         this.context.subscriptions.push(view.webview.onDidReceiveMessage(message => this.handleMessage(message)));
+        let updating = false;
         const update = async () => {
-            const states = await Promise.all(Object.entries(PORTS).map(async ([name, port]) => [
-                name, !this.active || Date.now() < this.startupDeadline || this.children.get(name)?.exitCode === null
-                    ? true : await deviceRunning(port),
-            ]));
-            await view.webview.postMessage({ type: "health", devices: Object.fromEntries(states) });
+            if (updating) return;
+            updating = true;
+            try {
+                const states = await Promise.all(Object.entries(PORTS).map(async ([name, port]) => {
+                    if (!this.active) return [name, true];
+                    const running = await deviceRunning(port);
+                    if (running === true) {
+                        this.seenDevices.add(name);
+                        if (!this.checkingDevices.has(name)) this.pendingRestores.delete(name);
+                    }
+                    return [name, this.restorePending(name) ? true : running];
+                }));
+                await view.webview.postMessage({ type: "health", devices: Object.fromEntries(states) });
+            } finally {
+                updating = false;
+            }
         };
-        const timer = setInterval(() => update().catch(() => {}), 1000);
+        const timer = setInterval(() => update().catch(() => {}), 250);
         view.onDidDispose(() => clearInterval(timer));
         this.context.subscriptions.push({ dispose: () => clearInterval(timer) });
         update().catch(() => {});
     }
 
-    async handleMessage(message) {
-        if (message.action === "restore" && Object.hasOwn(PORTS, message.name)) {
-            if (!this.active || Date.now() < this.startupDeadline || this.children.get(message.name)?.exitCode === null
-                    || await deviceRunning(PORTS[message.name]) !== false) return;
-            const args = [path.join(this.root, "tutorial", "run_digital_or.sh"), "--launch-only", message.name, "--vscode"];
-            if (this.secure) args.push("--secure");
-            const child = spawn("bash", args, {
-                cwd: this.root, env: { ...process.env, MEDTECH_CLOUD: "1" }, stdio: "ignore", detached: true,
-            });
-            this.children.set(message.name, child);
-            child.on("error", error => {
-                this.children.delete(message.name);
-                vscode.window.showErrorMessage(`Unable to restore ${message.name}: ${error.message}`);
-            });
-            return;
+    restorePending(name) {
+        return Date.now() < (this.pendingRestores.get(name) || 0)
+            || (!this.seenDevices.has(name) && Date.now() < this.startupDeadline);
+    }
+
+    async restoreDevice(name, waitForExit = false) {
+        if (!Object.hasOwn(PORTS, name) && name !== "PatientSensor") return "unknown";
+        if (!this.active) return "inactive";
+        if (this.checkingDevices.has(name)) return "starting";
+        if (Date.now() < (this.pendingRestores.get(name) || 0)) {
+            if (name !== "PatientSensor" || sensorRunning() !== true) return "starting";
+            this.pendingRestores.delete(name);
         }
+        if (!this.root) {
+            const candidates = (vscode.workspace?.workspaceFolders || []).flatMap(folder => [folder.uri.fsPath, path.dirname(folder.uri.fsPath)]);
+            this.root = candidates.find(root => fs.existsSync(path.join(root, "tutorial", "run_digital_or.sh")));
+        }
+        if (!this.root) return "inactive";
+        this.claim?.();
+        this.pendingRestores.set(name, Date.now() + 15000);
+        this.checkingDevices.add(name);
+        let running;
+        try {
+            running = name === "PatientSensor" ? sensorRunning() : await deviceRunning(PORTS[name]);
+            if (waitForExit && running !== false) {
+                const deadline = Date.now() + 2000;
+                do {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    running = name === "PatientSensor" ? sensorRunning() : await deviceRunning(PORTS[name]);
+                } while (running !== false && this.active && Date.now() < deadline);
+            }
+        } catch (error) {
+            this.pendingRestores.delete(name);
+            throw error;
+        } finally {
+            this.checkingDevices.delete(name);
+        }
+        if (running !== false || !this.active) {
+            this.pendingRestores.delete(name);
+            if (running === true) this.seenDevices.add(name);
+            return !this.active ? "inactive" : running === true ? "running" : "unknown";
+        }
+        if (name !== "PatientSensor" && !this.seenDevices.has(name) && Date.now() < this.startupDeadline) {
+            this.pendingRestores.delete(name);
+            return "starting";
+        }
+        const args = [path.join(this.root, "tutorial", "run_digital_or.sh"), "--launch-only", name, "--vscode"];
+        if (this.secure) args.push("--secure");
+        let child;
+        try {
+            child = spawn("bash", args, {
+                cwd: this.root, env: { ...process.env, MEDTECH_CLOUD: fs.existsSync("/app/code-server") ? "1" : "0" },
+                stdio: "ignore", detached: true,
+            });
+        } catch (error) {
+            this.pendingRestores.delete(name);
+            throw error;
+        }
+        this.children.set(name, child);
+        this.ownedChildren.add(child);
+        child.on("exit", () => {
+            this.ownedChildren.delete(child);
+            if (this.children.get(name) === child) {
+                this.children.delete(name);
+                this.pendingRestores.delete(name);
+            }
+        });
+        child.on("error", error => {
+            this.ownedChildren.delete(child);
+            if (this.children.get(name) === child) {
+                this.children.delete(name);
+                this.pendingRestores.delete(name);
+            }
+            vscode.window.showErrorMessage(`Unable to start ${name}: ${error.message}`);
+        });
+        return "starting";
+    }
+
+    async handleMessage(message) {
+        if (message.action === "restore") return this.restoreDevice(message.name);
         const step = this.tutorial.steps[message.step];
         if (!step) return;
         if (message.action === "file") {
@@ -156,7 +244,9 @@ class TutorialView {
 
     stop() {
         this.active = false;
-        for (const child of this.children.values()) {
+        this.seenDevices.clear();
+        this.pendingRestores.clear();
+        for (const child of this.ownedChildren) {
             if (child.exitCode === null) {
                 try {
                     process.kill(-child.pid, "SIGTERM");
@@ -168,4 +258,4 @@ class TutorialView {
     }
 }
 
-module.exports = { TutorialView, tutorialHtml, deviceRunning };
+module.exports = { TutorialView, tutorialHtml, deviceRunning, sensorRunning, DEVICE_NAMES };

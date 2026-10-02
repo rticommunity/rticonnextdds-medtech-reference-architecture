@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -12,6 +13,8 @@ from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.error import URLError
+
+import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -56,6 +59,20 @@ def test_tab_close_kills_only_its_owned_process(tmp_path):
             child.stdin.close()
 
 
+def test_sensor_process_record_tracks_exit_without_a_web_port(tmp_path):
+    state = {"returncode": None}
+    child = SimpleNamespace(pid=12345, poll=lambda: state["returncode"])
+
+    class StopAfterExit:
+        def wait(self, timeout):
+            assert json.loads((tmp_path / "PatientSensor.process").read_text()) == {"pid": 12345}
+            state["returncode"] = 0
+            return False
+
+    launch._watch_tab_closures([child], {}, StopAfterExit(), tmp_path, sensor_index=0)
+    assert json.loads((tmp_path / "PatientSensor.process").read_text()) == {"pid": None}
+
+
 def test_module_runner_reports_owned_children(tmp_path):
     children = []
     launch.module_runner.launch(
@@ -63,6 +80,31 @@ def test_module_runner_reports_owned_children(tmp_path):
     )
     assert len(children) == 1
     assert children[0].returncode == 0
+
+
+@pytest.mark.parametrize("stop_signal", [signal.SIGINT, signal.SIGTERM])
+def test_full_demo_supervisor_survives_child_exit_until_stop(tmp_path, stop_signal):
+    code = (
+        "import os, sys, signal; from pathlib import Path; from scripts import module_runner; "
+        "from launch import _interrupt_launch; signal.signal(signal.SIGTERM, _interrupt_launch); "
+        "module_runner.launch([[sys.executable, '-c', 'print(\"child finished\", flush=True)']], "
+        "Path.cwd(), dict(os.environ), keep_alive=True)"
+    )
+    supervisor = subprocess.Popen(
+        [sys.executable, "-c", code], cwd=tmp_path, stdout=subprocess.PIPE, text=True,
+        env={**os.environ, "PYTHONPATH": os.pathsep.join([str(PROJECT_ROOT), str(PROJECT_ROOT / "resource" / "python")])},
+    )
+    try:
+        assert supervisor.stdout.readline().strip() == "child finished"
+        with pytest.raises(subprocess.TimeoutExpired):
+            supervisor.wait(timeout=0.2)
+        supervisor.send_signal(stop_signal)
+        assert supervisor.wait(timeout=5) == 0
+    finally:
+        if supervisor.poll() is None:
+            supervisor.kill()
+        supervisor.wait(timeout=5)
+        supervisor.stdout.close()
 
 
 class _ImmediateThread:

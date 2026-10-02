@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import platform
+import signal
 import subprocess
 import sys
 import tempfile
@@ -50,6 +51,10 @@ with open(SCENARIOS_PATH, encoding="utf-8") as f:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _interrupt_launch(_signum, _frame) -> None:
+    raise KeyboardInterrupt
 
 
 def _resolve_module(
@@ -86,12 +91,28 @@ def _open_vscode_tab(url: str, title: str, *, close_token: str | None = None) ->
     _open_vscode_uri(f"vscode://rti.medtech-web-tabs/open?{query}")
 
 
-def _watch_tab_closures(children, close_tokens, stopped, state_dir=None) -> None:
+def _watch_tab_closures(children, close_tokens, stopped, state_dir=None, sensor_index=None) -> None:
     """Consume one-shot close requests for this launch's exact child processes."""
     if state_dir is None:
         state_dir = Path(tempfile.gettempdir()) / f"medtech-web-tabs-{os.getuid()}"
     pending = dict(close_tokens)
-    while pending and not stopped.wait(0.1):
+    sensor = children[sensor_index] if sensor_index is not None else None
+    sensor_record = state_dir / "PatientSensor.process"
+
+    def record_sensor(pid):
+        if pid is None and json.loads(sensor_record.read_text()).get("pid") != children[sensor_index].pid:
+            return
+        temporary = sensor_record.with_suffix(f".{uuid.uuid4().hex}.tmp")
+        temporary.write_text(json.dumps({"pid": pid}))
+        temporary.replace(sensor_record)
+
+    if sensor is not None:
+        state_dir.mkdir(parents=True, exist_ok=True)
+        record_sensor(sensor.pid)
+    while (pending or sensor is not None) and not stopped.wait(0.1):
+        if sensor is not None and sensor.poll() is not None:
+            record_sensor(None)
+            sensor = None
         for index, token in list(pending.items()):
             request = state_dir / f"{token}.close"
             child = children[index]
@@ -102,6 +123,8 @@ def _watch_tab_closures(children, close_tokens, stopped, state_dir=None) -> None
                 del pending[index]
             elif child.poll() is not None:
                 del pending[index]
+    if sensor is not None and sensor.poll() is not None:
+        record_sensor(None)
 
 
 def _close_vscode_tabs(titles: list[str] | None = None) -> None:
@@ -294,6 +317,8 @@ def main() -> None:
         argcomplete.autocomplete(parser)
 
     args = parser.parse_args()
+    if args.vscode:
+        signal.signal(signal.SIGTERM, _interrupt_launch)
 
     if args.list_scenarios:
         _list_scenarios()
@@ -319,8 +344,11 @@ def main() -> None:
         watchers = []
 
         def watch_children(children):
+            sensor_index = next((index for index, command in enumerate(cmds)
+                                 if any(Path(part).name == "PatientSensor" for part in command)), None)
             watcher = threading.Thread(
-                target=_watch_tab_closures, args=(children, close_tokens, stopped), daemon=True
+                target=_watch_tab_closures,
+                args=(children, close_tokens, stopped, None, sensor_index), daemon=True
             )
             watchers.append(watcher)
             watcher.start()
@@ -329,7 +357,10 @@ def main() -> None:
             _apply_web_flag(args.module, cmds, vscode=args.vscode, close_tokens=close_tokens)
         try:
             if args.vscode:
-                module_runner.launch(cmds, mod_dir, env, on_started=watch_children)
+                module_runner.launch(
+                    cmds, mod_dir, env, on_started=watch_children,
+                    keep_alive=args.module == "01-operating-room" and not args.apps,
+                )
             else:
                 module_runner.launch(cmds, mod_dir, env)
         finally:

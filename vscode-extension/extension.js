@@ -10,14 +10,30 @@ const APP_VIEW_COLUMNS = {
     Orchestrator: vscode.ViewColumn.Three,
     PatientMonitor: vscode.ViewColumn.Four,
 };
+const DEMO_GRID_LAYOUT = {
+    orientation: 1,
+    groups: [{ groups: [{}, {}] }, { groups: [{}, {}] }],
+};
 
 let demoGridCreated = false;
 let demoGridCreation;
+let gridConfiguration;
+let previousCloseEmptyGroups;
 const demoPanels = new Set();
 const appPanels = new Map();
 const appColumns = new Map();
 const tabStateDir = path.join(os.tmpdir(), `medtech-web-tabs-${process.getuid()}`);
 const cloudWorkspace = fs.existsSync("/app/code-server");
+let recoveryView;
+let extensionContext;
+
+function recovery() {
+    if (!recoveryView) {
+        const { TutorialView } = require("./tutorial-view");
+        recoveryView = new TutorialView(extensionContext);
+    }
+    return recoveryView;
+}
 
 function cloudTargetUrl(targetUrl, origin = process.env.MEDTECH_CLOUD_URL || "http://127.0.0.1:8080") {
     return new URL(`${origin.replace(/\/$/, "")}/proxy/${targetUrl.port}${targetUrl.pathname}${targetUrl.search}`);
@@ -41,24 +57,43 @@ function isLocalHttpUrl(url) {
         && LOCALHOST_NAMES.has(url.hostname);
 }
 
+async function preserveDemoGroups() {
+    const configuration = vscode.workspace?.getConfiguration?.("workbench.editor");
+    if (!configuration || gridConfiguration) return;
+    previousCloseEmptyGroups = configuration.inspect("closeEmptyGroups")?.workspaceValue;
+    await configuration.update("closeEmptyGroups", false, vscode.ConfigurationTarget.Workspace);
+    gridConfiguration = configuration;
+}
+
+async function restoreDemoGroups() {
+    if (!gridConfiguration) return;
+    const configuration = gridConfiguration;
+    gridConfiguration = undefined;
+    if (configuration.inspect("closeEmptyGroups")?.workspaceValue === false) {
+        await configuration.update("closeEmptyGroups", previousCloseEmptyGroups, vscode.ConfigurationTarget.Workspace);
+    }
+}
+
 async function createDemoGrid() {
     if (demoGridCreated) {
         return;
     }
 
     if (!demoGridCreation) {
-        demoGridCreation = vscode.commands.executeCommand("workbench.action.editorLayoutTwoByTwoGrid")
+        demoGridCreation = preserveDemoGroups()
+            .then(() => vscode.commands.executeCommand("vscode.setEditorLayout", DEMO_GRID_LAYOUT))
             .then(() => { demoGridCreated = true; })
             .finally(() => { demoGridCreation = undefined; });
     }
     await demoGridCreation;
 }
 
-function createAppPanel(title, targetUrl, closeToken) {
+function createAppPanel(title, targetUrl, closeToken, preserveFocus = false) {
+    const column = appColumns.get(title) || APP_VIEW_COLUMNS[title] || vscode.ViewColumn.Beside;
     const panel = vscode.window.createWebviewPanel(
         "rti.medtechWebTab",
         title,
-        appColumns.get(title) || APP_VIEW_COLUMNS[title] || vscode.ViewColumn.Beside,
+        preserveFocus ? { viewColumn: column, preserveFocus: true } : column,
         { enableScripts: true, retainContextWhenHidden: true }
     );
     panel.closeToken = closeToken;
@@ -84,19 +119,34 @@ function createAppPanel(title, targetUrl, closeToken) {
         });
     });
     panel.webview.html = webviewHtml(targetUrl, title);
+    if (title === "Orchestrator") {
+        panel.webview.onDidReceiveMessage?.(async message => {
+            const { DEVICE_NAMES } = require("./tutorial-view");
+            if (message.action !== "start" || !Object.hasOwn(DEVICE_NAMES, message.device)
+                    || !Number.isSafeInteger(message.requestId)) return;
+            try {
+                const name = DEVICE_NAMES[message.device];
+                const status = await recovery().restoreDevice(name, !appPanels.has(name) || message.stopped === true);
+                await panel.webview.postMessage({ type: "medtech-device-start-result", requestId: message.requestId, status });
+            } catch (error) {
+                await panel.webview.postMessage({ type: "medtech-device-start-result", requestId: message.requestId, status: "error" });
+                vscode.window.showErrorMessage(`Unable to start device: ${error.message}`);
+            }
+        });
+    }
     return panel;
 }
 
 function activate(context) {
+    extensionContext = context;
     let tutorialView;
     if (cloudWorkspace) {
-        const { TutorialView } = require("./tutorial-view");
-        tutorialView = new TutorialView(context);
+        tutorialView = recovery();
         context.subscriptions.push(vscode.window.registerWebviewViewProvider("rti.medtechTutorial", tutorialView, {
             webviewOptions: { retainContextWhenHidden: true },
         }));
-        context.subscriptions.push({ dispose: () => tutorialView.stop() });
     }
+    context.subscriptions.push({ dispose: () => recoveryView?.stop() });
     const uriHandler = {
         async handleUri(uri) {
             if (uri.path === "/tutorial" && tutorialView) {
@@ -125,6 +175,7 @@ function activate(context) {
                 }
                 if (!demoPanels.size) {
                     demoGridCreated = false;
+                    await restoreDemoGroups();
                 }
                 return;
             }
@@ -155,6 +206,12 @@ function activate(context) {
             }
 
             const title = requestedTitle || targetUrl.host;
+            if (APP_VIEW_COLUMNS[title]) {
+                const controller = recovery();
+                if (title === "Orchestrator") controller.active = true;
+                controller.seenDevices.add(title);
+                controller.pendingRestores.delete(title);
+            }
             if (cloudWorkspace) {
                 targetUrl = cloudTargetUrl(targetUrl);
             }
@@ -163,50 +220,34 @@ function activate(context) {
             }
             const existingPanel = appPanels.get(title);
             if (existingPanel) {
+                const restarted = closeToken && closeToken !== existingPanel.closeToken;
                 if (closeToken) existingPanel.closeToken = closeToken;
-                existingPanel.reveal();
-                existingPanel.webview.html = webviewHtml(targetUrl, title);
+                existingPanel.reveal(undefined, true);
+                if (restarted || existingPanel.targetUrl.href !== targetUrl.href) {
+                    existingPanel.targetUrl = targetUrl;
+                    existingPanel.webview.html = webviewHtml(targetUrl, title);
+                }
                 return;
             }
             if (APP_VIEW_COLUMNS[title] && appColumns.has(title)) {
-                const tabs = new Map([...appPanels].map(([name, panel]) => [name, {
-                    url: panel.targetUrl, token: panel.closeToken,
-                }]));
-                tabs.set(title, { url: targetUrl, token: closeToken });
-                const disposing = [...appPanels.values()];
-                for (const panel of disposing) {
-                    panel.closedByLauncher = true;
-                    panel.dispose();
-                }
-                await Promise.all(disposing.map((panel) => panel.disposed));
-                appPanels.clear();
-                await vscode.commands.executeCommand("workbench.action.editorLayoutTwoByTwoGrid");
-                for (const name of Object.keys(APP_VIEW_COLUMNS)) {
-                    const tab = tabs.get(name);
-                    if (tab) {
-                        createAppPanel(name, tab.url, tab.token);
-                    }
-                }
-                await vscode.commands.executeCommand("vscode.setEditorLayout", {
-                    orientation: 0,
-                    groups: [
-                        { groups: [{}, {}] },
-                        { groups: [{}, {}] },
-                    ],
-                });
-                for (const [name, column] of Object.entries(APP_VIEW_COLUMNS).reverse()) {
-                    const panel = appPanels.get(name);
-                    if (panel && panel.viewColumn !== column) {
-                        panel.reveal(column);
-                    }
-                }
-                await vscode.commands.executeCommand("workbench.action.evenEditorWidths");
+                if (!appPanels.has(title)) createAppPanel(title, targetUrl, closeToken, true);
             } else {
                 createAppPanel(title, targetUrl, closeToken);
             }
         }
     };
     context.subscriptions.push(vscode.window.registerUriHandler(uriHandler));
+    if (vscode.commands.registerCommand) {
+        context.subscriptions.push(vscode.commands.registerCommand("rti.medtech.openOrchestrator", async () => {
+            const controller = recovery();
+            const status = await controller.restoreDevice("Orchestrator", !appPanels.has("Orchestrator"));
+            if (status === "running") {
+                await uriHandler.handleUri({ path: "/open", query: "title=Orchestrator&url=http%3A%2F%2Flocalhost%3A8090%2F" });
+            } else if (status !== "starting") {
+                vscode.window.showErrorMessage("Unable to open Orchestrator. Launch the Digital Operating Room demo first.");
+            }
+        }));
+    }
     if (cloudWorkspace) {
         const requests = path.join(tabStateDir, "requests");
         fs.mkdirSync(requests, { recursive: true });
@@ -242,22 +283,36 @@ function activate(context) {
 
 function webviewHtml(targetUrl, title) {
     const safeUrl = escapeHtml(targetUrl.toString());
+    const bridge = title === "Orchestrator" ? `<script nonce="medtech-orchestrator">
+const api = acquireVsCodeApi();
+const frame = document.querySelector('iframe');
+const origin = ${JSON.stringify(targetUrl.origin)};
+frame.addEventListener('load', () => frame.contentWindow.postMessage({type: 'medtech-launcher-ready'}, origin));
+window.addEventListener('message', event => {
+    if (event.source === frame.contentWindow && event.origin === origin && event.data?.type === 'medtech-device-start') {
+        api.postMessage({action: 'start', device: event.data.device, requestId: event.data.requestId, stopped: event.data.stopped === true});
+    } else if (event.source !== frame.contentWindow && event.data?.type === 'medtech-device-start-result') {
+        frame.contentWindow.postMessage(event.data, origin);
+    }
+});
+</script>` : "";
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src ${targetUrl.origin}; style-src 'unsafe-inline';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src ${targetUrl.origin}; style-src 'unsafe-inline'; script-src 'nonce-medtech-orchestrator';">
 <title>${escapeHtml(title)}</title>
 <style>html, body, iframe { border: 0; height: 100%; margin: 0; padding: 0; width: 100%; }</style>
 </head>
-<body><iframe src="${safeUrl}" title="${escapeHtml(title)}"></iframe></body>
+<body><iframe src="${safeUrl}" title="${escapeHtml(title)}"></iframe>${bridge}</body>
 </html>`;
 }
 
-function deactivate() {
+async function deactivate() {
+    await restoreDemoGroups();
     for (const title of appPanels.keys()) {
         fs.rmSync(tabStatePath(title), { force: true });
     }
 }
 
-module.exports = { activate, deactivate, cloudTargetUrl };
+module.exports = { activate, deactivate, cloudTargetUrl, webviewHtml };
