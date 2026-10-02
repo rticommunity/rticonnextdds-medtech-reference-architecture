@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import importlib
-import json
 import os
 import signal
 import subprocess
 import sys
-import threading
 from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
@@ -21,67 +19,12 @@ sys.path.insert(0, str(PROJECT_ROOT))
 launch = importlib.import_module("launch")
 
 
-def test_cloud_uri_is_queued_without_desktop_browser(monkeypatch, tmp_path):
+def test_cloud_web_mode_does_not_open_a_container_browser(monkeypatch):
     monkeypatch.setenv("MEDTECH_CLOUD", "1")
-    monkeypatch.setattr(launch.tempfile, "gettempdir", lambda: str(tmp_path))
-    uri = "vscode://rti.medtech-web-tabs/open?url=http%3A%2F%2Flocalhost%3A8092%2F&title=Arm"
-    launch._open_vscode_uri(uri)
-    requests = list((tmp_path / f"medtech-web-tabs-{os.getuid()}" / "requests").iterdir())
-    assert len(requests) == 1
-    assert requests[0].suffix == ".json"
-    assert json.loads(requests[0].read_text()) == {"uri": uri}
-
-
-def test_tab_close_kills_only_its_owned_process(tmp_path):
-    children = [
-        subprocess.Popen(
-            [sys.executable, "-c", "import sys; sys.stdin.buffer.read()"], stdin=subprocess.PIPE
-        )
-        for _ in range(2)
-    ]
-    stopped = threading.Event()
-    watcher = threading.Thread(
-        target=launch._watch_tab_closures,
-        args=(children, {0: "arm-token", 1: "monitor-token"}, stopped, tmp_path),
-    )
-    watcher.start()
-    try:
-        (tmp_path / "arm-token.close").touch()
-        assert children[0].wait(timeout=5) != 0
-        assert children[1].poll() is None
-    finally:
-        stopped.set()
-        watcher.join(timeout=5)
-        for child in children:
-            if child.poll() is None:
-                child.kill()
-            child.wait(timeout=5)
-            child.stdin.close()
-
-
-def test_exited_child_closes_only_its_owned_tab(monkeypatch, tmp_path):
-    uris = []
-    monkeypatch.setattr(launch, "_open_vscode_uri", uris.append)
-    child = subprocess.Popen([sys.executable, "-c", "pass"])
-    child.wait(timeout=5)
-    stopped = threading.Event()
-    token = "a" * 32
-    launch._watch_tab_closures([child], {0: token}, stopped, tmp_path)
-    assert uris == [f"vscode://rti.medtech-web-tabs/close-owned?closeToken={token}"]
-
-
-def test_sensor_process_record_tracks_exit_without_a_web_port(tmp_path):
-    state = {"returncode": None}
-    child = SimpleNamespace(pid=12345, poll=lambda: state["returncode"])
-
-    class StopAfterExit:
-        def wait(self, timeout):
-            assert json.loads((tmp_path / "PatientSensor.process").read_text()) == {"pid": 12345}
-            state["returncode"] = 0
-            return False
-
-    launch._watch_tab_closures([child], {}, StopAfterExit(), tmp_path, sensor_index=0)
-    assert json.loads((tmp_path / "PatientSensor.process").read_text()) == {"pid": None}
+    commands = [["/tmp/Arm.py"]]
+    monkeypatch.setattr(launch.threading, "Thread", lambda **kwargs: pytest.fail("cloud opened browser"))
+    launch._apply_web_flag("01-operating-room", commands)
+    assert commands == [["/tmp/Arm.py", "--web", "--port", "8092"]]
 
 
 def test_module_runner_reports_owned_children(tmp_path):
@@ -127,35 +70,8 @@ class _ImmediateThread:
         self.callback(*self.args)
 
 
-def test_vscode_mode_adds_web_arguments_and_opens_editor_tab(monkeypatch):
-    commands = [["/tmp/Arm.py"]]
-    launched_commands = []
-    monkeypatch.setattr(launch.threading, "Thread", _ImmediateThread)
-    monkeypatch.setattr(
-        launch.urllib.request, "urlopen", lambda url, timeout: nullcontext(SimpleNamespace(status=200))
-    )
-    monkeypatch.setattr(launch.platform, "system", lambda: "Darwin")
-    monkeypatch.setattr(
-        launch.subprocess, "run", lambda command, check: launched_commands.append((command, check))
-    )
-
-    launch._apply_web_flag("01-operating-room", commands, vscode=True)
-
-    assert commands == [["/tmp/Arm.py", "--web", "--port", "8092"]]
-    assert launched_commands == [
-        (
-            [
-                "open",
-                "-a",
-                "Visual Studio Code",
-                "vscode://rti.medtech-web-tabs/open?url=http%3A%2F%2Flocalhost%3A8092%2F&title=Arm",
-            ],
-            False,
-        )
-    ]
-
-
 def test_web_mode_keeps_opening_browser_tabs(monkeypatch):
+    monkeypatch.setenv("MEDTECH_CLOUD", "0")
     commands = [["/tmp/PatientMonitor.py"]]
     opened_urls = []
     monkeypatch.setattr(launch.threading, "Thread", _ImmediateThread)
@@ -168,26 +84,6 @@ def test_web_mode_keeps_opening_browser_tabs(monkeypatch):
 
     assert commands == [["/tmp/PatientMonitor.py", "--web", "--port", "8093"]]
     assert opened_urls == ["http://localhost:8093/"]
-
-
-def test_vscode_tab_receives_its_own_close_token(monkeypatch):
-    commands = [["/tmp/PatientSensor"], ["/tmp/Arm.py"], ["/tmp/PatientMonitor.py"]]
-    tokens = {}
-    uris = []
-    monkeypatch.setattr(launch.threading, "Thread", _ImmediateThread)
-    monkeypatch.setattr(
-        launch.urllib.request,
-        "urlopen",
-        lambda url, timeout: nullcontext(SimpleNamespace(status=200)),
-    )
-    monkeypatch.setattr(launch, "_open_vscode_uri", uris.append)
-    launch._apply_web_flag("01-operating-room", commands, vscode=True, close_tokens=tokens)
-    assert set(tokens) == {1, 2}
-    assert tokens[1] != tokens[2]
-    for uri, index, title in zip(uris, [1, 2], ["Arm", "PatientMonitor"]):
-        query = launch.urllib.parse.parse_qs(launch.urllib.parse.urlparse(uri).query)
-        assert query["closeToken"] == [tokens[index]]
-        assert query["title"] == [title]
 
 
 def test_web_tab_waits_for_server_before_opening(monkeypatch):
@@ -209,15 +105,37 @@ def test_web_tab_waits_for_server_before_opening(monkeypatch):
     assert opened_urls == ["http://localhost:8092/"]
 
 
-def test_close_vscode_tabs_sends_close_uri(monkeypatch):
-    launched_commands = []
-    monkeypatch.setattr(launch.platform, "system", lambda: "Darwin")
-    monkeypatch.setattr(
-        launch.subprocess, "run", lambda command, check: launched_commands.append((command, check))
-    )
-
-    launch._close_vscode_tabs()
-
-    assert launched_commands == [
-        (["open", "-a", "Visual Studio Code", "vscode://rti.medtech-web-tabs/close"], False)
-    ]
+def test_stop_script_only_stops_its_checkout_and_can_run_twice(tmp_path):
+    tutorial = tmp_path / "tutorial"
+    tutorial.mkdir()
+    stop_script = tutorial / "stop_all.sh"
+    stop_script.write_text((PROJECT_ROOT.parent / "tutorial" / "stop_all.sh").read_text())
+    owned_script = tmp_path / "medtech-reference-architecture" / "modules" / "01-operating-room" / "src" / "Arm.py"
+    owned_script.parent.mkdir(parents=True)
+    unrelated_script = tmp_path / "unrelated" / "Arm.py"
+    unrelated_script.parent.mkdir()
+    code = 'import sys; print("ready", flush=True); sys.stdin.buffer.read()'
+    children = []
+    try:
+        for script in [owned_script, unrelated_script]:
+            script.write_text(code)
+            child = subprocess.Popen(
+                [sys.executable, str(script)], stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE, text=True,
+            )
+            children.append(child)
+            assert child.stdout.readline().strip() == "ready"
+        result = subprocess.run(["bash", str(stop_script)], capture_output=True, text=True, check=True)
+        assert "Stopped 1" in result.stdout
+        assert children[0].wait(timeout=5) != 0
+        assert children[1].poll() is None
+        result = subprocess.run(["bash", str(stop_script)], capture_output=True, text=True, check=True)
+        assert "No Digital Operating Room processes running" in result.stdout
+        assert children[1].poll() is None
+    finally:
+        for child in children:
+            if child.poll() is None:
+                child.kill()
+            child.wait(timeout=5)
+            child.stdin.close()
+            child.stdout.close()
