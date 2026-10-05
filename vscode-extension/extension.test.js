@@ -5,6 +5,20 @@ const path = require("node:path");
 const vm = require("node:vm");
 const test = require("node:test");
 
+test("extension packaging has an exact tool pin and a complete integrity lock", () => {
+    const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8"));
+    const lock = JSON.parse(fs.readFileSync(path.join(__dirname, "package-lock.json"), "utf8"));
+    assert.match(manifest.devDependencies["@vscode/vsce"], /^\d+\.\d+\.\d+$/);
+    assert.deepEqual(lock.packages[""].devDependencies, manifest.devDependencies);
+    assert.equal(lock.packages["node_modules/@vscode/vsce"].version, manifest.devDependencies["@vscode/vsce"]);
+    for (const [name, dependency] of Object.entries(lock.packages)) {
+        if (!name) continue;
+        assert.ok(dependency.version, `${name} must have an exact resolved version`);
+        assert.match(dependency.resolved, /^https:\/\/registry\.npmjs\.org\//);
+        assert.match(dependency.integrity, /^sha512-/);
+    }
+});
+
 test("arm drawing keeps upstream joints fixed when a downstream joint moves", () => {
     const source = fs.readFileSync(path.join(__dirname, "../modules/01-operating-room/web-arm/app.js"), "utf8");
     const circles = [];
@@ -49,6 +63,9 @@ test("device logs simplify known DDS prefixes and apply each app's scroll policy
             ["2026-10-02 18:00:00 - Started Arm Controller (web mode)", "2026-10-02 18:00:00 - Started Arm Controller"],
             ["Started Orchestrator (web mode)", "Started Orchestrator"],
             ["Writing DeviceCommands::SHUTDOWN to DeviceType::ARM_CONTROLLER", "Writing SHUTDOWN to ARM_CONTROLLER"],
+            ["2026-10-05 23:23:06 - Writing DeviceCommands::PAUSE  to DeviceType::ARM ", "2026-10-05 23:23:06 - Writing PAUSE to ARM"],
+            ["Writing\tDeviceCommands::START \t to DeviceType::ARM_CONTROLLER\t", "Writing START to ARM_CONTROLLER"],
+            ["Started Arm  Controller (web mode) ", "Started Arm Controller"],
             ["Received DeviceStatuses::ON status message from DeviceType::ARM", "Received ON status message from ARM"],
             ["Unknown::VALUE and MyDeviceType::ARM remain unchanged", "Unknown::VALUE and MyDeviceType::ARM remain unchanged"],
             ["The (web mode) setting is enabled", "The (web mode) setting is enabled"],

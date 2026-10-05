@@ -25,18 +25,31 @@ set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries (default: ON)")
 
 # --- RTI CMake Utilities (fetched from GitHub) ---
 include(FetchContent)
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
 FetchContent_Declare(
     rticonnextdds-cmake-utils
     GIT_REPOSITORY https://github.com/rticommunity/rticonnextdds-cmake-utils.git
-    GIT_TAG        main
+    GIT_TAG        2c4b3efef3ed87135565f5d9493303938a76da31
+    UPDATE_DISCONNECTED TRUE
 )
 FetchContent_MakeAvailable(rticonnextdds-cmake-utils)
+
+set(JSON_BuildTests OFF CACHE BOOL "Build JSON tests" FORCE)
+FetchContent_Declare(
+    nlohmann_json
+    URL https://codeload.github.com/nlohmann/json/tar.gz/refs/tags/v3.12.0
+    URL_HASH SHA256=4b92eb0c06d10683f7447ce9406cb97cd4b453be18d7279320f7b2f025c10187
+)
+FetchContent_MakeAvailable(nlohmann_json)
 
 list(APPEND CMAKE_MODULE_PATH
     "${rticonnextdds-cmake-utils_SOURCE_DIR}/cmake/Modules"
 )
 
 # --- Find RTI Connext DDS ---
+set(RTICONNEXTDDS_VERSION "7.7.0" CACHE STRING "Supported Connext DDS version")
 message(STATUS "Looking for RTI Connext DDS version ${RTICONNEXTDDS_VERSION}...")
 find_package(RTIConnextDDS ${RTICONNEXTDDS_VERSION} REQUIRED
     COMPONENTS messaging_api

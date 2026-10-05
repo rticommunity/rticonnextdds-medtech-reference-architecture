@@ -10,5 +10,12 @@
   "contributes": {
     "commands": [{ "command": "rti.medtech.openOrchestrator", "title": "Digital Operating Room: Open Orchestrator" }]
   },
-  "main": "./extension.js"
+  "main": "./extension.js",
+  "files": ["extension.js", "device-launcher.js", "README.md"],
+  "scripts": {
+    "package": "vsce package --allow-missing-repository --skip-license"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "3.6.2"
+  }
 }

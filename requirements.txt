@@ -6,9 +6,9 @@
 # listed here.  It should be installed from the .whl bundled with your
 # Connext DDS installation:
 #
-#   pip install rti.connext.activated -f $NDDSHOME/resource/python_api
+#   pip install --no-index rti.connext.activated==7.7.0 -f $NDDSHOME/resource/python_api
 #
 # See the Connext documentation for details.
 
 
-argcomplete>=3.1
+argcomplete==3.7.2

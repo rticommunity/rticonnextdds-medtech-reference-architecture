@@ -3,6 +3,8 @@
 # ---------------------------------------------------------------------------
 build/
 **/build/
+node_modules/
+*.vsix
 __pycache__/
 .pytest_cache/
 .ruff_cache/

@@ -119,6 +119,7 @@ foreach(application ${WEB_APPLICATIONS})
         PRIVATE
         RTIConnextDDS::cpp2_api
         refArchTypes
+        nlohmann_json::nlohmann_json
     )
     target_include_directories(${application}
         PRIVATE

@@ -94,12 +94,20 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 # Install the RTI Connext Python API from your local Connext installation:
-pip install rti.connext.activated -f $NDDSHOME/resource/python_api
+pip install --no-index rti.connext.activated==7.7.0 -f $NDDSHOME/resource/python_api
 # Alternatively, if the above path is not available, install from PyPI:
 # pip install rti.connext==7.7.0
 ```
 
 Module 01 is web-only and needs no GTK, Qt, NumPy, or pyqtgraph.
+
+The supported cloud toolchain is Connext 7.7.0, Linux amd64
+(`x64Linux4gcc8.5.0` SDK ABI), GCC 13.3.0, Python 3.12.3, and CMake 3.28.3.
+The parent project's Docker recipe contains the hash-locked Python runtime and
+digest-pinned licensed base. This native setup is not covered by that cloud lock.
+CMake uses RTI utilities commit `2c4b3efef3ed87135565f5d9493303938a76da31`
+and checksum-verified `nlohmann/json` 3.12.0, not moving branch tips.
+Reproducible dependency resolution does not promise byte-identical builds.
 
 ### 4. Build Module 01 and Python Types
 

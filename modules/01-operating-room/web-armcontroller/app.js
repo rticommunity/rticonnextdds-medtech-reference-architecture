@@ -106,7 +106,8 @@ function renderStatus(status) {
 
 function formatAlert(message) {
     return message.replace(/\b(?:DeviceCommands|DeviceType|DeviceStatuses)::/g, "")
-        .replace(/ \(web mode\)$/, "");
+    .replace(/[ \t]+/g, " ").trimEnd()
+    .replace(/ \(web mode\)$/, "");
 }
 
 function renderAlerts(alerts) {

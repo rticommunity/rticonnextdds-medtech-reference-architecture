@@ -41,7 +41,8 @@ Run these commands from the repository root to build the extension archive:
 
 ```bash
 cd medtech-reference-architecture/vscode-extension
-npx --yes @vscode/vsce package --allow-missing-repository
+npm ci --ignore-scripts --no-audit --no-fund
+npm run package
 ```
 
 1. Run **Extensions: Install from VSIX...** from the Command Palette.
