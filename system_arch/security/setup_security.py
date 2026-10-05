@@ -31,7 +31,6 @@ from security_tree import (
     Identity,
     Module,
     Permissions,
-    PskSeed,
     SecurityTree,
     detect_connext_version,
     scaffold_tree,
@@ -122,33 +121,6 @@ OPERATIONAL_DOMAIN = DomainScope(
             publish_topics=[],
             subscribe_topics=["t/Vitals", "t/DeviceStatus"],
         ),
-        Permissions(name="RecordingService", issuer=TRUSTED_PERMISSIONS_CA),
-        Permissions(name="ReplayService", issuer=TRUSTED_PERMISSIONS_CA),
-        Permissions(name="RsActiveLan", issuer=TRUSTED_PERMISSIONS_CA),
-        Permissions(name="RsPassiveLan", issuer=TRUSTED_PERMISSIONS_CA),
-    ],
-)
-
-TELEOP_WAN_DOMAIN = DomainScope(
-    name="TeleopWanDomain",
-    governance=Governance(
-        name="TeleopWanDomain",
-        issuer=TRUSTED_PERMISSIONS_CA,
-        discovery_protection_kind="NONE",
-        liveliness_protection_kind="NONE",
-    ),
-    permissions=[
-        Permissions(name="RsActiveWan", issuer=TRUSTED_PERMISSIONS_CA),
-        Permissions(name="RsPassiveWan", issuer=TRUSTED_PERMISSIONS_CA),
-        Permissions(name="RsCloudWan", issuer=TRUSTED_PERMISSIONS_CA),
-    ],
-    psk_seeds=[
-        # PSK seed for the WAN (TeleopWanDomain) domain.
-        # Loaded by CDS and all WAN RS participants via
-        # dds.sec.crypto.rtps_psk_secret_passphrase = file:<scope>/TeleopWanDomain.psk
-        # Increment 'id' on every rotation (never reuse).
-        # Valid range: 0-4294967295 for 7.7.x (0-254 for 7.3.x).
-        PskSeed(filename="TeleopWanDomain.psk"),
     ],
 )
 
@@ -183,46 +155,6 @@ OPERATING_ROOM = Module(
     ],
 )
 
-RECORD_PLAYBACK = Module(
-    name="record-playback",
-    apps=[
-        App(
-            name="RecordingService",
-            identities=[Identity(name="RecordingService", issuer=TRUSTED_IDENTITY_CA)],
-        ),
-        App(
-            name="ReplayService",
-            identities=[Identity(name="ReplayService", issuer=TRUSTED_IDENTITY_CA)],
-        ),
-    ],
-)
-
-REMOTE_TELEOP = Module(
-    name="remote-teleop",
-    apps=[
-        App(
-            name="RsActiveLan",
-            identities=[Identity(name="RsActiveLan", issuer=TRUSTED_IDENTITY_CA)],
-        ),
-        App(
-            name="RsActiveWan",
-            identities=[Identity(name="RsActiveWan", issuer=TRUSTED_IDENTITY_CA)],
-        ),
-        App(
-            name="RsPassiveLan",
-            identities=[Identity(name="RsPassiveLan", issuer=TRUSTED_IDENTITY_CA)],
-        ),
-        App(
-            name="RsPassiveWan",
-            identities=[Identity(name="RsPassiveWan", issuer=TRUSTED_IDENTITY_CA)],
-        ),
-        App(
-            name="RsCloudWan",
-            identities=[Identity(name="RsCloudWan", issuer=TRUSTED_IDENTITY_CA)],
-        ),
-    ],
-)
-
 # ---------------------------------------------------------------------------
 # Security tree
 # ---------------------------------------------------------------------------
@@ -233,8 +165,8 @@ SECURITY_TREE = SecurityTree(
         TRUSTED_PERMISSIONS_CA,
         TRUSTED_IDENTITY_CA,
     ],
-    domain_scopes=[OPERATIONAL_DOMAIN, TELEOP_WAN_DOMAIN],
-    modules=[OPERATING_ROOM, RECORD_PLAYBACK, REMOTE_TELEOP],
+    domain_scopes=[OPERATIONAL_DOMAIN],
+    modules=[OPERATING_ROOM],
     org_name="Company Name",
     country="US",
     state="CA",

@@ -12,7 +12,7 @@
   "ui_lastSaveTime": "6/9/2024 @ 15:03:22",
   "ui_creationDate": "6/9/2024 @ 15:02:39",
   "ui_creationSysDVersion": "7.3.0",
-  "ui_projectNotes": "",
+  "ui_projectNotes": "Module 01 Digital Operating Room: five applications on OperationalDataDomain. Optional DDS Security uses SecureAppsQos.xml in place of NonSecureAppsQos.xml, with operational governance, trusted CAs, SecureLogReader, and Test identities.",
   "ui_include": [
     {
       "path": "BaselineRoot.documentationONLY.xml",

@@ -8,8 +8,8 @@ Usage:
 
 Examples:
     python3 launch.py 01-operating-room Arm ArmController -s
-    python3 launch.py 02-record-playback RecordingService
-    python3 launch.py --scenario record -s
+    python3 launch.py 01-operating-room --web
+    python3 launch.py --scenario or-all -s
     python3 launch.py --list-scenarios
 """
 

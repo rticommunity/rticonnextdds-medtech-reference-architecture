@@ -29,7 +29,7 @@ connextdds_rtiddsgen_run(
 )
 
 # Generate Python types for application use (output alongside source files so
-# DdsUtils.py in this module and module 04 can import them directly)
+# DdsUtils.py can import them directly)
 connextdds_rtiddsgen_run(
     IDL_FILE
     "${CMAKE_CURRENT_SOURCE_DIR}/../../system_arch/Types.xml"
@@ -57,8 +57,7 @@ if(EXISTS "${BUILTIN_LOGGING_IDL}")
         EXTRA_ARGS -standard IDL4_CPP
     )
 
-    # Python types for DDS Security builtin logging topic (used by module 04
-    # SecureLogUtils.py via the same _OR_SRC import path as Types.py)
+    # Python types for the DDS Security builtin logging topic.
     connextdds_rtiddsgen_run(
         IDL_FILE
         "${BUILTIN_LOGGING_IDL}"

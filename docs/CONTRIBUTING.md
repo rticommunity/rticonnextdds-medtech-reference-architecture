@@ -126,15 +126,13 @@ committing. In exceptional circumstances you can bypass hooks with
 | Job | What it does |
 | --- | --- |
 | Lint & Format | `ruff check`, `ruff format --check`, codespell, clang-format dry-run, markdown lint via `rvben/rumdl` action |
-| Build | CMake configure + build all C++ modules |
+| Build | CMake configure + build Module 01 and generated Python types |
 | Project-level Tests | `pytest tests/` |
 | Unit Tests | Fast Python type/script/QoS tests |
 | DDS Communication Tests | Non-GUI DDS pub/sub tests |
 | Integration Tests | Slow end-to-end demo flow tests |
 | GUI Tests | Headless Qt application tests |
 | Security Tests | DDS Security plugin tests |
-| Module 02 Tests | Record/Playback module tests |
-| Module 04 Tests | Security Threat module tests |
 
 CI uses a pinned Ruff version (see [Upgrading Ruff](#upgrading-ruff)). If
 pre-commit and CI share the same pin, a clean local commit will not produce

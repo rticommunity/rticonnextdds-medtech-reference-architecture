@@ -2,7 +2,7 @@
 
 The Medical Reference Architecture demonstrates RTI's best practices for building medical devices using RTI Connext®.
 
-This repository contains documentation and module demo applications showcasing different capabilities of Connext in a Medical context. The goal is to provide a comprehensive guide to help developers leverage Connext for building robust, scalable, and interoperable medical systems.
+This branch contains only Module 01, the Digital Operating Room: five applications, four browser-based UIs, and optional DDS Security. The architecture demonstrates robust, scalable, and interoperable medical systems.
 
 ## Contents
 
@@ -10,9 +10,6 @@ This repository contains documentation and module demo applications showcasing d
 - [Quick Start](#quick-start)
 - [Hands-On: Modules](#hands-on-modules)
   - [Module 01: Digital Operating Room](#module-01-digital-operating-room)
-  - [Module 02: RTI Recording Service & RTI Replay Service](#module-02-rti-recording-service--rti-replay-service)
-  - [Module 03: Remote Teleoperation with RTI Real-Time WAN Transport](#module-03-remote-teleoperation-with-rti-real-time-wan-transport)
-  - [Module 04: Security Threat Demonstration](#module-04-security-threat-demonstration)
 - [Hands-On: Architecture](#hands-on-architecture)
 - [Architecture Overview](#architecture-overview)
 - [Hands-On: Architecture](#hands-on-architecture)
@@ -102,20 +99,18 @@ pip install rti.connext.activated -f $NDDSHOME/resource/python_api
 # pip install rti.connext==7.7.0
 ```
 
-Module 01 is web-only and needs no GTK, Qt, NumPy, or pyqtgraph. Module 04's
-desktop threat tools additionally need
-`pip install -r modules/04-security-threat/requirements.txt`; they are not included
-in the web-only cloud image.
+Module 01 is web-only and needs no GTK, Qt, NumPy, or pyqtgraph.
 
-### 4. Build the C++ Modules
+### 4. Build Module 01 and Python Types
 
-Build all modules:
+Run the full build to compile the three C++ applications and generate `Types.py`
+for Arm and PatientMonitor:
 
 ```bash
 python3 build.py
 ```
 
-To build only the modules you intend to run:
+For later incremental C++ builds:
 
 ```bash
 python3 build.py -- --target module-01   # all C++ targets in Module 01
@@ -123,10 +118,12 @@ python3 build.py -- --target ArmController  # only the ArmController target
 ```
 
 The compiled binaries are placed under `build/<CONNEXTDDS_ARCH>/`.
+The `module-01` target alone does not generate Python types; use the full build
+for a clean checkout.
 
 ### 5. Generate Security Artifacts *(optional — skip if not using `-s`)*
 
-The security flag (`-s`) requires PKI certificates, signed governance/permissions XML, and a WAN PSK seed file. Generate them once:
+The security flag (`-s`) requires PKI certificates and signed operational-domain governance/permissions XML. Generate them once:
 
 ```bash
 python3 system_arch/security/setup_security.py
@@ -143,12 +140,6 @@ The RTI MedTech Reference Architecture demonstrates use cases and capabilities o
 Use the module-specific READMEs when you want to run a demo. They describe what each workflow launches, why it exists, and the exact `launch.py` commands to use from the repository root.
 
 ### [Module 01: Digital Operating Room](./modules/01-operating-room/)
-
-### [Module 02: RTI Recording Service & RTI Replay Service](./modules/02-record-playback/)
-
-### [Module 03: Remote Teleoperation with RTI Real-Time WAN Transport](./modules/03-remote-teleoperation/)
-
-### [Module 04: Security Threat Demonstration](./modules/04-security-threat/)
 
 ## Hands-On: Architecture
 
@@ -318,9 +309,9 @@ The reference architecture configures security in [SecureAppsQos.xml](./system_a
 
 | Component | Security Features
 | ---------------------- | -----------------
-| **LAN Communications** | Domain 0 governance, participant-specific certificates and permissions
-| **WAN Communications** | Domain 1 governance for WAN connections
-| **RTI Services** | Dedicated security profiles for Recording/Replay Services and Routing Services
+| **Operating-room applications** | OperationalDomain governance, participant-specific certificates and permissions
+| **SecureLogReader** | Dedicated identity and permission to read distributed security logs
+| **Test** | Dedicated identity and permissions for retained DDS integration tests
 
 Security Artifacts Structure in [security](./system_arch/security/):
 
@@ -344,9 +335,4 @@ Check out the the [system_arch](./system_arch/) folder, where the system archite
 - [RTI Security Plugins](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/index.html)
 - [RTI Connext Modern C++ API](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/api/connext_dds/api_cpp2/index.html) *, used in Module 01: Digital Operating Room*
 - [RTI Connext Python API](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/api/connext_dds/api_python/index.html) *, used in Module 01: Digital Operating Room*
-- [RTI Recording Service & Replay Service](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/services/recording_service/introduction.html) *, used in Module 02: RTI Recording Service & RTI Replay Service*
-- [Connext Real-Time WAN Transport](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/PartRealtimeWAN.htm) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
-- [RTI Routing Service](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/services/routing_service/index.html) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
-- [RTI Cloud Discovery Service](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/addon_products/cloud_discovery_service/index.html) *, used in Module 03: Remote Teleoperation with RTI Real-Time WAN Transport*
-- [RTI Security Plugins Users Manual](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/index.html) *, used in Module 04: Security Threat Demonstration*
 - [RTI Connext Third-Party Software](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/release_notes_3rdparty/index.html)

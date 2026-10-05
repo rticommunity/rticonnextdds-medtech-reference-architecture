@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+
+- This web-based branch now retains only Module 01. Retired module sources,
+  tests, scenarios, images, service/WAN profiles, identities, and NAT tooling
+  have been removed. Operational DDS Security and device-grid support remain.
+- Earlier entries below describe upstream release history, not the applications
+  available on this branch.
+
 ## [1.3.0] - 2026-06-02
 
 ### Added

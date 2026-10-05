@@ -150,7 +150,7 @@ In addition to the [Qos.xml](#qosxml) file, this reference architecture describe
 
 The contents of these files determine whether the Connext applications are secure or not. When launching the applications, the `NDDS_QOS_PROFILES` environment variable must reference one, but not both, of these files to dictate that decision and apply the resulting configuration.
 
-Both files contain only 1 QoS library: ***DpQosLib***. This QoS library contains 1 QoS profile per DomainParticipant. The rationale behind this library is that DomainParticipants in each application may have different needs. For instance, in the provided modules, the security certificates of each application will be different from each other.
+Both files contain ***DpQosLib*** with one profile per DomainParticipant: the five operating-room applications, SecureLogReader, and Test. They also configure the participant factory; the secure file adds common security snippets. Each participant has its own identity and permissions.
 
 [NonSecureAppsQos.xml](./NonSecureAppsQos.xml) contains one profile for each DomainParticipant. For the simplified demonstration, each profile inherits from *SystemLibrary::DefaultParticipant* in [Qos.xml](./Qos.xml). No additional configuration is applied for any given DomainParticipant.
 
@@ -158,7 +158,7 @@ Both files contain only 1 QoS library: ***DpQosLib***. This QoS library contains
 
 [SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *LanCommonSecurityConfig* defines common configuration to enable security for local domains (LAN connections). It references common permissions CA, identity CA, and governance files.
 
-[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *WanCommonSecurityConfig* defines common configuration to enable security for remote domains (WAN connections). It references common permissions CA, identity CA, and governance files.
+Only the operational domain is retained on this branch. Its trusted CAs, secure-log reader, and test identities remain available in secure mode.
 
 ## XML QoS Best Practices
 

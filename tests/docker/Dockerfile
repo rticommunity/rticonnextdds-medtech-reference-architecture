@@ -70,7 +70,6 @@ RUN echo "rti-connext-dds-${CONNEXT_VERSION}-common rti-connext-dds-${CONNEXT_VE
     && apt-get install -y --no-install-recommends \
     rti-connext-dds-${CONNEXT_VERSION}-lib-dev \
     rti-connext-dds-${CONNEXT_VERSION}-rtiddsgen \
-    rti-connext-dds-${CONNEXT_VERSION}-services-all \
     && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------------
@@ -121,7 +120,6 @@ RUN eval $(rtienv) && python${PYTHON_VERSION} build.py -DRTICONNEXTDDS_VERSION=$
 
 # Generate security artifacts (certificates, signed governance/permissions)
 RUN python${PYTHON_VERSION} system_arch/security/setup_security.py --force
-RUN python${PYTHON_VERSION} modules/04-security-threat/security/setup_threat_security.py --force
 
 # ------------------------------------------------------------------
 # Stage 4: Test environment

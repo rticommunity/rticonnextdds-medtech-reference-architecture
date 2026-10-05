@@ -205,9 +205,6 @@ class PskSeed:
         2. Update ``...passphrase`` (primary) from old → new on all participants.
         3. Remove ``...passphrase_extra``.
 
-    The ``WanCommonSecurityConfig`` QoS snippet includes a commented-out
-    ``...passphrase_extra`` element ready to be activated when upgrading to 7.6.0+.
-
     Attributes:
         filename: Output file name relative to the domain scope directory
                   (e.g. ``MyDomain.psk`` → ``domain_scope/MyDomain/MyDomain.psk``).

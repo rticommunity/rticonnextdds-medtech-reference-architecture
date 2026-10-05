@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import importlib
 import subprocess
 import sys
 from pathlib import Path
@@ -21,6 +22,31 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = PROJECT_ROOT / "system_arch" / "security" / "setup_security.py"
+
+
+def test_only_operational_security_is_registered(monkeypatch) -> None:
+    monkeypatch.syspath_prepend(str(SCRIPT.parent))
+    tree = importlib.import_module("setup_security").SECURITY_TREE
+    assert {scope.name for scope in tree.domain_scopes} == {"OperationalDomain"}
+    assert {module.name for module in tree.modules} == {"operating-room"}
+    assert {authority.name for authority in tree.certificate_authorities} == {
+        "TrustedRootCa",
+        "TrustedIdentityCa",
+        "TrustedPermissionsCa",
+    }
+    expected = {
+        "Arm",
+        "ArmController",
+        "Orchestrator",
+        "PatientMonitor",
+        "PatientSensor",
+        "SecureLogReader",
+        "Test",
+    }
+    assert {permission.name for permission in tree.domain_scopes[0].permissions} == expected
+    assert {
+        identity.name for app in tree.modules[0].apps for identity in app.identities
+    } == expected
 
 
 @pytest.mark.secure

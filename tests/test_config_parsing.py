@@ -21,6 +21,7 @@ import importlib
 import json
 import re
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
@@ -50,6 +51,85 @@ def _collect_args_refs(raw: object) -> set[str]:
 
 class TestModuleJsonContract:
     """Validate structure and parser-facing invariants of every module.json."""
+
+    def test_only_operating_room_is_discovered(self):
+        assert set(module_runner.discover_modules()) == {"01-operating-room"}
+
+    def test_scenarios_reference_retained_applications(self):
+        modules = module_runner.discover_modules()
+        scenarios = json.loads((PROJECT_ROOT / "resource/config/scenarios.json").read_text())
+        assert set(scenarios) == {"or-all", "or-gui", "or-headless"}
+        for scenario in scenarios.values():
+            for module_name, app_names in scenario["modules"]:
+                assert module_name in modules
+                apps = json.loads((modules[module_name] / "module.json").read_text())["apps"]
+                assert app_names is None or set(app_names) <= set(apps)
+        assert set(apps) == {
+            "Arm",
+            "ArmController",
+            "Orchestrator",
+            "PatientMonitor",
+            "PatientSensor",
+        }
+
+    def test_system_designer_includes_exist(self):
+        architecture = PROJECT_ROOT / "system_arch"
+        project = json.loads((architecture / "RefArch.rtisdproj").read_text())
+        for include in project["ui_include"]:
+            if not include["builtin"]:
+                assert (architecture / include["path"]).is_file()
+
+    @pytest.mark.parametrize("secure", [False, True])
+    def test_qos_references_resolve(self, secure):
+        architecture = PROJECT_ROOT / "system_arch"
+        paths = [
+            architecture / "qos/Qos.xml",
+            architecture / "qos" / ("SecureAppsQos.xml" if secure else "NonSecureAppsQos.xml"),
+        ]
+        libraries = {}
+        for path in paths:
+            for library in ET.parse(path).getroot().findall("qos_library"):
+                libraries[library.attrib["name"]] = library
+        profiles = {
+            f"{name}::{profile.attrib['name']}"
+            for name, library in libraries.items()
+            for profile in library.findall("qos_profile")
+        }
+        expected = {
+            "Arm",
+            "ArmController",
+            "Orchestrator",
+            "PatientMonitor",
+            "PatientSensor",
+            "SecureLogReader",
+            "Test",
+        }
+        assert {profile.attrib["name"] for profile in libraries["DpQosLib"]} == expected
+        assert "RtiServicesLib" not in libraries
+        assert "SystemLibrary::WanConfig" not in profiles
+        for name, library in libraries.items():
+            for profile in library.findall("qos_profile"):
+                references = [profile.attrib["base_name"]] if "base_name" in profile.attrib else []
+                references.extend(
+                    element.text for element in profile.findall(".//base_name/element")
+                )
+                for reference in references:
+                    if reference.startswith("Builtin"):
+                        continue
+                    qualified = reference if "::" in reference else f"{name}::{reference}"
+                    assert qualified in profiles
+                for element in profile.findall(".//property/value/element/value"):
+                    prefix = "file:$(RTI_SECURITY_ARTIFACTS_DIR)/"
+                    if element.text and element.text.startswith(prefix):
+                        artifact = element.text.removeprefix(prefix)
+                        parts = Path(artifact).parts
+                        generated_index = next(
+                            index
+                            for index, part in enumerate(parts)
+                            if part in {"certs", "private", "signed"}
+                        )
+                        source = architecture / "security" / Path(*parts[:generated_index])
+                        assert list(source.glob("*.cnf")) or list(source.glob("*.xml"))
 
     def test_module_json_has_required_shapes(self):
         modules = module_runner.discover_modules()

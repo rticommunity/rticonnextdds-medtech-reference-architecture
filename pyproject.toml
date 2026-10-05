@@ -15,14 +15,11 @@ check-hidden = false
 testpaths = [
     "tests",
     "modules/01-operating-room/tests",
-    "modules/02-record-playback/tests",
-    "modules/04-security-threat/tests",
 ]
 markers = [
     "build_pipeline: tests that verify project-level configure/build pipeline",
     "gui: test requires a graphical display (deselect with '-m not gui')",
     "secure: test requires DDS Security artifacts (deselect with '-m not secure')",
-    "service: test requires RTI Recording/Replay Service (deselect with '-m not service')",
     "slow: long-running scenario (deselect with '-m not slow')",
 ]
 addopts = "-rs"

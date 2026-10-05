@@ -22,9 +22,11 @@ wait for inter-app DDS interactions to play out.
 """
 
 import importlib
+import json
 import subprocess
 import sys
 import time
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -51,6 +53,83 @@ from scripts.test_utils import (  # noqa: E402
 # ---------------------------------------------------------------------------
 # Crash detection (README exercise: kill an app, Orchestrator detects it)
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("secure", [False, pytest.param(True, marks=pytest.mark.secure)])
+def test_five_app_web_operating_room(request, secure):
+    manager = request.getfixturevalue("proc_manager_secure" if secure else "proc_manager")
+    names = ["ArmController", "Orchestrator", "PatientSensor", "Arm", "PatientMonitor"]
+    processes = {name: manager.start_app(name) for name in names}
+
+    def state(port):
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/state", timeout=1) as response:
+            assert response.status == 200
+            return json.load(response)
+
+    def wait_until(predicate):
+        deadline = time.monotonic() + 20
+        last_error = None
+        while time.monotonic() < deadline:
+            assert processes["Orchestrator"].poll() is None, "Orchestrator exited early"
+            try:
+                if predicate():
+                    return
+            except (OSError, ValueError) as error:
+                last_error = error
+            time.sleep(0.1)
+        pytest.fail(f"Web/DDS readiness condition timed out; last error: {last_error}")
+
+    def command(device, action):
+        payload = json.dumps({"device": device, "command": action}).encode()
+        http_request = urllib.request.Request(
+            "http://127.0.0.1:8090/api/command",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(http_request, timeout=2) as response:
+            assert json.load(response) == {"ok": True}
+
+    def devices():
+        return {device["id"]: device["status"] for device in state(8090)["devices"]}
+
+    expected = {"ARM_CONTROLLER", "ARM", "PATIENT_SENSOR", "PATIENT_MONITOR"}
+    wait_until(lambda: devices() == dict.fromkeys(expected, "ON"))
+    assert all(process.poll() is None for process in processes.values())
+    assert state(8090)["security"]["enabled"] is secure
+    for port in range(8090, 8094):
+        state(port)
+        for asset in ("", "app.js", "style.css"):
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/{asset}", timeout=2) as response:
+                assert response.status == 200
+                assert response.read(), f"Empty asset on port {port}: {asset}"
+
+    initial_vitals = (60.0, 98.0, 38.0, 120.0, 80.0)
+
+    def fresh_vitals():
+        patient = state(8093)
+        values = tuple(patient[field] for field in ("hr", "spo2", "etco2", "nibp_s", "nibp_d"))
+        return not patient["data_stale"] and values != initial_vitals
+
+    wait_until(fresh_vitals)
+    for device, port in (("ARM_CONTROLLER", 8091), ("ARM", 8092), ("PATIENT_MONITOR", 8093)):
+        command(device, "PAUSE")
+        wait_until(lambda: devices()[device] == "PAUSED" and state(port)["status"] == "PAUSED")
+        command(device, "START")
+        wait_until(lambda: devices()[device] == "ON" and state(port)["status"] == "ON")
+    command("PATIENT_SENSOR", "PAUSE")
+    wait_until(lambda: devices()["PATIENT_SENSOR"] == "PAUSED" and state(8093)["data_stale"])
+    command("PATIENT_SENSOR", "START")
+    wait_until(lambda: devices()["PATIENT_SENSOR"] == "ON" and fresh_vitals())
+
+    for device in expected:
+        command(device, "SHUTDOWN")
+    for name, process in processes.items():
+        if name != "Orchestrator":
+            process.wait(timeout=10)
+            assert process.returncode == 0, f"{name} did not shut down cleanly"
+    manager.shutdown_all()
+    assert all(process.poll() is not None for process in processes.values())
 
 
 @pytest.mark.gui

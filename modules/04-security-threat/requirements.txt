@@ -1,5 +1,0 @@
--r ../../requirements.txt
-
-numpy>=1.24
-pyqtgraph>=0.13
-PySide6>=6.5

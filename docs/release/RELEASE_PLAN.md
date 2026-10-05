@@ -3,6 +3,10 @@
 This document defines the versioning strategy, release process, and maintenance
 guidelines for the **RTI MedTech Reference Architecture** project.
 
+This is historical upstream release guidance. This web-based branch ships only
+Module 01; examples of other modules below are historical, not supported launch
+or build instructions.
+
 ---
 
 ## Table of Contents

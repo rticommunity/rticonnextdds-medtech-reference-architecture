@@ -1,4 +1,11 @@
-# MedTech Reference Architecture - Documentation
+# Module 01 System Architecture
+
+This branch retains the five Digital Operating Room applications on
+OperationalDataDomain. The System Designer project includes the operational
+types, topics, participants, and nonsecure QoS. For secure inspection, substitute
+SecureAppsQos.xml for NonSecureAppsQos.xml; do not load both together. Optional
+security retains OperationalDomain governance, the three trusted CAs, all five
+application identities, SecureLogReader, and Test.
 
 The RTI Medical Reference Architecture demonstrates RTI's best practices for building medical devices using RTI Connext. The content in this System Architecture directory is core to the concepts and best practices this reference architecture demonstrates.
 

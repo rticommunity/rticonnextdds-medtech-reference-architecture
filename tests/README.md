@@ -1,7 +1,7 @@
 # Project-level Tests
 
-Tests that validate the project-wide build pipeline and cross-module concerns.
-Module-specific tests live under each module's own `tests/` directory.
+Tests that validate the Module 01 build pipeline, launcher, and retained configuration.
+Application-specific tests live under Module 01's `tests/` directory.
 
 ## Prerequisites
 
@@ -21,9 +21,8 @@ pip install -r requirements-dev.txt
 
 # If you want to run the security tests
 python3 system_arch/security/setup_security.py
-python modules/04-security-threat/security/setup_threat_security.py
 
-# Run all 110+ tests (repo-level + all modules)
+# Run project-level and Module 01 tests
 pytest
 
 # Run with verbose output
@@ -45,8 +44,6 @@ The root `pyproject.toml` configures pytest to automatically discover tests in:
 
 - `tests/` — Project-level tests
 - `modules/01-operating-room/tests/` — Module 01 tests
-- `modules/02-record-playback/tests/` — Module 02 tests
-- `modules/04-security-threat/tests/` — Module 04 tests
 
 Before running pytest, ensure the RTI environment is sourced:
 
@@ -140,6 +137,6 @@ pytest -m "gui"
 | File | What it tests |
 | --- | --- |
 | `test_project_build_pipeline.py` | CMake configure & build; Module 01 C++ binaries & shared libraries exist |
-| `test_config_parsing.py` | Module JSON schemas and configuration parsing for all modules |
+| `test_config_parsing.py` | Module 01-only discovery, scenarios, System Designer includes, QoS references, and JSON parsing |
 | `test_security_status.py` | Security artifacts generation and availability for secure tests |
 | `test_markdown_lint.py` | Project documentation (README, Scenario, etc.) passes rumdl checks |

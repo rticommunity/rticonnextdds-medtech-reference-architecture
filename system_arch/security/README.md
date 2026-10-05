@@ -56,14 +56,11 @@ system_arch/security/
 │   ├── TrustedIdentityCa/                       #   Intermediate CA for identity certs
 │   └── TrustedPermissionsCa/                    #   Intermediate CA for permissions signing
 ├── domain_scope/                                # Per-domain governance & permissions
-│   ├── OperationalDomain/
+│   └── OperationalDomain/
 │   │   ├── governance/<name>/<name>.xml         #     Governance XML (committed)
 │   │   │                └── signed/<issuer>/     #     Signed governance (.p7s)
 │   │   └── permissions/<role>/<role>.xml         #     Permissions XML (committed)
 │   │                        └── signed/<issuer>/ #     Signed permissions (.p7s)
-│   └── TeleopWanDomain/
-│       ├── TeleopWanDomain.psk                  #     PSK passphrase seed (generated)
-│       └── ...
 ├── identity/                                    # Per-participant identity certs
 │   └── <module>/<app>/<participant>/
 │       ├── <participant>.cnf                    #   OpenSSL config (committed)
@@ -82,7 +79,7 @@ system_arch/security/
 - **Chain files:** Identity certificates include a `.chain.pem` containing both the leaf cert and its issuing CA cert, as required by the RTI Security Plugins.
 - **Signed XML:** Governance and permissions XML files are S/MIME-signed by the appropriate intermediate CA. The signed `.p7s` files are what Connext loads at runtime.
 - **Per-participant permissions:** Each participant has its own permissions document specifying the exact topics it may publish/subscribe to, with a default `DENY` rule.
-- **PSK passphrases:** Pre-Shared Key seed files (`.psk`) are generated per domain scope and stored alongside the governance/permissions artifacts (e.g. `domain_scope/TeleopWanDomain/TeleopWanDomain.psk`). The file format is `<id>:<seed>` where `<id>` is an integer in [0, 254] for Connext 7.3.x. Participants load the passphrase via the `dds.sec.crypto.rtps_psk_secret_passphrase` property.
+- **Retained participants:** Arm, ArmController, Orchestrator, PatientMonitor, PatientSensor, SecureLogReader, and Test use OperationalDomain. Only operating-room identities are generated on this branch.
 
 ## Good Practices for DDS Security
 
