@@ -31,6 +31,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 from collections.abc import Callable
 from pathlib import Path
 
@@ -226,15 +227,33 @@ def load_module_config(
 
 
 def _shutdown(children: list[subprocess.Popen]) -> None:
-    """Gracefully terminate then kill all children."""
-    for child in children:
-        if child.poll() is None:
-            child.terminate()
+    """Terminate owned children, allow one second of grace, then kill and reap."""
+    errors: list[BaseException] = []
     for child in children:
         try:
-            child.wait(timeout=1)
+            if child.poll() is None:
+                child.terminate()
+        except BaseException as error:
+            errors.append(error)
+    deadline = time.monotonic() + 1
+    for child in children:
+        try:
+            child.wait(timeout=max(0, deadline - time.monotonic()))
+            continue
         except subprocess.TimeoutExpired:
+            pass
+        except BaseException as error:
+            errors.append(error)
+        try:
             child.kill()
+        except BaseException as error:
+            errors.append(error)
+        try:
+            child.wait(timeout=1)
+        except BaseException as error:
+            errors.append(error)
+    if errors:
+        raise errors[0]
 
 
 def launch(
@@ -244,21 +263,25 @@ def launch(
 ) -> None:
     """Spawn *commands* as child processes under *module_dir* and wait.
 
-    All processes are launched concurrently.  ``KeyboardInterrupt``
-    triggers a graceful shutdown (SIGTERM, then SIGKILL after 1 s).
+    All processes are launched concurrently. Any exception triggers cleanup
+    (SIGTERM, then SIGKILL after 1 s) before the original exception is re-raised.
     """
     children: list[subprocess.Popen] = []
     try:
         for cmd in commands:
             children.append(subprocess.Popen(cmd, env=env, cwd=module_dir))
         if on_started is not None:
-            on_started(children)
+            on_started(children.copy())
         for child in children:
             child.wait()
         if keep_alive:
             threading.Event().wait()
-    except KeyboardInterrupt:
-        _shutdown(children)
+    except BaseException as error:
+        try:
+            _shutdown(children)
+        except BaseException as cleanup_error:
+            error.add_note(f"Child cleanup also failed: {cleanup_error!r}")
+        raise
 
 
 def launch_multi(
@@ -268,15 +291,18 @@ def launch_multi(
 
     *specs* is a list of ``(commands, module_dir, env)`` tuples — one per
     module.  All processes across all modules are spawned concurrently and
-    ``Ctrl-C`` tears down everything.
+    Any exception tears down all owned children and is re-raised.
     """
     children: list[subprocess.Popen] = []
-    for commands, module_dir, env in specs:
-        for cmd in commands:
-            children.append(subprocess.Popen(cmd, env=env, cwd=module_dir))
-
     try:
+        for commands, module_dir, env in specs:
+            for cmd in commands:
+                children.append(subprocess.Popen(cmd, env=env, cwd=module_dir))
         for child in children:
             child.wait()
-    except KeyboardInterrupt:
-        _shutdown(children)
+    except BaseException as error:
+        try:
+            _shutdown(children)
+        except BaseException as cleanup_error:
+            error.add_note(f"Child cleanup also failed: {cleanup_error!r}")
+        raise

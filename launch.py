@@ -340,7 +340,10 @@ def main() -> None:
                 parser.error(f"Scenario references unknown module '{module_name}'")
             cmds, mod_dir, env = _resolve_module(module_name, app_names, args.security)
             specs.append((cmds, mod_dir, env))
-        module_runner.launch_multi(specs)
+        try:
+            module_runner.launch_multi(specs)
+        except KeyboardInterrupt:
+            pass
 
     elif args.module:
         cmds, mod_dir, env = _resolve_module(args.module, args.apps or None, args.security)
@@ -370,6 +373,8 @@ def main() -> None:
                 )
             else:
                 module_runner.launch(cmds, mod_dir, env)
+        except KeyboardInterrupt:
+            pass
         finally:
             stopped.set()
             for watcher in watchers:

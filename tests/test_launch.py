@@ -58,13 +58,162 @@ def test_module_runner_reports_owned_children(tmp_path):
     assert children[0].returncode == 0
 
 
+@pytest.mark.parametrize("multi", [False, True])
+@pytest.mark.parametrize(
+    "failure", [OSError("second spawn failed"), KeyboardInterrupt(), SystemExit(7)]
+)
+def test_partial_launch_reaps_children_and_preserves_exception(
+    monkeypatch, tmp_path, multi, failure
+):
+    popen = subprocess.Popen
+    children = []
+    unrelated = popen([sys.executable, "-c", "import time; time.sleep(60)"])
+
+    def spawn(*args, **kwargs):
+        if children:
+            raise failure
+        child = popen(*args, **kwargs)
+        children.append(child)
+        return child
+
+    monkeypatch.setattr(launch.module_runner.subprocess, "Popen", spawn)
+    command = [sys.executable, "-c", "import time; time.sleep(60)"]
+    try:
+        with pytest.raises(type(failure)) as caught:
+            if multi:
+                launch.module_runner.launch_multi([
+                    ([command], tmp_path, os.environ.copy()),
+                    ([command], tmp_path, os.environ.copy()),
+                ])
+            else:
+                launch.module_runner.launch([command, command], tmp_path, os.environ.copy())
+        assert caught.value is failure
+        assert len(children) == 1
+        assert children[0].returncode is not None
+        assert unrelated.poll() is None
+    finally:
+        for child in [*children, unrelated]:
+            if child.poll() is None:
+                child.kill()
+            child.wait(timeout=5)
+
+
+@pytest.mark.parametrize("stubborn", [False, True])
+@pytest.mark.parametrize("failure", [RuntimeError("callback failed"), KeyboardInterrupt()])
+def test_callback_failure_terminates_and_reaps_children(tmp_path, failure, stubborn):
+    children = []
+    handler = "signal.SIG_IGN" if stubborn else "lambda *_: os._exit(0)"
+    command = [sys.executable, "-u", "-c",
+               f"import os, signal; signal.signal(signal.SIGTERM, {handler}); "
+               "print('ready', flush=True); signal.pause()"]
+
+    def started(owned):
+        children.extend(owned)
+        for child in owned:
+            assert child.stdout.readline().strip() == "ready"
+        owned.clear()
+        raise failure
+
+    popen = subprocess.Popen
+
+    def spawn(*args, **kwargs):
+        return popen(*args, **kwargs, stdout=subprocess.PIPE, text=True)
+
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(launch.module_runner.subprocess, "Popen", spawn)
+        try:
+            with pytest.raises(type(failure)) as caught:
+                launch.module_runner.launch(
+                    [command, command], tmp_path, os.environ.copy(), on_started=started
+                )
+            assert caught.value is failure
+            assert len(children) == 2
+            expected = -signal.SIGKILL if stubborn else 0
+            assert [child.returncode for child in children] == [expected, expected]
+        finally:
+            for child in children:
+                if child.poll() is None:
+                    child.kill()
+                child.wait(timeout=5)
+                child.stdout.close()
+
+
+@pytest.mark.parametrize("multi", [False, True])
+@pytest.mark.parametrize("failure", [RuntimeError("wait failed"), KeyboardInterrupt()])
+def test_wait_failure_reaps_all_children(monkeypatch, tmp_path, multi, failure):
+    popen = subprocess.Popen
+    children = []
+
+    def spawn(*args, **kwargs):
+        child = popen(*args, **kwargs)
+        children.append(child)
+        if len(children) == 1:
+            wait = child.wait
+
+            def fail_wait_once(*wait_args, **wait_kwargs):
+                monkeypatch.setattr(child, "wait", wait)
+                raise failure
+
+            monkeypatch.setattr(child, "wait", fail_wait_once)
+        return child
+
+    monkeypatch.setattr(launch.module_runner.subprocess, "Popen", spawn)
+    command = [sys.executable, "-c", "import time; time.sleep(60)"]
+    try:
+        with pytest.raises(type(failure)) as caught:
+            if multi:
+                launch.module_runner.launch_multi([([command, command], tmp_path, os.environ.copy())])
+            else:
+                launch.module_runner.launch([command, command], tmp_path, os.environ.copy())
+        assert caught.value is failure
+        assert len(children) == 2
+        assert all(child.returncode is not None for child in children)
+    finally:
+        for child in children:
+            if child.poll() is None:
+                child.kill()
+            child.wait(timeout=5)
+
+
+def test_cleanup_failure_does_not_mask_original_or_skip_other_children(monkeypatch, tmp_path):
+    failure = RuntimeError("callback failed")
+    cleanup_failure = OSError("terminate failed")
+    children = []
+
+    def started(owned):
+        children.extend(owned)
+
+        def terminate():
+            raise cleanup_failure
+
+        monkeypatch.setattr(owned[0], "terminate", terminate)
+        raise failure
+
+    command = [sys.executable, "-c", "import time; time.sleep(60)"]
+    try:
+        with pytest.raises(RuntimeError) as caught:
+            launch.module_runner.launch(
+                [command, command], tmp_path, os.environ.copy(), on_started=started
+            )
+        assert caught.value is failure
+        assert "terminate failed" in failure.__notes__[0]
+        assert all(child.returncode is not None for child in children)
+    finally:
+        for child in children:
+            if child.poll() is None:
+                child.kill()
+            child.wait(timeout=5)
+
+
 @pytest.mark.parametrize("stop_signal", [signal.SIGINT, signal.SIGTERM])
 def test_full_demo_supervisor_survives_child_exit_until_stop(tmp_path, stop_signal):
     code = (
         "import os, sys, signal; from pathlib import Path; from scripts import module_runner; "
         "from launch import _interrupt_launch; signal.signal(signal.SIGTERM, _interrupt_launch); "
-        "module_runner.launch([[sys.executable, '-c', 'print(\"child finished\", flush=True)']], "
-        "Path.cwd(), dict(os.environ), keep_alive=True)"
+        "\ntry:\n"
+        " module_runner.launch([[sys.executable, '-c', 'print(\"child finished\", flush=True)']], "
+        "Path.cwd(), dict(os.environ), keep_alive=True)\n"
+        "except KeyboardInterrupt:\n pass"
     )
     supervisor = subprocess.Popen(
         [sys.executable, "-c", code], cwd=tmp_path, stdout=subprocess.PIPE, text=True,
