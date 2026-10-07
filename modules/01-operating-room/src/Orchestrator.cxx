@@ -183,6 +183,10 @@ private:
     std::map<Common::DeviceType, Gtk::Label *> stat_map;
     std::map<Common::DeviceType, Gtk::RadioButton *> device_map;
     Gtk::ScrolledWindow *scroll;
+    Gtk::Revealer *log_revealer = nullptr;
+    Gtk::ToggleButton *toggle_log = nullptr;
+    Gtk::Label *alert_count_label = nullptr;
+    unsigned int alert_count = 0;
     Glib::RefPtr<Gtk::TextBuffer> buffer;
     Gtk::Label *security_indicator = nullptr;
     sigc::connection security_flash_connection;
@@ -223,6 +227,11 @@ private:
             std::stringstream ss;
             ss << "\n" << time_str << " - " << msg;
             buffer->insert(iter, ss.str());
+            ++alert_count;
+            if (alert_count_label) {
+                alert_count_label->set_text(std::to_string(alert_count)
+                                            + " EVENTS");
+            }
 
             // scroll window down
             auto v_adjustment = scroll->get_vadjustment();
@@ -474,6 +483,14 @@ private:
         Gtk::TextView *console;
         builder->get_widget<Gtk::TextView>("console", console);
         buffer = console->get_buffer();
+        builder->get_widget<Gtk::Revealer>("log_revealer", log_revealer);
+        builder->get_widget<Gtk::ToggleButton>("toggle_log", toggle_log);
+        builder->get_widget<Gtk::Label>("alert_count", alert_count_label);
+        toggle_log->signal_toggled().connect([this]() {
+            const bool expanded = toggle_log->get_active();
+            log_revealer->set_reveal_child(expanded);
+            toggle_log->set_label(expanded ? "▾  ALERTS" : "▸  ALERTS");
+        });
 
         // Force dark background on the text view (CSS alone is unreliable
         // for GtkTextView internals in GTK3)
@@ -484,7 +501,7 @@ private:
             console->override_background_color(bg);
             console->override_color(fg);
             console->override_font(
-                    Pango::FontDescription("Courier New Bold 20"));
+                    Pango::FontDescription("DejaVu Sans Mono 10"));
         }
 
         builder->get_widget<Gtk::ScrolledWindow>("scroll", scroll);

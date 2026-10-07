@@ -36,6 +36,10 @@ inability to use the software. -->
           <datareader_qos base_name="DataFlowLibrary::Command"/>
         </data_reader>
 
+        <data_reader name="dr/TeleopControl" topic_ref="t/TeleopControl">
+          <datareader_qos base_name="DataFlowLibrary::Command"/>
+        </data_reader>
+
         <data_reader name="dr/DeviceCommand" topic_ref="t/DeviceCommand">
           <content_filter name="filter" kind="builtin.sql">
             <expression>device = 'ARM'</expression>
@@ -52,6 +56,9 @@ inability to use the software. -->
         <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
 
         <data_writer name="dw/MotorControl" topic_ref="t/MotorControl">
+          <datawriter_qos base_name="DataFlowLibrary::Command"/>
+        </data_writer>
+        <data_writer name="dw/TeleopControl" topic_ref="t/TeleopControl">
           <datawriter_qos base_name="DataFlowLibrary::Command"/>
         </data_writer>
         <data_writer name="dw/DeviceStatus" topic_ref="t/DeviceStatus">

@@ -54,6 +54,12 @@ class TestRecordingXml:
         topic_names = [t.findtext("topic_name") for t in session.findall("topic")]
         assert "t/MotorControl" in topic_names
 
+    def test_records_teleop_control_topic(self):
+        tree = ElementTree.parse(self.CONFIG)
+        session = tree.getroot().find("recording_service/session")
+        topic_names = [t.findtext("topic_name") for t in session.findall("topic")]
+        assert "t/TeleopControl" in topic_names
+
 
 class TestReplayXml:
     """ReplayServiceConfiguration.xml should be well-formed and complete."""
@@ -70,6 +76,12 @@ class TestReplayXml:
         tree = ElementTree.parse(self.CONFIG)
         root = tree.getroot()
         assert root.find("replay_service") is not None
+
+    def test_replays_teleop_control_topic(self):
+        tree = ElementTree.parse(self.CONFIG)
+        session = tree.getroot().find("replay_service/session")
+        topic_names = [t.findtext("topic_name") for t in session.findall("topic")]
+        assert "t/TeleopControl" in topic_names
 
     def test_replay_service_has_playback(self):
         tree = ElementTree.parse(self.CONFIG)

@@ -417,30 +417,60 @@
             <property name="margin-end">16</property>
             <property name="margin-bottom">12</property>
             <child>
-              <object class="GtkLabel">
+              <object class="GtkBox">
                 <property name="visible">True</property>
-                <property name="label">ALERTS</property>
-                <property name="xalign">0</property>
-                <style><class name="console-header"/></style>
+                <property name="orientation">horizontal</property>
+                <property name="spacing">8</property>
+                <child>
+                  <object class="GtkToggleButton" id="toggle_log">
+                    <property name="visible">True</property>
+                    <property name="active">True</property>
+                    <property name="label">▾  ALERTS</property>
+                    <style><class name="console-toggle"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="alert_count">
+                    <property name="visible">True</property>
+                    <property name="label">0 EVENTS</property>
+                    <property name="valign">center</property>
+                    <style><class name="alert-count"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
               </object>
             </child>
             <child>
-              <object class="GtkScrolledWindow" id="scroll">
+              <object class="GtkRevealer" id="log_revealer">
                 <property name="visible">True</property>
                 <property name="vexpand">True</property>
-                <property name="height-request">180</property>
-                <style><class name="console-scroll"/></style>
+                <property name="reveal-child">True</property>
+                <property name="transition-type">slide-up</property>
+                <property name="transition-duration">160</property>
                 <child>
-                  <object class="GtkTextView" id="console">
+                  <object class="GtkScrolledWindow" id="scroll">
                     <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="editable">False</property>
-                    <property name="wrap-mode">word</property>
-                    <property name="left-margin">8</property>
-                    <property name="right-margin">8</property>
-                    <property name="top-margin">6</property>
-                    <property name="bottom-margin">6</property>
-                    <style><class name="console-text"/></style>
+                    <property name="vexpand">True</property>
+                    <property name="height-request">180</property>
+                    <style><class name="console-scroll"/></style>
+                    <child>
+                      <object class="GtkTextView" id="console">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="editable">False</property>
+                        <property name="wrap-mode">word</property>
+                        <property name="left-margin">8</property>
+                        <property name="right-margin">8</property>
+                        <property name="top-margin">6</property>
+                        <property name="bottom-margin">6</property>
+                        <style><class name="console-text"/></style>
+                      </object>
+                    </child>
                   </object>
                 </child>
               </object>
@@ -452,7 +482,7 @@
         <child>
           <object class="GtkBox">
             <property name="visible">True</property>
-            <property name="height-request">28</property>
+            <property name="height-request">44</property>
             <property name="margin-start">20</property>
             <property name="margin-end">20</property>
             <style><class name="footer-bar"/></style>

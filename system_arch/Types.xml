@@ -16,6 +16,8 @@
         <const name="HB_DR" type="string" value="&quot;s/subscriber::dr/DeviceHeartbeat&quot;"/>
         <const name="MOTOR_CONTROL_DW" type="string" value="&quot;p/publisher::dw/MotorControl&quot;"/>
         <const name="MOTOR_CONTROL_DR" type="string" value="&quot;s/subscriber::dr/MotorControl&quot;"/>
+        <const name="TELEOP_CONTROL_DW" type="string" value="&quot;p/publisher::dw/TeleopControl&quot;"/>
+        <const name="TELEOP_CONTROL_DR" type="string" value="&quot;s/subscriber::dr/TeleopControl&quot;"/>
         <const name="DEVICE_COMMAND_DW" type="string" value="&quot;p/publisher::dw/DeviceCommand&quot;"/>
         <const name="DEVICE_COMMAND_DR" type="string" value="&quot;s/subscriber::dr/DeviceCommand&quot;"/>
         <const name="VITALS_DW" type="string" value="&quot;p/publisher::dw/Vitals&quot;"/>
@@ -62,6 +64,21 @@
       <struct name= "MotorControl">
         <member name="id" type="nonBasic"  nonBasicTypeName= "SurgicalRobot::Motors" key="true"/>
         <member name="direction" type="nonBasic"  nonBasicTypeName= "SurgicalRobot::MotorDirections"/>
+      </struct>
+      <enum name="TeleopAxes">
+        <enumerator name="X"/>
+        <enumerator name="Y"/>
+        <enumerator name="ROLL"/>
+        <enumerator name="GRIPPER"/>
+      </enum>
+      <enum name="TeleopDirections">
+        <enumerator name="STOPPED"/>
+        <enumerator name="POSITIVE"/>
+        <enumerator name="NEGATIVE"/>
+      </enum>
+      <struct name="TeleopControl">
+        <member name="axis" type="nonBasic" nonBasicTypeName="SurgicalRobot::TeleopAxes" key="true"/>
+        <member name="direction" type="nonBasic" nonBasicTypeName="SurgicalRobot::TeleopDirections"/>
       </struct>
     </module>
     <module name="Orchestrator">

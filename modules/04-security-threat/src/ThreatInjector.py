@@ -12,7 +12,6 @@
 
 from __future__ import annotations
 
-import math
 import signal
 import sys
 import threading
@@ -20,17 +19,8 @@ from pathlib import Path
 
 import rti.connextdds as dds
 from PySide6 import QtAsyncio
-from PySide6.QtCore import QPointF, Qt, QTimer
-from PySide6.QtGui import (
-    QBrush,
-    QColor,
-    QFont,
-    QIcon,
-    QPainter,
-    QPainterPath,
-    QPen,
-    QPixmap,
-)
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -38,7 +28,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QPushButton,
-    QSizePolicy,
     QSlider,
     QTextEdit,
     QVBoxLayout,
@@ -56,8 +45,18 @@ sys.path.insert(
     ),
 )
 import DdsUtils
+from Arm import (
+    INITIAL_ANGLES,
+    JOINT_NAMES,
+    SurgicalArmVizWidget,
+)
 from ThreatTypes import ThreatEntities
 from Types import Common, DdsEntities, Orchestrator, SurgicalRobot
+from UiTheme import (
+    LOG_TOGGLE_STYLE,
+    UI_MONOSPACE_FAMILY,
+    apply_application_font,
+)
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
 threat_entities = ThreatEntities.Constants
@@ -119,23 +118,6 @@ _STYLE_STOP_DISABLED = (
     "font-size: 13px; font-weight: bold; }"
 )
 
-# Joint colors matching module 01
-JOINT_COLORS = {
-    SurgicalRobot.Motors.BASE: "#004C97",
-    SurgicalRobot.Motors.SHOULDER: "#ED8B00",
-    SurgicalRobot.Motors.ELBOW: "#00BFFF",
-    SurgicalRobot.Motors.WRIST: "#7CFC00",
-    SurgicalRobot.Motors.HAND: "#DA70D6",
-}
-
-JOINT_NAMES = {
-    SurgicalRobot.Motors.BASE: "BASE",
-    SurgicalRobot.Motors.SHOULDER: "SHOULDER",
-    SurgicalRobot.Motors.ELBOW: "ELBOW",
-    SurgicalRobot.Motors.WRIST: "WRIST",
-    SurgicalRobot.Motors.HAND: "HAND",
-}
-
 _MOTORS_ORDERED = [
     SurgicalRobot.Motors.BASE,
     SurgicalRobot.Motors.SHOULDER,
@@ -143,14 +125,6 @@ _MOTORS_ORDERED = [
     SurgicalRobot.Motors.WRIST,
     SurgicalRobot.Motors.HAND,
 ]
-
-INITIAL_ANGLES = {
-    SurgicalRobot.Motors.BASE: 204.0,
-    SurgicalRobot.Motors.SHOULDER: 176.0,
-    SurgicalRobot.Motors.ELBOW: 156.0,
-    SurgicalRobot.Motors.WRIST: 165.0,
-    SurgicalRobot.Motors.HAND: 151.0,
-}
 
 # Attack mode constants
 MODE_UNSECURE = "UNSECURE"
@@ -171,117 +145,6 @@ MODE_TO_DP_NAME = {
 }
 
 
-# ─── Arm Visualisation (reused from Arm.py style) ────────────────────────
-class ArmVizWidget(QWidget):
-    SEGMENT_LEN = 70
-    JOINT_R = 12
-    EE_SIZE = 16
-    GROUND_W = 80
-    GROUND_LINES = 6
-
-    _GREY = "#334455"
-    _GREY_DIM = "#222C38"
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._angles = {m: 180.0 for m in _MOTORS_ORDERED}
-        self._active = False
-        self.setMinimumWidth(220)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.setStyleSheet(f"background-color: {BG_PANEL};")
-
-    def set_active(self, active: bool):
-        self._active = active
-        self.update()
-
-    def update_angles(self, angles: dict):
-        self._angles = dict(angles)
-        self.update()
-
-    def paintEvent(self, event):
-        w, h = self.width(), self.height()
-        p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        p.fillRect(self.rect(), QColor(BG_PANEL))
-
-        p.setPen(QPen(QColor("#445566")))
-        p.setFont(QFont("Courier New", 10, QFont.Weight.Bold))
-        p.drawText(12, 20, "ARM VISUALIZATION")
-
-        usable_h = h - 70
-        seg = int(usable_h * 0.90 / len(_MOTORS_ORDERED))
-        seg = max(seg, 36)
-
-        bx = w / 2.0
-        by = h - 36.0
-
-        gw = self.GROUND_W
-        ground_pen = QPen(QColor("#334455"), 2)
-        p.setPen(ground_pen)
-        p.drawLine(QPointF(bx - gw, by), QPointF(bx + gw, by))
-        hatch_dx = gw / (self.GROUND_LINES + 1)
-        for i in range(self.GROUND_LINES):
-            hx = bx - gw + hatch_dx * (i + 1)
-            p.drawLine(QPointF(hx, by), QPointF(hx - 10, by + 12))
-
-        cumul_dir = math.pi / 2.0
-        x, y = bx, by
-        points = [(x, y)]
-        for motor in _MOTORS_ORDERED:
-            angle = self._angles.get(motor, 180.0)
-            delta_rad = (angle - 180.0) * math.pi / 180.0
-            cumul_dir += delta_rad
-            nx = x + seg * math.cos(cumul_dir)
-            ny = y - seg * math.sin(cumul_dir)
-            points.append((nx, ny))
-            x, y = nx, ny
-
-        for i, motor in enumerate(_MOTORS_ORDERED):
-            color = QColor(JOINT_COLORS[motor]) if self._active else QColor(self._GREY)
-            x0, y0 = points[i]
-            x1, y1 = points[i + 1]
-            pen = QPen(color, 6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
-            p.setPen(pen)
-            p.drawLine(QPointF(x0, y0), QPointF(x1, y1))
-
-        ee_color = (
-            QColor(JOINT_COLORS[SurgicalRobot.Motors.HAND]) if self._active else QColor(self._GREY)
-        )
-        p.setPen(QPen(ee_color, 2))
-        ex, ey = points[-1]
-        es = self.EE_SIZE
-        diamond = QPainterPath()
-        diamond.moveTo(ex, ey - es)
-        diamond.lineTo(ex + es, ey)
-        diamond.lineTo(ex, ey + es)
-        diamond.lineTo(ex - es, ey)
-        diamond.closeSubpath()
-        p.setBrush(QBrush(ee_color.darker(180)))
-        p.drawPath(diamond)
-
-        jr = self.JOINT_R
-        for i, motor in enumerate(_MOTORS_ORDERED):
-            color = QColor(JOINT_COLORS[motor]) if self._active else QColor(self._GREY)
-            cx2, cy2 = points[i]
-            p.setPen(QPen(color, 2))
-            p.setBrush(QBrush(color.darker(200) if self._active else QColor(self._GREY_DIM)))
-            p.drawEllipse(QPointF(cx2, cy2), jr, jr)
-            name = JOINT_NAMES[motor][:3]
-            p.setPen(QPen(color))
-            p.setFont(QFont("Courier New", 9, QFont.Weight.Bold))
-            p.drawText(QPointF(cx2 + jr + 4, cy2 + 5), name)
-
-        p.setFont(QFont("Courier New", 9))
-        for i, motor in enumerate(_MOTORS_ORDERED):
-            color = QColor(JOINT_COLORS[motor]) if self._active else QColor(self._GREY)
-            p.setPen(QPen(color.lighter(130) if self._active else color))
-            mx = (points[i][0] + points[i + 1][0]) / 2 + 8
-            my = (points[i][1] + points[i + 1][1]) / 2
-            p.drawText(QPointF(mx, my), f"{self._angles.get(motor, 180.0):.0f}°")
-
-        p.end()
-
-
 # ─── Main Window ─────────────────────────────────────────────────────────
 class ThreatInjectorWindow(QMainWindow):
     def __init__(self):
@@ -290,6 +153,9 @@ class ThreatInjectorWindow(QMainWindow):
         self.setMinimumSize(900, 680)
         self.resize(1100, 720)
         self.setStyleSheet(f"background-color: {BG_MAIN};")
+        self._log_event_count = 0
+        self.log_panel: QWidget | None = None
+        self.log_toggle: QPushButton | None = None
 
         _icon_px = QPixmap("../../resource/images/rti_logo.png")
         if not _icon_px.isNull():
@@ -313,7 +179,8 @@ class ThreatInjectorWindow(QMainWindow):
 
         body.addWidget(self._build_left_panel(), 0)
         body.addWidget(self._build_arm_viz(), 1)
-        body.addWidget(self._build_log_panel(), 1)
+        self.log_panel = self._build_log_panel()
+        body.addWidget(self.log_panel, 1)
 
         body_widget = QWidget()
         body_widget.setStyleSheet(f"background-color: {BG_MAIN};")
@@ -345,7 +212,7 @@ class ThreatInjectorWindow(QMainWindow):
 
         rti_lbl = QLabel("RTI Connext")
         rti_lbl.setStyleSheet(
-            f"color: {RTI_BLUE}; font-size: 26px; font-weight: bold; background: transparent;"
+            f"color: {RTI_BLUE}; font-size: 20px; font-weight: bold; background: transparent;"
         )
         h.addWidget(rti_lbl)
 
@@ -355,17 +222,31 @@ class ThreatInjectorWindow(QMainWindow):
 
         title = QLabel("Threat Injector")
         title.setStyleSheet(
-            "color: #E0E8F0; font-size: 34px; font-weight: bold; background: transparent;"
+            "color: #E0E8F0; font-size: 28px; font-weight: bold; background: transparent;"
         )
         h.addWidget(title)
         h.addStretch()
 
+        simulation_lbl = QLabel("SIMULATION · NOT FOR CLINICAL USE")
+        simulation_lbl.setStyleSheet(
+            "color: #EDB252; font-size: 12px; font-weight: bold; background: transparent;"
+        )
+        h.addWidget(simulation_lbl)
+
         self.status_badge = QLabel("IDLE")
         self.status_badge.setStyleSheet(
-            f"color: #fff; background-color: {COLOR_IDLE}; font-size: 18px; "
+            f"color: #fff; background-color: {COLOR_IDLE}; font-size: 16px; "
             f"font-weight: bold; padding: 4px 12px; border-radius: 4px; margin-left: 10px;"
         )
         h.addWidget(self.status_badge)
+
+        self.log_toggle = QPushButton()
+        self.log_toggle.setCheckable(True)
+        self.log_toggle.setChecked(True)
+        self.log_toggle.setStyleSheet(LOG_TOGGLE_STYLE)
+        self.log_toggle.toggled.connect(self._set_log_visible)
+        self._update_log_toggle_label()
+        h.addWidget(self.log_toggle)
         return header
 
     def _build_footer(self) -> QWidget:
@@ -375,7 +256,7 @@ class ThreatInjectorWindow(QMainWindow):
         f = QHBoxLayout(footer)
         f.setContentsMargins(20, 0, 20, 0)
         lbl = QLabel("Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture")
-        lbl.setStyleSheet(f"color: {COLOR_IDLE}; font-size: 18px; background: transparent;")
+        lbl.setStyleSheet("color: #8FA6BA; font-size: 12px; background: transparent;")
         f.addWidget(lbl)
         f.addStretch()
         return footer
@@ -499,7 +380,8 @@ class ThreatInjectorWindow(QMainWindow):
         )
         v = QVBoxLayout(frame)
         v.setContentsMargins(6, 6, 6, 6)
-        self.arm_viz = ArmVizWidget()
+        self.arm_viz = SurgicalArmVizWidget()
+        self.arm_viz.set_active(False)
         v.addWidget(self.arm_viz)
         return frame
 
@@ -513,7 +395,7 @@ class ThreatInjectorWindow(QMainWindow):
         v.setContentsMargins(8, 8, 8, 8)
         v.setSpacing(4)
 
-        hdr = QLabel("Activity Log")
+        hdr = QLabel("SECURITY ACTIVITY")
         hdr.setStyleSheet(
             f"color: {RTI_BLUE}; font-size: 14px; font-weight: bold; background: transparent; "
             f"border-bottom: 1px solid {RTI_BLUE}44; padding-bottom: 4px;"
@@ -522,14 +404,14 @@ class ThreatInjectorWindow(QMainWindow):
 
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setStyleSheet("""
-            QTextEdit {
+        self.log_text.setStyleSheet(f"""
+            QTextEdit {{
                 background-color: #060C14;
                 color: #A0B0C0;
-                font-family: 'Courier New', monospace;
-                font-size: 12px;
+                font-family: "{UI_MONOSPACE_FAMILY}";
+                font-size: 10pt;
                 border: none;
-            }
+            }}
         """)
         v.addWidget(self.log_text)
         return frame
@@ -548,9 +430,21 @@ class ThreatInjectorWindow(QMainWindow):
         bg, fg = colors.get(status, (COLOR_IDLE, "#fff"))
         self.status_badge.setText(status)
         self.status_badge.setStyleSheet(
-            f"color: {fg}; background-color: {bg}; font-size: 18px; "
+            f"color: {fg}; background-color: {bg}; font-size: 16px; "
             f"font-weight: bold; padding: 4px 12px; border-radius: 4px; margin-left: 10px;"
         )
+
+    def _set_log_visible(self, visible: bool) -> None:
+        if self.log_panel is not None:
+            self.log_panel.setVisible(visible)
+        self._update_log_toggle_label()
+
+    def _update_log_toggle_label(self) -> None:
+        if self.log_toggle is None:
+            return
+        arrow = "▾" if self.log_toggle.isChecked() else "▸"
+        event_word = "EVENT" if self._log_event_count == 1 else "EVENTS"
+        self.log_toggle.setText(f"{arrow}  LOG · {self._log_event_count} {event_word}")
 
     def highlight_mode_button(self, active_mode: str | None) -> None:
         for mode, btn in self._mode_buttons.items():
@@ -579,6 +473,8 @@ class ThreatInjectorWindow(QMainWindow):
 
     def log(self, level: str, msg: str):
         """Append a coloured log entry. level: 'OK', 'WARN', 'BLOCKED', 'INFO', 'SECURITY'"""
+        self._log_event_count += 1
+        self._update_log_toggle_label()
         colors = {
             "OK": COLOR_OK,
             "WARN": COLOR_WARN,
@@ -910,6 +806,7 @@ class ThreatInjectorApp:
     def run(self) -> None:
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
+        apply_application_font(app)
         _icon = QIcon(QPixmap("../../resource/images/rti_logo.png"))
         if not _icon.isNull():
             app.setWindowIcon(_icon)

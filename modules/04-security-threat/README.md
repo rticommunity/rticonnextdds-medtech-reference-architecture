@@ -41,13 +41,13 @@ The *Threat Injector* application publishes fabricated commands on Topics `t/Mot
 
 Attack status is derived from `publication_matched_status` — the app checks whether its DataWriters have matched any remote subscribers. If a subscriber matches (unsecured OR is running), the status badge shows **ATTACKING** (green) and log entries appear as `[OK]`. If no subscriber matches (secured OR blocks the handshake), the status badge shows **NO ACCESS** (orange) and log entries appear as `[WARN]`.
 
-An arm visualization panel shows the injected motor commands in real time. The panel renders in color when an attack mode is active and in grey when idle.
+The updated Module 01 surgical-arm visualization shows injected motor commands in real time. The panel renders in color when an attack mode is active and in grey when idle. Use the header's **LOG** control to collapse or reopen the activity log; it shows an event count and is expanded by default.
 
 ### Threat Exfiltrator
 
 ![Threat Exfiltrator Example](../../resource/images/module-04-threat-exfiltrator-example.png)
 
-The *Threat Exfiltrator* application subscribes to the `t/Vitals` topic, displaying patient vital signs as if harvesting them for unauthorised use. Attack status is derived from `subscription_matched_status` — when the exfiltrator's DataReader matches a remote publisher, the status badge shows **ACCESS GRANTED** and live heart rate, SpO₂, EtCO₂, and NiBP values stream in. When no match occurs (secured OR), the vitals panels show `---` and the status badge shows **NO ACCESS**.
+The *Threat Exfiltrator* application subscribes to the `t/Vitals` topic, displaying patient vital signs as if harvesting them for unauthorised use. Attack status is derived from `subscription_matched_status` — when the exfiltrator's DataReader matches a remote publisher, the status badge shows **ACCESS GRANTED** and live heart rate, SpO₂, EtCO₂, and NiBP values stream in. When no match occurs (secured OR), the vitals panels show `---` and the status badge shows **NO ACCESS**. A separate data-state indicator distinguishes waiting for vitals, live data, and a quiet/stale stream. The display is explicitly marked as a simulation and not for clinical use. Its activity log can also be collapsed from the header and includes an event count.
 
 ### Status States
 

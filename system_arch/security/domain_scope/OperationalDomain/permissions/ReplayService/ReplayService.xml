@@ -26,6 +26,7 @@ inability to use the software. -->
                 <publish>
                     <topics>
                         <topic>t/MotorControl</topic>
+                        <topic>t/TeleopControl</topic>
                         <topic>t/Vitals</topic>
                     </topics>
                 </publish>

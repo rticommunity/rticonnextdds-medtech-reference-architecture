@@ -32,6 +32,24 @@ SECURE_QOS_XML = SYSTEM_ARCH_DIR / "qos" / "SecureAppsQos.xml"
 DOMAIN_LIB_XML = SYSTEM_ARCH_DIR / "xml_app_creation" / "DomainLibrary.xml"
 PARTICIPANT_LIB_XML = SYSTEM_ARCH_DIR / "xml_app_creation" / "ParticipantLibrary.xml"
 TYPES_XML = SYSTEM_ARCH_DIR / "Types.xml"
+ARM_PERMISSIONS_XML = (
+    SYSTEM_ARCH_DIR
+    / "security"
+    / "domain_scope"
+    / "OperationalDomain"
+    / "permissions"
+    / "Arm"
+    / "Arm.xml"
+)
+ARM_CONTROLLER_PERMISSIONS_XML = (
+    SYSTEM_ARCH_DIR
+    / "security"
+    / "domain_scope"
+    / "OperationalDomain"
+    / "permissions"
+    / "ArmController"
+    / "ArmController.xml"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -160,6 +178,7 @@ class TestDomainLibrary:
         "t/DeviceHeartbeat",
         "t/DeviceCommand",
         "t/MotorControl",
+        "t/TeleopControl",
     }
 
     @pytest.fixture(scope="class")
@@ -231,6 +250,35 @@ class TestParticipantLibrary:
         missing = expected - devices_with_filter
         assert not missing, f"Missing content filters on: {missing}"
 
+    def test_teleop_control_endpoints(self, participant_root):
+        participants = {
+            participant.get("name"): participant
+            for participant in participant_root.iter("domain_participant")
+        }
+        arm_readers = {
+            (reader.get("name"), reader.get("topic_ref"))
+            for reader in participants["dp/Arm"].iter("data_reader")
+        }
+        controller_writers = {
+            (writer.get("name"), writer.get("topic_ref"))
+            for writer in participants["dp/ArmController"].iter("data_writer")
+        }
+
+        assert ("dr/TeleopControl", "t/TeleopControl") in arm_readers
+        assert ("dw/TeleopControl", "t/TeleopControl") in controller_writers
+
+
+class TestTeleopSecurityPermissions:
+    def test_arm_can_subscribe_to_teleop_control(self):
+        root = ET.parse(ARM_PERMISSIONS_XML).getroot()
+        allowed = {topic.text for topic in root.findall(".//subscribe/topics/topic")}
+        assert "t/TeleopControl" in allowed
+
+    def test_arm_controller_can_publish_teleop_control(self):
+        root = ET.parse(ARM_CONTROLLER_PERMISSIONS_XML).getroot()
+        allowed = {topic.text for topic in root.findall(".//publish/topics/topic")}
+        assert "t/TeleopControl" in allowed
+
 
 # ---------------------------------------------------------------------------
 # Types.xml
@@ -269,7 +317,14 @@ class TestTypesXml:
             if mod.get("name") == "SurgicalRobot":
                 for child in mod:
                     names.add(child.get("name"))
-        assert {"Motors", "MotorDirections", "MotorControl"} <= names
+        assert {
+            "Motors",
+            "MotorDirections",
+            "MotorControl",
+            "TeleopAxes",
+            "TeleopDirections",
+            "TeleopControl",
+        } <= names
 
     def test_vitals_struct(self, types_root):
         for mod in types_root.iter("module"):

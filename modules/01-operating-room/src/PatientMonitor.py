@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from Types import Common, DdsEntities, Orchestrator, PatientMonitor
+from UiTheme import UI_MONOSPACE_FAMILY, apply_application_font
 
 # ─── RTI Brand Colors ───────────────────────────────────────────────────────
 RTI_BLUE = "#004C97"
@@ -52,6 +53,7 @@ COLOR_NIBP = "#FF7043"  # Warm orange    – NiBP
 SAMPLE_RATE = 200  # samples / second for waveform buffer
 DISPLAY_SECS = 6  # seconds visible in the strip
 BUFFER_LEN = SAMPLE_RATE * DISPLAY_SECS
+DATA_STALE_AFTER_SECONDS = 2.0
 
 
 def _ecg_template(n_pts: int = SAMPLE_RATE) -> np.ndarray:
@@ -172,7 +174,7 @@ class VitalPanel(QFrame):
         self.value_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.value_lbl.setStyleSheet(
             f"color: {self.color}; font-size: 54px; font-weight: bold; "
-            f"font-family: 'Courier New', monospace; background: transparent; "
+            f"font-family: '{UI_MONOSPACE_FAMILY}'; background: transparent; "
             f"letter-spacing: -2px;"
         )
         root.addWidget(self.value_lbl)
@@ -253,7 +255,7 @@ class NiBPPanel(QFrame):
         self.sys_lbl = QLabel("---")
         self.sys_lbl.setStyleSheet(
             f"color: {COLOR_NIBP}; font-size: 54px; font-weight: bold; "
-            f"font-family: 'Courier New', monospace; background: transparent;"
+            f"font-family: '{UI_MONOSPACE_FAMILY}'; background: transparent;"
         )
         bp_row.addWidget(self.sys_lbl)
 
@@ -264,7 +266,7 @@ class NiBPPanel(QFrame):
         self.dia_lbl = QLabel("---")
         self.dia_lbl.setStyleSheet(
             f"color: {COLOR_NIBP}; font-size: 54px; font-weight: bold; "
-            f"font-family: 'Courier New', monospace; background: transparent;"
+            f"font-family: '{UI_MONOSPACE_FAMILY}'; background: transparent;"
         )
         bp_row.addWidget(self.dia_lbl)
         root.addLayout(bp_row)
@@ -320,6 +322,8 @@ class PatientMonitorWindow(QMainWindow):
         self._nibp_s = 120.0
         self._nibp_d = 80.0
         self.paused = False
+        self.device_state = "ON"
+        self.last_vitals_at = None
 
         # Frames per tick derived from timer interval
         self._timer_ms = 40
@@ -332,6 +336,10 @@ class PatientMonitorWindow(QMainWindow):
         self.anim_timer = QTimer(self)
         self.anim_timer.timeout.connect(self._tick)
         self.anim_timer.start(self._timer_ms)  # 25 fps
+
+        self.data_status_timer = QTimer(self)
+        self.data_status_timer.timeout.connect(self._refresh_data_status)
+        self.data_status_timer.start(500)
 
     # ── Window icon ─────────────────────────────────────────────────
     def _set_icon(self):
@@ -381,31 +389,38 @@ class PatientMonitorWindow(QMainWindow):
 
         rti_lbl = QLabel("RTI Connext")
         rti_lbl.setStyleSheet(
-            f"color: {RTI_BLUE}; font-size: 34px; font-weight: bold; background: transparent;"
+            f"color: {RTI_BLUE}; font-size: 20px; font-weight: bold; background: transparent;"
         )
         h_layout.addWidget(rti_lbl)
 
         bar = QLabel("|")
-        bar.setStyleSheet("color: #334455; font-size: 34px; background: transparent;")
+        bar.setStyleSheet("color: #334455; font-size: 28px; background: transparent;")
         h_layout.addWidget(bar)
 
         title_lbl = QLabel("Patient Monitor")
         title_lbl.setStyleSheet(
-            "color: #E0E8F0; font-size: 34px; font-weight: bold; background: transparent;"
+            "color: #E0E8F0; font-size: 28px; font-weight: bold; background: transparent;"
         )
         h_layout.addWidget(title_lbl)
 
         h_layout.addStretch()
 
-        self.status_lbl = QLabel("● CONNECTED — Streaming QoS")
+        self.status_lbl = QLabel("● WAITING FOR VITALS")
         self.status_lbl.setStyleSheet(
-            f"color: {COLOR_HR}; font-size: 20px; background: transparent;"
+            "color: #EDB252; font-size: 16px; font-weight: bold; background: transparent;"
         )
         h_layout.addWidget(self.status_lbl)
 
+        simulation_lbl = QLabel("SIMULATION · NOT FOR CLINICAL USE")
+        simulation_lbl.setStyleSheet(
+            "color: #EDB252; font-size: 12px; font-weight: bold; "
+            "background: transparent; margin-left: 10px;"
+        )
+        h_layout.addWidget(simulation_lbl)
+
         self.state_lbl = QLabel("ON")
         self.state_lbl.setStyleSheet(
-            f"color: #000; background-color: {COLOR_HR}; font-size: 20px; "
+            f"color: #000; background-color: {COLOR_HR}; font-size: 16px; "
             f"font-weight: bold; padding: 3px 10px; border-radius: 4px; margin-left: 10px;"
         )
         h_layout.addWidget(self.state_lbl)
@@ -438,14 +453,18 @@ class PatientMonitorWindow(QMainWindow):
         f_layout = QHBoxLayout(footer)
         f_layout.setContentsMargins(20, 0, 20, 0)
         f_lbl = QLabel("Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture")
-        f_lbl.setStyleSheet("color: #445566; font-size: 20px; background: transparent;")
+        f_lbl.setStyleSheet("color: #8FA6BA; font-size: 12px; background: transparent;")
         f_layout.addWidget(f_lbl)
         f_layout.addStretch()
         root.addWidget(footer)
 
     # ── Animation tick ───────────────────────────────────────────────
     def _tick(self):
-        if self.paused:
+        if (
+            self.paused
+            or self.last_vitals_at is None
+            or time.monotonic() - self.last_vitals_at > DATA_STALE_AFTER_SECONDS
+        ):
             return
         # ECG — rate driven by HR (beats per minute → bps)
         self.hr_panel.beat_rate = self._hr / 60.0
@@ -467,6 +486,7 @@ class PatientMonitorWindow(QMainWindow):
 
     # ── DDS value update (called from polling timer in main app) ─────
     def update_vitals(self, hr, spo2, etco2, nibp_s, nibp_d):
+        self.last_vitals_at = time.monotonic()
         self._hr = hr
         self._spo2 = spo2
         self._etco2 = etco2
@@ -479,13 +499,32 @@ class PatientMonitorWindow(QMainWindow):
         self.nibp_panel.set_values(nibp_s, nibp_d)
 
     def set_state(self, state: str):
+        self.device_state = state
         self.paused = state == "PAUSED"
         colors = {"ON": COLOR_HR, "PAUSED": RTI_ORANGE, "OFF": "#FF4444"}
         c = colors.get(state, "#888")
         self.state_lbl.setText(state)
         self.state_lbl.setStyleSheet(
-            f"color: #000; background-color: {c}; font-size: 20px; "
+            f"color: #000; background-color: {c}; font-size: 16px; "
             f"font-weight: bold; padding: 3px 10px; border-radius: 4px; margin-left: 10px;"
+        )
+        self._refresh_data_status()
+
+    def _refresh_data_status(self):
+        if self.device_state == "PAUSED":
+            text, color = "● STREAM PAUSED", RTI_ORANGE
+        elif self.device_state == "OFF":
+            text, color = "● MONITOR OFFLINE", "#FF5555"
+        elif self.last_vitals_at is None:
+            text, color = "● WAITING FOR VITALS", "#EDB252"
+        elif time.monotonic() - self.last_vitals_at > DATA_STALE_AFTER_SECONDS:
+            text, color = "● DATA QUIET", "#EDB252"
+        else:
+            text, color = "● LIVE VITALS", COLOR_HR
+
+        self.status_lbl.setText(text)
+        self.status_lbl.setStyleSheet(
+            f"color: {color}; font-size: 16px; font-weight: bold; background: transparent;"
         )
 
 
@@ -564,6 +603,7 @@ class PatientMonitorApp:
     def run(self):
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
+        apply_application_font(app)
         _icon = QIcon(QPixmap("../../resource/images/rti_logo.png"))
         if not _icon.isNull():
             app.setWindowIcon(_icon)

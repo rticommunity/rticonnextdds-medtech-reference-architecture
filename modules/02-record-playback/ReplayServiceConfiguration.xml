@@ -75,6 +75,12 @@ inability to use the software. -->
                 <datawriter_qos base_name="DataFlowLibrary::Command"/>
             </topic>
 
+            <topic name="t/TeleopControl" participant_ref="reps/dp/OperationalData">
+                <topic_name>t/TeleopControl</topic_name>
+                <registered_type_name>SurgicalRobot::TeleopControl</registered_type_name>
+                <datawriter_qos base_name="DataFlowLibrary::Command"/>
+            </topic>
+
             <topic name="t/Vitals" participant_ref="reps/dp/OperationalData">
                 <topic_name>t/Vitals</topic_name>
                 <registered_type_name>PatientMonitor::Vitals</registered_type_name>

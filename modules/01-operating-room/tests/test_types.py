@@ -85,6 +85,13 @@ class TestTypeInstantiation:
         assert hasattr(m, "id")
         assert hasattr(m, "direction")
 
+    def test_teleop_control_fields(self):
+        from Types import SurgicalRobot
+
+        control = SurgicalRobot.TeleopControl()
+        assert hasattr(control, "axis")
+        assert hasattr(control, "direction")
+
     def test_device_command_fields(self):
         from Types import Orchestrator
 

@@ -33,6 +33,7 @@ inability to use the software. -->
                 <subscribe>
                     <topics>
                         <topic>t/MotorControl</topic>
+                        <topic>t/TeleopControl</topic>
                         <topic>t/DeviceCommand</topic>
                     </topics>
                 </subscribe>

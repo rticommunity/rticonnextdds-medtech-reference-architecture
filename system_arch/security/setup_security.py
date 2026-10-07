@@ -52,6 +52,15 @@ TRUSTED_ROOT_CA = CA(name="TrustedRootCa")
 TRUSTED_PERMISSIONS_CA = CA(name="TrustedPermissionsCa", issuer=TRUSTED_ROOT_CA)
 TRUSTED_IDENTITY_CA = CA(name="TrustedIdentityCa", issuer=TRUSTED_ROOT_CA)
 
+ROUTED_TOPICS = [
+    "t/DeviceStatus",
+    "t/DeviceHeartbeat",
+    "t/MotorControl",
+    "t/TeleopControl",
+    "t/DeviceCommand",
+    "t/Vitals",
+]
+
 # ---------------------------------------------------------------------------
 # Domain scopes (governance + permissions)
 # ---------------------------------------------------------------------------
@@ -77,6 +86,10 @@ OPERATIONAL_DOMAIN = DomainScope(
                 topic_expression="t/MotorControl",
                 metadata_protection_kind="ENCRYPT",
             ),
+            TopicRule(
+                topic_expression="t/TeleopControl",
+                metadata_protection_kind="ENCRYPT",
+            ),
             TopicRule(topic_expression="*"),
             TopicRule(
                 topic_expression="DDS:Security:LogTopicV2",
@@ -98,13 +111,18 @@ OPERATIONAL_DOMAIN = DomainScope(
                 "t/DeviceHeartbeat",
                 "DDS:Security:LogTopicV2",
             ],
-            subscribe_topics=["t/MotorControl", "t/DeviceCommand"],
+            subscribe_topics=[
+                "t/MotorControl",
+                "t/TeleopControl",
+                "t/DeviceCommand",
+            ],
         ),
         Permissions(
             name="ArmController",
             issuer=TRUSTED_PERMISSIONS_CA,
             publish_topics=[
                 "t/MotorControl",
+                "t/TeleopControl",
                 "t/DeviceStatus",
                 "t/DeviceHeartbeat",
                 "DDS:Security:LogTopicV2",
@@ -160,10 +178,38 @@ OPERATIONAL_DOMAIN = DomainScope(
             publish_topics=[],
             subscribe_topics=["t/Vitals", "t/DeviceStatus"],
         ),
-        Permissions(name="RecordingService", issuer=TRUSTED_PERMISSIONS_CA),
-        Permissions(name="ReplayService", issuer=TRUSTED_PERMISSIONS_CA),
-        Permissions(name="RsActiveLan", issuer=TRUSTED_PERMISSIONS_CA),
-        Permissions(name="RsPassiveLan", issuer=TRUSTED_PERMISSIONS_CA),
+        Permissions(
+            name="RecordingService",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=[],
+            subscribe_topics=[
+                "t/MotorControl",
+                "t/TeleopControl",
+                "t/Vitals",
+            ],
+        ),
+        Permissions(
+            name="ReplayService",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=[
+                "t/MotorControl",
+                "t/TeleopControl",
+                "t/Vitals",
+            ],
+            subscribe_topics=[],
+        ),
+        Permissions(
+            name="RsActiveLan",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=ROUTED_TOPICS,
+            subscribe_topics=ROUTED_TOPICS,
+        ),
+        Permissions(
+            name="RsPassiveLan",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=ROUTED_TOPICS,
+            subscribe_topics=ROUTED_TOPICS,
+        ),
     ],
 )
 
@@ -184,7 +230,7 @@ TELEOP_WAN_DOMAIN = DomainScope(
         # encrypts the submessage metadata of every topic, so only
         # participants with matching permissions can decrypt it. This is
         # stricter than the OperationalDomain (LAN) governance, which only
-        # applies metadata ENCRYPT to t/Vitals and t/MotorControl.
+        # applies metadata ENCRYPT to t/Vitals, t/MotorControl, and t/TeleopControl.
         #
         # Rule order matters: DDS evaluates topic rules first-match, top-down,
         # so the specific DDS:Security:LogTopicV2 rule must precede the "*"
@@ -204,9 +250,24 @@ TELEOP_WAN_DOMAIN = DomainScope(
         ],
     ),
     permissions=[
-        Permissions(name="RsActiveWan", issuer=TRUSTED_PERMISSIONS_CA),
-        Permissions(name="RsPassiveWan", issuer=TRUSTED_PERMISSIONS_CA),
-        Permissions(name="RsCloudWan", issuer=TRUSTED_PERMISSIONS_CA),
+        Permissions(
+            name="RsActiveWan",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=ROUTED_TOPICS,
+            subscribe_topics=ROUTED_TOPICS,
+        ),
+        Permissions(
+            name="RsPassiveWan",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=ROUTED_TOPICS,
+            subscribe_topics=ROUTED_TOPICS,
+        ),
+        Permissions(
+            name="RsCloudWan",
+            issuer=TRUSTED_PERMISSIONS_CA,
+            publish_topics=ROUTED_TOPICS,
+            subscribe_topics=ROUTED_TOPICS,
+        ),
     ],
     psk_seeds=[
         # PSK seed for the WAN (TeleopWanDomain) domain.

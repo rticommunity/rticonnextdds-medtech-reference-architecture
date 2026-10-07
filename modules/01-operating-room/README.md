@@ -28,27 +28,27 @@ It has no user interface.
 
 ### Patient Monitor
 
-The *Patient Monitor* application's primary function is to subscribe to patient vitals data on Topic `t/Vitals`.
+The *Patient Monitor* application's primary function is to subscribe to simulated patient vitals data on Topic `t/Vitals`.
 
-It displays the received patient vital data in a GUI as a live "Patient Monitor Graph" line plot.
+It displays synthetic ECG, plethysmograph, and capnography waveforms with numeric vital readouts. The interface is demonstrative and not for clinical use.
 
 ### Arm
 
 The *Arm* application's primary function is to simulate a surgical robot with 5 motors: Base, Shoulder, Elbow, Wrist, and Hand. It receives commands on Topic `t/MotorControl` to control the movement of the individual motors.
 
-It displays the motor angles as an "Arm Motor Angles" line plot. This is a very basic representation of the movement of a robotic arm. We've intentionally made it simple to focus on the data transfer.
+It displays a side-view schematic of the articulated manipulator, its wrist, and a simulated gripper. The visualization uses a simplified planar model to demonstrate DDS-driven motion; it is not a physical or clinical robot.
 
 ### Arm Controller
 
 The *Arm Controller* application's primary function is to send motor-movement commands on Topic `t/MotorControl`.
 
-It presents buttons to administer *Arm* motor commands, and shows an "Alerts" panel to display observed events.
+It presents a teleoperation-style end-effector jog pad for planar X/Y motion, wrist roll, and gripper open/close, plus separate run/stop demonstration-motion controls. The demo runs a slow, repeatable planar sweep followed by coordinated wrist and gripper motion. It also shows an "Alerts" panel to display observed events.
 
 ### Orchestrator
 
 The *Orchestrator* application primarily acts as a system application state observer and controller. It detects the presence and current status of other system applications on Topics `t/DeviceHeartbeat` and `t/DeviceStatus`, respectively. It can also command device-level actions, such as "Start" or "Shut Down" on Topic `t/DeviceCommand`.
 
-It displays current device statuses, presents buttons to administer device commands, and shows an "Alerts" panel to display observed events.
+It displays current device statuses, presents buttons to administer device commands, and shows a collapsible "Alerts" log to display observed events.
 
 ## Setup and Installation
 
@@ -92,7 +92,7 @@ python3 launch.py 01-operating-room -s
 Observe and play around with the interactive operating room applications. The following are some ideas to get started:
 
 - From the *Orchestrator* application, send a "PAUSE" command to the *Patient Sensor* Medical Device. Observe the effect in the *Patient Monitor* GUI application. Resume the *Patient Sensor* by sending a "START" command.
-- From the *Arm Controller* application, send a command to stop all *Arm* motors. Observe the effect in the *Arm* GUI application. Resume just the *Elbow* motor by clicking the respective "PLAY" button in the *Arm Controller* application. While still stopped, increment or decrement the *Wrist* motor angle by clicking the respective "+" or "-" buttons in the *Arm Controller* application. Resume all *Arm* motors by pressing "PLAY ALL".
+- From the *Arm Controller* application, hold the X/Y jog controls to move the simulated tool tip, use wrist roll, and open/close the gripper. Release a control to stop that jog. The "RUN DEMO" and "STOP MOTION" buttons start and stop a slow, repeatable planar sweep with coordinated wrist and gripper movement.
 - Ungracefully terminate the *Arm* application by closing the application window. Observe the effect in the *Orchestrator* application "Alerts" panel.
 - Initiate a graceful remote shutdown of the *Arm Controller* by sending the appropriate command from the *Orchestrator*. Observe the effect of the *Arm Controller* application.
 

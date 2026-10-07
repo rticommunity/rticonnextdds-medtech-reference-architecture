@@ -63,416 +63,180 @@
           </object>
         </child>
 
-        <!-- ═══════════════════ COLUMN HEADERS ════════════════════ -->
         <child>
-          <object class="GtkBox">
+          <object class="GtkFrame" id="teleop_frame">
             <property name="visible">True</property>
-            <property name="orientation">horizontal</property>
-            <property name="spacing">0</property>
-            <property name="margin-start">8</property>
-            <property name="margin-end">8</property>
-            <property name="height-request">22</property>
-            <style><class name="col-header"/></style>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="label">JOINT</property>
-                <property name="width-request">170</property>
-                <property name="margin-start">12</property>
-                <property name="xalign">0</property>
-                <style><class name="col-hdr-lbl"/></style>
-              </object>
-            </child>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="label">MANUAL CONTROL</property>
-                <property name="hexpand">True</property>
-                <style><class name="col-hdr-lbl"/></style>
-              </object>
-            </child>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="label">AUTO PLAY</property>
-                <property name="width-request">70</property>
-                <property name="margin-end">12</property>
-                <style><class name="col-hdr-lbl"/></style>
-              </object>
-            </child>
-          </object>
-        </child>
-
-        <!-- ════════════════ MOTOR ROW — HAND ══════════════════════ -->
-        <child>
-          <object class="GtkBox">
-            <property name="visible">True</property>
-            <property name="orientation">horizontal</property>
-            <property name="spacing">0</property>
-            <property name="margin-start">8</property>
-            <property name="margin-end">8</property>
-            <property name="margin-top">2</property>
-            <property name="margin-bottom">2</property>
-            <property name="height-request">46</property>
-            <style><class name="motor-row"/><class name="motor-row-hand"/></style>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="label">HAND</property>
-                <property name="xalign">0</property>
-                <property name="width-request">170</property>
-                <property name="margin-start">12</property>
-                <style><class name="motor-name"/><class name="motor-name-hand"/></style>
-              </object>
-            </child>
+            <property name="label">TELEOPERATION  ·  END-EFFECTOR JOG</property>
+            <property name="margin-start">12</property>
+            <property name="margin-end">12</property>
+            <property name="margin-top">10</property>
+            <property name="margin-bottom">6</property>
+            <style><class name="teleop-frame"/></style>
             <child>
               <object class="GtkBox">
                 <property name="visible">True</property>
-                <property name="hexpand">True</property>
                 <property name="orientation">horizontal</property>
+                <property name="spacing">20</property>
+                <property name="margin-start">18</property>
+                <property name="margin-end">18</property>
+                <property name="margin-top">14</property>
+                <property name="margin-bottom">14</property>
                 <child>
-                  <object class="GtkLabel">
+                  <object class="GtkBox">
                     <property name="visible">True</property>
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">8</property>
                     <property name="hexpand">True</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="label">MASTER HAND CONTROL</property>
+                        <property name="xalign">0</property>
+                        <style><class name="teleop-title"/></style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="label">Hold a direction to jog the simulated tool tip; release to stop.</property>
+                        <property name="xalign">0</property>
+                        <property name="wrap">True</property>
+                        <style><class name="teleop-copy"/></style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="label">X/Y uses a simplified planar two-link model. Wrist roll and gripper are separate controls.</property>
+                        <property name="xalign">0</property>
+                        <property name="wrap">True</property>
+                        <style><class name="teleop-note"/></style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="label">SIMULATION ONLY  ·  NOT FOR CLINICAL USE</property>
+                        <property name="xalign">0</property>
+                        <style><class name="sim-warning"/></style>
+                      </object>
+                    </child>
                   </object>
                 </child>
                 <child>
-                  <object class="GtkButton" id="hand_inc">
+                  <object class="GtkGrid" id="jog_pad">
                     <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="label">▲  INC</property>
-                    <property name="width-request">80</property>
-                    <property name="margin-end">5</property>
-                    <style><class name="btn-inc"/></style>
+                    <property name="row-spacing">6</property>
+                    <property name="column-spacing">6</property>
+                    <property name="column-homogeneous">True</property>
+                    <property name="row-homogeneous">True</property>
+                    <child>
+                      <object class="GtkButton" id="y_positive">
+                        <property name="visible">True</property>
+                        <property name="label">▲  Y+</property>
+                        <property name="width-request">110</property>
+                        <property name="height-request">58</property>
+                        <style><class name="btn-jog"/></style>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="x_negative">
+                        <property name="visible">True</property>
+                        <property name="label">◀  X−</property>
+                        <property name="width-request">110</property>
+                        <property name="height-request">58</property>
+                        <style><class name="btn-jog"/></style>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="x_positive">
+                        <property name="visible">True</property>
+                        <property name="label">X+  ▶</property>
+                        <property name="width-request">110</property>
+                        <property name="height-request">58</property>
+                        <style><class name="btn-jog"/></style>
+                      </object>
+                      <packing>
+                        <property name="left-attach">2</property>
+                        <property name="top-attach">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="y_negative">
+                        <property name="visible">True</property>
+                        <property name="label">▼  Y−</property>
+                        <property name="width-request">110</property>
+                        <property name="height-request">58</property>
+                        <style><class name="btn-jog"/></style>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
                   </object>
                 </child>
                 <child>
-                  <object class="GtkButton" id="hand_dec">
+                  <object class="GtkSeparator">
                     <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="label">▼  DEC</property>
-                    <property name="width-request">80</property>
-                    <property name="margin-start">5</property>
-                    <style><class name="btn-dec"/></style>
+                    <property name="orientation">vertical</property>
                   </object>
                 </child>
                 <child>
-                  <object class="GtkLabel">
+                  <object class="GtkBox">
                     <property name="visible">True</property>
-                    <property name="hexpand">True</property>
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">8</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="label">TOOL CONTROLS</property>
+                        <property name="xalign">0</property>
+                        <style><class name="teleop-title"/></style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="roll_left">
+                        <property name="visible">True</property>
+                        <property name="label">↶  ROLL LEFT</property>
+                        <property name="height-request">48</property>
+                        <style><class name="btn-tool"/></style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="roll_right">
+                        <property name="visible">True</property>
+                        <property name="label">↷  ROLL RIGHT</property>
+                        <property name="height-request">48</property>
+                        <style><class name="btn-tool"/></style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="gripper_open">
+                        <property name="visible">True</property>
+                        <property name="label">OPEN GRIPPER</property>
+                        <property name="height-request">48</property>
+                        <style><class name="btn-tool"/></style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="gripper_close">
+                        <property name="visible">True</property>
+                        <property name="label">CLOSE GRIPPER</property>
+                        <property name="height-request">48</property>
+                        <style><class name="btn-tool"/></style>
+                      </object>
+                    </child>
                   </object>
                 </child>
-              </object>
-            </child>
-            <child>
-              <object class="GtkToggleButton" id="hand_play">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="label">AUTO</property>
-                <property name="active">False</property>
-                <property name="width-request">70</property>
-                <property name="margin-end">12</property>
-                <style><class name="btn-play"/></style>
-              </object>
-            </child>
-          </object>
-        </child>
-
-        <!-- ════════════════ MOTOR ROW — WRIST ═════════════════════ -->
-        <child>
-          <object class="GtkBox">
-            <property name="visible">True</property>
-            <property name="orientation">horizontal</property>
-            <property name="spacing">0</property>
-            <property name="margin-start">8</property>
-            <property name="margin-end">8</property>
-            <property name="margin-top">2</property>
-            <property name="margin-bottom">2</property>
-            <property name="height-request">46</property>
-            <style><class name="motor-row"/><class name="motor-row-wrist"/></style>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="label">WRIST</property>
-                <property name="xalign">0</property>
-                <property name="width-request">170</property>
-                <property name="margin-start">12</property>
-                <style><class name="motor-name"/><class name="motor-name-wrist"/></style>
-              </object>
-            </child>
-            <child>
-              <object class="GtkBox">
-                <property name="visible">True</property>
-                <property name="hexpand">True</property>
-                <property name="orientation">horizontal</property>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="hexpand">True</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkButton" id="wrist_inc">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="label">▲  INC</property>
-                    <property name="width-request">80</property>
-                    <property name="margin-end">5</property>
-                    <style><class name="btn-inc"/></style>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkButton" id="wrist_dec">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="label">▼  DEC</property>
-                    <property name="width-request">80</property>
-                    <property name="margin-start">5</property>
-                    <style><class name="btn-dec"/></style>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="hexpand">True</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="GtkToggleButton" id="wrist_play">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="label">AUTO</property>
-                <property name="active">False</property>
-                <property name="width-request">70</property>
-                <property name="margin-end">12</property>
-                <style><class name="btn-play"/></style>
-              </object>
-            </child>
-          </object>
-        </child>
-
-        <!-- ════════════════ MOTOR ROW — ELBOW ═════════════════════ -->
-        <child>
-          <object class="GtkBox">
-            <property name="visible">True</property>
-            <property name="orientation">horizontal</property>
-            <property name="spacing">0</property>
-            <property name="margin-start">8</property>
-            <property name="margin-end">8</property>
-            <property name="margin-top">2</property>
-            <property name="margin-bottom">2</property>
-            <property name="height-request">46</property>
-            <style><class name="motor-row"/><class name="motor-row-elbow"/></style>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="label">ELBOW</property>
-                <property name="xalign">0</property>
-                <property name="width-request">170</property>
-                <property name="margin-start">12</property>
-                <style><class name="motor-name"/><class name="motor-name-elbow"/></style>
-              </object>
-            </child>
-            <child>
-              <object class="GtkBox">
-                <property name="visible">True</property>
-                <property name="hexpand">True</property>
-                <property name="orientation">horizontal</property>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="hexpand">True</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkButton" id="elbow_inc">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="label">▲  INC</property>
-                    <property name="width-request">80</property>
-                    <property name="margin-end">5</property>
-                    <style><class name="btn-inc"/></style>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkButton" id="elbow_dec">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="label">▼  DEC</property>
-                    <property name="width-request">80</property>
-                    <property name="margin-start">5</property>
-                    <style><class name="btn-dec"/></style>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="hexpand">True</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="GtkToggleButton" id="elbow_play">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="label">AUTO</property>
-                <property name="active">False</property>
-                <property name="width-request">70</property>
-                <property name="margin-end">12</property>
-                <style><class name="btn-play"/></style>
-              </object>
-            </child>
-          </object>
-        </child>
-
-        <!-- ════════════════ MOTOR ROW — SHOULDER ══════════════════ -->
-        <child>
-          <object class="GtkBox">
-            <property name="visible">True</property>
-            <property name="orientation">horizontal</property>
-            <property name="spacing">0</property>
-            <property name="margin-start">8</property>
-            <property name="margin-end">8</property>
-            <property name="margin-top">2</property>
-            <property name="margin-bottom">2</property>
-            <property name="height-request">46</property>
-            <style><class name="motor-row"/><class name="motor-row-shoulder"/></style>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="label">SHOULDER</property>
-                <property name="xalign">0</property>
-                <property name="width-request">170</property>
-                <property name="margin-start">12</property>
-                <style><class name="motor-name"/><class name="motor-name-shoulder"/></style>
-              </object>
-            </child>
-            <child>
-              <object class="GtkBox">
-                <property name="visible">True</property>
-                <property name="hexpand">True</property>
-                <property name="orientation">horizontal</property>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="hexpand">True</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkButton" id="shoulder_inc">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="label">▲  INC</property>
-                    <property name="width-request">80</property>
-                    <property name="margin-end">5</property>
-                    <style><class name="btn-inc"/></style>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkButton" id="shoulder_dec">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="label">▼  DEC</property>
-                    <property name="width-request">80</property>
-                    <property name="margin-start">5</property>
-                    <style><class name="btn-dec"/></style>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="hexpand">True</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="GtkToggleButton" id="shoulder_play">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="label">AUTO</property>
-                <property name="active">False</property>
-                <property name="width-request">70</property>
-                <property name="margin-end">12</property>
-                <style><class name="btn-play"/></style>
-              </object>
-            </child>
-          </object>
-        </child>
-
-        <!-- ════════════════ MOTOR ROW — BASE ══════════════════════ -->
-        <child>
-          <object class="GtkBox">
-            <property name="visible">True</property>
-            <property name="orientation">horizontal</property>
-            <property name="spacing">0</property>
-            <property name="margin-start">8</property>
-            <property name="margin-end">8</property>
-            <property name="margin-top">2</property>
-            <property name="margin-bottom">2</property>
-            <property name="height-request">46</property>
-            <style><class name="motor-row"/><class name="motor-row-base"/></style>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="label">BASE</property>
-                <property name="xalign">0</property>
-                <property name="width-request">170</property>
-                <property name="margin-start">12</property>
-                <style><class name="motor-name"/><class name="motor-name-base"/></style>
-              </object>
-            </child>
-            <child>
-              <object class="GtkBox">
-                <property name="visible">True</property>
-                <property name="hexpand">True</property>
-                <property name="orientation">horizontal</property>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="hexpand">True</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkButton" id="base_inc">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="label">▲  INC</property>
-                    <property name="width-request">80</property>
-                    <property name="margin-end">5</property>
-                    <style><class name="btn-inc"/></style>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkButton" id="base_dec">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="label">▼  DEC</property>
-                    <property name="width-request">80</property>
-                    <property name="margin-start">5</property>
-                    <style><class name="btn-dec"/></style>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="hexpand">True</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="GtkToggleButton" id="base_play">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="label">AUTO</property>
-                <property name="active">False</property>
-                <property name="width-request">70</property>
-                <property name="margin-end">12</property>
-                <style><class name="btn-play"/></style>
               </object>
             </child>
           </object>
@@ -497,21 +261,21 @@
               </object>
             </child>
             <child>
-              <object class="GtkButton" id="playall">
+              <object class="GtkButton" id="run_demo">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="label">▶  PLAY ALL</property>
+                <property name="label">▶  RUN DEMO</property>
                 <property name="width-request">170</property>
-                <style><class name="btn-play-all"/></style>
+                <style><class name="btn-run-demo"/></style>
               </object>
             </child>
             <child>
-              <object class="GtkButton" id="stopall">
+              <object class="GtkButton" id="stop_motion">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="label">■  STOP ALL</property>
+                <property name="label">■  STOP MOTION</property>
                 <property name="width-request">170</property>
-                <style><class name="btn-stop-all"/></style>
+                <style><class name="btn-stop-motion"/></style>
               </object>
             </child>
           </object>

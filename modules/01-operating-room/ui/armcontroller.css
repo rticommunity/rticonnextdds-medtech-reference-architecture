@@ -4,6 +4,11 @@
  */
 
 /* ── Global window ─────────────────────────────────────────────────── */
+* {
+    font-family: "DejaVu Sans";
+    font-size: 10pt;
+}
+
 .main-window {
     background-color: #0A0E17;
 }
@@ -16,159 +21,91 @@
 
 .header-brand {
     color: #004C97;
-    font-size: 26px;
+    font-size: 20px;
     font-weight: bold;
 }
 
 .header-sep {
     color: #334455;
-    font-size: 34px;
+    font-size: 28px;
 }
 
 .header-title {
     color: #E0E8F0;
-    font-size: 34px;
+    font-size: 28px;
     font-weight: bold;
 }
 
 .header-qos {
     color: rgba(237, 139, 0, 0.6);
-    font-size: 14px;
+    font-size: 12px;
 }
 
-/* ── Column header row ──────────────────────────────────────────────── */
-.col-header {
-    background-color: #071020;
-    border-bottom: 1px solid #1A2A3A;
-}
-
-.col-hdr-lbl {
-    color: #E0E8F0;
-    font-size: 14px;
-    font-weight: bold;
-}
-
-/* ── Motor rows ─────────────────────────────────────────────────────── */
-.motor-row {
+/* ── Teleoperation panel ─────────────────────────────────────────────── */
+.teleop-frame {
     background-color: #0F1822;
-    border-radius: 6px;
-    border: 1px solid #1A2A3A;
+    border: 1px solid #29415A;
+    border-radius: 8px;
 }
 
-/* Per-joint accent colors on the left stripe via motor name labels */
-.motor-name {
-    font-size: 26px;
+.teleop-frame > label {
+    color: #AFC4D8;
+    font-size: 14px;
     font-weight: bold;
-    min-width: 170px;
+    letter-spacing: 1px;
 }
 
-.motor-name-base     { color: #004C97; }
-.motor-name-shoulder { color: #ED8B00; }
-.motor-name-elbow    { color: #00BFFF; }
-.motor-name-wrist    { color: #7CFC00; }
-.motor-name-hand     { color: #DA70D6; }
-
-/* ── Direction badge labels ─────────────────────────────────────────── */
-.dir-badge {
-    font-size: 20px;
+.teleop-title {
+    color: #E0E8F0;
+    font-size: 16px;
     font-weight: bold;
-    border-radius: 4px;
-    padding: 4px 8px;
 }
 
-.dir-stationary {
-    color: #445566;
-    background-color: #0F151C;
-    border: 1px solid rgba(34, 51, 68, 0);
+.teleop-copy {
+    color: #A9BBCB;
+    font-size: 14px;
 }
 
-.dir-increment {
-    color: #ED8B00;
-    background-color: #1A0F00;
-    border: 1px solid rgba(237, 139, 0, 0.33);
+.teleop-note {
+    color: #70859A;
+    font-size: 12px;
 }
 
-.dir-decrement {
-    color: #FF5555;
-    background-color: #1A0505;
-    border: 1px solid rgba(255, 85, 85, 0.33);
+.sim-warning {
+    color: #EDB252;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 1px;
 }
 
-/* ── INC / DEC buttons ──────────────────────────────────────────────── */
-button.btn-inc,
-.btn-inc {
+button.btn-jog,
+.btn-jog,
+button.btn-tool,
+.btn-tool {
     background-image: none;
-    background-color: #0A1A30;
-    color: #4D99FF;
-    border: 1px solid #4D99FF;
-    border-radius: 4px;
-    padding: 3px 0;
-    font-size: 26px;
+    background-color: #14283D;
+    color: #C9D9E8;
+    border: 1px solid #3B6388;
+    border-radius: 6px;
+    font-size: 14px;
     font-weight: bold;
 }
 
-button.btn-inc:hover,
-.btn-inc:hover {
+button.btn-jog:hover,
+.btn-jog:hover,
+button.btn-tool:hover,
+.btn-tool:hover {
+    background-color: #1B3A59;
+    color: #FFFFFF;
+    border-color: #4D99FF;
+}
+
+button.btn-jog:active,
+.btn-jog:active,
+button.btn-tool:active,
+.btn-tool:active {
     background-color: #004C97;
     color: #FFFFFF;
-}
-
-button.btn-inc:active,
-.btn-inc:active {
-    background-color: #003A75;
-    color: #FFFFFF;
-}
-
-button.btn-dec,
-.btn-dec {
-    background-image: none;
-    background-color: #1A0A0A;
-    color: #FF6666;
-    border: 1px solid #BB3333;
-    border-radius: 4px;
-    padding: 3px 0;
-    font-size: 26px;
-    font-weight: bold;
-}
-
-button.btn-dec:hover,
-.btn-dec:hover {
-    background-color: #882222;
-    color: #FFFFFF;
-}
-
-button.btn-dec:active,
-.btn-dec:active {
-    background-color: #661111;
-    color: #FFFFFF;
-}
-
-/* ── PLAY toggle button ─────────────────────────────────────────────── */
-button.btn-play,
-.btn-play {
-    background-image: none;
-    background-color: #1A1205;
-    color: #886633;
-    border: 1px solid #554422;
-    border-radius: 4px;
-    padding: 3px 0;
-    font-size: 20px;
-    font-weight: bold;
-}
-
-button.btn-play:checked,
-.btn-play:checked {
-    background-color: #ED8B00;
-    background-image: none;
-    color: #000000;
-    border: 1px solid #FFB84D;
-}
-
-button.btn-play:hover,
-.btn-play:hover {
-    background-color: #2A1D08;
-    color: #ED8B00;
-    border-color: #ED8B00;
 }
 
 /* ── Action bar ─────────────────────────────────────────────────────── */
@@ -177,51 +114,50 @@ button.btn-play:hover,
     border-top: 1px solid #1A2A3A;
 }
 
-/* ── PLAY ALL button ────────────────────────────────────────────────── */
-button.btn-play-all,
-.btn-play-all {
+/* ── Demo motion buttons ─────────────────────────────────────────────── */
+button.btn-run-demo,
+.btn-run-demo {
     background-image: none;
     background-color: #ED8B00;
     color: #000000;
     border: 1px solid #FFB84D;
     border-radius: 6px;
     padding: 5px 0;
-    font-size: 26px;
+    font-size: 18px;
     font-weight: bold;
 }
 
-button.btn-play-all:hover,
-.btn-play-all:hover {
+button.btn-run-demo:hover,
+.btn-run-demo:hover {
     background-color: #FFB84D;
     color: #000000;
 }
 
-button.btn-play-all:active,
-.btn-play-all:active {
+button.btn-run-demo:active,
+.btn-run-demo:active {
     background-color: #CC7700;
 }
 
-/* ── STOP ALL button ────────────────────────────────────────────────── */
-button.btn-stop-all,
-.btn-stop-all {
+button.btn-stop-motion,
+.btn-stop-motion {
     background-image: none;
     background-color: #1A0505;
     color: #FF5555;
     border: 1px solid #882222;
     border-radius: 6px;
     padding: 5px 0;
-    font-size: 26px;
+    font-size: 18px;
     font-weight: bold;
 }
 
-button.btn-stop-all:hover,
-.btn-stop-all:hover {
+button.btn-stop-motion:hover,
+.btn-stop-motion:hover {
     background-color: #882222;
     color: #FFFFFF;
 }
 
-button.btn-stop-all:active,
-.btn-stop-all:active {
+button.btn-stop-motion:active,
+.btn-stop-motion:active {
     background-color: #661111;
 }
 
@@ -244,13 +180,13 @@ button.btn-stop-all:active,
 textview.console-text {
     background-color: #060F0A;
     color: #FFFFFF;
-    font-family: "Courier New", monospace;
+    font-family: "DejaVu Sans Mono";
     font-size: 14px;
-    font-weight: bold;
+    font-weight: normal;
 }
 
 textview.console-text text {
     background-color: #060F0A;
     color: #FFFFFF;
-    font-weight: bold;
+    font-weight: normal;
 }

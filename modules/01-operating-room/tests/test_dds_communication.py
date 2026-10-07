@@ -201,6 +201,16 @@ class TestArmMotorControl:
             "Arm did not ack MotorControl command"
         )
 
+        teleop_writer = nonsecure_utility_app.teleop_control.writer
+        teleop_command = SurgicalRobot.TeleopControl(
+            axis=SurgicalRobot.TeleopAxes.X,
+            direction=SurgicalRobot.TeleopDirections.POSITIVE,
+        )
+        assert wait_for_writer_match(teleop_writer), "TeleopControl writer never matched a reader"
+        assert write_and_wait_for_ack(teleop_writer, teleop_command, timeout_sec=2), (
+            "Arm did not ack TeleopControl command"
+        )
+
 
 # ---------------------------------------------------------------------------
 # All apps — status reporting

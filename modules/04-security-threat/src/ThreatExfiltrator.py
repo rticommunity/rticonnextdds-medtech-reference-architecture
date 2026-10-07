@@ -51,6 +51,11 @@ sys.path.insert(
 import DdsUtils
 from ThreatTypes import ThreatEntities
 from Types import DdsEntities, PatientMonitor
+from UiTheme import (
+    LOG_TOGGLE_STYLE,
+    UI_MONOSPACE_FAMILY,
+    apply_application_font,
+)
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
 threat_entities = ThreatEntities.Constants
@@ -189,12 +194,12 @@ class VitalPanel(QFrame):
         top = QHBoxLayout()
         name_lbl = QLabel(self.vital_name)
         name_lbl.setStyleSheet(
-            f"color: {self.color}; font-size: 18px; font-weight: bold; background: transparent;"
+            f"color: {self.color}; font-size: 20px; font-weight: bold; background: transparent;"
         )
         top.addWidget(name_lbl)
         top.addStretch()
         unit_lbl = QLabel(self.unit)
-        unit_lbl.setStyleSheet(f"color: {self.color}88; font-size: 14px; background: transparent;")
+        unit_lbl.setStyleSheet(f"color: {self.color}88; font-size: 16px; background: transparent;")
         unit_lbl.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight)
         top.addWidget(unit_lbl)
         root.addLayout(top)
@@ -202,8 +207,8 @@ class VitalPanel(QFrame):
         self.value_lbl = QLabel("---")
         self.value_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.value_lbl.setStyleSheet(
-            f"color: {self.color}; font-size: 48px; font-weight: bold; "
-            f"font-family: 'Courier New', monospace; background: transparent; letter-spacing: -2px;"
+            f"color: {self.color}; font-size: 54px; font-weight: bold; "
+            f"font-family: '{UI_MONOSPACE_FAMILY}'; background: transparent; letter-spacing: -2px;"
         )
         root.addWidget(self.value_lbl)
 
@@ -266,12 +271,12 @@ class NiBPPanel(QFrame):
         top = QHBoxLayout()
         name_lbl = QLabel("NiBP")
         name_lbl.setStyleSheet(
-            f"color: {COLOR_NIBP}; font-size: 18px; font-weight: bold; background: transparent;"
+            f"color: {COLOR_NIBP}; font-size: 20px; font-weight: bold; background: transparent;"
         )
         top.addWidget(name_lbl)
         top.addStretch()
         unit_lbl = QLabel("mmHg")
-        unit_lbl.setStyleSheet(f"color: {COLOR_NIBP}88; font-size: 14px; background: transparent;")
+        unit_lbl.setStyleSheet(f"color: {COLOR_NIBP}88; font-size: 16px; background: transparent;")
         top.addWidget(unit_lbl)
         root.addLayout(top)
 
@@ -281,12 +286,12 @@ class NiBPPanel(QFrame):
         bp_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.sys_lbl = QLabel("---")
         self.sys_lbl.setStyleSheet(
-            f"color: {COLOR_NIBP}; font-size: 48px; font-weight: bold; "
-            f"font-family: 'Courier New', monospace; background: transparent;"
+            f"color: {COLOR_NIBP}; font-size: 54px; font-weight: bold; "
+            f"font-family: '{UI_MONOSPACE_FAMILY}'; background: transparent;"
         )
         bp_row.addWidget(self.sys_lbl)
         sep = QLabel("/")
-        sep.setStyleSheet(f"color: {COLOR_NIBP}88; font-size: 36px; background: transparent;")
+        sep.setStyleSheet(f"color: {COLOR_NIBP}88; font-size: 42px; background: transparent;")
         bp_row.addWidget(sep)
         self.dia_lbl = QLabel("---")
         self.dia_lbl.setStyleSheet(self.sys_lbl.styleSheet())
@@ -296,7 +301,7 @@ class NiBPPanel(QFrame):
         sub_row = QHBoxLayout()
         sub_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sub_lbl = QLabel("Systolic  /  Diastolic")
-        sub_lbl.setStyleSheet(f"color: {COLOR_NIBP}66; font-size: 18px; background: transparent;")
+        sub_lbl.setStyleSheet(f"color: {COLOR_NIBP}66; font-size: 20px; background: transparent;")
         sub_row.addWidget(sub_lbl)
         root.addLayout(sub_row)
 
@@ -305,7 +310,7 @@ class NiBPPanel(QFrame):
         self.map_lbl = QLabel("MAP: ---")
         self.map_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.map_lbl.setStyleSheet(
-            f"color: {COLOR_NIBP}AA; font-size: 18px; background: transparent;"
+            f"color: {COLOR_NIBP}AA; font-size: 20px; background: transparent;"
         )
         root.addWidget(self.map_lbl)
 
@@ -328,6 +333,9 @@ class ThreatExfiltratorWindow(QMainWindow):
         self.setMinimumSize(900, 680)
         self.resize(1200, 760)
         self.setStyleSheet(f"background-color: {BG_MAIN};")
+        self._log_event_count = 0
+        self.log_panel: QWidget | None = None
+        self.log_toggle: QPushButton | None = None
 
         _icon_px = QPixmap("../../resource/images/rti_logo.png")
         if not _icon_px.isNull():
@@ -351,7 +359,8 @@ class ThreatExfiltratorWindow(QMainWindow):
 
         body.addWidget(self._build_left_panel(), 0)
         body.addWidget(self._build_vitals_area(), 2)
-        body.addWidget(self._build_log_panel(), 1)
+        self.log_panel = self._build_log_panel()
+        body.addWidget(self.log_panel, 1)
 
         body_widget = QWidget()
         body_widget.setStyleSheet(f"background-color: {BG_MAIN};")
@@ -382,7 +391,7 @@ class ThreatExfiltratorWindow(QMainWindow):
 
         rti_lbl = QLabel("RTI Connext")
         rti_lbl.setStyleSheet(
-            f"color: {RTI_BLUE}; font-size: 26px; font-weight: bold; background: transparent;"
+            f"color: {RTI_BLUE}; font-size: 20px; font-weight: bold; background: transparent;"
         )
         h.addWidget(rti_lbl)
         sep = QLabel("|")
@@ -390,17 +399,37 @@ class ThreatExfiltratorWindow(QMainWindow):
         h.addWidget(sep)
         title = QLabel("Threat Exfiltrator")
         title.setStyleSheet(
-            "color: #E0E8F0; font-size: 34px; font-weight: bold; background: transparent;"
+            "color: #E0E8F0; font-size: 28px; font-weight: bold; background: transparent;"
         )
         h.addWidget(title)
         h.addStretch()
 
+        simulation_lbl = QLabel("SIMULATION · NOT FOR CLINICAL USE")
+        simulation_lbl.setStyleSheet(
+            "color: #EDB252; font-size: 12px; font-weight: bold; background: transparent;"
+        )
+        h.addWidget(simulation_lbl)
+
+        self.vitals_data_badge = QLabel("WAITING FOR VITALS")
+        self.vitals_data_badge.setStyleSheet(
+            "color: #EDB252; font-size: 12px; font-weight: bold; background: transparent;"
+        )
+        h.addWidget(self.vitals_data_badge)
+
         self.status_badge = QLabel("IDLE")
         self.status_badge.setStyleSheet(
-            f"color: #fff; background-color: {COLOR_IDLE}; font-size: 18px; "
+            f"color: #fff; background-color: {COLOR_IDLE}; font-size: 16px; "
             f"font-weight: bold; padding: 4px 12px; border-radius: 4px; margin-left: 10px;"
         )
         h.addWidget(self.status_badge)
+
+        self.log_toggle = QPushButton()
+        self.log_toggle.setCheckable(True)
+        self.log_toggle.setChecked(True)
+        self.log_toggle.setStyleSheet(LOG_TOGGLE_STYLE)
+        self.log_toggle.toggled.connect(self._set_log_visible)
+        self._update_log_toggle_label()
+        h.addWidget(self.log_toggle)
         return header
 
     def _build_footer(self) -> QWidget:
@@ -410,7 +439,7 @@ class ThreatExfiltratorWindow(QMainWindow):
         f = QHBoxLayout(footer)
         f.setContentsMargins(20, 0, 20, 0)
         lbl = QLabel("Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture")
-        lbl.setStyleSheet(f"color: {COLOR_IDLE}; font-size: 18px; background: transparent;")
+        lbl.setStyleSheet("color: #8FA6BA; font-size: 12px; background: transparent;")
         f.addWidget(lbl)
         f.addStretch()
         return footer
@@ -484,7 +513,7 @@ class ThreatExfiltratorWindow(QMainWindow):
         v.setContentsMargins(8, 8, 8, 8)
         v.setSpacing(8)
 
-        lbl = QLabel("STOLEN: Patient Vitals")
+        lbl = QLabel("SIMULATED VITALS · UNAUTHORIZED READOUT")
         lbl.setStyleSheet(
             f"color: {COLOR_BLOCKED}; font-size: 14px; font-weight: bold; background: transparent; "
             f"border-bottom: 1px solid {COLOR_BLOCKED}44; padding-bottom: 4px;"
@@ -514,7 +543,7 @@ class ThreatExfiltratorWindow(QMainWindow):
         v = QVBoxLayout(frame)
         v.setContentsMargins(8, 8, 8, 8)
         v.setSpacing(4)
-        hdr = QLabel("Activity Log")
+        hdr = QLabel("EXFILTRATION ACTIVITY")
         hdr.setStyleSheet(
             f"color: {RTI_BLUE}; font-size: 14px; font-weight: bold; background: transparent; "
             f"border-bottom: 1px solid {RTI_BLUE}44; padding-bottom: 4px;"
@@ -522,14 +551,14 @@ class ThreatExfiltratorWindow(QMainWindow):
         v.addWidget(hdr)
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setStyleSheet("""
-            QTextEdit {
+        self.log_text.setStyleSheet(f"""
+            QTextEdit {{
                 background-color: #060C14;
                 color: #A0B0C0;
-                font-family: 'Courier New', monospace;
-                font-size: 12px;
+                font-family: "{UI_MONOSPACE_FAMILY}";
+                font-size: 10pt;
                 border: none;
-            }
+            }}
         """)
         v.addWidget(self.log_text)
         return frame
@@ -562,11 +591,37 @@ class ThreatExfiltratorWindow(QMainWindow):
         bg, fg = colors.get(status, (COLOR_IDLE, "#fff"))
         self.status_badge.setText(status)
         self.status_badge.setStyleSheet(
-            f"color: {fg}; background-color: {bg}; font-size: 18px; "
+            f"color: {fg}; background-color: {bg}; font-size: 16px; "
             f"font-weight: bold; padding: 4px 12px; border-radius: 4px; margin-left: 10px;"
         )
 
+    def set_vitals_data_status(self, status: str):
+        colors = {
+            "WAITING FOR VITALS": "#EDB252",
+            "LIVE VITALS": COLOR_HR,
+            "DATA QUIET": "#EDB252",
+        }
+        color = colors[status]
+        self.vitals_data_badge.setText(status)
+        self.vitals_data_badge.setStyleSheet(
+            f"color: {color}; font-size: 12px; font-weight: bold; background: transparent;"
+        )
+
+    def _set_log_visible(self, visible: bool) -> None:
+        if self.log_panel is not None:
+            self.log_panel.setVisible(visible)
+        self._update_log_toggle_label()
+
+    def _update_log_toggle_label(self) -> None:
+        if self.log_toggle is None:
+            return
+        arrow = "▾" if self.log_toggle.isChecked() else "▸"
+        event_word = "EVENT" if self._log_event_count == 1 else "EVENTS"
+        self.log_toggle.setText(f"{arrow}  LOG · {self._log_event_count} {event_word}")
+
     def log(self, level: str, msg: str):
+        self._log_event_count += 1
+        self._update_log_toggle_label()
         colors = {
             "OK": COLOR_OK,
             "WARN": COLOR_WARN,
@@ -631,11 +686,13 @@ class ThreatExfiltratorApp:
 
                 self.window.highlight_mode_button(mode)
                 self.window.reset_vitals()
+                self.window.set_vitals_data_status("WAITING FOR VITALS")
                 self._current_mode = mode
             except dds.Error as exc:
                 self.window.log("BLOCKED", f"Participant creation blocked by security: {exc}")
                 self._cert_invalid = True
                 self.window.set_data_status("ATTACK FAILED")
+                self.window.set_vitals_data_status("WAITING FOR VITALS")
                 self.window.highlight_mode_button(None)
                 self._participant = None
                 self._vitals_reader = None
@@ -643,6 +700,7 @@ class ThreatExfiltratorApp:
             except Exception as exc:
                 self.window.log("WARN", f"Participant creation failed: {exc}")
                 self.window.set_data_status("ATTACK FAILED")
+                self.window.set_vitals_data_status("WAITING FOR VITALS")
                 self.window.highlight_mode_button(None)
                 self._participant = None
                 self._vitals_reader = None
@@ -667,9 +725,11 @@ class ThreatExfiltratorApp:
                 self._prev_matched = matched
                 if matched:
                     self.window.set_data_status("ACCESS GRANTED")
+                    self.window.set_vitals_data_status("WAITING FOR VITALS")
                     self.window.log("OK", "Subscription matched — receiving data")
                 else:
                     self.window.set_data_status("NO ACCESS")
+                    self.window.set_vitals_data_status("WAITING FOR VITALS")
                     self.window.log("BLOCKED", "No subscription match — access denied by security")
 
             try:
@@ -698,6 +758,7 @@ class ThreatExfiltratorApp:
 
             self._last_sample_time = time.monotonic()
             self.window.set_data_status("ACCESS GRANTED")
+            self.window.set_vitals_data_status("LIVE VITALS")
             self.window.log(
                 "OK",
                 f"Received Vitals — patient_id: {sample.patient_id}, "
@@ -709,6 +770,7 @@ class ThreatExfiltratorApp:
         if self._last_sample_time > 0 and (now - self._last_sample_time) > DATA_TIMEOUT_S:
             self.window.reset_vitals()
             self._last_sample_time = 0.0
+            self.window.set_vitals_data_status("DATA QUIET")
 
         # Only animate waveforms when actively receiving data
         if self._last_sample_time > 0:
@@ -744,6 +806,7 @@ class ThreatExfiltratorApp:
             self._prev_matched = None
         self.window.highlight_mode_button(None)
         self.window.set_data_status("IDLE")
+        self.window.set_vitals_data_status("WAITING FOR VITALS")
         self.window.reset_vitals()
         self.window.log("INFO", "Attack stopped — returned to idle")
 
@@ -759,6 +822,7 @@ class ThreatExfiltratorApp:
         DdsUtils.register_type(PatientMonitor.Vitals)
 
         self.window.set_data_status("IDLE")
+        self.window.set_vitals_data_status("WAITING FOR VITALS")
         self.window.reset_vitals()
 
         self._dds_timer = QTimer()
@@ -778,6 +842,8 @@ class ThreatExfiltratorApp:
     def run(self) -> None:
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
+        apply_application_font(app)
+        apply_application_font(app)
         _icon = QIcon(QPixmap("../../resource/images/rti_logo.png"))
         if not _icon.isNull():
             app.setWindowIcon(_icon)

@@ -4,6 +4,11 @@
  */
 
 /* ── Global window ─────────────────────────────────────────────────── */
+* {
+    font-family: "DejaVu Sans";
+    font-size: 10pt;
+}
+
 .main-window {
     background-color: #0A0E17;
 }
@@ -16,24 +21,24 @@
 
 .header-brand {
     color: #004C97;
-    font-size: 26px;
+    font-size: 20px;
     font-weight: bold;
 }
 
 .header-sep {
     color: #334455;
-    font-size: 34px;
+    font-size: 28px;
 }
 
 .header-title {
     color: #E0E8F0;
-    font-size: 34px;
+    font-size: 28px;
     font-weight: bold;
 }
 
 .header-qos {
     color: rgba(237, 139, 0, 0.6);
-    font-size: 14px;
+    font-size: 12px;
 }
 
 .security-indicator {
@@ -100,13 +105,13 @@ button.device-card:active,
 
 .device-name {
     color: #C8D8E8;
-    font-size: 34px;
+    font-size: 24px;
     font-weight: bold;
 }
 
 .device-subtitle {
     color: #445566;
-    font-size: 20px;
+    font-size: 14px;
 }
 
 /* ── Device selection radio button (shown as a small pill) ──────────── */
@@ -147,7 +152,7 @@ button.device-select-btn:hover,
 }
 
 .status-badge {
-    font-size: 26px;
+    font-size: 16px;
     font-weight: bold;
     padding: 3px 10px;
     border-radius: 4px;
@@ -179,14 +184,14 @@ button.device-select-btn:hover,
 /* ── Command panel ───────────────────────────────────────────────────── */
 .cmd-panel-title {
     color: #C8D8E8;
-    font-size: 26px;
+    font-size: 18px;
     font-weight: bold;
     letter-spacing: 1px;
 }
 
 .cmd-panel-subtitle {
     color: #C8D8E8;
-    font-size: 26px;
+    font-size: 18px;
     font-weight: bold;
     letter-spacing: 1px;
 }
@@ -199,7 +204,7 @@ button.btn-start,
     color: #00CC66;
     border: 1px solid #006633;
     border-radius: 6px;
-    font-size: 34px;
+    font-size: 18px;
     font-weight: bold;
     padding: 0;
 }
@@ -224,7 +229,7 @@ button.btn-pause,
     color: #ED8B00;
     border: 1px solid #884400;
     border-radius: 6px;
-    font-size: 34px;
+    font-size: 18px;
     font-weight: bold;
     padding: 0;
 }
@@ -249,7 +254,7 @@ button.btn-shutdown,
     color: #FF5555;
     border: 1px solid #882222;
     border-radius: 6px;
-    font-size: 34px;
+    font-size: 18px;
     font-weight: bold;
     padding: 0;
 }
@@ -274,6 +279,31 @@ button.btn-shutdown:active,
     letter-spacing: 1px;
 }
 
+button.console-toggle,
+.console-toggle {
+    background-image: none;
+    background-color: transparent;
+    color: #E0E8F0;
+    border: 1px solid #29415A;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 5px 10px;
+}
+
+button.console-toggle:hover,
+.console-toggle:hover {
+    background-color: #14283D;
+    border-color: #4D99FF;
+}
+
+.alert-count {
+    color: #8FA6BA;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
 /* ── Console scroll + text ──────────────────────────────────────────── */
 .console-scroll {
     border: 1px solid #1A3A2A;
@@ -285,15 +315,15 @@ button.btn-shutdown:active,
 textview.console-text {
     background-color: #060F0A;
     color: #FFFFFF;
-    font-family: "Courier New", monospace;
+    font-family: "DejaVu Sans Mono";
     font-size: 14px;
-    font-weight: bold;
+    font-weight: normal;
 }
 
 textview.console-text text {
     background-color: #060F0A;
     color: #FFFFFF;
-    font-weight: bold;
+    font-weight: normal;
 }
 
 /* ── Footer bar ──────────────────────────────────────────────────────── */
@@ -303,6 +333,6 @@ textview.console-text text {
 }
 
 .footer-lbl {
-    color: #445566;
-    font-size: 14px;
+    color: #8FA6BA;
+    font-size: 12px;
 }

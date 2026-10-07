@@ -37,7 +37,7 @@ Together, the RTI Real-Time WAN Transport, RTI Security Plugins, and RTI Cloud D
 
 - **Low-latency communication** across WAN connections
 - **Automatic NAT traversal** capabilities
-- **Secure data transmission** with domain-level protection (`ENCRYPT_WITH_ORIGIN_AUTHENTICATION` + PSK encryption) and topic-level encryption applied to **every** topic. Over the WAN, participants use the *TeleopWanDomain* governance, which is identical to the LAN-side *OperationalDomain* governance (used in Modules 01 and 04) except for one difference: it extends metadata encryption to all topics via a catch-all rule, rather than encrypting only the sensitive topics `t/Vitals` and `t/MotorControl`.
+- **Secure data transmission** with domain-level protection (`ENCRYPT_WITH_ORIGIN_AUTHENTICATION` + PSK encryption) and topic-level encryption applied to **every** topic. Over the WAN, participants use the *TeleopWanDomain* governance, which is identical to the LAN-side *OperationalDomain* governance (used in Modules 01 and 04) except for one difference: it extends metadata encryption to all topics via a catch-all rule, rather than encrypting only the sensitive topics `t/Vitals`, `t/MotorControl`, and `t/TeleopControl`.
 - **Bandwidth optimization** for efficient data transfer (when compared to TCP-based communication)
 - **Connection resilience** with automatic reconnection
 

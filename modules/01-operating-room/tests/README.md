@@ -57,7 +57,7 @@ Tests create their own DDS participant on domain 0 and use it to:
 
 - **Subscribe** to topics (`t/Vitals`, `t/DeviceStatus`, `t/DeviceHeartbeat`) to
   verify apps are publishing the expected data.
-- **Publish** commands (`t/DeviceCommand`, `t/MotorControl`) to verify apps
+- **Publish** commands (`t/DeviceCommand`, `t/MotorControl`, `t/TeleopControl`) to verify apps
   respond correctly (pause, shutdown, motor control).
 
 This tests the real DDS communication paths without interacting with GUIs.
