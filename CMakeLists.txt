@@ -23,18 +23,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (default: Release)")
 set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries (default: ON)")
 
-# --- RTI CMake Utilities (fetched from GitHub) ---
+if(NOT CONNEXTDDS_DIR)
+    set(CONNEXTDDS_DIR "$ENV{NDDSHOME}" CACHE PATH "RTI Connext DDS installation")
+endif()
+if(NOT EXISTS "${CONNEXTDDS_DIR}/resource/cmake/FindRTIConnextDDS.cmake")
+    message(FATAL_ERROR
+        "Set NDDSHOME or CONNEXTDDS_DIR to a Connext DDS installation with resource/cmake utilities."
+    )
+endif()
+list(PREPEND CMAKE_MODULE_PATH "${CONNEXTDDS_DIR}/resource/cmake")
+
 include(FetchContent)
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
 endif()
-FetchContent_Declare(
-    rticonnextdds-cmake-utils
-    GIT_REPOSITORY https://github.com/rticommunity/rticonnextdds-cmake-utils.git
-    GIT_TAG        2c4b3efef3ed87135565f5d9493303938a76da31
-    UPDATE_DISCONNECTED TRUE
-)
-FetchContent_MakeAvailable(rticonnextdds-cmake-utils)
 
 set(JSON_BuildTests OFF CACHE BOOL "Build JSON tests" FORCE)
 FetchContent_Declare(
@@ -43,10 +45,6 @@ FetchContent_Declare(
     URL_HASH SHA256=4b92eb0c06d10683f7447ce9406cb97cd4b453be18d7279320f7b2f025c10187
 )
 FetchContent_MakeAvailable(nlohmann_json)
-
-list(APPEND CMAKE_MODULE_PATH
-    "${rticonnextdds-cmake-utils_SOURCE_DIR}/cmake/Modules"
-)
 
 # --- Find RTI Connext DDS ---
 set(RTICONNEXTDDS_VERSION "7.7.0" CACHE STRING "Supported Connext DDS version")
