@@ -111,12 +111,12 @@
                 <auto_topic_route name="Local_to_WAN_Command_route">
                     <publish_with_original_info>true</publish_with_original_info>
                     <input participant="Local_domain">
-                        <allow_topic_name_filter>t/MotorControl,t/TeleopControl,t/DeviceCommand</allow_topic_name_filter>
+                        <allow_topic_name_filter>t/TeleopControl,t/DeviceCommand</allow_topic_name_filter>
                         <creation_mode>ON_DOMAIN_MATCH</creation_mode>
                         <datareader_qos base_name="DataFlowLibrary::Command"/>
                     </input>
                     <output participant="WAN_domain">
-                        <allow_topic_name_filter>t/MotorControl,t/TeleopControl,t/DeviceCommand</allow_topic_name_filter>
+                        <allow_topic_name_filter>t/TeleopControl,t/DeviceCommand</allow_topic_name_filter>
                         <creation_mode>ON_ROUTE_MATCH</creation_mode>
                         <datawriter_qos base_name="DataFlowLibrary::Command"/>
                     </output>
@@ -169,12 +169,12 @@
                 <auto_topic_route name="WAN_to_Local_Command_route">
                     <publish_with_original_info>true</publish_with_original_info>
                     <input participant="WAN_domain">
-                        <allow_topic_name_filter>t/MotorControl,t/TeleopControl,t/DeviceCommand</allow_topic_name_filter>
+                        <allow_topic_name_filter>t/TeleopControl,t/DeviceCommand</allow_topic_name_filter>
                         <creation_mode>ON_ROUTE_MATCH</creation_mode>
                         <datareader_qos base_name="DataFlowLibrary::Command"/>
                     </input>
                     <output participant="Local_domain">
-                        <allow_topic_name_filter>t/MotorControl,t/TeleopControl,t/DeviceCommand</allow_topic_name_filter>
+                        <allow_topic_name_filter>t/TeleopControl,t/DeviceCommand</allow_topic_name_filter>
                         <creation_mode>ON_DOMAIN_MATCH</creation_mode>
                         <datawriter_qos base_name="DataFlowLibrary::Command"/>
                     </output>

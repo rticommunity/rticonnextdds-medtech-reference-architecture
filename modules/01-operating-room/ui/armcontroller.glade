@@ -113,14 +113,6 @@
                         <style><class name="teleop-note"/></style>
                       </object>
                     </child>
-                    <child>
-                      <object class="GtkLabel">
-                        <property name="visible">True</property>
-                        <property name="label">SIMULATION ONLY  ·  NOT FOR CLINICAL USE</property>
-                        <property name="xalign">0</property>
-                        <style><class name="sim-warning"/></style>
-                      </object>
-                    </child>
                   </object>
                 </child>
                 <child>

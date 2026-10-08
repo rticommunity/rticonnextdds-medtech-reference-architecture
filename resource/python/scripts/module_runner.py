@@ -18,6 +18,9 @@ Each module provides a ``module.json`` at its root describing:
   ``${args:<name>}``, ``${MODULE_DIR}``, ``${SYSTEM_ARCH}``.
   ``${PYTHON:<name>}`` expands to two args (interpreter + ``src/<name>.py``).
   ``${CPP:<name>}`` locates a compiled executable in the build tree.
+- ``app_variants``: logical app roles mapped to a default choice and concrete
+  app names from ``apps``. Non-selected implementations are omitted from the
+  resolved app list.
 
 The runner loads this config, resolves all placeholders, builds the
 process environment, and manages application lifecycles.
@@ -78,6 +81,122 @@ def _resolve_args(args_section: dict, flags: dict[str, bool]) -> dict[str, str]:
         flag_value = flags[flag_name]
         resolved[name] = spec["true"] if flag_value else spec["false"]
     return resolved
+
+
+def _normalize_app_variants(
+    app_variants: object,
+    app_names: set[str],
+) -> dict[str, tuple[str, dict[str, str]]]:
+    """Validate app-variant metadata and return normalized role definitions."""
+    if not isinstance(app_variants, dict):
+        raise ValueError("module.json app_variants must be an object")
+
+    normalized: dict[str, tuple[str, dict[str, str]]] = {}
+    implementation_roles: dict[str, str] = {}
+
+    for role, spec in app_variants.items():
+        if not isinstance(role, str) or not role:
+            raise ValueError("module.json app_variants keys must be non-empty strings")
+        if not isinstance(spec, dict):
+            raise ValueError(f"module.json app_variants.{role} must be an object")
+
+        default = spec.get("default")
+        choices = spec.get("choices")
+        if not isinstance(default, str) or not default:
+            raise ValueError(f"module.json app_variants.{role}.default must be a non-empty string")
+        if not isinstance(choices, dict) or not choices:
+            raise ValueError(f"module.json app_variants.{role}.choices must be a non-empty object")
+        if default not in choices:
+            raise ValueError(
+                f"module.json app_variants.{role}.default '{default}' must name one of its choices"
+            )
+
+        normalized_choices: dict[str, str] = {}
+        for choice, app_name in choices.items():
+            if not isinstance(choice, str) or not choice:
+                raise ValueError(
+                    f"module.json app_variants.{role}.choices keys must be non-empty strings"
+                )
+            if not isinstance(app_name, str) or not app_name:
+                raise ValueError(
+                    f"module.json app_variants.{role}.choices.{choice} must name an app from 'apps'"
+                )
+            if app_name not in app_names:
+                raise ValueError(
+                    f"module.json app_variants.{role}.choices.{choice} "
+                    f"references unknown app '{app_name}'"
+                )
+            if app_name in implementation_roles:
+                raise ValueError(
+                    f"App '{app_name}' is assigned to multiple variant roles: "
+                    f"'{implementation_roles[app_name]}' and '{role}'"
+                )
+            implementation_roles[app_name] = role
+            normalized_choices[choice] = app_name
+
+        if role in app_names and role not in normalized_choices.values():
+            raise ValueError(
+                f"App variant role '{role}' conflicts with an app that is not one of its choices"
+            )
+
+        normalized[role] = (default, normalized_choices)
+
+    return normalized
+
+
+def get_app_variant_names(module_dir: Path) -> set[str]:
+    """Return the logical app roles declared by a module."""
+    config_path = module_dir / "module.json"
+    with open(config_path, encoding="utf-8") as f:
+        raw = json.load(f)
+
+    apps = raw.get("apps", {})
+    if not isinstance(apps, dict):
+        raise ValueError(f"module.json apps must be an object: {config_path}")
+
+    variants = _normalize_app_variants(raw.get("app_variants", {}), set(apps))
+    return set(variants)
+
+
+def _select_app_definitions(
+    app_definitions: object,
+    app_variants: object,
+    selected_variants: dict[str, str],
+) -> dict[str, list[str]]:
+    """Select raw app command templates without expanding unused variants."""
+    if not isinstance(app_definitions, dict):
+        raise ValueError("module.json apps must be an object")
+
+    normalized = _normalize_app_variants(app_variants, set(app_definitions))
+    unknown_roles = sorted(set(selected_variants) - set(normalized))
+    if unknown_roles:
+        raise ValueError(
+            f"Unknown app variant role(s): {', '.join(unknown_roles)}. "
+            f"Available: {', '.join(sorted(normalized)) or '(none)'}"
+        )
+
+    implementation_roles = {
+        app_name: role for role, (_, choices) in normalized.items() for app_name in choices.values()
+    }
+    selected: dict[str, list[str]] = {}
+
+    for app_name, command in app_definitions.items():
+        role = implementation_roles.get(app_name)
+        if role is None:
+            selected[app_name] = command
+            continue
+        if role in selected:
+            continue
+
+        default, choices = normalized[role]
+        choice = selected_variants.get(role, default)
+        if choice not in choices:
+            raise ValueError(
+                f"Invalid variant '{choice}' for app role '{role}'. Available: {', '.join(choices)}"
+            )
+        selected[role] = app_definitions[choices[choice]]
+
+    return selected
 
 
 def _expand_string(
@@ -149,6 +268,7 @@ def _resolve_env_value(value: str, module_dir: Path) -> str:
 def load_module_config(
     module_dir: Path,
     flags: dict[str, bool] | None = None,
+    variants: dict[str, str] | None = None,
 ) -> tuple[dict[str, str], dict[str, list[str]]]:
     """Load ``module.json`` and return ``(env, apps)``.
 
@@ -157,7 +277,8 @@ def load_module_config(
     a ``ValueError`` is raised otherwise.
 
     *env* is a ready-to-use environment dict.
-    *apps* is ``{name: [resolved_cmd_args]}``.
+    *apps* is ``{logical_app_name: [resolved_cmd_args]}``; each declared
+    variant group resolves to its selected or default implementation.
     """
     config_path = module_dir / "module.json"
     with open(config_path, encoding="utf-8") as f:
@@ -203,7 +324,12 @@ def load_module_config(
 
     # --- Apps ---
     apps: dict[str, list[str]] = {}
-    for name, cmd_template in raw.get("apps", {}).items():
+    selected_app_definitions = _select_app_definitions(
+        raw.get("apps", {}),
+        raw.get("app_variants", {}),
+        variants or {},
+    )
+    for name, cmd_template in selected_app_definitions.items():
         cmd: list[str] = []
         for tok in cmd_template:
             cmd.extend(

@@ -25,13 +25,13 @@ inability to use the software. -->
                 </domains>
                 <publish>
                     <topics>
-                        <topic>t/MotorControl</topic>
+                        <topic>t/TeleopControl</topic>
                         <topic>t/DeviceCommand</topic>
                     </topics>
                 </publish>
                 <subscribe>
                     <topics>
-                        <topic>t/MotorControl</topic>
+                        <topic>t/TeleopControl</topic>
                         <topic>t/DeviceCommand</topic>
                     </topics>
                 </subscribe>

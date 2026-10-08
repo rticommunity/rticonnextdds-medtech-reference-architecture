@@ -411,13 +411,6 @@ class PatientMonitorWindow(QMainWindow):
         )
         h_layout.addWidget(self.status_lbl)
 
-        simulation_lbl = QLabel("SIMULATION · NOT FOR CLINICAL USE")
-        simulation_lbl.setStyleSheet(
-            "color: #EDB252; font-size: 12px; font-weight: bold; "
-            "background: transparent; margin-left: 10px;"
-        )
-        h_layout.addWidget(simulation_lbl)
-
         self.state_lbl = QLabel("ON")
         self.state_lbl.setStyleSheet(
             f"color: #000; background-color: {COLOR_HR}; font-size: 16px; "

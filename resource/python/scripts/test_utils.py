@@ -662,18 +662,6 @@ class UtilityApp:
             return self._reader
 
     @property
-    def motor_control(self) -> Topic:
-        if "motor_control" not in self._topics:
-            self._topics["motor_control"] = self.Topic(
-                qos_provider=self.qos_provider,
-                participant=self.participant,
-                topic_name="t/MotorControl",
-                qos_profile="DataFlowLibrary::Command",
-                type_cls=SurgicalRobot.MotorControl if SurgicalRobot else None,
-            )
-        return self._topics["motor_control"]
-
-    @property
     def teleop_control(self) -> Topic:
         if "teleop_control" not in self._topics:
             self._topics["teleop_control"] = self.Topic(

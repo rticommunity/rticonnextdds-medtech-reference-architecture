@@ -13,7 +13,8 @@ This README describes how we've approached QoS in this reference architecture. F
     - [SystemLibrary::WanConfig profile](#systemlibrarywanconfig-profile)
   - [DataFlowLibrary](#dataflowlibrary)
     - [DataFlowLibrary::Streaming profile](#dataflowlibrarystreaming-profile)
-    - [DataFlowLibrary::Status profile](#dataflowlibrarystatus-profile)
+      - [DataFlowLibrary::Control profile](#dataflowlibrarycontrol-profile)
+      - [DataFlowLibrary::Status profile](#dataflowlibrarystatus-profile)
     - [DataFlowLibrary::Command profile](#dataflowlibrarycommand-profile)
     - [DataFlowLibrary::Heartbeat profile](#dataflowlibraryheartbeat-profile)
     - [DataFlowLibrary::SecureLog profile](#dataflowlibrarysecurelog-profile)
@@ -105,6 +106,7 @@ It is used by Module 03: Remote Teleoperation. See the [Module 03 README](../../
 | QoS Profile | Reliability | History (kind+depth) | Durability | Deadline period | Intended Use
 | ----------- | ----------- | ------- | ---------- | --------- | -----------
 | [*Streaming*](#dataflowlibrarystreaming-profile) | *BEST_EFFORT* | *KEEP_LAST 1* | *VOLATILE* | -- | Periodic Topics that are published at a high frequency (i.e. frequencies <1 second).
+| [*Control*](#dataflowlibrarycontrol-profile) | *RELIABLE* | *KEEP_LAST 100* | *VOLATILE* | -- | Periodically refreshed control-state Topics where reliable repair is useful and older samples can be superseded.
 | [*Status*](#dataflowlibrarystatus-profile) | *RELIABLE* | *KEEP_LAST 1* | *TRANSIENT_LOCAL* | -- | "Current status"-like Topics, sent once at the beginning of operation and again only upon change to the status.
 | [*Command*](#dataflowlibrarycommand-profile) | *RELIABLE* | *KEEP_LAST 1* | *VOLATILE* | -- | Topics that transmit commands or trigger some action in the system.
 | [*Heartbeat*](#dataflowlibraryheartbeat-profile) | *BEST_EFFORT* | *KEEP_LAST 1* | *VOLATILE* | *200 ms* | To assert and detect the presence of system components.
@@ -118,6 +120,18 @@ It inherits from the *BuiltinQosLib::Generic.Common* profile in addition to bein
 
 - *BEST_EFFORT* Reliability QoS. It is not necessary to repair lost samples, which adds overhead and latency, because the next update will arrive quickly.
 - *KEEP_LAST, depth=1* History QoS. There is no need to process or track more than 1 sample per instance at a time. You could increase the *depth* on the DataReader side if your application cannot access the data fast enough from the DataReader's queue.
+
+#### ***DataFlowLibrary::Control* profile**
+
+This profile is used for periodically refreshed control-state Topics such as `t/TeleopControl`. Unlike an irregular command or event, each sample represents the current direction for an axis, and a later sample supersedes an earlier one. The ArmController republishes active axis directions at approximately 50 Hz and publishes `STOPPED` when an axis is released.
+
+It inherits directly from *BuiltinQosLib::Pattern.ReliableStreaming* without additional QoS configuration. In Connext 7.7.0, this built-in profile provides:
+
+- *RELIABLE* Reliability QoS. Lost samples can be repaired for matched DataReaders while they remain available in the writer history.
+- *KEEP_LAST, depth=100* History QoS. The bounded history supports reliable streaming without retaining an unbounded sequence of old control states. It does not guarantee delivery of every intermediate sample indefinitely; newer states can supersede older ones as history advances.
+- *VOLATILE* Durability QoS. Late-joining DataReaders do not receive control samples written before they joined, avoiding replay of stale motion state.
+
+The receiver should remain in a safe stopped or inhibited state until it receives fresh control data. Reliability and history affect delivery and retention; they do not set the publication rate or replace application-level freshness checks and safety behavior.
 
 #### ***DataFlowLibrary::Status* profile**
 
@@ -182,9 +196,9 @@ Both files contain only 1 QoS library: ***DpQosLib***. This QoS library contains
 
 [SecureAppsQos.xml](./SecureAppsQos.xml) defines secure profiles for the demo DomainParticipants and services in a similar way to **NonSecureAppsQos.xml**, but with security configuration added.
 
-[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *LanCommonSecurityConfig* defines common configuration to enable security for local domains (LAN connections). It references common permissions CA, identity CA, governance files, and the OperationalDomain PSK seed file. The governance uses `rtps_protection_kind=ENCRYPT_WITH_ORIGIN_AUTHENTICATION` with `rtps_psk_protection_kind=ENCRYPT` for domain-level protection, plus topic-level protection (`metadata_protection_kind=ENCRYPT`) on `t/Vitals`, `t/MotorControl`, and `t/TeleopControl`.
+[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *LanCommonSecurityConfig* defines common configuration to enable security for local domains (LAN connections). It references common permissions CA, identity CA, governance files, and the OperationalDomain PSK seed file. The governance uses `rtps_protection_kind=ENCRYPT_WITH_ORIGIN_AUTHENTICATION` with `rtps_psk_protection_kind=ENCRYPT` for domain-level protection, plus topic-level protection (`metadata_protection_kind=ENCRYPT`) on `t/Vitals` and `t/TeleopControl`.
 
-[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *WanCommonSecurityConfig* defines common configuration to enable security for remote domains (WAN connections). It references common permissions CA, identity CA, governance files, and the TeleopWanDomain PSK seed file. The same domain-level protection applies (`rtps_protection_kind=ENCRYPT_WITH_ORIGIN_AUTHENTICATION`, `rtps_psk_protection_kind=ENCRYPT`), but the WAN governance applies *stricter* topic-level protection: a catch-all `*` rule with `metadata_protection_kind=ENCRYPT` protects the submessage metadata of **every** topic, rather than only `t/Vitals`, `t/MotorControl`, and `t/TeleopControl`. The secure log topic `DDS:Security:LogTopicV2` keeps its own `SIGN`/`ENCRYPT`.
+[SecureAppsQos.xml](./SecureAppsQos.xml) defines a QoS snippet - *WanCommonSecurityConfig* defines common configuration to enable security for remote domains (WAN connections). It references common permissions CA, identity CA, governance files, and the TeleopWanDomain PSK seed file. The same domain-level protection applies (`rtps_protection_kind=ENCRYPT_WITH_ORIGIN_AUTHENTICATION`, `rtps_psk_protection_kind=ENCRYPT`), but the WAN governance applies *stricter* topic-level protection: a catch-all `*` rule with `metadata_protection_kind=ENCRYPT` protects the submessage metadata of **every** topic. The secure log topic `DDS:Security:LogTopicV2` keeps its own `SIGN`/`ENCRYPT`.
 
 ## External security snippets: [SecureExternalAppsQos.xml](SecureExternalAppsQos.xml)
 

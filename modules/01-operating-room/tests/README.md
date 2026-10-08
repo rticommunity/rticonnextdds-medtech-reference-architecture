@@ -13,6 +13,7 @@ behave as described in the module README.
 | pytest | `pip install pytest` |
 | C++ build complete | Run `python scripts/build.py` first |
 | PySide6, pyqtgraph, numpy | For GUI app tests |
+| Pygame CE | Installed through the root `requirements.txt`; used by the gamepad app |
 | Security artifacts (optional) | Run `system_arch/security/setup_security.py` for `@secure` tests |
 
 ## Running Tests
@@ -46,10 +47,12 @@ pytest tests/ -v -m "not secure"
 
 | File | What it tests | Markers |
 | --- | --- | --- |
-| `test_types.py` | Python type imports, field/enum validation | — |
+| `test_types.py` | Generated Python type import smoke test | — |
 | `test_launch.py` | Each app starts without crashing | `gui` for GTK/Qt apps |
+| `test_arm_kinematics.py` | Simulated end-effector jogging and the Arm controller-connection indicator | — |
 | `test_dds_communication.py` | DDS topics carry correct data (vitals, heartbeats, statuses, commands) | `gui` for Arm tests |
 | `test_demo_flow.py` | End-to-end README scenarios (crash detection, pause/resume, shutdown) | `gui`, `slow`, `secure` |
+| `test_xml_qos.py` | Loads system QoS XML and creates the five operational named participants; secure Orchestrator startup creates SecureLogReader | `gui`, `secure` for SecureLogReader |
 
 ## How It Works
 
@@ -57,8 +60,8 @@ Tests create their own DDS participant on domain 0 and use it to:
 
 - **Subscribe** to topics (`t/Vitals`, `t/DeviceStatus`, `t/DeviceHeartbeat`) to
   verify apps are publishing the expected data.
-- **Publish** commands (`t/DeviceCommand`, `t/MotorControl`, `t/TeleopControl`) to verify apps
-  respond correctly (pause, shutdown, motor control).
+- **Publish** commands (`t/DeviceCommand`, `t/TeleopControl`) to verify apps
+  respond correctly (pause, shutdown, and teleoperation).
 
 This tests the real DDS communication paths without interacting with GUIs.
 

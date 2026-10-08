@@ -4,7 +4,6 @@ Module 02 demonstrates recording and playback of Digital Operating Room data fro
 
 RTI Recording Service is used to record realtime DDS data on the following Topics:
 
-- *t/MotorControl*
 - *t/TeleopControl*
 - *t/Vitals*
 
@@ -32,11 +31,11 @@ This module uses RTI Recording Service to record data from the operating room ap
 
 ### RTI Recording Service
 
-RTI Recording Service is used in this module to record the `t/MotorControl`, `t/TeleopControl`, and `t/Vitals` Topics from [Module 01: Digital Operating Room](../01-operating-room/).
+RTI Recording Service is used in this module to record the `t/TeleopControl` and `t/Vitals` Topics from [Module 01: Digital Operating Room](../01-operating-room/).
 
 ### RTI Replay Service
 
-RTI Replay Service is used in this module to replay recorded data from the `t/MotorControl`, `t/TeleopControl`, and `t/Vitals` Topics from [Module 01: Digital Operating Room](../01-operating-room/).
+RTI Replay Service is used in this module to replay recorded data from the `t/TeleopControl` and `t/Vitals` Topics from [Module 01: Digital Operating Room](../01-operating-room/).
 
 ## Setup and Installation
 
@@ -118,13 +117,13 @@ Here are a few hands-on exercises to demonstrate use cases of Connext features i
 
 ### 1. Recording All Topics
 
-The module is configured to record and replay `t/MotorControl`, `t/TeleopControl`, and `t/Vitals` Topics only on Domain 0. Both RTI Recording Service and RTI Replay Service can be configured to record and replay explicit Topics, or discovered Topics/Data Types that match a pattern.
+The module is configured to record and replay `t/TeleopControl` and `t/Vitals` Topics only on Domain 0. Both RTI Recording Service and RTI Replay Service can be configured to record and replay explicit Topics, or discovered Topics/Data Types that match a pattern.
 
 Let's try replaying just `t/Vitals`, while still recording both Topics.
 
 1. Kill all active operating room applications and RTI Recording/Replay Services.
 
-2. Comment out the `<topic>` tags and contained content within them for both `t/MotorControl` and `t/TeleopControl` in [RecordingServiceConfiguration.xml](./RecordingServiceConfiguration.xml).
+2. Comment out the `<topic>` tag and contained content for `t/TeleopControl` in [RecordingServiceConfiguration.xml](./RecordingServiceConfiguration.xml).
 
    *Note, you should undo this configuration change after completing this demonstration.*
 

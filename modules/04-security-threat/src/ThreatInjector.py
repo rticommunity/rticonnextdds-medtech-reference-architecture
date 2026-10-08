@@ -45,11 +45,8 @@ sys.path.insert(
     ),
 )
 import DdsUtils
-from Arm import (
-    INITIAL_ANGLES,
-    JOINT_NAMES,
-    SurgicalArmVizWidget,
-)
+from Arm import INITIAL_ANGLES, SurgicalArmVizWidget
+from ArmKinematics import apply_teleop_jog
 from ThreatTypes import ThreatEntities
 from Types import Common, DdsEntities, Orchestrator, SurgicalRobot
 from UiTheme import (
@@ -118,12 +115,11 @@ _STYLE_STOP_DISABLED = (
     "font-size: 13px; font-weight: bold; }"
 )
 
-_MOTORS_ORDERED = [
-    SurgicalRobot.Motors.BASE,
-    SurgicalRobot.Motors.SHOULDER,
-    SurgicalRobot.Motors.ELBOW,
-    SurgicalRobot.Motors.WRIST,
-    SurgicalRobot.Motors.HAND,
+_TELEOP_AXES_ORDERED = [
+    SurgicalRobot.TeleopAxes.X,
+    SurgicalRobot.TeleopAxes.Y,
+    SurgicalRobot.TeleopAxes.ROLL,
+    SurgicalRobot.TeleopAxes.GRIPPER,
 ]
 
 # Attack mode constants
@@ -133,7 +129,7 @@ MODE_FORGED_PERMS = "FORGED PERMS"
 MODE_EXPIRED_CERT = "EXPIRED CERT"
 
 # Attack type constants
-ATTACK_MOTOR_INJECT = "MOTOR INJECT"
+ATTACK_TELEOP_INJECT = "TELEOP INJECT"
 ATTACK_CMD_PAUSE = "CMD INJECT (PAUSE)"
 ATTACK_CMD_SHUTDOWN = "CMD INJECT (SHUTDOWN)"
 
@@ -227,12 +223,6 @@ class ThreatInjectorWindow(QMainWindow):
         h.addWidget(title)
         h.addStretch()
 
-        simulation_lbl = QLabel("SIMULATION · NOT FOR CLINICAL USE")
-        simulation_lbl.setStyleSheet(
-            "color: #EDB252; font-size: 12px; font-weight: bold; background: transparent;"
-        )
-        h.addWidget(simulation_lbl)
-
         self.status_badge = QLabel("IDLE")
         self.status_badge.setStyleSheet(
             f"color: #fff; background-color: {COLOR_IDLE}; font-size: 16px; "
@@ -305,7 +295,7 @@ class ThreatInjectorWindow(QMainWindow):
         layout.addWidget(atk_lbl)
 
         self._attack_buttons: dict[str, QPushButton] = {}
-        for atk in [ATTACK_MOTOR_INJECT, ATTACK_CMD_PAUSE, ATTACK_CMD_SHUTDOWN]:
+        for atk in [ATTACK_TELEOP_INJECT, ATTACK_CMD_PAUSE, ATTACK_CMD_SHUTDOWN]:
             btn = QPushButton(atk)
             btn.setFixedHeight(38)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -523,7 +513,7 @@ class ThreatInjectorApp:
     def __init__(self):
         self.window: ThreatInjectorWindow = None
         self._participant = None
-        self._motor_writer = None
+        self._teleop_writer = None
         self._cmd_writer = None
         self._current_mode: str | None = None
         self._current_attack = None
@@ -531,10 +521,6 @@ class ThreatInjectorApp:
         self._attack_timer = QTimer()
         self._attack_timer.timeout.connect(self._do_inject)
         self._angles = dict(INITIAL_ANGLES)
-        self._inject_directions = {
-            m: SurgicalRobot.MotorDirections.INCREMENT for m in _MOTORS_ORDERED
-        }
-        self._motor_idx = 0
         self._tick = 0
         self._participant_lock = threading.Lock()
         self._cert_invalid = False
@@ -543,7 +529,7 @@ class ThreatInjectorApp:
     def _update_slider_enabled(self):
         enabled = (
             self._current_mode is not None
-            and self._current_attack == ATTACK_MOTOR_INJECT
+            and self._current_attack == ATTACK_TELEOP_INJECT
             and not self._attacking
         )
         self.window.freq_slider.setEnabled(enabled)
@@ -560,7 +546,7 @@ class ThreatInjectorApp:
                 except Exception:
                     pass
                 self._participant = None
-                self._motor_writer = None
+                self._teleop_writer = None
                 self._cmd_writer = None
                 self._cert_invalid = False
                 self._prev_matched = None
@@ -569,8 +555,8 @@ class ThreatInjectorApp:
             try:
                 qos_provider = dds.QosProvider.default
                 self._participant = qos_provider.create_participant_from_config(dp_name)
-                self._motor_writer = dds.DataWriter(
-                    self._participant.find_datawriter(entities.MOTOR_CONTROL_DW)
+                self._teleop_writer = dds.DataWriter(
+                    self._participant.find_datawriter(entities.TELEOP_CONTROL_DW)
                 )
                 self._cmd_writer = dds.DataWriter(
                     self._participant.find_datawriter(entities.DEVICE_COMMAND_DW)
@@ -582,8 +568,8 @@ class ThreatInjectorApp:
                 self.window.set_attack_buttons_enabled(True)
                 self.window.arm_viz.set_active(True)
                 if self._current_attack is None:
-                    self._current_attack = ATTACK_MOTOR_INJECT
-                    self.window.highlight_attack_button(ATTACK_MOTOR_INJECT)
+                    self._current_attack = ATTACK_TELEOP_INJECT
+                    self.window.highlight_attack_button(ATTACK_TELEOP_INJECT)
                 self._current_mode = mode
                 self._update_slider_enabled()
             except dds.Error as exc:
@@ -597,7 +583,7 @@ class ThreatInjectorApp:
                 self._current_attack = None
                 self.window.highlight_attack_button(None)
                 self._participant = None
-                self._motor_writer = None
+                self._teleop_writer = None
                 self._cmd_writer = None
                 self._current_mode = None
                 self._update_slider_enabled()
@@ -611,7 +597,7 @@ class ThreatInjectorApp:
                 self._current_attack = None
                 self.window.highlight_attack_button(None)
                 self._participant = None
-                self._motor_writer = None
+                self._teleop_writer = None
                 self._cmd_writer = None
                 self._current_mode = None
                 self._update_slider_enabled()
@@ -622,40 +608,29 @@ class ThreatInjectorApp:
         """Called by the attack timer. Writes one sample to the DDS bus."""
         attack = self._current_attack
 
-        if attack == ATTACK_MOTOR_INJECT:
-            # Cycle through joints, alternating direction every few ticks
-            motor = _MOTORS_ORDERED[self._motor_idx % len(_MOTORS_ORDERED)]
-            self._tick += 1
+        if attack == ATTACK_TELEOP_INJECT:
+            axis_index = (self._tick // 10) % len(_TELEOP_AXES_ORDERED)
+            axis = _TELEOP_AXES_ORDERED[axis_index]
             direction = (
-                SurgicalRobot.MotorDirections.INCREMENT
-                if (self._tick // 10) % 2 == 0
-                else SurgicalRobot.MotorDirections.DECREMENT
+                SurgicalRobot.TeleopDirections.POSITIVE
+                if (self._tick // (10 * len(_TELEOP_AXES_ORDERED))) % 2 == 0
+                else SurgicalRobot.TeleopDirections.NEGATIVE
             )
-            sample = SurgicalRobot.MotorControl(id=motor, direction=direction)
-
-            # Update local visualisation angle (0.3° matches Arm.py step size)
-            if direction == SurgicalRobot.MotorDirections.INCREMENT:
-                self._angles[motor] = (self._angles[motor] + 0.3) % 360.0
-            else:
-                self._angles[motor] = (self._angles[motor] - 0.3) % 360.0
+            self._tick += 1
+            sample = SurgicalRobot.TeleopControl(axis=axis, direction=direction)
+            self._angles = apply_teleop_jog(self._angles, axis, direction)
             self.window.arm_viz.update_angles(self._angles)
-            self._motor_idx = (self._motor_idx + 1) % len(_MOTORS_ORDERED)
 
             with self._participant_lock:
-                if self._motor_writer is None:
+                if self._teleop_writer is None:
                     self.window.set_data_status("NO ACCESS")
                     return
                 try:
-                    self._motor_writer.write(sample)
-                    d_str = (
-                        "INCREMENT"
-                        if direction == SurgicalRobot.MotorDirections.INCREMENT
-                        else "DECREMENT"
-                    )
+                    self._teleop_writer.write(sample)
                     level = "OK" if self._prev_matched else "WARN"
                     self.window.log(
                         level,
-                        f"Writing MotorControl — joint: {JOINT_NAMES[motor]}, direction: {d_str}",
+                        f"Writing TeleopControl — axis: {axis.name}, direction: {direction.name}",
                     )
                     self.window.set_data_status("ATTACKING" if self._prev_matched else "NO ACCESS")
                 except Exception as exc:
@@ -716,7 +691,7 @@ class ThreatInjectorApp:
     def _poll_matched_status(self) -> None:
         """Periodically check publication matched status on the writers."""
         with self._participant_lock:
-            writers = [w for w in [self._motor_writer, self._cmd_writer] if w is not None]
+            writers = [w for w in [self._teleop_writer, self._cmd_writer] if w is not None]
             if not writers:
                 return
             matched = any(w.publication_matched_status.current_count > 0 for w in writers)
@@ -754,7 +729,7 @@ class ThreatInjectorApp:
             if self._participant is not None:
                 self._participant.close()
                 self._participant = None
-            self._motor_writer = None
+            self._teleop_writer = None
             self._cmd_writer = None
             self._current_mode = None
             self._cert_invalid = False
@@ -787,7 +762,7 @@ class ThreatInjectorApp:
         self.window._stop_btn.clicked.connect(lambda _: self._stop_all())
         self.window.launch_btn.clicked.connect(self._on_launch_clicked)
 
-        DdsUtils.register_type(SurgicalRobot.MotorControl)
+        DdsUtils.register_type(SurgicalRobot.TeleopControl)
         DdsUtils.register_type(Orchestrator.DeviceCommand)
 
         self.window.set_data_status("IDLE")

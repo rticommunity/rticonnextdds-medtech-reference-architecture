@@ -15,7 +15,6 @@ inability to use the software. -->
   <domain_library name="ConnextDomainLib">
     <domain name="OperationalDataDomain" domain_id="0">
       <!-- Types need to be registered once. 2 different topics can use the same type -->
-      <register_type name="SurgicalRobot::MotorControl"   type_ref="SurgicalRobot::MotorControl"/>
       <register_type name="SurgicalRobot::TeleopControl"  type_ref="SurgicalRobot::TeleopControl"/>
       <register_type name="Common::DeviceStatus"          type_ref="Common::DeviceStatus"/>
       <register_type name="Common::DeviceHeartbeat"       type_ref="Common::DeviceHeartbeat"/>
@@ -24,7 +23,6 @@ inability to use the software. -->
 
       <!-- t/ stands for topic. This is just some nomenclature,
            the DDS standard does not make this mandatory. -->
-      <topic name="t/MotorControl"    register_type_ref="SurgicalRobot::MotorControl"/>
       <topic name="t/TeleopControl"   register_type_ref="SurgicalRobot::TeleopControl"/>
       <topic name="t/DeviceStatus"    register_type_ref="Common::DeviceStatus"/>
       <topic name="t/DeviceHeartbeat" register_type_ref="Common::DeviceHeartbeat"/>

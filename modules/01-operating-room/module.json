@@ -9,8 +9,18 @@
             "false": "system_arch/qos/NonSecureAppsQos.xml"
         }
     },
+    "app_variants": {
+        "ArmController": {
+            "default": "simulated",
+            "choices": {
+              "simulated": "ArmController",
+              "xbox": "ArmControllerGamepad"
+            }
+        }
+    },
     "apps": {
         "ArmController":  ["${CPP:ArmController}"],
+        "ArmControllerGamepad": ["${PYTHON:ArmControllerGamepad}"],
         "Orchestrator":   ["${CPP:Orchestrator}"],
         "PatientSensor":  ["${CPP:PatientSensor}"],
         "Arm":            ["${PYTHON:Arm}"],

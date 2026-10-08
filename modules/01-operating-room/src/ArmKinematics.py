@@ -1,6 +1,18 @@
 import math
+from enum import IntEnum
 
 from Types import SurgicalRobot
+
+
+class ArmJoint(IntEnum):
+    """Internal simulator joints; these are not DDS control commands."""
+
+    BASE = 0
+    SHOULDER = 1
+    ELBOW = 2
+    WRIST = 3
+    HAND = 4
+
 
 LINK_1_MM = 160.0
 LINK_2_MM = 120.0
@@ -18,8 +30,8 @@ def _normalise_degrees(angle: float) -> float:
 
 
 def planar_tool_position(angles: dict) -> tuple[float, float]:
-    shoulder = math.radians(90.0 + angles[SurgicalRobot.Motors.SHOULDER] - 180.0)
-    elbow = math.radians(angles[SurgicalRobot.Motors.ELBOW] - 180.0)
+    shoulder = math.radians(90.0 + angles[ArmJoint.SHOULDER] - 180.0)
+    elbow = math.radians(angles[ArmJoint.ELBOW] - 180.0)
     return (
         LINK_1_MM * math.cos(shoulder) + LINK_2_MM * math.cos(shoulder + elbow),
         LINK_1_MM * math.sin(shoulder) + LINK_2_MM * math.sin(shoulder + elbow),
@@ -45,7 +57,7 @@ def apply_teleop_jog(angles: dict, axis, direction) -> dict:
         x *= scale
         y *= scale
 
-        current_elbow_delta = updated[SurgicalRobot.Motors.ELBOW] - 180.0
+        current_elbow_delta = updated[ArmJoint.ELBOW] - 180.0
         elbow_sign = -1.0 if current_elbow_delta < 0.0 else 1.0
         cos_elbow = (radius * radius - LINK_1_MM * LINK_1_MM - LINK_2_MM * LINK_2_MM) / (
             2.0 * LINK_1_MM * LINK_2_MM
@@ -59,23 +71,23 @@ def apply_teleop_jog(angles: dict, axis, direction) -> dict:
         old_tool_orientation = sum(
             updated[motor] - 180.0
             for motor in (
-                SurgicalRobot.Motors.SHOULDER,
-                SurgicalRobot.Motors.ELBOW,
-                SurgicalRobot.Motors.WRIST,
+                ArmJoint.SHOULDER,
+                ArmJoint.ELBOW,
+                ArmJoint.WRIST,
             )
         )
         new_shoulder = _normalise_degrees(180.0 + math.degrees(shoulder - math.pi / 2.0))
         new_elbow = _normalise_degrees(180.0 + math.degrees(elbow))
-        updated[SurgicalRobot.Motors.SHOULDER] = new_shoulder
-        updated[SurgicalRobot.Motors.ELBOW] = new_elbow
-        updated[SurgicalRobot.Motors.WRIST] = _normalise_degrees(
+        updated[ArmJoint.SHOULDER] = new_shoulder
+        updated[ArmJoint.ELBOW] = new_elbow
+        updated[ArmJoint.WRIST] = _normalise_degrees(
             180.0 + old_tool_orientation - (new_shoulder - 180.0) - (new_elbow - 180.0)
         )
     elif axis == SurgicalRobot.TeleopAxes.ROLL:
-        motor = SurgicalRobot.Motors.WRIST
+        motor = ArmJoint.WRIST
         updated[motor] = _normalise_degrees(updated[motor] + sign * ROTATION_STEP_DEG)
     elif axis == SurgicalRobot.TeleopAxes.GRIPPER:
-        motor = SurgicalRobot.Motors.HAND
+        motor = ArmJoint.HAND
         updated[motor] = min(
             GRIPPER_MAX_DEG,
             max(GRIPPER_MIN_DEG, updated[motor] + sign * GRIPPER_STEP_DEG),

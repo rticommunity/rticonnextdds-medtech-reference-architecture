@@ -55,7 +55,6 @@ TRUSTED_IDENTITY_CA = CA(name="TrustedIdentityCa", issuer=TRUSTED_ROOT_CA)
 ROUTED_TOPICS = [
     "t/DeviceStatus",
     "t/DeviceHeartbeat",
-    "t/MotorControl",
     "t/TeleopControl",
     "t/DeviceCommand",
     "t/Vitals",
@@ -80,10 +79,6 @@ OPERATIONAL_DOMAIN = DomainScope(
         topic_rules=[
             TopicRule(
                 topic_expression="t/Vitals",
-                metadata_protection_kind="ENCRYPT",
-            ),
-            TopicRule(
-                topic_expression="t/MotorControl",
                 metadata_protection_kind="ENCRYPT",
             ),
             TopicRule(
@@ -112,7 +107,6 @@ OPERATIONAL_DOMAIN = DomainScope(
                 "DDS:Security:LogTopicV2",
             ],
             subscribe_topics=[
-                "t/MotorControl",
                 "t/TeleopControl",
                 "t/DeviceCommand",
             ],
@@ -121,7 +115,6 @@ OPERATIONAL_DOMAIN = DomainScope(
             name="ArmController",
             issuer=TRUSTED_PERMISSIONS_CA,
             publish_topics=[
-                "t/MotorControl",
                 "t/TeleopControl",
                 "t/DeviceStatus",
                 "t/DeviceHeartbeat",
@@ -183,7 +176,6 @@ OPERATIONAL_DOMAIN = DomainScope(
             issuer=TRUSTED_PERMISSIONS_CA,
             publish_topics=[],
             subscribe_topics=[
-                "t/MotorControl",
                 "t/TeleopControl",
                 "t/Vitals",
             ],
@@ -192,7 +184,6 @@ OPERATIONAL_DOMAIN = DomainScope(
             name="ReplayService",
             issuer=TRUSTED_PERMISSIONS_CA,
             publish_topics=[
-                "t/MotorControl",
                 "t/TeleopControl",
                 "t/Vitals",
             ],
@@ -230,7 +221,7 @@ TELEOP_WAN_DOMAIN = DomainScope(
         # encrypts the submessage metadata of every topic, so only
         # participants with matching permissions can decrypt it. This is
         # stricter than the OperationalDomain (LAN) governance, which only
-        # applies metadata ENCRYPT to t/Vitals, t/MotorControl, and t/TeleopControl.
+        # applies metadata ENCRYPT to t/Vitals and t/TeleopControl.
         #
         # Rule order matters: DDS evaluates topic rules first-match, top-down,
         # so the specific DDS:Security:LogTopicV2 rule must precede the "*"

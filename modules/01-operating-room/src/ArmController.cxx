@@ -93,8 +93,6 @@ private:
     // Connext entities
     dds::pub::DataWriter<Common::DeviceStatus> status_writer = dds::core::null;
     dds::pub::DataWriter<Common::DeviceHeartbeat> hb_writer = dds::core::null;
-    dds::pub::DataWriter<SurgicalRobot::MotorControl> arm_writer =
-            dds::core::null;
     dds::pub::DataWriter<SurgicalRobot::TeleopControl> teleop_writer =
             dds::core::null;
     dds::sub::DataReader<Orchestrator::DeviceCommand> cmd_reader =
@@ -171,7 +169,6 @@ private:
         // We need to register the types before we start creating DDS entities
         rti::domain::register_type<Orchestrator::DeviceCommand>();
         rti::domain::register_type<Common::DeviceStatus>();
-        rti::domain::register_type<SurgicalRobot::MotorControl>();
         rti::domain::register_type<SurgicalRobot::TeleopControl>();
         rti::domain::register_type<Common::DeviceHeartbeat>();
 
@@ -192,10 +189,6 @@ private:
                 dds::pub::DataWriter<Common::DeviceHeartbeat>>(
                 participant,
                 std::string(HB_DW));
-        arm_writer = rti::pub::find_datawriter_by_name<
-                dds::pub::DataWriter<SurgicalRobot::MotorControl>>(
-                participant,
-                std::string(MOTOR_CONTROL_DW));
         teleop_writer = rti::pub::find_datawriter_by_name<
                 dds::pub::DataWriter<SurgicalRobot::TeleopControl>>(
                 participant,
@@ -230,16 +223,6 @@ private:
     void write_status()
     {
         status_writer.write(current_status);
-    }
-
-    // Write motor command
-    void write_command(SurgicalRobot::Motors motor,
-                       SurgicalRobot::MotorDirections dir)
-    {
-        if (current_status.status == Common::DeviceStatuses::ON) {
-            SurgicalRobot::MotorControl sample(motor, dir);
-            arm_writer.write(sample);
-        }
     }
 
     void write_teleop(SurgicalRobot::TeleopAxes axis,
@@ -514,7 +497,7 @@ private:
                                                 write_teleop(axis, direction);
                                                 return true;
                                             },
-                                            50);
+                                            20);
                         }
                         return false;
                     },

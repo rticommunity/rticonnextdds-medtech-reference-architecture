@@ -68,13 +68,6 @@ inability to use the software. -->
             <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
 
             <!-- <topic> = DataWriter -->
-            <topic name="t/MotorControl" participant_ref="reps/dp/OperationalData">
-                <topic_name>t/MotorControl</topic_name>
-                <registered_type_name>SurgicalRobot::MotorControl</registered_type_name>
-                <!-- Using the same QoS profile we use in our applications -->
-                <datawriter_qos base_name="DataFlowLibrary::Command"/>
-            </topic>
-
             <topic name="t/TeleopControl" participant_ref="reps/dp/OperationalData">
                 <topic_name>t/TeleopControl</topic_name>
                 <registered_type_name>SurgicalRobot::TeleopControl</registered_type_name>

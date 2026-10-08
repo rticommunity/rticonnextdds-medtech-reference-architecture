@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Added launch-time application variant selection, including an optional Xbox
+  gamepad implementation for ArmController while keeping the simulated
+  controller as the default.
+- Added a binary controller-connection indicator to the Arm UI and live control
+  feedback highlighting to the Xbox controller UI.
+- Added the `DataFlowLibrary::Control` QoS profile, based on
+  `BuiltinQosLib::Pattern.ReliableStreaming`, for teleoperation control state.
+
+### Changed
+
+- Refreshed the operating-room and security-threat demo interfaces with a
+  consistent updated visual style; the Xbox controller window uses PySide6 to
+  align with the project's Python GUI applications.
+- Standardized arm-controller and threat-injector commands on
+  `t/TeleopControl`, removing the legacy per-joint control path from DDS types,
+  applications, security configuration, recording/replay, and routing.
+- Increased held teleoperation command publication from 20 Hz to 50 Hz in the
+  GTK and Xbox controllers without changing the Arm simulator's per-sample
+  motion steps.
+
 ## [1.3.1] - 2026-09-16
 
 ### Added

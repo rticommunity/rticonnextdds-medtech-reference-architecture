@@ -72,7 +72,6 @@ This reference architecture defines the following Data Types in [Types.xml](./Ty
 | --------- | -----------
 | *Common::DeviceStatus* | Describes a status (e.g. `ON`, `PAUSED`) for a unique system component
 | *Common::DeviceHeartbeat* | Asserts that a unique system component is alive
-| *SurgicalRobot::MotorControl* | Commands the direction of motion for a motor kind (e.g. `SHOULDER`, `ELBOW`)
 | *SurgicalRobot::TeleopControl* | Jogs the simulated end effector in planar X/Y, rotates the wrist, or opens/closes the gripper
 | *Orchestrator::DeviceCommand* | Commands initiating a status (e.g. `START`, `SHUTDOWN`) to a unique system component
 | *PatientMonitor::Vitals* | Describes data representative of a unique patient's collected vital signs

@@ -16,7 +16,7 @@ All run commands in this README are launched from the repository root. The proje
 
 ## Module Description
 
-This module implements 5 interactive Connext applications using the MedTech Reference Architecture to simulate a digital operating room. You can find a diagram below:
+This module implements five logical Connext applications using the MedTech Reference Architecture to simulate a digital operating room. The Arm Controller has an optional Xbox/gamepad implementation. You can find a diagram below:
 
 ![image](../../resource/images/module-01-diagram-digital-OR.svg)
 
@@ -30,19 +30,19 @@ It has no user interface.
 
 The *Patient Monitor* application's primary function is to subscribe to simulated patient vitals data on Topic `t/Vitals`.
 
-It displays synthetic ECG, plethysmograph, and capnography waveforms with numeric vital readouts. The interface is demonstrative and not for clinical use.
+It displays synthetic ECG, plethysmograph, and capnography waveforms with numeric vital readouts.
 
 ### Arm
 
-The *Arm* application's primary function is to simulate a surgical robot with 5 motors: Base, Shoulder, Elbow, Wrist, and Hand. It receives commands on Topic `t/MotorControl` to control the movement of the individual motors.
+The *Arm* application simulates a surgical robot with Base, Shoulder, Elbow, Wrist, and Hand joints. It receives end-effector teleoperation commands on Topic `t/TeleopControl` and maps planar jogging, wrist rotation, and gripper open/close through its simplified kinematics.
 
-It displays a side-view schematic of the articulated manipulator, its wrist, and a simulated gripper. The visualization uses a simplified planar model to demonstrate DDS-driven motion; it is not a physical or clinical robot.
+It displays a side-view schematic of the articulated manipulator, its wrist, and a simulated gripper. The visualization uses a simplified planar model to demonstrate DDS-driven motion. Its header indicator shows whether an Arm Controller `TeleopControl` writer is matched over DDS; it reports application connectivity, not the physical Xbox connection.
 
 ### Arm Controller
 
-The *Arm Controller* application's primary function is to send motor-movement commands on Topic `t/MotorControl`.
+The *Arm Controller* publishes teleoperation jog commands on Topic `t/TeleopControl`.
 
-It presents a teleoperation-style end-effector jog pad for planar X/Y motion, wrist roll, and gripper open/close, plus separate run/stop demonstration-motion controls. The demo runs a slow, repeatable planar sweep followed by coordinated wrist and gripper motion. It also shows an "Alerts" panel to display observed events.
+The default GTK/C++ implementation presents a teleoperation-style end-effector jog pad for planar X/Y motion, wrist roll, and gripper open/close, plus separate run/stop demonstration-motion controls. The demo runs a slow, repeatable planar sweep followed by coordinated wrist and gripper motion. It also shows an "Alerts" panel to display observed events. An optional Xbox/gamepad implementation provides the same jog controls using gamepad input.
 
 ### Orchestrator
 
@@ -58,6 +58,7 @@ Module-specific notes:
 
 - If you plan to use secure mode, make sure the security artifacts from the root README have been generated.
 - There is no module-local build or launch script; use the project-level `build.py` and `launch.py` scripts from the repository root.
+- The Xbox/gamepad variant is optional at runtime. Its Pygame Community Edition dependency is installed with the standard root `requirements.txt`; no additional package-install step is required.
 
 ## Run the Demo
 
@@ -85,7 +86,43 @@ python3 launch.py 01-operating-room -s
 
 2. Launch the application executables.
 
-*Note, applications can be launched individually by name, e.g. `python3 launch.py 01-operating-room Arm PatientMonitor`. Refer to [module.json](./module.json) for the list of available app names and QoS configuration.*
+*Note, applications can be launched individually by logical app name, e.g. `python3 launch.py 01-operating-room Arm PatientMonitor`. Refer to [module.json](./module.json) for app roles, variant choices, and QoS configuration.*
+
+### Use the Xbox/gamepad Arm Controller
+
+The existing GTK Arm Controller remains the default and requires no gamepad. Pygame CE is included in the standard project requirements. To select the Xbox/gamepad implementation, run:
+
+```bash
+python3 launch.py 01-operating-room --variant ArmController=xbox
+```
+
+The selection also applies to scenarios that launch the Arm Controller:
+
+```bash
+python3 launch.py --scenario or-all --variant ArmController=xbox
+```
+
+The gamepad window is built with PySide6, matching the other Python GUIs; Pygame CE is used only to read SDL controller input. Its control row highlights while a stick or trigger is active. The controls follow the GTK jog pad and publish the same `SurgicalRobot::TeleopControl` samples on `t/TeleopControl`:
+
+| Xbox control | GTK jog control | Effect |
+| --- | --- | --- |
+| Left stick horizontal | X left/right | Jog the end effector in planar X |
+| Left stick vertical | Y up/down | Jog the end effector in planar Y |
+| Right stick horizontal | Roll left/right | Rotate the gripper |
+| Left / right triggers | Gripper open/close | Open or close the gripper |
+
+Stick movement uses a 35% dead zone and the gamepad publishes jog commands at 50 Hz while held. GTK jog buttons also repeat at 50 Hz. Gripper triggers use the same threshold; squeeze the left trigger to open and the right trigger to close. Releasing a control publishes `STOPPED` for that axis. The Arm simulator's per-sample kinematic step is unchanged. The right stick's vertical axis and other buttons are unused. Orchestrator START, PAUSE, and SHUTDOWN commands continue to control the Arm Controller's device status. If no supported gamepad is connected, the selected app stays running and reports that it is waiting; it does not switch to the GTK controller. Closing its window stops the app. The simulated operating-room apps remain the default, so a gamepad is not required for the normal demo.
+
+### Startup warning under Snap
+
+If startup prints `Glycin running without additional sandbox inside snap confinement`, run the GTK applications individually to identify which one emits it:
+
+```bash
+python3 launch.py 01-operating-room Orchestrator
+python3 launch.py 01-operating-room ArmController
+```
+
+Both GTK applications load the RTI logo through GdkPixbuf, so this warning may be emitted by the image-loading path rather than the Pygame app or DDS. The warning specifically mentions Snap confinement; do not change the app's stderr handling or security behavior just to hide it. If it appears for one application, share which command produced it and whether the app otherwise works.
 
 ### 2. Observe the application behavior
 

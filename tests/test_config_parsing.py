@@ -21,6 +21,7 @@ import importlib
 import json
 import re
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
@@ -127,6 +128,140 @@ class TestModuleJsonContract:
             assert not missing, (
                 f"{module_name}: undefined args placeholders referenced: {', '.join(missing)}"
             )
+
+
+class TestRemoteTeleoperationRoutes:
+    """WAN routing must carry teleoperation control."""
+
+    def test_routes_include_teleoperation(self):
+        route_dir = PROJECT_ROOT / "modules" / "03-remote-teleoperation" / "xml_config"
+        route_files = sorted(route_dir.glob("RsConfig*.xml"))
+        assert route_files, "No Routing Service configuration files found"
+
+        for route_file in route_files:
+            content = route_file.read_text(encoding="utf-8")
+            ET.parse(route_file)
+            assert "t/TeleopControl" in content, f"{route_file.name} omits teleop routes"
+
+    def test_module_json_app_variants_reference_defined_apps(self):
+        for module_name, module_dir in module_runner.discover_modules().items():
+            with open(module_dir / "module.json", encoding="utf-8") as f:
+                raw = json.load(f)
+
+            apps = raw.get("apps", {})
+            assert isinstance(apps, dict), f"{module_name}: apps must be an object"
+            try:
+                module_runner._normalize_app_variants(
+                    raw.get("app_variants", {}),
+                    set(apps),
+                )
+            except ValueError as exc:
+                pytest.fail(f"{module_name}: invalid app_variants: {exc}")
+
+
+class TestAppVariantResolution:
+    """App variants expose one logical app backed by its selected implementation."""
+
+    @staticmethod
+    def _write_config(module_dir: Path, payload: dict) -> None:
+        module_dir.mkdir(parents=True, exist_ok=True)
+        with open(module_dir / "module.json", "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+
+    @staticmethod
+    def _payload() -> dict:
+        return {
+            "description": "Variant test module",
+            "setup_library_paths": False,
+            "apps": {
+                "ArmController": ["echo", "simulated"],
+                "ArmControllerGamepad": ["echo", "gamepad"],
+                "Observer": ["echo", "observer"],
+            },
+            "app_variants": {
+                "ArmController": {
+                    "default": "simulated",
+                    "choices": {
+                        "simulated": "ArmController",
+                        "xbox": "ArmControllerGamepad",
+                    },
+                }
+            },
+        }
+
+    @staticmethod
+    def _patch_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            module_runner.platform_setup,
+            "get_nddshome",
+            lambda: Path("/tmp/nddshome"),
+        )
+
+    def test_defaults_to_simulated_implementation(self, tmp_path, monkeypatch):
+        module_dir = tmp_path / "module"
+        self._write_config(module_dir, self._payload())
+        self._patch_environment(monkeypatch)
+
+        _env, apps = module_runner.load_module_config(module_dir)
+
+        assert apps == {
+            "ArmController": ["echo", "simulated"],
+            "Observer": ["echo", "observer"],
+        }
+
+    def test_selected_variant_replaces_default_role(self, tmp_path, monkeypatch):
+        module_dir = tmp_path / "module"
+        self._write_config(module_dir, self._payload())
+        self._patch_environment(monkeypatch)
+
+        _env, apps = module_runner.load_module_config(
+            module_dir,
+            variants={"ArmController": "xbox"},
+        )
+
+        assert apps == {
+            "ArmController": ["echo", "gamepad"],
+            "Observer": ["echo", "observer"],
+        }
+
+    def test_unselected_variant_command_is_not_resolved(self, tmp_path, monkeypatch):
+        module_dir = tmp_path / "module"
+        payload = self._payload()
+        payload["apps"]["ArmController"] = ["${CPP:UnavailableGtkBinary}"]
+        self._write_config(module_dir, payload)
+        self._patch_environment(monkeypatch)
+
+        def fail_if_unselected_executable_is_resolved(name: str) -> str:
+            raise FileNotFoundError(name)
+
+        monkeypatch.setattr(
+            module_runner.platform_setup,
+            "find_executable",
+            fail_if_unselected_executable_is_resolved,
+        )
+
+        _env, apps = module_runner.load_module_config(
+            module_dir,
+            variants={"ArmController": "xbox"},
+        )
+
+        assert apps["ArmController"] == ["echo", "gamepad"]
+
+    def test_unknown_role_raises(self, tmp_path, monkeypatch):
+        module_dir = tmp_path / "module"
+        self._write_config(module_dir, self._payload())
+        self._patch_environment(monkeypatch)
+
+        with pytest.raises(ValueError, match="Unknown app variant role"):
+            module_runner.load_module_config(module_dir, variants={"Unknown": "xbox"})
+
+    def test_unknown_choice_raises(self, tmp_path, monkeypatch):
+        module_dir = tmp_path / "module"
+        self._write_config(module_dir, self._payload())
+        self._patch_environment(monkeypatch)
+
+        with pytest.raises(ValueError, match="Invalid variant"):
+            module_runner.load_module_config(module_dir, variants={"ArmController": "unknown"})
 
 
 class TestLoadModuleConfigNegativeParsing:

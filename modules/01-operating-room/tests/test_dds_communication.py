@@ -169,17 +169,15 @@ class TestPatientSensorCommands:
 
 
 @pytest.mark.gui
-class TestArmMotorControl:
-    """Arm should receive MotorControl commands and stay alive."""
+class TestArmTeleopControl:
+    """Arm should receive operator-level teleoperation commands."""
 
-    def test_arm_receives_motor_control(self, proc_manager, nonsecure_utility_app):
+    def test_arm_receives_teleop_control(self, proc_manager, nonsecure_utility_app):
         from Types import Common, SurgicalRobot
 
         proc_manager.start_app("Arm", extra_env=QT_ENV)
 
         status_reader = nonsecure_utility_app.device_status.reader
-        control_writer = nonsecure_utility_app.motor_control.writer
-
         # Wait for device status
         seen = wait_for_device_status(
             status_reader,
@@ -189,16 +187,6 @@ class TestArmMotorControl:
         )
         assert Common.DeviceType.ARM in seen, (
             "Arm did not report DeviceStatus ON within the timeout"
-        )
-
-        # Send INCREMENT command for BASE motor
-        control = SurgicalRobot.MotorControl(
-            id=SurgicalRobot.Motors.BASE,
-            direction=SurgicalRobot.MotorDirections.INCREMENT,
-        )
-        assert wait_for_writer_match(control_writer), "MotorControl writer never matched a reader"
-        assert write_and_wait_for_ack(control_writer, control, timeout_sec=2), (
-            "Arm did not ack MotorControl command"
         )
 
         teleop_writer = nonsecure_utility_app.teleop_control.writer

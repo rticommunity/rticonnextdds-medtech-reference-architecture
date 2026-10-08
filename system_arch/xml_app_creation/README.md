@@ -179,7 +179,6 @@ In this reference architecture, you will find two Domain definitions — *Operat
 
 | Topic | Data Type | Intended Use
 | ----- | --------- | ------------
-| *t/MotorControl* | *SurgicalRobot::MotorControl* | Command the direction of motion for a motor kind (e.g. `SHOULDER`, `ELBOW`)
 | *t/TeleopControl* | *SurgicalRobot::TeleopControl* | Jog the simulated end effector in planar X/Y or operate wrist roll and gripper
 | *t/DeviceStatus* | *Common::DeviceStatus* | Status (e.g. `ON`, `PAUSED`) for a unique system component
 | *t/DeviceHeartbeat* | *Common::DeviceHeartbeat* | Assert that a unique system component is alive
@@ -356,8 +355,7 @@ The *Arm* DomainParticipant is intended to demonstrate a Robotic Surgery Arm wit
 
 | DataReader | Topic | QoS Profile | Content Filter | Intended Use
 | ---------- | ----- | ----------- | -------------- | ------------
-| *dr/MotorControl* | *t/MotorControl* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand-profile) | -- | Receive and process motor control commands
-| *dr/TeleopControl* | *t/TeleopControl* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand-profile) | -- | Receive and process end-effector jog commands
+| *dr/TeleopControl* | *t/TeleopControl* | [*DataFlowLibrary::Control*](../qos/README.md#dataflowlibrarycontrol-profile) | -- | Receive and process end-effector jog control state
 | *dr/DeviceCommand* | *t/DeviceCommand* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand-profile) | `device = 'ARM'` | Receive and process device commands targeting this Arm
 
 ##### ***MedicalDemoParticipantLibrary::dp/ArmController***
@@ -368,8 +366,7 @@ The *ArmController* DomainParticipant is intended to administer commands to the 
 
 | DataWriter | Topic | QoS Profile | Intended Use
 | ---------- | ----- | ----------- | ------------
-| *dw/MotorControl* | *t/MotorControl* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand-profile) | Publish Motor commands to Arm devices
-| *dw/TeleopControl* | *t/TeleopControl* | [*DataFlowLibrary::Command*](../qos/README.md#dataflowlibrarycommand-profile) | Publish simulated teleoperation input to Arm devices
+| *dw/TeleopControl* | *t/TeleopControl* | [*DataFlowLibrary::Control*](../qos/README.md#dataflowlibrarycontrol-profile) | Publish teleoperation control state to Arm devices
 | *dw/DeviceStatus* | *t/DeviceStatus* | [*DataFlowLibrary::Status*](../qos/README.md#dataflowlibrarystatus-profile) | Publish ArmController device status
 | *dw/DeviceHeartbeat* | *t/DeviceHeartbeat* | [*DataFlowLibrary::Heartbeat*](../qos/README.md#dataflowlibraryheartbeat-profile) | Assert ArmController device is alive
 

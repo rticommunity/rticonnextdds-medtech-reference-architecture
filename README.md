@@ -137,7 +137,7 @@ The RTI MedTech Reference Architecture demonstrates use cases and capabilities o
 
 Use the module-specific READMEs when you want to run a demo. They describe what each workflow launches, why it exists, and the exact `launch.py` commands to use from the repository root.
 
-`launch.py` accepts either a single module (`python3 launch.py <module> [apps ...] [-s]`) or a **predefined scenario** that launches a curated set of applications across modules in one command (`python3 launch.py --scenario <name> [-s]`). Scenarios are declared in [`resource/config/scenarios.json`](./resource/config/scenarios.json) and cover common multi-component workflows (e.g. `record`, `replay`, `teleop-or-side`, `security-threat`). List them with:
+`launch.py` accepts either a single module (`python3 launch.py <module> [apps ...] [-s]`) or a **predefined scenario** that launches a curated set of applications across modules in one command (`python3 launch.py --scenario <name> [-s]`). Modules may declare interchangeable implementations for a logical app role; select one with the repeatable `--variant ROLE=CHOICE` option. If a scenario has the same role name in multiple modules, scope the selector as `--variant MODULE:ROLE=CHOICE`. Without an override, each role uses its configured default, preserving existing launches. For example, Module 01 can use its Xbox Arm Controller with `python3 launch.py 01-operating-room --variant ArmController=xbox`. Scenarios are declared in [`resource/config/scenarios.json`](./resource/config/scenarios.json) and cover common multi-component workflows (e.g. `record`, `replay`, `teleop-or-side`, `security-threat`). List them with:
 
 ```bash
 python3 launch.py --list-scenarios
@@ -199,7 +199,6 @@ This reference architecture defines the following Data Types in [Types.xml](./sy
 | --------- | -----------
 | DeviceStatus | Describes a status (e.g. `ON`, `PAUSED`) for a unique device
 | DeviceHeartbeat | Asserts that a unique device is alive
-| MotorControl | Commands the direction of motion for an arm motor (e.g. `SHOULDER`, `ELBOW`)
 | TeleopControl | Jogs the simulated arm end effector in planar X/Y, wrist roll, or gripper opening
 | DeviceCommand | Commands initiating a status (e.g. `START`, `SHUTDOWN`) to a unique device
 | Vitals | Describes data representative of a unique patient's collected vital signs
@@ -260,7 +259,6 @@ This reference architecture defines the following Topics in [DomainLibrary.xml](
 
 | Domain | Topic | Intended Use
 | ------ | ----- | -----------
-| OperationalDataDomain | `t/MotorControl` | Command the direction of motion for a motor kind (e.g. `SHOULDER`, `ELBOW`)
 | OperationalDataDomain | `t/TeleopControl` | Jog the simulated arm end effector in planar X/Y or operate wrist roll and gripper
 | OperationalDataDomain | `t/DeviceStatus` | Status (e.g. `ON`, `PAUSED`) for a unique system component
 | OperationalDataDomain | `t/DeviceHeartbeat` | Assert that a unique system component is alive
@@ -307,8 +305,8 @@ This reference architecture defines the following DomainParticipants in [Partici
 
 | Domain | DomainParticipant | Subscriptions | Publications | Intended Use
 | --------------------- | ----------------- | ------------------------------------- | -------------------------------------------------- | ------------
-| OperationalDataDomain | Arm | `t/DeviceCommand`, `t/MotorControl`, `t/TeleopControl` | `t/DeviceStatus`, `t/DeviceHeartbeat` | Operate a simulated surgical arm with planar end-effector jogs and joint service controls.
-| OperationalDataDomain | ArmController | `t/DeviceCommand` | `t/MotorControl`, `t/TeleopControl`, `t/DeviceHeartbeat` | Administer operator-style teleoperation and service commands to the Arm.
+| OperationalDataDomain | Arm | `t/DeviceCommand`, `t/TeleopControl` | `t/DeviceStatus`, `t/DeviceHeartbeat` | Operate a simulated surgical arm with planar end-effector jogs.
+| OperationalDataDomain | ArmController | `t/DeviceCommand` | `t/TeleopControl`, `t/DeviceHeartbeat` | Administer operator-style teleoperation and service commands to the Arm.
 | OperationalDataDomain | Orchestrator | `t/DeviceStatus`, `t/DeviceHeartbeat` | `t/DeviceCommand` | Administer device-level commands and monitor presence and status of all devices.
 | OperationalDataDomain | PatientSensor | `t/DeviceCommand` | `t/Vitals`, `t/DeviceStatus`, `t/DeviceHeartbeat` | Stream simulated patient vitals.
 | OperationalDataDomain | PatientMonitor | `t/DeviceCommand`, `t/Vitals` | `t/DeviceStatus`, `t/DeviceHeartbeat` | Process and display patient vitals.
@@ -329,7 +327,7 @@ The reference architecture configures security in [SecureAppsQos.xml](./system_a
 | ---------------------- | -----------------
 | **LAN Communications** | `OperationalDomain` governance with `ENCRYPT_WITH_ORIGIN_AUTHENTICATION` RTPS protection, PSK encryption (`OperationalDomain.psk`), participant-specific certificates and permissions
 | **WAN Communications** | `TeleopWanDomain` governance with `ENCRYPT_WITH_ORIGIN_AUTHENTICATION` RTPS protection, PSK encryption (`TeleopWanDomain.psk`) for WAN connections (Module 03)
-| **Topic-level protection** | `t/Vitals`, `t/MotorControl`, and `t/TeleopControl` topics use `metadata_protection_kind=ENCRYPT` for insider confidentiality protection
+| **Topic-level protection** | `t/Vitals` and `t/TeleopControl` topics use `metadata_protection_kind=ENCRYPT` for insider confidentiality protection
 | **RTI Services** | Dedicated security profiles for Recording/Replay Services and Routing Services
 
 For independent, security-specific observer integrations (not part of the demo applications), use [SecureExternalAppsQos.xml](./system_arch/qos/SecureExternalAppsQos.xml). It provides the `SecureExternalAppsQosLib::SecureSystemObserver` QoS snippet, which is intended to be composed into external DomainParticipants.

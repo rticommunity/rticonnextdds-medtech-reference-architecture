@@ -99,8 +99,8 @@ THREAT_DOMAIN_TRUSTED = DomainScope(
         Permissions(
             name="ThreatInjector",
             issuer=TRUSTED_PERMISSIONS_CA,
-            publish_topics=["t/MotorControl", "t/DeviceCommand"],
-            subscribe_topics=["t/MotorControl", "t/DeviceCommand"],
+            publish_topics=["t/TeleopControl", "t/DeviceCommand"],
+            subscribe_topics=["t/TeleopControl", "t/DeviceCommand"],
         ),
         Permissions(
             name="ThreatExfiltrator",
@@ -118,8 +118,8 @@ THREAT_DOMAIN_ROGUE = DomainScope(
         Permissions(
             name="ThreatInjector",
             issuer=ROGUE_CA,
-            publish_topics=["t/MotorControl", "t/DeviceCommand"],
-            subscribe_topics=["t/MotorControl", "t/DeviceCommand"],
+            publish_topics=["t/TeleopControl", "t/DeviceCommand"],
+            subscribe_topics=["t/TeleopControl", "t/DeviceCommand"],
         ),
         Permissions(
             name="ThreatExfiltrator",

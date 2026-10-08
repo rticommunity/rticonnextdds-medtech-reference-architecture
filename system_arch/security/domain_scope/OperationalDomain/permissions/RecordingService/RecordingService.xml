@@ -25,7 +25,6 @@ inability to use the software. -->
                 </domains>
                 <subscribe>
                     <topics>
-                        <topic>t/MotorControl</topic>
                         <topic>t/TeleopControl</topic>
                         <topic>t/Vitals</topic>
                     </topics>

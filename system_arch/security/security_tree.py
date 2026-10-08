@@ -140,7 +140,6 @@ class Permissions:
     )
     subscribe_topics: list[str] = field(
         default_factory=lambda: [
-            "t/MotorControl",
             "t/DeviceCommand",
         ]
     )

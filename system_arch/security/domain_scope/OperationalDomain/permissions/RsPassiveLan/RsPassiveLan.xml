@@ -27,7 +27,6 @@ inability to use the software. -->
                     <topics>
                         <topic>t/DeviceStatus</topic>
                         <topic>t/DeviceHeartbeat</topic>
-                        <topic>t/MotorControl</topic>
                         <topic>t/TeleopControl</topic>
                         <topic>t/DeviceCommand</topic>
                         <topic>t/Vitals</topic>
@@ -38,7 +37,6 @@ inability to use the software. -->
                     <topics>
                         <topic>t/DeviceStatus</topic>
                         <topic>t/DeviceHeartbeat</topic>
-                        <topic>t/MotorControl</topic>
                         <topic>t/TeleopControl</topic>
                         <topic>t/DeviceCommand</topic>
                         <topic>t/Vitals</topic>

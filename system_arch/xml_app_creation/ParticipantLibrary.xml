@@ -32,12 +32,8 @@ inability to use the software. -->
       <subscriber name="s/subscriber">
         <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
 
-        <data_reader name="dr/MotorControl" topic_ref="t/MotorControl">
-          <datareader_qos base_name="DataFlowLibrary::Command"/>
-        </data_reader>
-
         <data_reader name="dr/TeleopControl" topic_ref="t/TeleopControl">
-          <datareader_qos base_name="DataFlowLibrary::Command"/>
+          <datareader_qos base_name="DataFlowLibrary::Control"/>
         </data_reader>
 
         <data_reader name="dr/DeviceCommand" topic_ref="t/DeviceCommand">
@@ -55,11 +51,8 @@ inability to use the software. -->
       <publisher name="p/publisher">
         <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
 
-        <data_writer name="dw/MotorControl" topic_ref="t/MotorControl">
-          <datawriter_qos base_name="DataFlowLibrary::Command"/>
-        </data_writer>
         <data_writer name="dw/TeleopControl" topic_ref="t/TeleopControl">
-          <datawriter_qos base_name="DataFlowLibrary::Command"/>
+          <datawriter_qos base_name="DataFlowLibrary::Control"/>
         </data_writer>
         <data_writer name="dw/DeviceStatus" topic_ref="t/DeviceStatus">
           <datawriter_qos base_name="DataFlowLibrary::Status"/>

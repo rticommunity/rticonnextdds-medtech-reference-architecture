@@ -14,8 +14,6 @@
         <const name="STATUS_DR" type="string" value="&quot;s/subscriber::dr/DeviceStatus&quot;"/>
         <const name="HB_DW" type="string" value="&quot;p/publisher::dw/DeviceHeartbeat&quot;"/>
         <const name="HB_DR" type="string" value="&quot;s/subscriber::dr/DeviceHeartbeat&quot;"/>
-        <const name="MOTOR_CONTROL_DW" type="string" value="&quot;p/publisher::dw/MotorControl&quot;"/>
-        <const name="MOTOR_CONTROL_DR" type="string" value="&quot;s/subscriber::dr/MotorControl&quot;"/>
         <const name="TELEOP_CONTROL_DW" type="string" value="&quot;p/publisher::dw/TeleopControl&quot;"/>
         <const name="TELEOP_CONTROL_DR" type="string" value="&quot;s/subscriber::dr/TeleopControl&quot;"/>
         <const name="DEVICE_COMMAND_DW" type="string" value="&quot;p/publisher::dw/DeviceCommand&quot;"/>
@@ -49,22 +47,6 @@
       </struct>
     </module>
     <module name="SurgicalRobot">
-      <enum name="Motors">
-        <enumerator name="BASE"/>
-        <enumerator name="SHOULDER"/>
-        <enumerator name="ELBOW"/>
-        <enumerator name="WRIST"/>
-        <enumerator name="HAND"/>
-      </enum>
-      <enum name="MotorDirections">
-        <enumerator name="STATIONARY"/>
-        <enumerator name="INCREMENT"/>
-        <enumerator name="DECREMENT"/>
-      </enum>
-      <struct name= "MotorControl">
-        <member name="id" type="nonBasic"  nonBasicTypeName= "SurgicalRobot::Motors" key="true"/>
-        <member name="direction" type="nonBasic"  nonBasicTypeName= "SurgicalRobot::MotorDirections"/>
-      </struct>
       <enum name="TeleopAxes">
         <enumerator name="X"/>
         <enumerator name="Y"/>

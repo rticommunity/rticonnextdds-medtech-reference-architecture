@@ -24,7 +24,7 @@ Two Python GUI applications simulate different real-world attack scenarios again
 
 ![Threat Injector Example](../../resource/images/module-04-threat-injector-example.png)
 
-The *Threat Injector* application publishes fabricated commands on Topics `t/MotorControl` and `t/DeviceCommand`, simulating an attacker attempting to disrupt the surgical arm or seize device control. It provides a GUI to select:
+The *Threat Injector* application publishes fabricated teleoperation commands on `t/TeleopControl` and device commands on `t/DeviceCommand`, simulating an attacker attempting to disrupt the surgical arm or seize device control through interfaces used by trusted applications. It provides a GUI to select:
 
 - **Attack Mode**. Each of these modes affects whether the DDS Security handshake succeeds or fails. See [Understanding Why Each Attack Is Blocked](#2-understanding-why-each-attack-is-blocked) to understand why the handshake and the attack can fail:
   - Unsecure
@@ -32,22 +32,22 @@ The *Threat Injector* application publishes fabricated commands on Topics `t/Mot
   - Forged Permissions
   - Expired Certificate
 - **Attack Type**:
-  - Motor Inject. This triggers continuous erratic joint commands at a configurable frequency.
+  - Teleop Inject. This triggers repeated end-effector jog commands across the teleoperation axes at a configurable frequency.
   - Command Inject PAUSE (one-shot)
   - Command Inject SHUTDOWN (one-shot)
 - **Frequency Slider**
-  - The slider controls how many times per second the Motor Inject attack writes samples.
-  - This is only enabled when Motor Inject is selected and an attack is not already running.
+  - The slider controls how many times per second the Teleop Inject attack writes samples.
+  - This is only enabled when Teleop Inject is selected and an attack is not already running.
 
 Attack status is derived from `publication_matched_status` — the app checks whether its DataWriters have matched any remote subscribers. If a subscriber matches (unsecured OR is running), the status badge shows **ATTACKING** (green) and log entries appear as `[OK]`. If no subscriber matches (secured OR blocks the handshake), the status badge shows **NO ACCESS** (orange) and log entries appear as `[WARN]`.
 
-The updated Module 01 surgical-arm visualization shows injected motor commands in real time. The panel renders in color when an attack mode is active and in grey when idle. Use the header's **LOG** control to collapse or reopen the activity log; it shows an event count and is expanded by default.
+The updated Module 01 surgical-arm visualization shows injected teleoperation commands in real time. The panel renders in color when an attack mode is active and in grey when idle. Use the header's **LOG** control to collapse or reopen the activity log; it shows an event count and is expanded by default.
 
 ### Threat Exfiltrator
 
 ![Threat Exfiltrator Example](../../resource/images/module-04-threat-exfiltrator-example.png)
 
-The *Threat Exfiltrator* application subscribes to the `t/Vitals` topic, displaying patient vital signs as if harvesting them for unauthorised use. Attack status is derived from `subscription_matched_status` — when the exfiltrator's DataReader matches a remote publisher, the status badge shows **ACCESS GRANTED** and live heart rate, SpO₂, EtCO₂, and NiBP values stream in. When no match occurs (secured OR), the vitals panels show `---` and the status badge shows **NO ACCESS**. A separate data-state indicator distinguishes waiting for vitals, live data, and a quiet/stale stream. The display is explicitly marked as a simulation and not for clinical use. Its activity log can also be collapsed from the header and includes an event count.
+The *Threat Exfiltrator* application subscribes to the `t/Vitals` topic, displaying patient vital signs as if harvesting them for unauthorised use. Attack status is derived from `subscription_matched_status` — when the exfiltrator's DataReader matches a remote publisher, the status badge shows **ACCESS GRANTED** and live heart rate, SpO₂, EtCO₂, and NiBP values stream in. When no match occurs (secured OR), the vitals panels show `---` and the status badge shows **NO ACCESS**. A separate data-state indicator distinguishes waiting for vitals, live data, and a quiet/stale stream. Its activity log can also be collapsed from the header and includes an event count.
 
 ### Status States
 
@@ -174,7 +174,7 @@ Beyond authentication and permissions, the system also enforces **cryptographic 
 
 - **Domain-level protection from outsiders:** `rtps_psk_protection_kind=ENCRYPT` protects pre-authentication traffic, preventing passive eavesdropping before the handshake completes.
 - **Domain-level protection from insiders:** `rtps_protection_kind=ENCRYPT_WITH_ORIGIN_AUTHENTICATION` ensures all RTPS traffic is encrypted with per-writer keys and origin-authenticated — even an authenticated insider cannot forge another participant's messages.
-- **Topic-level protetion from insiders:** `t/Vitals` and `t/MotorControl` use `metadata_protection_kind=ENCRYPT`, meaning their submessage metadata is encrypted with keys shared only among authorized endpoints — a compromised participant without topic-level permissions cannot decrypt these topics.
+- **Topic-level protection from insiders:** `t/Vitals` and `t/TeleopControl` use `metadata_protection_kind=ENCRYPT`, meaning their submessage metadata is encrypted with keys shared only among authorized endpoints — a compromised participant without topic-level permissions cannot decrypt these topics.
 
 For a deeper dive into the DDS Security handshake, refer to the [RTI Security Plugins User's Manual](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p2_core/authentication.html#handshake).
 

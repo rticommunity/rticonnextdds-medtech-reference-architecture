@@ -25,7 +25,6 @@ inability to use the software. -->
                 </domains>
                 <publish>
                     <topics>
-                        <topic>t/MotorControl</topic>
                         <topic>t/TeleopControl</topic>
                         <topic>t/DeviceStatus</topic>
                         <topic>t/DeviceHeartbeat</topic>

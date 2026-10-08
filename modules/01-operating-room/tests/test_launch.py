@@ -15,11 +15,17 @@ Verifies that each application starts without crashing.
 GUI applications are marked so they can be skipped on headless systems.
 """
 
+import importlib
+
 import pytest
+from module01_test_support import MODULE_DIR
+from scripts import module_runner
 from scripts.test_utils import (
     GTK_ENV,
     QT_ENV,
+    ProcessManager,
     wait_for_device_status,
+    wait_for_samples,
 )
 
 
@@ -112,3 +118,44 @@ class TestAllApps:
         assert seen == expected, (
             f"Not all apps came online. Missing: {set(d.name for d in expected - seen)}"
         )
+
+
+class TestArmControllerGamepad:
+    """The optional gamepad variant uses the same DDS device role."""
+
+    def test_starts_without_controller_and_reports_status(self, nonsecure_utility_app):
+        pytest.importorskip("pygame")
+        importlib.import_module("pygame._sdl2.controller")
+
+        from Types import Common
+
+        env, apps = module_runner.load_module_config(
+            MODULE_DIR,
+            flags={"security": False},
+            variants={"ArmController": "xbox"},
+        )
+        manager = ProcessManager(env, apps, cwd=MODULE_DIR)
+        try:
+            proc = manager.start_app_ready(
+                "ArmController",
+                extra_env={
+                    "QT_QPA_PLATFORM": "offscreen",
+                    "SDL_VIDEODRIVER": "dummy",
+                },
+            )
+            seen = wait_for_device_status(
+                nonsecure_utility_app.device_status.reader,
+                expected_devices={Common.DeviceType.ARM_CONTROLLER},
+                device_statuses=[Common.DeviceStatuses.ON],
+                timeout_sec=10,
+            )
+            assert Common.DeviceType.ARM_CONTROLLER in seen
+            assert proc.poll() is None
+            heartbeats = wait_for_samples(
+                nonsecure_utility_app.device_heartbeat.reader,
+                n=1,
+                timeout_sec=2,
+            )
+            assert any(sample.device == Common.DeviceType.ARM_CONTROLLER for sample in heartbeats)
+        finally:
+            manager.shutdown_all()

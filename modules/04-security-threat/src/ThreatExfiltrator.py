@@ -404,12 +404,6 @@ class ThreatExfiltratorWindow(QMainWindow):
         h.addWidget(title)
         h.addStretch()
 
-        simulation_lbl = QLabel("SIMULATION · NOT FOR CLINICAL USE")
-        simulation_lbl.setStyleSheet(
-            "color: #EDB252; font-size: 12px; font-weight: bold; background: transparent;"
-        )
-        h.addWidget(simulation_lbl)
-
         self.vitals_data_badge = QLabel("WAITING FOR VITALS")
         self.vitals_data_badge.setStyleSheet(
             "color: #EDB252; font-size: 12px; font-weight: bold; background: transparent;"

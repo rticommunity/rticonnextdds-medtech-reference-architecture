@@ -15,7 +15,7 @@ works of the software solely for use with RTI Connext DDS. -->
 
       <publisher name="p/publisher">
         <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
-        <data_writer name="dw/MotorControl" topic_ref="t/MotorControl">
+        <data_writer name="dw/TeleopControl" topic_ref="t/TeleopControl">
           <datawriter_qos base_name="DataFlowLibrary::Command"/>
         </data_writer>
         <data_writer name="dw/DeviceCommand" topic_ref="t/DeviceCommand">
@@ -31,7 +31,7 @@ works of the software solely for use with RTI Connext DDS. -->
 
       <publisher name="p/publisher">
         <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
-        <data_writer name="dw/MotorControl" topic_ref="t/MotorControl">
+        <data_writer name="dw/TeleopControl" topic_ref="t/TeleopControl">
           <datawriter_qos base_name="DataFlowLibrary::Command"/>
         </data_writer>
         <data_writer name="dw/DeviceCommand" topic_ref="t/DeviceCommand">
@@ -47,7 +47,7 @@ works of the software solely for use with RTI Connext DDS. -->
 
       <publisher name="p/publisher">
         <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
-        <data_writer name="dw/MotorControl" topic_ref="t/MotorControl">
+        <data_writer name="dw/TeleopControl" topic_ref="t/TeleopControl">
           <datawriter_qos base_name="DataFlowLibrary::Command"/>
         </data_writer>
         <data_writer name="dw/DeviceCommand" topic_ref="t/DeviceCommand">
@@ -63,7 +63,7 @@ works of the software solely for use with RTI Connext DDS. -->
 
       <publisher name="p/publisher">
         <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
-        <data_writer name="dw/MotorControl" topic_ref="t/MotorControl">
+        <data_writer name="dw/TeleopControl" topic_ref="t/TeleopControl">
           <datawriter_qos base_name="DataFlowLibrary::Command"/>
         </data_writer>
         <data_writer name="dw/DeviceCommand" topic_ref="t/DeviceCommand">

@@ -17,7 +17,7 @@ import threading
 import time
 
 import rti.connextdds as dds
-from ArmKinematics import apply_teleop_jog
+from ArmKinematics import ArmJoint, apply_teleop_jog
 from DdsUtils import register_type
 from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
 from PySide6.QtGui import (
@@ -54,30 +54,30 @@ BORDER_DIM = "#1A2A3A"
 
 # Per-joint color palette
 JOINT_COLORS = {
-    SurgicalRobot.Motors.BASE: "#004C97",  # RTI Blue
-    SurgicalRobot.Motors.SHOULDER: "#ED8B00",  # RTI Orange
-    SurgicalRobot.Motors.ELBOW: "#00BFFF",  # Electric blue
-    SurgicalRobot.Motors.WRIST: "#7CFC00",  # Lime green
-    SurgicalRobot.Motors.HAND: "#DA70D6",  # Orchid
+    ArmJoint.BASE: "#004C97",  # RTI Blue
+    ArmJoint.SHOULDER: "#ED8B00",  # RTI Orange
+    ArmJoint.ELBOW: "#00BFFF",  # Electric blue
+    ArmJoint.WRIST: "#7CFC00",  # Lime green
+    ArmJoint.HAND: "#DA70D6",  # Orchid
 }
 
 JOINT_NAMES = {
-    SurgicalRobot.Motors.BASE: "BASE",
-    SurgicalRobot.Motors.SHOULDER: "SHOULDER",
-    SurgicalRobot.Motors.ELBOW: "ELBOW",
-    SurgicalRobot.Motors.WRIST: "WRIST",
-    SurgicalRobot.Motors.HAND: "HAND",
+    ArmJoint.BASE: "BASE",
+    ArmJoint.SHOULDER: "SHOULDER",
+    ArmJoint.ELBOW: "ELBOW",
+    ArmJoint.WRIST: "WRIST",
+    ArmJoint.HAND: "HAND",
 }
 
 UPDATE_MS = 100  # refresh rate ms (~10 fps)
 
 # Starting joint angles shown before the first DDS sample arrives
 INITIAL_ANGLES = {
-    SurgicalRobot.Motors.BASE: 204.0,
-    SurgicalRobot.Motors.SHOULDER: 220.0,
-    SurgicalRobot.Motors.ELBOW: 120.0,
-    SurgicalRobot.Motors.WRIST: 220.0,
-    SurgicalRobot.Motors.HAND: 45.0,
+    ArmJoint.BASE: 204.0,
+    ArmJoint.SHOULDER: 220.0,
+    ArmJoint.ELBOW: 120.0,
+    ArmJoint.WRIST: 220.0,
+    ArmJoint.HAND: 45.0,
 }
 
 
@@ -176,7 +176,7 @@ class DirectionBadge(QLabel):
 
 # ─── Single joint row widget ──────────────────────────────────────────────
 class JointRow(QFrame):
-    def __init__(self, motor: SurgicalRobot.Motors, parent=None):
+    def __init__(self, motor: ArmJoint, parent=None):
         super().__init__(parent)
         self.motor = motor
         self.color = JOINT_COLORS[motor]
@@ -242,11 +242,11 @@ class JointRow(QFrame):
 # A 6th "link" past HAND represents the end-effector stub.
 
 _MOTORS_ORDERED = [
-    SurgicalRobot.Motors.BASE,
-    SurgicalRobot.Motors.SHOULDER,
-    SurgicalRobot.Motors.ELBOW,
-    SurgicalRobot.Motors.WRIST,
-    SurgicalRobot.Motors.HAND,
+    ArmJoint.BASE,
+    ArmJoint.SHOULDER,
+    ArmJoint.ELBOW,
+    ArmJoint.WRIST,
+    ArmJoint.HAND,
 ]
 
 
@@ -338,7 +338,7 @@ class ArmVizWidget(QWidget):
             p.drawLine(QPointF(x0, y0), QPointF(x1, y1))
 
         # ── Draw end-effector stub (past HAND) ────────────────────────
-        ee_color = QColor(JOINT_COLORS[SurgicalRobot.Motors.HAND])
+        ee_color = QColor(JOINT_COLORS[ArmJoint.HAND])
         ee_pen = QPen(ee_color, 2)
         p.setPen(ee_pen)
         ex, ey = points[-1]
@@ -397,7 +397,7 @@ class SurgicalArmVizWidget(QWidget):
         self._active = active
         self.update()
 
-    def _joint_color(self, motor: SurgicalRobot.Motors) -> QColor:
+    def _joint_color(self, motor: ArmJoint) -> QColor:
         return QColor(JOINT_COLORS[motor]) if self._active else QColor("#536273")
 
     def update_angles(self, angles: dict):
@@ -425,11 +425,9 @@ class SurgicalArmVizWidget(QWidget):
         base_x = width / 2.0
         base_y = height - 74.0
         shoulder = (base_x, base_y - 43.0 * scale)
-        theta_shoulder = math.radians(90.0 + self._angles[SurgicalRobot.Motors.SHOULDER] - 180.0)
-        theta_elbow = theta_shoulder + math.radians(
-            self._angles[SurgicalRobot.Motors.ELBOW] - 180.0
-        )
-        theta_wrist = theta_elbow + math.radians(self._angles[SurgicalRobot.Motors.WRIST] - 180.0)
+        theta_shoulder = math.radians(90.0 + self._angles[ArmJoint.SHOULDER] - 180.0)
+        theta_elbow = theta_shoulder + math.radians(self._angles[ArmJoint.ELBOW] - 180.0)
+        theta_wrist = theta_elbow + math.radians(self._angles[ArmJoint.WRIST] - 180.0)
 
         def endpoint(start, angle, length):
             return (
@@ -460,7 +458,7 @@ class SurgicalArmVizWidget(QWidget):
         painter.drawText(
             QRectF(base_x - 46 * scale, base_y - 34 * scale, 92 * scale, 20 * scale),
             Qt.AlignmentFlag.AlignCenter,
-            f"BASE  {self._angles[SurgicalRobot.Motors.BASE]:.0f}°",
+            f"BASE  {self._angles[ArmJoint.BASE]:.0f}°",
         )
 
         links = (
@@ -491,9 +489,9 @@ class SurgicalArmVizWidget(QWidget):
             painter.drawLine(QPointF(*start), QPointF(*end))
 
         for point, label, motor in (
-            (shoulder, "SHOULDER", SurgicalRobot.Motors.SHOULDER),
-            (elbow, "ELBOW", SurgicalRobot.Motors.ELBOW),
-            (wrist, "WRIST", SurgicalRobot.Motors.WRIST),
+            (shoulder, "SHOULDER", ArmJoint.SHOULDER),
+            (elbow, "ELBOW", ArmJoint.ELBOW),
+            (wrist, "WRIST", ArmJoint.WRIST),
         ):
             color = self._joint_color(motor)
             painter.setPen(QPen(QColor("#D0DCE6"), 2))
@@ -509,7 +507,7 @@ class SurgicalArmVizWidget(QWidget):
                 f"{label}  {self._angles[motor]:.0f}°",
             )
 
-        jaw_opening = math.radians(10.0 + 28.0 * self._angles[SurgicalRobot.Motors.HAND] / 90.0)
+        jaw_opening = math.radians(10.0 + 28.0 * self._angles[ArmJoint.HAND] / 90.0)
         jaw_start = (
             tool_tip[0] - 5 * scale * math.cos(theta_wrist),
             tool_tip[1] + 5 * scale * math.sin(theta_wrist),
@@ -526,18 +524,18 @@ class SurgicalArmVizWidget(QWidget):
             jaw_end = endpoint(jaw_start, theta_wrist + offset, 31.0 * scale)
             painter.drawLine(QPointF(*jaw_start), QPointF(*jaw_end))
 
-        painter.setPen(self._joint_color(SurgicalRobot.Motors.HAND))
+        painter.setPen(self._joint_color(ArmJoint.HAND))
         painter.setFont(QFont(UI_FONT_FAMILY, 9, QFont.Weight.Bold))
         painter.drawText(
             QPointF(tool_tip[0] + 12 * scale, tool_tip[1] + 18 * scale),
-            f"GRIPPER  {self._angles[SurgicalRobot.Motors.HAND]:.0f}°",
+            f"GRIPPER  {self._angles[ArmJoint.HAND]:.0f}°",
         )
 
         painter.setPen(QColor("#A9BBCB"))
         painter.setFont(QFont(UI_FONT_FAMILY, 9))
         painter.drawText(
             QPointF(20, height - 24),
-            "SIMULATED MOTION  ·  2-LINK PLANAR JOG  ·  NOT FOR CLINICAL USE",
+            "SIMULATED MOTION  ·  2-LINK PLANAR JOG",
         )
         painter.end()
 
@@ -601,11 +599,11 @@ class ArmWindow(QMainWindow):
         h_layout.addWidget(title_lbl)
         h_layout.addStretch()
 
-        sim_lbl = QLabel("SIMULATION  ·  NOT FOR CLINICAL USE")
-        sim_lbl.setStyleSheet(
-            "color: #EDB252; font-size: 12px; font-weight: bold; background: transparent;"
+        self.controller_status_lbl = QLabel("●  NO CONTROLLER")
+        self.controller_status_lbl.setStyleSheet(
+            "color: #FF4444; font-size: 12px; font-weight: bold; background: transparent;"
         )
-        h_layout.addWidget(sim_lbl)
+        h_layout.addWidget(self.controller_status_lbl)
 
         self.state_lbl = QLabel("ON")
         self.state_lbl.setStyleSheet(
@@ -640,7 +638,7 @@ class ArmWindow(QMainWindow):
         f_layout.addStretch()
         root.addWidget(footer)
 
-    def update_joint(self, motor: SurgicalRobot.Motors, angle: float, direction: str):
+    def update_joint(self, motor: ArmJoint, angle: float, direction: str):
         self._arm_angles[motor] = angle
         self.arm_viz.update_angles(self._arm_angles)
 
@@ -653,29 +651,31 @@ class ArmWindow(QMainWindow):
             f"font-weight: bold; padding: 3px 12px; border-radius: 4px;"
         )
 
+    def set_controller_connected(self, connected: bool):
+        if connected:
+            self.controller_status_lbl.setText("●  CONTROLLER CONNECTED")
+            color = "#00E676"
+        else:
+            self.controller_status_lbl.setText("●  NO CONTROLLER")
+            color = "#FF4444"
+        self.controller_status_lbl.setStyleSheet(
+            f"color: {color}; font-size: 12px; font-weight: bold; background: transparent;"
+        )
+
 
 # ─── Application class ────────────────────────────────────────────────────
 class ArmApp:
     def __init__(self):
         self.angles = {
-            SurgicalRobot.Motors.BASE: 204.0,
-            SurgicalRobot.Motors.SHOULDER: 220.0,
-            SurgicalRobot.Motors.ELBOW: 120.0,
-            SurgicalRobot.Motors.WRIST: 220.0,
-            SurgicalRobot.Motors.HAND: 45.0,
+            ArmJoint.BASE: 204.0,
+            ArmJoint.SHOULDER: 220.0,
+            ArmJoint.ELBOW: 120.0,
+            ArmJoint.WRIST: 220.0,
+            ArmJoint.HAND: 45.0,
         }
-        self.directions = {
-            SurgicalRobot.Motors.BASE: "STATIONARY",
-            SurgicalRobot.Motors.SHOULDER: "STATIONARY",
-            SurgicalRobot.Motors.ELBOW: "STATIONARY",
-            SurgicalRobot.Motors.WRIST: "STATIONARY",
-            SurgicalRobot.Motors.HAND: "STATIONARY",
-        }
-
         self.arm_status = None
         self.status_writer = None
         self.hb_writer = None
-        self.motor_control_reader = None
         self.teleop_control_reader = None
         self.cmd_reader = None
         self.window = None
@@ -691,26 +691,6 @@ class ArmApp:
 
     # ── DDS poll timer callback (Qt main thread) ─────────────────────
     def _poll_dds(self):
-        # Motor control samples
-        samples = self.motor_control_reader.take_data()
-        for sample in samples:
-            if self.arm_status.status == Common.DeviceStatuses.ON:
-                if sample.direction == SurgicalRobot.MotorDirections.INCREMENT:
-                    if sample.id == SurgicalRobot.Motors.HAND:
-                        self.angles[sample.id] = min(90.0, self.angles[sample.id] + 0.3)
-                    else:
-                        self.angles[sample.id] = (self.angles[sample.id] + 0.3) % 360.0
-                    self.directions[sample.id] = "INCREMENT"
-                elif sample.direction == SurgicalRobot.MotorDirections.DECREMENT:
-                    if sample.id == SurgicalRobot.Motors.HAND:
-                        self.angles[sample.id] = max(0.0, self.angles[sample.id] - 0.3)
-                    else:
-                        self.angles[sample.id] = (self.angles[sample.id] - 0.3) % 360.0
-                    self.directions[sample.id] = "DECREMENT"
-                else:
-                    self.directions[sample.id] = "STATIONARY"
-            self.window.update_joint(sample.id, self.angles[sample.id], self.directions[sample.id])
-
         teleop_samples = self.teleop_control_reader.take_data()
         for sample in teleop_samples:
             if (
@@ -720,6 +700,10 @@ class ArmApp:
                 self.angles = apply_teleop_jog(self.angles, sample.axis, sample.direction)
                 for motor, angle in self.angles.items():
                     self.window.update_joint(motor, angle, "STATIONARY")
+
+        self.window.set_controller_connected(
+            self.teleop_control_reader.subscription_matched_status.current_count > 0
+        )
 
         # Command samples
         cmd_samples = self.cmd_reader.take_data()
@@ -748,7 +732,6 @@ class ArmApp:
         register_type(Common.DeviceStatus)
         register_type(Common.DeviceHeartbeat)
         register_type(Orchestrator.DeviceCommand)
-        register_type(SurgicalRobot.MotorControl)
         register_type(SurgicalRobot.TeleopControl)
 
         qos_provider = dds.QosProvider.default
@@ -761,9 +744,6 @@ class ArmApp:
         )
         self.status_writer.write(self.arm_status)
 
-        self.motor_control_reader = dds.DataReader(
-            participant.find_datareader(entities.MOTOR_CONTROL_DR)
-        )
         self.teleop_control_reader = dds.DataReader(
             participant.find_datareader(entities.TELEOP_CONTROL_DR)
         )

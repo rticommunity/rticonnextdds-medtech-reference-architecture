@@ -81,6 +81,8 @@ inability to use the software. -->
         </base_name>
       </qos_profile>
 
+      <qos_profile name="Control" base_name="BuiltinQosLib::Pattern.ReliableStreaming"/>
+
     <!-- For topics that are published once and on change -->
       <qos_profile name="Status" base_name="BuiltinQosLib::Pattern.Status"/>
 
