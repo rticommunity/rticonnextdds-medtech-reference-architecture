@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Increased held teleoperation command publication from 20 Hz to 50 Hz in the
   GTK and Xbox controllers without changing the Arm simulator's per-sample
   motion steps.
+- Added RTI copyright and license notices to comment-capable source and
+  configuration files, using per-file Git history to set the year or year
+  range.
 
 ## [1.3.1] - 2026-09-16
 
