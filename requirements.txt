@@ -27,4 +27,4 @@ argcomplete>=3.1
 pygame-ce>=2.5.8,<3
 pystun3>=2.0
 requests>=2.31
-rti-demo-ui @ git+https://github.com/wcoleman-rti/rti-demo-ui.git@9899dc3afde1288421d335dcfc699fb98458c466
+rti-demo-ui @ git+https://github.com/wcoleman-rti/rti-demo-ui.git@4e4b0f229e4968a2245fa6f09b9a720b11d47eb8

@@ -338,7 +338,7 @@ class GamepadApplication:
                 self.gamepad.quit()
             pygame.quit()
             self.dds.close()
-            self.ui.log("Xbox Arm Controller stopped")
+            print("Xbox Arm Controller stopped", flush=True)
 
 
 async def run_application(app) -> None:

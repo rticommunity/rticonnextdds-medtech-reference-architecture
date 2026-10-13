@@ -16,6 +16,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <thread>
 
 #ifdef RTI_DEMO_UI_NATIVE_AVAILABLE
@@ -31,6 +32,11 @@ inline void request_stop(int signal_number)
     stop_signal = signal_number;
 }
 
+inline bool is_model_stopped_error(const std::runtime_error &error)
+{
+    return std::string_view(error.what()) == "DemoUiApp: model is stopped";
+}
+
 inline bool native_mode()
 {
     const char *value = std::getenv("RTI_DEMO_UI_MODE");
@@ -42,11 +48,17 @@ inline bool native_mode()
             "Unknown RTI_DEMO_UI_MODE; choose browser or native");
 }
 
-inline void run(rti::demo::ui::DemoUiApp &app)
+inline void run(rti::demo::ui::DemoUiApp &app,
+                [[maybe_unused]] int native_width = 1280,
+                [[maybe_unused]] int native_height = 800)
 {
     if (native_mode()) {
 #ifdef RTI_DEMO_UI_NATIVE_AVAILABLE
-        rti::demo::ui::native::run(app);
+        rti::demo::ui::native::run(app,
+                                   rti::demo::ui::native::NativeWindowOptions {
+                                           native_width,
+                                           native_height,
+                                   });
         return;
 #else
         throw std::runtime_error(

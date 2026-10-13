@@ -61,6 +61,22 @@ class TestOrchestrator:
     def test_starts_and_stays_alive(self, proc_manager):
         proc_manager.start_app_ready("Orchestrator")
 
+    @pytest.mark.parametrize("app_name", ("ArmController", "Orchestrator"))
+    def test_ctrl_c_shuts_down_cleanly(self, proc_manager, app_name):
+        proc = proc_manager.start_app_ready(app_name)
+        assert proc.stdout is not None
+        readable, _, _ = select.select([proc.stdout], [], [], 3)
+        assert readable, f"{app_name} did not print its browser URL"
+        line = proc.stdout.readline().decode(errors="replace").strip()
+        assert "listening on http://127.0.0.1:" in line, line
+
+        proc.send_signal(signal.SIGINT)
+        stdout, stderr = proc.communicate(timeout=5)
+        assert proc.returncode == 0, stdout.decode(errors="replace") + stderr.decode(
+            errors="replace"
+        )
+        assert b"terminate called after throwing" not in stdout + stderr
+
 
 class TestArmController:
     """ArmController serves the RTI Demo UI browser frontend."""
@@ -189,6 +205,29 @@ class TestAllApps:
 
 class TestArmControllerGamepad:
     """The optional gamepad variant uses the same DDS device role."""
+
+    def test_sigterm_shuts_down_cleanly(self):
+        pytest.importorskip("pygame")
+        importlib.import_module("pygame._sdl2.controller")
+
+        env, apps = module_runner.load_module_config(
+            MODULE_DIR,
+            flags={"security": False},
+            variants={"ArmController": "xbox"},
+        )
+        manager = ProcessManager(env, apps, cwd=MODULE_DIR)
+        try:
+            proc = manager.start_app_ready(
+                "ArmController",
+                extra_env={"SDL_VIDEODRIVER": "dummy"},
+            )
+            proc.send_signal(signal.SIGTERM)
+            stdout, stderr = proc.communicate(timeout=5)
+            assert proc.returncode == 0, stdout + stderr
+            assert b"Xbox Arm Controller stopped" in stdout
+            assert b"DemoUiApp: model is stopped" not in stdout + stderr
+        finally:
+            manager.shutdown_all()
 
     def test_starts_without_controller_and_reports_status(self, nonsecure_utility_app):
         pytest.importorskip("pygame")

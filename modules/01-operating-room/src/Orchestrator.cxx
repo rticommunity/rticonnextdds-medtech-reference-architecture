@@ -377,13 +377,20 @@ int main()
     std::thread dds_worker([&]() {
         try {
             run_control(app, events, stopping);
+        } catch (const std::runtime_error &error) {
+            if (medtech::ui::is_model_stopped_error(error)) {
+                stopping.store(true);
+            } else {
+                worker_error = std::current_exception();
+                app.stop();
+            }
         } catch (...) {
             worker_error = std::current_exception();
             app.stop();
         }
     });
     try {
-        medtech::ui::run(app);
+        medtech::ui::run(app, 1600, 950);
     } catch (...) {
         stopping.store(true);
         dds_worker.join();
