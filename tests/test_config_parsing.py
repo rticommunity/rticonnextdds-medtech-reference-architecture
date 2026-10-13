@@ -227,7 +227,7 @@ class TestAppVariantResolution:
     def test_unselected_variant_command_is_not_resolved(self, tmp_path, monkeypatch):
         module_dir = tmp_path / "module"
         payload = self._payload()
-        payload["apps"]["ArmController"] = ["${CPP:UnavailableGtkBinary}"]
+        payload["apps"]["ArmController"] = ["${CPP:UnavailableCppBinary}"]
         self._write_config(module_dir, payload)
         self._patch_environment(monkeypatch)
 

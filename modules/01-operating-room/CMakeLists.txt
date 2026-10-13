@@ -14,23 +14,6 @@
 # the Software.
 #
 
-# Use the package PkgConfig to detect GTK headers/library files.
-# gtkmm-3.0 is optional: when not found the C++ GUI applications
-# (ArmController, Orchestrator) are skipped; PatientSensor and the
-# Python GUIs still build/run normally.
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_check_modules(GTKMM gtkmm-3.0)
-endif()
-
-if(GTKMM_FOUND)
-    link_directories(${GTKMM_LIBRARY_DIRS})
-    include_directories(${GTKMM_INCLUDE_DIRS})
-    message(STATUS "gtkmm-3.0 found — ArmController and Orchestrator will be built")
-else()
-    message(STATUS "gtkmm-3.0 not found — skipping ArmController and Orchestrator (Python GUIs still available)")
-endif()
-
 # RTI Connext DDS is found by the project-level CMakeLists.txt.
 
 # Run Codegen to generate the C++11 source code files for the types
@@ -110,7 +93,7 @@ target_link_libraries(refArchTypes
 
 # Build Applications
 
-# PatientSensor is headless (no GTK dependency)
+# PatientSensor is headless and does not use RTI Demo UI.
 add_executable(PatientSensor
     "${CMAKE_CURRENT_SOURCE_DIR}/src/PatientSensor.cxx"
 )
@@ -126,41 +109,40 @@ target_include_directories(PatientSensor
 )
 set_property(TARGET PatientSensor PROPERTY CXX_STANDARD 17)
 
-# GTK applications (ArmController, Orchestrator) require gtkmm
-set(GTK_APPLICATIONS "")
+# RTI Demo UI browser applications. Native webview support is an opt-in build
+# feature so browser-only binaries do not link platform webview dependencies.
+set(GRAPHICAL_APPLICATIONS ArmController Orchestrator)
+foreach(application ${GRAPHICAL_APPLICATIONS})
+    add_executable(${application}
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/${application}.cxx"
+    )
 
-if(GTKMM_FOUND)
-    set(GTK_APPLICATIONS ArmController Orchestrator)
+    target_link_libraries(${application}
+        PRIVATE
+        RTIConnextDDS::cpp2_api
+        refArchTypes
+        rti_demo_ui::core
+    )
+    target_compile_definitions(${application}
+        PRIVATE RTI_DEMO_UI_WEB_ROOT="${PROJECT_SOURCE_DIR}/resource/ui_web"
+    )
+    target_include_directories(${application}
+        PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        "${CMAKE_CURRENT_BINARY_DIR}/src"
+    )
+    set_property(TARGET ${application} PROPERTY CXX_STANDARD 17)
 
-    foreach(application ${GTK_APPLICATIONS})
-        add_executable(${application}
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/${application}.cxx"
-        )
-
-        target_link_libraries(${application}
-            PRIVATE
-            ${GTKMM_LIBRARIES}
-            RTIConnextDDS::cpp2_api
-            refArchTypes
-        )
-        if(APPLE)
-            target_link_libraries(${application} PRIVATE "-framework AppKit")
-        endif()
-        target_include_directories(${application}
-            PRIVATE
-            "${CMAKE_CURRENT_SOURCE_DIR}/src"
-            "${CMAKE_CURRENT_BINARY_DIR}/src"
-        )
-        set_property(TARGET ${application}
-            PROPERTY
-            CXX_STANDARD 17)
-    endforeach()
-
-    if(RTI_SECURITY_AVAILABLE)
-        target_compile_definitions(Orchestrator PRIVATE RTI_SECURITY_AVAILABLE)
+    if(RTI_DEMO_BUILD_NATIVE_WEBVIEW)
+        target_link_libraries(${application} PRIVATE rti_demo_ui_native::native_webview)
+        target_compile_definitions(${application} PRIVATE RTI_DEMO_UI_NATIVE_AVAILABLE)
     endif()
+endforeach()
+
+if(RTI_SECURITY_AVAILABLE)
+    target_compile_definitions(Orchestrator PRIVATE RTI_SECURITY_AVAILABLE)
 endif()
 
 # Convenience target: build all Module 01 executables
-set(APPLICATIONS PatientSensor ${GTK_APPLICATIONS})
+set(APPLICATIONS PatientSensor ${GRAPHICAL_APPLICATIONS})
 add_custom_target(module-01 DEPENDS ${APPLICATIONS})

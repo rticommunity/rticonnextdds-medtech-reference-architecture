@@ -17,7 +17,7 @@
 #   connext-base  — Ubuntu 24.04 + Connext DDS via apt
 #   build-base    — Python + C++ dependencies
 #   build         — CMake configure + build + security artifacts
-#   test          — Pytest, Xvfb for headless testing
+#   test          — Pytest for headless browser-mode testing
 #
 # RTI license file is NOT baked into the image.
 # Mount it at runtime via -v:
@@ -42,7 +42,7 @@
 
 # Shared build args (global defaults).
 ARG CONNEXT_VERSION=7.7.0
-ARG PYTHON_VERSION=3.10
+ARG PYTHON_VERSION=3.11
 
 # ------------------------------------------------------------------
 # Stage 1: Connext base
@@ -61,7 +61,6 @@ ENV RTI_LICENSE_FILE=/opt/rti.com/rti_license.dat
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl gnupg \
         cmake g++ make pkg-config \
-        libgtkmm-3.0-dev \
         git \
     && rm -rf /var/lib/apt/lists/*
 
@@ -96,7 +95,6 @@ ARG PYTHON_VERSION
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl gnupg \
         cmake g++ make pkg-config \
-        libgtkmm-3.0-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Python packages (enable deadsnakes for broader PYTHON_VERSION support)
@@ -141,16 +139,6 @@ RUN python${PYTHON_VERSION} modules/04-security-threat/security/setup_threat_sec
 FROM build AS test
 
 ARG DEBIAN_FRONTEND=noninteractive
-
-# Install only test runtime dependencies; Python is already installed in build.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        xvfb \
-        libegl1 libxkbcommon0 libgl1 libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Qt needs a display; Xvfb provides a virtual one
-ENV QT_QPA_PLATFORM=offscreen
-ENV DISPLAY=:99
 
 WORKDIR /workspace
 

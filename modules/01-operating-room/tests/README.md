@@ -12,7 +12,7 @@ behave as described in the module README.
 | Python 3.10+ | With the Connext Python API (`rti.connextdds`) |
 | pytest | `pip install pytest` |
 | C++ build complete | Run `python scripts/build.py` first |
-| PySide6, pyqtgraph, numpy | For GUI app tests |
+| `rti-demo-ui` | For browser UI process and API tests |
 | Pygame CE | Installed through the root `requirements.txt`; used by the gamepad app |
 | Security artifacts (optional) | Run `system_arch/security/setup_security.py` for `@secure` tests |
 
@@ -21,10 +21,10 @@ behave as described in the module README.
 From the `modules/01-operating-room/` directory:
 
 ```bash
-# All tests (requires display for GUI tests)
+# All tests (browser UI tests need no display server)
 pytest tests/ -v
 
-# Skip GUI tests (headless / CI)
+# Skip browser UI process tests (optional)
 pytest tests/ -v -m "not gui"
 
 # Skip slow end-to-end tests
@@ -48,7 +48,7 @@ pytest tests/ -v -m "not secure"
 | File | What it tests | Markers |
 | --- | --- | --- |
 | `test_types.py` | Generated Python type import smoke test | — |
-| `test_launch.py` | Each app starts without crashing | `gui` for GTK/Qt apps |
+| `test_launch.py` | Each app starts without crashing | browser mode, no display server |
 | `test_arm_kinematics.py` | Simulated end-effector jogging and the Arm controller-connection indicator | — |
 | `test_dds_communication.py` | DDS topics carry correct data (vitals, heartbeats, statuses, commands) | `gui` for Arm tests |
 | `test_demo_flow.py` | End-to-end README scenarios (crash detection, pause/resume, shutdown) | `gui`, `slow`, `secure` |
@@ -63,12 +63,11 @@ Tests create their own DDS participant on domain 0 and use it to:
 - **Publish** commands (`t/DeviceCommand`, `t/TeleopControl`) to verify apps
   respond correctly (pause, shutdown, and teleoperation).
 
-This tests the real DDS communication paths without interacting with GUIs.
+This tests the real DDS communication paths independently of the browser frontend.
 
 ## Markers
 
-- `@pytest.mark.gui` — Requires a graphical display. Auto-skipped on headless systems.
-  Python Qt apps use `QT_QPA_PLATFORM=offscreen`; C++ GTK apps need a real display.
+- `@pytest.mark.gui` — Browser UI process tests; no graphical display is required.
 - `@pytest.mark.slow` — Long-running tests (>10s). Safe to skip for quick validation.
 - `@pytest.mark.secure` — Requires DDS Security artifacts. Auto-skipped if
   `setup_security.py` hasn't been run.

@@ -13,8 +13,6 @@
 import math
 from enum import IntEnum
 
-from Types import SurgicalRobot
-
 
 class ArmJoint(IntEnum):
     """Internal simulator joints; these are not DDS control commands."""
@@ -52,14 +50,18 @@ def planar_tool_position(angles: dict) -> tuple[float, float]:
 
 def apply_teleop_jog(angles: dict, axis, direction) -> dict:
     updated = dict(angles)
-    if direction == SurgicalRobot.TeleopDirections.STOPPED:
+    axis = getattr(axis, "name", axis)
+    direction = getattr(direction, "name", direction)
+    if direction == "STOPPED":
         return updated
+    if direction not in {"POSITIVE", "NEGATIVE"}:
+        raise ValueError(f"Unsupported teleoperation direction: {direction}")
 
-    sign = 1.0 if direction == SurgicalRobot.TeleopDirections.POSITIVE else -1.0
+    sign = 1.0 if direction == "POSITIVE" else -1.0
 
-    if axis in (SurgicalRobot.TeleopAxes.X, SurgicalRobot.TeleopAxes.Y):
+    if axis in {"X", "Y"}:
         x, y = planar_tool_position(updated)
-        if axis == SurgicalRobot.TeleopAxes.X:
+        if axis == "X":
             x += sign * JOG_STEP_MM
         else:
             y += sign * JOG_STEP_MM
@@ -95,14 +97,16 @@ def apply_teleop_jog(angles: dict, axis, direction) -> dict:
         updated[ArmJoint.WRIST] = _normalise_degrees(
             180.0 + old_tool_orientation - (new_shoulder - 180.0) - (new_elbow - 180.0)
         )
-    elif axis == SurgicalRobot.TeleopAxes.ROLL:
+    elif axis == "ROLL":
         motor = ArmJoint.WRIST
         updated[motor] = _normalise_degrees(updated[motor] + sign * ROTATION_STEP_DEG)
-    elif axis == SurgicalRobot.TeleopAxes.GRIPPER:
+    elif axis == "GRIPPER":
         motor = ArmJoint.HAND
         updated[motor] = min(
             GRIPPER_MAX_DEG,
             max(GRIPPER_MIN_DEG, updated[motor] + sign * GRIPPER_STEP_DEG),
         )
+    else:
+        raise ValueError(f"Unsupported teleoperation axis: {axis}")
 
     return updated

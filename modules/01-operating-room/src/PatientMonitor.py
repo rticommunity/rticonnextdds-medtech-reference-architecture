@@ -1,637 +1,162 @@
 #
-# (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+# (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
 #
 # RTI grants Licensee a license to use, modify, compile, and create derivative
-# works of the software solely for use with RTI Connext DDS.  Licensee may
-# redistribute copies of the software provided that all such copies are
-# subject to this license. The software is provided "as is", with no warranty
-# of any type, including any warranty for fitness for any purpose. RTI is
-# under no obligation to maintain or support the software.  RTI shall not be
-# liable for any incidental or consequential damages arising out of the use or
-# inability to use the software.
+# works of the software solely for use with RTI Connext DDS. The software is
+# provided "as is", with no warranty of any type.
 
-import signal
-import sys
-import threading
-import time
+"""DDS patient-vitals adapter and application state for the web monitor."""
 
-import numpy as np
-import pyqtgraph as pg
+from __future__ import annotations
+
+import asyncio
+
+import rti.asyncio  # noqa: F401 - installs Connext's asyncio integration
 import rti.connextdds as dds
-from DdsUtils import register_type
-from PySide6.QtCore import QObject, Qt, QTimer, Signal
-from PySide6.QtGui import QIcon, QPixmap
-from PySide6.QtWidgets import (
-    QApplication,
-    QFrame,
-    QGridLayout,
-    QHBoxLayout,
-    QLabel,
-    QMainWindow,
-    QSizePolicy,
-    QVBoxLayout,
-    QWidget,
-)
-from Types import Common, DdsEntities, Orchestrator, PatientMonitor
-from UiTheme import UI_MONOSPACE_FAMILY, apply_application_font
-
-# ─── RTI Brand Colors ───────────────────────────────────────────────────────
-RTI_BLUE = "#004C97"
-RTI_ORANGE = "#ED8B00"
-BG_MAIN = "#0A0E17"  # Very dark navy
-BG_PANEL = "#0F1822"  # Panel background
-BG_HEADER = "#071020"  # Header strip
-BORDER_DIM = "#1A2A3A"  # Subtle panel borders
-
-# Per-vital colour scheme (matches real ICU monitors)
-COLOR_HR = "#00E676"  # Bright green   – ECG
-COLOR_SPO2 = "#00B0FF"  # Cyan-blue      – SpO2 / plethysmograph
-COLOR_ETCO2 = "#FFD600"  # Amber-yellow   – Capnography
-COLOR_NIBP = "#FF7043"  # Warm orange    – NiBP
-
-# ─── Waveform generators ────────────────────────────────────────────────────
-SAMPLE_RATE = 200  # samples / second for waveform buffer
-DISPLAY_SECS = 6  # seconds visible in the strip
-BUFFER_LEN = SAMPLE_RATE * DISPLAY_SECS
-DATA_STALE_AFTER_SECONDS = 2.0
+from ApplicationLogic import device_status_after_command
+from DdsUtils import register_type, vitals_from_sample
+from DemoUiSupport import DemoUiState, create_demo_ui, run_demo_ui
+from Types import Common, DdsEntities, Orchestrator
+from Types import PatientMonitor as PatientTypes
 
 
-def _ecg_template(n_pts: int = SAMPLE_RATE) -> np.ndarray:
-    """One beat of a synthetic PQRST waveform (normalised 0-1)."""
-    t = np.linspace(0, 1, n_pts)
-    # P wave
-    p = 0.15 * np.exp(-((t - 0.12) ** 2) / (2 * 0.008**2))
-    # Q dip
-    q = -0.08 * np.exp(-((t - 0.22) ** 2) / (2 * 0.004**2))
-    # R spike
-    r = 1.00 * np.exp(-((t - 0.26) ** 2) / (2 * 0.003**2))
-    # S dip
-    s = -0.15 * np.exp(-((t - 0.30) ** 2) / (2 * 0.004**2))
-    # T wave
-    tw = 0.30 * np.exp(-((t - 0.42) ** 2) / (2 * 0.015**2))
-    return p + q + r + s + tw
+class PatientMonitorApplication:
+    def __init__(self) -> None:
+        self.status = "ON"
+        self.vitals: dict[str, float] | None = None
+        self.last_sample_at: float | None = None
 
+    def receive_vitals(self, vitals: dict[str, float]) -> dict[str, float]:
+        self.vitals = vitals
+        self.last_sample_at = asyncio.get_running_loop().time()
+        return self.vitals
 
-def _pleth_template(n_pts: int = SAMPLE_RATE) -> np.ndarray:
-    """One beat of a plethysmograph waveform (smooth hill)."""
-    t = np.linspace(0, 1, n_pts)
-    return np.clip(
-        np.exp(-((t - 0.35) ** 2) / (2 * 0.05**2))
-        + 0.25 * np.exp(-((t - 0.55) ** 2) / (2 * 0.04**2)),
-        0,
-        1,
-    )
+    def apply_command(self, command: str) -> None:
+        self.status = device_status_after_command(command)
 
-
-def _capno_template(n_pts: int = SAMPLE_RATE) -> np.ndarray:
-    """One respiratory cycle capnography waveform."""
-    t = np.linspace(0, 1, n_pts)
-    # rise phase (0.3-0.6), plateau (0.6-0.85), fall (0.85-0.95)
-    w = np.zeros(n_pts)
-    rise = (t >= 0.30) & (t < 0.60)
-    plat = (t >= 0.60) & (t < 0.85)
-    fall = (t >= 0.85) & (t < 0.95)
-    w[rise] = (t[rise] - 0.30) / 0.30
-    w[plat] = 1.0
-    w[fall] = 1.0 - (t[fall] - 0.85) / 0.10
-    return np.clip(w, 0, 1)
-
-
-# ─── DDS → Qt bridge ────────────────────────────────────────────────────────
-class DdsBridge(QObject):
-    vitals_received = Signal(float, float, float, float, float)  # hr, spo2, etco2, nibp_s, nibp_d
-    shutdown_received = Signal()
-    status_changed = Signal(str)  # "ON" / "PAUSED"
-
-
-# ─── Waveform strip panel ─────────────────────────────────────────────────
-class VitalPanel(QFrame):
-    """A self-contained vital-signs panel: large numeric + scrolling waveform."""
-
-    def __init__(
-        self,
-        vital_name: str,
-        unit: str,
-        color: str,
-        y_min: float,
-        y_max: float,
-        parent=None,
-    ):
-        super().__init__(parent)
-        self.vital_name = vital_name
-        self.unit = unit
-        self.color = color
-        self.y_min = y_min
-        self.y_max = y_max
-
-        # Waveform state
-        self.buf = np.zeros(BUFFER_LEN)
-        self.buf_ptr = 0  # write pointer (circular)
-        self.phase = 0.0  # current beat phase (0–1)
-        self.beat_rate = 1.0  # beats per second (driven by live value)
-        self.live_value = 0.0
-        self.amplitude = 1.0
-
-        self._build_ui()
-
-    # ── UI construction ──────────────────────────────────────────────────
-    def _build_ui(self):
-        self.setFrameShape(QFrame.Shape.Box)
-        self.setStyleSheet(f"""
-            VitalPanel {{
-                background-color: {BG_PANEL};
-                border: 1px solid {self.color}55;
-                border-radius: 8px;
-            }}
-        """)
-
-        root = QVBoxLayout(self)
-        root.setContentsMargins(10, 8, 10, 8)
-        root.setSpacing(4)
-
-        # ── Top row: name + value ─────────────────────────────────────
-        top = QHBoxLayout()
-        top.setSpacing(0)
-
-        name_lbl = QLabel(self.vital_name)
-        name_lbl.setStyleSheet(
-            f"color: {self.color}; font-size: 20px; font-weight: bold; background: transparent;"
+    def view(self, *, matched: bool = False) -> dict:
+        fresh = self.last_sample_at is not None and (
+            asyncio.get_running_loop().time() - self.last_sample_at <= 2.0
         )
-        top.addWidget(name_lbl)
-
-        top.addStretch()
-
-        self.unit_lbl = QLabel(self.unit)
-        self.unit_lbl.setStyleSheet(
-            f"color: {self.color}88; font-size: 16px; background: transparent;"
-        )
-        self.unit_lbl.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight)
-        top.addWidget(self.unit_lbl)
-        root.addLayout(top)
-
-        # ── Numeric value ─────────────────────────────────────────────
-        self.value_lbl = QLabel("---")
-        self.value_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self.value_lbl.setStyleSheet(
-            f"color: {self.color}; font-size: 54px; font-weight: bold; "
-            f"font-family: '{UI_MONOSPACE_FAMILY}'; background: transparent; "
-            f"letter-spacing: -2px;"
-        )
-        root.addWidget(self.value_lbl)
-
-        # ── Waveform plot ─────────────────────────────────────────────
-        self.plot_widget = pg.PlotWidget(background=BG_PANEL)
-        self.plot_widget.setMinimumHeight(150)
-        self.plot_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.plot_widget.hideAxis("left")
-        self.plot_widget.hideAxis("bottom")
-        self.plot_widget.setMouseEnabled(x=False, y=False)
-        self.plot_widget.setMenuEnabled(False)
-        pen = pg.mkPen(color=self.color, width=2)
-        self.curve = self.plot_widget.plot(pen=pen)
-        self.plot_widget.setYRange(self.y_min, self.y_max, padding=0.05)
-        root.addWidget(self.plot_widget)
-
-    # ── Waveform advance ──────────────────────────────────────────────
-    def advance_waveform(self, template: np.ndarray, n_new: int):
-        """Advance n_new samples through the cyclic waveform template."""
-        t_len = len(template)
-        for _ in range(n_new):
-            idx = int(self.phase * t_len) % t_len
-            self.buf[self.buf_ptr % BUFFER_LEN] = template[idx] * self.amplitude
-            self.buf_ptr += 1
-            self.phase += self.beat_rate / SAMPLE_RATE
-            if self.phase >= 1.0:
-                self.phase -= 1.0
-
-    def get_display_buffer(self) -> np.ndarray:
-        """Return the circular buffer in chronological order."""
-        ptr = self.buf_ptr % BUFFER_LEN
-        return np.roll(self.buf, -ptr)
-
-    def set_value(self, val, fmt=".0f"):
-        self.value_lbl.setText(f"{val:{fmt}}")
-        self.live_value = float(val)
-
-    def update_curve(self):
-        data = self.get_display_buffer()
-        self.curve.setData(data)
-
-
-# ─── NiBP Panel (no waveform — spot measurement readout) ─────────────────
-class NiBPPanel(QFrame):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFrameShape(QFrame.Shape.Box)
-        self.setStyleSheet(f"""
-            NiBPPanel {{
-                background-color: {BG_PANEL};
-                border: 1px solid {COLOR_NIBP}55;
-                border-radius: 8px;
-            }}
-        """)
-        root = QVBoxLayout(self)
-        root.setContentsMargins(10, 8, 10, 8)
-        root.setSpacing(6)
-
-        top = QHBoxLayout()
-        name_lbl = QLabel("NiBP")
-        name_lbl.setStyleSheet(
-            f"color: {COLOR_NIBP}; font-size: 20px; font-weight: bold; background: transparent;"
-        )
-        top.addWidget(name_lbl)
-        top.addStretch()
-        unit_lbl = QLabel("mmHg")
-        unit_lbl.setStyleSheet(f"color: {COLOR_NIBP}88; font-size: 16px; background: transparent;")
-        top.addWidget(unit_lbl)
-        root.addLayout(top)
-
-        root.addStretch()
-
-        # sys / dia
-        bp_row = QHBoxLayout()
-        bp_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.sys_lbl = QLabel("---")
-        self.sys_lbl.setStyleSheet(
-            f"color: {COLOR_NIBP}; font-size: 54px; font-weight: bold; "
-            f"font-family: '{UI_MONOSPACE_FAMILY}'; background: transparent;"
-        )
-        bp_row.addWidget(self.sys_lbl)
-
-        sep = QLabel("/")
-        sep.setStyleSheet(f"color: {COLOR_NIBP}88; font-size: 42px; background: transparent;")
-        bp_row.addWidget(sep)
-
-        self.dia_lbl = QLabel("---")
-        self.dia_lbl.setStyleSheet(
-            f"color: {COLOR_NIBP}; font-size: 54px; font-weight: bold; "
-            f"font-family: '{UI_MONOSPACE_FAMILY}'; background: transparent;"
-        )
-        bp_row.addWidget(self.dia_lbl)
-        root.addLayout(bp_row)
-
-        sub_row = QHBoxLayout()
-        sub_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        sub_lbl = QLabel("Systolic  /  Diastolic")
-        sub_lbl.setStyleSheet(f"color: {COLOR_NIBP}66; font-size: 20px; background: transparent;")
-        sub_row.addWidget(sub_lbl)
-        root.addLayout(sub_row)
-
-        root.addStretch()
-
-        # MAP estimate
-        self.map_lbl = QLabel("MAP: ---")
-        self.map_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.map_lbl.setStyleSheet(
-            f"color: {COLOR_NIBP}AA; font-size: 20px; background: transparent;"
-        )
-        root.addWidget(self.map_lbl)
-
-    def set_values(self, s, d):
-        self.sys_lbl.setText(f"{s:.0f}")
-        self.dia_lbl.setText(f"{d:.0f}")
-        _map = (s + 2 * d) / 3
-        self.map_lbl.setText(f"MAP: {_map:.0f}")
-
-
-# ─── Main Window ──────────────────────────────────────────────────────────
-class PatientMonitorWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("RTI Connext — Patient Monitor")
-        self.setMinimumSize(900, 600)
-        self.resize(1100, 720)
-        self._apply_global_style()
-
-        # ── Build vitals panels ──────────────────────────────────────
-        self.hr_panel = VitalPanel("ECG / Heart Rate", "bpm", COLOR_HR, -0.2, 1.1)
-        self.spo2_panel = VitalPanel("SpO₂", "%", COLOR_SPO2, -0.1, 1.1)
-        self.etco2_panel = VitalPanel("EtCO₂", "mmHg", COLOR_ETCO2, -0.1, 1.1)
-        self.nibp_panel = NiBPPanel()
-
-        # Waveform templates (precomputed once)
-        self._ecg_tpl = _ecg_template(SAMPLE_RATE)
-        self._pleth_tpl = _pleth_template(SAMPLE_RATE)
-        self._capno_tpl = _capno_template(SAMPLE_RATE)
-
-        # DDS-driven values
-        self._hr = 60.0
-        self._spo2 = 98.0
-        self._etco2 = 38.0
-        self._nibp_s = 120.0
-        self._nibp_d = 80.0
-        self.paused = False
-        self.device_state = "ON"
-        self.last_vitals_at = None
-
-        # Frames per tick derived from timer interval
-        self._timer_ms = 40
-        self._new_per_tick = int(SAMPLE_RATE * self._timer_ms / 1000)
-
-        self._build_ui()
-        self._set_icon()
-
-        # ── Animation timer ──────────────────────────────────────────
-        self.anim_timer = QTimer(self)
-        self.anim_timer.timeout.connect(self._tick)
-        self.anim_timer.start(self._timer_ms)  # 25 fps
-
-        self.data_status_timer = QTimer(self)
-        self.data_status_timer.timeout.connect(self._refresh_data_status)
-        self.data_status_timer.start(500)
-
-    # ── Window icon ─────────────────────────────────────────────────
-    def _set_icon(self):
-        _px = QPixmap("../../resource/images/rti_logo.png")
-        if not _px.isNull():
-            self.setWindowIcon(QIcon(_px))
-
-    # ── Style ────────────────────────────────────────────────────────
-    def _apply_global_style(self):
-        self.setStyleSheet(f"""
-            QMainWindow, QWidget#central {{
-                background-color: {BG_MAIN};
-            }}
-        """)
-
-    # ── Layout ───────────────────────────────────────────────────────
-    def _build_ui(self):
-        central = QWidget()
-        central.setObjectName("central")
-        central.setStyleSheet(f"background-color: {BG_MAIN};")
-        self.setCentralWidget(central)
-
-        root = QVBoxLayout(central)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(0)
-
-        # ── Header bar ───────────────────────────────────────────────
-        header = QWidget()
-        header.setFixedHeight(80)
-        header.setStyleSheet(f"background-color: {BG_HEADER}; border-bottom: 2px solid {RTI_BLUE};")
-        h_layout = QHBoxLayout(header)
-        h_layout.setContentsMargins(20, 0, 20, 0)
-
-        _logo_px = QPixmap("../../resource/images/rti_logo.png")
-        if not _logo_px.isNull():
-            logo_lbl = QLabel()
-            logo_lbl.setStyleSheet("background: transparent;")
-            logo_lbl.setPixmap(
-                _logo_px.scaled(
-                    56,
-                    56,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-            )
-            h_layout.addWidget(logo_lbl)
-
-        rti_lbl = QLabel("RTI Connext")
-        rti_lbl.setStyleSheet(
-            f"color: {RTI_BLUE}; font-size: 20px; font-weight: bold; background: transparent;"
-        )
-        h_layout.addWidget(rti_lbl)
-
-        bar = QLabel("|")
-        bar.setStyleSheet("color: #334455; font-size: 28px; background: transparent;")
-        h_layout.addWidget(bar)
-
-        title_lbl = QLabel("Patient Monitor")
-        title_lbl.setStyleSheet(
-            "color: #E0E8F0; font-size: 28px; font-weight: bold; background: transparent;"
-        )
-        h_layout.addWidget(title_lbl)
-
-        h_layout.addStretch()
-
-        self.status_lbl = QLabel("● WAITING FOR VITALS")
-        self.status_lbl.setStyleSheet(
-            "color: #EDB252; font-size: 16px; font-weight: bold; background: transparent;"
-        )
-        h_layout.addWidget(self.status_lbl)
-
-        self.state_lbl = QLabel("ON")
-        self.state_lbl.setStyleSheet(
-            f"color: #000; background-color: {COLOR_HR}; font-size: 16px; "
-            f"font-weight: bold; padding: 3px 10px; border-radius: 4px; margin-left: 10px;"
-        )
-        h_layout.addWidget(self.state_lbl)
-
-        root.addWidget(header)
-
-        # ── Vital grid ────────────────────────────────────────────────
-        grid_container = QWidget()
-        grid_container.setStyleSheet(f"background-color: {BG_MAIN};")
-        grid = QGridLayout(grid_container)
-        grid.setContentsMargins(12, 12, 12, 12)
-        grid.setSpacing(10)
-
-        grid.addWidget(self.hr_panel, 0, 0)
-        grid.addWidget(self.spo2_panel, 0, 1)
-        grid.addWidget(self.etco2_panel, 1, 0)
-        grid.addWidget(self.nibp_panel, 1, 1)
-
-        grid.setRowStretch(0, 1)
-        grid.setRowStretch(1, 1)
-        grid.setColumnStretch(0, 1)
-        grid.setColumnStretch(1, 1)
-
-        root.addWidget(grid_container, 1)
-
-        # ── Footer bar ────────────────────────────────────────────────
-        footer = QWidget()
-        footer.setFixedHeight(44)
-        footer.setStyleSheet(f"background-color: {BG_HEADER}; border-top: 1px solid {BORDER_DIM};")
-        f_layout = QHBoxLayout(footer)
-        f_layout.setContentsMargins(20, 0, 20, 0)
-        f_lbl = QLabel("Real-Time Innovations  ·  RTI Connext  ·  MedTech Reference Architecture")
-        f_lbl.setStyleSheet("color: #8FA6BA; font-size: 12px; background: transparent;")
-        f_layout.addWidget(f_lbl)
-        f_layout.addStretch()
-        root.addWidget(footer)
-
-    # ── Animation tick ───────────────────────────────────────────────
-    def _tick(self):
-        if (
-            self.paused
-            or self.last_vitals_at is None
-            or time.monotonic() - self.last_vitals_at > DATA_STALE_AFTER_SECONDS
-        ):
-            return
-        # ECG — rate driven by HR (beats per minute → bps)
-        self.hr_panel.beat_rate = self._hr / 60.0
-        # SpO2 — same rate as HR (plethysmograph synced to cardiac cycle)
-        self.spo2_panel.beat_rate = self._hr / 60.0
-        # EtCO2 — respiratory rate ≈ HR/4, capped 8-30 breaths/min
-        rr = max(8.0, min(30.0, self._hr / 4.0))
-        self.etco2_panel.beat_rate = rr / 60.0
-
-        self.hr_panel.advance_waveform(self._ecg_tpl, self._new_per_tick)
-        self.spo2_panel.advance_waveform(self._pleth_tpl, self._new_per_tick)
-        self.etco2_panel.advance_waveform(self._capno_tpl, self._new_per_tick)
-        # EtCO2 - capnogram height, capped to 60 mmHg for stability in the UI
-        self.etco2_panel.amplitude = max(0.0, min(60.0, self._etco2)) / 60.0
-
-        self.hr_panel.update_curve()
-        self.spo2_panel.update_curve()
-        self.etco2_panel.update_curve()
-
-    # ── DDS value update (called from polling timer in main app) ─────
-    def update_vitals(self, hr, spo2, etco2, nibp_s, nibp_d):
-        self.last_vitals_at = time.monotonic()
-        self._hr = hr
-        self._spo2 = spo2
-        self._etco2 = etco2
-        self._nibp_s = nibp_s
-        self._nibp_d = nibp_d
-
-        self.hr_panel.set_value(hr)
-        self.spo2_panel.set_value(spo2)
-        self.etco2_panel.set_value(etco2)
-        self.nibp_panel.set_values(nibp_s, nibp_d)
-
-    def set_state(self, state: str):
-        self.device_state = state
-        self.paused = state == "PAUSED"
-        colors = {"ON": COLOR_HR, "PAUSED": RTI_ORANGE, "OFF": "#FF4444"}
-        c = colors.get(state, "#888")
-        self.state_lbl.setText(state)
-        self.state_lbl.setStyleSheet(
-            f"color: #000; background-color: {c}; font-size: 16px; "
-            f"font-weight: bold; padding: 3px 10px; border-radius: 4px; margin-left: 10px;"
-        )
-        self._refresh_data_status()
-
-    def _refresh_data_status(self):
-        if self.device_state == "PAUSED":
-            text, color = "● STREAM PAUSED", RTI_ORANGE
-        elif self.device_state == "OFF":
-            text, color = "● MONITOR OFFLINE", "#FF5555"
-        elif self.last_vitals_at is None:
-            text, color = "● WAITING FOR VITALS", "#EDB252"
-        elif time.monotonic() - self.last_vitals_at > DATA_STALE_AFTER_SECONDS:
-            text, color = "● DATA QUIET", "#EDB252"
+        if self.status == "PAUSED":
+            vitals_status = "STREAM PAUSED"
+        elif self.status == "OFF":
+            vitals_status = "MONITOR OFFLINE"
+        elif self.last_sample_at is None or not matched:
+            vitals_status = "WAITING FOR VITALS"
+        elif not fresh:
+            vitals_status = "DATA QUIET"
         else:
-            text, color = "● LIVE VITALS", COLOR_HR
+            vitals_status = "LIVE VITALS"
+        vitals = dict(self.vitals or {})
+        vitals["fresh"] = fresh
+        return {
+            "kind": "patient-monitor",
+            "title": "Patient Monitor",
+            "status": self.status,
+            "vitals_status": vitals_status,
+            "header_badges": [
+                {"label": "Vitals", "value": vitals_status},
+                {"label": "Device", "value": self.status},
+            ],
+            "footer": True,
+            "vitals": vitals,
+        }
 
-        self.status_lbl.setText(text)
-        self.status_lbl.setStyleSheet(
-            f"color: {color}; font-size: 16px; font-weight: bold; background: transparent;"
-        )
 
-
-# ─── Application class ────────────────────────────────────────────────────
-class PatientMonitorApp:
-    def __init__(self):
-        self.pm_status = None
-        self.status_writer = None
-        self.hb_writer = None
-        self.vitals_reader = None
-        self.cmd_reader = None
-        self.bridge = DdsBridge()
-        self.window = None
-
-    # ── DDS heartbeat thread ─────────────────────────────────────────
-    def write_hb(self):
-        while self.pm_status.status != Common.DeviceStatuses.OFF:
-            hb = Common.DeviceHeartbeat()
-            hb.device = Common.DeviceType.PATIENT_MONITOR
-            self.hb_writer.write(hb)
-            time.sleep(0.05)
-
-    # ── DDS polling (called by Qt timer every 150 ms) ────────────────
-    def _poll_dds(self):
-        # Vitals
-        if self.pm_status.status == Common.DeviceStatuses.ON:
-            samples = self.vitals_reader.take_data()
-            for sample in samples:
-                self.window.update_vitals(
-                    float(sample.hr),
-                    float(sample.spo2),
-                    float(sample.etco2),
-                    float(sample.nibp_s),
-                    float(sample.nibp_d),
-                )
-        # Commands
-        cmd_samples = self.cmd_reader.take_data()
-        for sample in cmd_samples:
-            if sample.command == Orchestrator.DeviceCommands.START:
-                print("Patient Monitor received Start command")
-                self.pm_status.status = Common.DeviceStatuses.ON
-                self.window.set_state("ON")
-            elif sample.command == Orchestrator.DeviceCommands.PAUSE:
-                print("Patient Monitor received Pause command")
-                self.pm_status.status = Common.DeviceStatuses.PAUSED
-                self.window.set_state("PAUSED")
-            else:
-                print("Patient Monitor received Shutdown command")
-                self.pm_status.status = Common.DeviceStatuses.OFF
-                self.window.set_state("OFF")
-                QApplication.quit()
-            self.status_writer.write(self.pm_status)
-
-    # ── Connext setup ────────────────────────────────────────────────
-    def connext_setup(self):
+class PatientMonitorDdsAdapter:
+    def __init__(self) -> None:
         entities = DdsEntities.Constants
-        register_type(Common.DeviceStatus)
-        register_type(Common.DeviceHeartbeat)
-        register_type(Orchestrator.DeviceCommand)
-        register_type(PatientMonitor.Vitals)
-
-        qos_provider = dds.QosProvider.default
-        participant = qos_provider.create_participant_from_config(entities.PATIENT_MONITOR_DP)
-
-        self.status_writer = dds.DataWriter(participant.find_datawriter(entities.STATUS_DW))
-        self.hb_writer = dds.DataWriter(participant.find_datawriter(entities.HB_DW))
-        self.vitals_reader = dds.DataReader(participant.find_datareader(entities.VITALS_DR))
-        self.cmd_reader = dds.DataReader(participant.find_datareader(entities.DEVICE_COMMAND_DR))
-        self.pm_status = Common.DeviceStatus(
+        for data_type in (
+            Common.DeviceStatus,
+            Common.DeviceHeartbeat,
+            Orchestrator.DeviceCommand,
+            PatientTypes.Vitals,
+        ):
+            register_type(data_type)
+        provider = dds.QosProvider.default
+        self.participant = provider.create_participant_from_config(entities.PATIENT_MONITOR_DP)
+        self.status_writer = dds.DataWriter(self.participant.find_datawriter(entities.STATUS_DW))
+        self.heartbeat_writer = dds.DataWriter(self.participant.find_datawriter(entities.HB_DW))
+        self.vitals_reader = dds.DataReader(self.participant.find_datareader(entities.VITALS_DR))
+        self.command_reader = dds.DataReader(
+            self.participant.find_datareader(entities.DEVICE_COMMAND_DR)
+        )
+        self.status = Common.DeviceStatus(
             device=Common.DeviceType.PATIENT_MONITOR,
             status=Common.DeviceStatuses.ON,
         )
-        self.status_writer.write(self.pm_status)
+        self.status_writer.write(self.status)
 
-    # ── Entry point ──────────────────────────────────────────────────
-    def run(self):
-        app = QApplication(sys.argv)
-        app.setStyle("Fusion")
-        apply_application_font(app)
-        _icon = QIcon(QPixmap("../../resource/images/rti_logo.png"))
-        if not _icon.isNull():
-            app.setWindowIcon(_icon)
+    def write_status(self, status: str) -> None:
+        self.status.status = getattr(Common.DeviceStatuses, status)
+        self.status_writer.write(self.status)
 
-        self.window = PatientMonitorWindow()
-        self.connext_setup()
+    def write_heartbeat(self) -> None:
+        self.heartbeat_writer.write(
+            Common.DeviceHeartbeat(device=Common.DeviceType.PATIENT_MONITOR)
+        )
 
-        # DDS polling timer (Qt timer — same thread, no locking needed)
-        dds_timer = QTimer()
-        dds_timer.timeout.connect(self._poll_dds)
-        dds_timer.start(150)
+    def close(self) -> None:
+        self.participant.close()
 
-        # Heartbeat in background thread
-        hb_thread = threading.Thread(target=self.write_hb, daemon=True)
-        hb_thread.start()
 
-        # Allow Ctrl+C to cleanly quit the Qt event loop.
-        # The QTimer is needed so the event loop periodically yields control
-        # back to Python, enabling signal delivery.
-        signal.signal(signal.SIGINT, lambda *_: app.quit())
-        _sig_timer = QTimer()
-        _sig_timer.timeout.connect(lambda: None)
-        _sig_timer.start(300)
-        app.aboutToQuit.connect(self._cleanup)
+async def run_application(app) -> None:
+    application = PatientMonitorApplication()
+    ui = DemoUiState(
+        app,
+        kind="patient-monitor",
+        title="Patient Monitor",
+        description="Live waveforms and vital signs received through RTI Connext DDS.",
+    )
+    adapter = PatientMonitorDdsAdapter()
+    ui.update(**application.view())
+    ui.log("Patient Monitor is online")
 
-        self.window.show()
-        print("Started Patient Monitor")
+    async def receive_vitals() -> None:
+        async for sample in adapter.vitals_reader.take_data_async():
+            if application.status == "ON":
+                application.receive_vitals(vitals_from_sample(sample))
+                ui.update(**application.view(matched=True))
 
-        app.exec()
+    async def receive_commands() -> None:
+        async for sample in adapter.command_reader.take_data_async():
+            command = sample.command.name
+            application.apply_command(command)
+            adapter.write_status(application.status)
+            ui.log(f"Received {command} command from Orchestrator")
+            ui.update(**application.view())
+            if application.status == "OFF":
+                await app.stop()
+                return
 
-        self.pm_status.status = Common.DeviceStatuses.OFF
+    async def publish_heartbeat() -> None:
+        while application.status != "OFF":
+            adapter.write_heartbeat()
+            await asyncio.sleep(0.05)
 
-    def _cleanup(self):
-        print("Shutting down Patient Monitor")
+    async def refresh_state() -> None:
+        while application.status != "OFF":
+            matched = adapter.vitals_reader.subscription_matched_status.current_count > 0
+            ui.update(**application.view(matched=matched))
+            await asyncio.sleep(0.5)
+
+    try:
+        async with asyncio.TaskGroup() as tasks:
+            tasks.create_task(receive_vitals())
+            tasks.create_task(receive_commands())
+            tasks.create_task(publish_heartbeat())
+            tasks.create_task(refresh_state())
+    finally:
+        if application.status != "OFF":
+            adapter.write_status("OFF")
+        adapter.close()
+        print("Shutting down Patient Monitor", flush=True)
+
+
+def main() -> None:
+    run_demo_ui(create_demo_ui("Patient Monitor"), run_application)
 
 
 if __name__ == "__main__":
-    PatientMonitorApp().run()
+    main()

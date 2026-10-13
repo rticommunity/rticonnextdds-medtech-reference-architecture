@@ -12,25 +12,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Added launch-time application variant selection, including an optional Xbox
   gamepad implementation for ArmController while keeping the simulated
   controller as the default.
-- Added a binary controller-connection indicator to the Arm UI and live control
-  feedback highlighting to the Xbox controller UI.
+- Replaced graphical-app presentation with a shared RTI Demo UI frontend for
+  browser mode and optional embedded native-webview mode.
+- Added a launch-time `--ui-mode` selector and an opt-in CMake build switch for
+  native C++ webview support.
 - Added the `DataFlowLibrary::Control` QoS profile, based on
   `BuiltinQosLib::Pattern.ReliableStreaming`, for teleoperation control state.
 
 ### Changed
 
-- Refreshed the operating-room and security-threat demo interfaces with a
-  consistent updated visual style; the Xbox controller window uses PySide6 to
-  align with the project's Python GUI applications.
+- Separated Connext adapters, simple application behavior, and presentation
+  state; Python graphical apps now use asyncio, while C++ apps hand UI intents
+  to a DDS-owning control thread.
 - Standardized arm-controller and threat-injector commands on
   `t/TeleopControl`, removing the legacy per-joint control path from DDS types,
   applications, security configuration, recording/replay, and routing.
-- Increased held teleoperation command publication from 20 Hz to 50 Hz in the
-  GTK and Xbox controllers without changing the Arm simulator's per-sample
-  motion steps.
+- Kept held teleoperation commands at 50 Hz and the slow demo trajectory at
+  its existing rate without changing the Arm simulator's per-sample motion
+  steps.
+- Raised the project Python minimum to 3.11 for RTI Demo UI and pinned the
+  Python/C++ SDK dependency to an immutable commit.
 - Added RTI copyright and license notices to comment-capable source and
   configuration files, using per-file Git history to set the year or year
   range.
+
+### Removed
+
+- Removed the GTK/gtkmm and Qt/PySide6 frontends, Glade layouts, and
+  pyqtgraph dependency from the graphical applications.
 
 ## [1.3.1] - 2026-09-16
 
@@ -301,7 +310,7 @@ Initial stable release of the RTI MedTech Reference Architecture.
 
 - RTI Connext DDS 7.3.0
 - RTI Code Generator (rtiddsgen) 4.3.0
-- CMake >= 3.17
+- CMake >= 3.18
 
 ---
 

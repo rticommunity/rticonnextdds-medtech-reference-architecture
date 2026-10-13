@@ -10,7 +10,7 @@ applications as end-user runtime containers.
 | Image | Target | Purpose |
 | --- | --- | --- |
 | `medtech-build` | `build` | Ubuntu 24.04 + Connext 7.7.0 + CMake build of C++ modules + security artifacts |
-| `medtech-test` | `test` | Extends build with Python deps, pytest, rumdl, and Xvfb for headless tests |
+| `medtech-test` | `test` | Extends build with Python deps, pytest, and rumdl for browser-mode tests |
 
 ## Prerequisites
 
@@ -86,10 +86,8 @@ docker run --rm -it \
 
 The Docker entrypoint (`tests/docker/entrypoint.sh`):
 
-1. Starts Xvfb virtual display (`:99`) for headless GUI tests
-2. Sources the RTI Connext environment
-3. Runs `pytest` with any provided arguments
-4. Cleans up Xvfb on exit
+1. Sources the RTI Connext environment
+2. Runs `pytest` with any provided arguments
 
 Example: `docker run medtech-test` → entrypoint calls `pytest .` (the full suite)
 
@@ -99,14 +97,14 @@ Example: `docker run medtech-test -k "test_types"` → entrypoint calls `pytest 
 
 - **`medtech-build`** contains the compiled C++ binaries and all system-level
   dependencies. It can be used standalone if you only need the build artifacts.
-- **`medtech-test`** adds Python packages, pytest, rumdl, and Xvfb on top. Keeping
+- **`medtech-test`** adds Python packages, pytest, and rumdl on top. Keeping
   them separate means faster rebuilds when only Python deps change.
 
 ## Notes
 
 - The images use **UDPv4 only** for DDS transport (no shared memory), which is
   the safe default for containers. This matches CI behavior.
-- GUI tests run headlessly via `QT_QPA_PLATFORM=offscreen` and Xvfb.
+- Browser-mode graphical apps and their local SDK endpoints run headlessly without Xvfb.
 - Security artifacts (certificates, signed governance) are generated during the
   build stage so secure tests can run.
 - `docker compose run --rm ...` avoids leftover one-off containers after test

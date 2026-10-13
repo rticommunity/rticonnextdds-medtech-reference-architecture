@@ -11,14 +11,12 @@
 # inability to use the software.
 
 import sys
-from types import SimpleNamespace
 
 import pytest
 from module01_test_support import SRC_DIR
 
 sys.path.insert(0, str(SRC_DIR))
 
-from Arm import ArmWindow  # noqa: E402
 from ArmKinematics import (  # noqa: E402
     GRIPPER_MAX_DEG,
     GRIPPER_MIN_DEG,
@@ -29,7 +27,6 @@ from ArmKinematics import (  # noqa: E402
     apply_teleop_jog,
     planar_tool_position,
 )
-from Types import SurgicalRobot  # noqa: E402
 
 
 @pytest.fixture
@@ -48,13 +45,13 @@ def test_cartesian_jog_moves_tool_in_requested_direction(initial_angles):
 
     moved_x = apply_teleop_jog(
         initial_angles,
-        SurgicalRobot.TeleopAxes.X,
-        SurgicalRobot.TeleopDirections.POSITIVE,
+        "X",
+        "POSITIVE",
     )
     moved_y = apply_teleop_jog(
         initial_angles,
-        SurgicalRobot.TeleopAxes.Y,
-        SurgicalRobot.TeleopDirections.POSITIVE,
+        "Y",
+        "POSITIVE",
     )
 
     after_x = planar_tool_position(moved_x)
@@ -77,8 +74,8 @@ def test_cartesian_jog_preserves_tool_orientation(initial_angles):
 
     moved = apply_teleop_jog(
         initial_angles,
-        SurgicalRobot.TeleopAxes.X,
-        SurgicalRobot.TeleopDirections.POSITIVE,
+        "X",
+        "POSITIVE",
     )
     moved_orientation = sum(
         moved[motor] - 180.0
@@ -96,54 +93,55 @@ def test_gripper_is_limited_to_its_simulated_travel(initial_angles):
     opened[ArmJoint.HAND] = GRIPPER_MAX_DEG
     opened = apply_teleop_jog(
         opened,
-        SurgicalRobot.TeleopAxes.GRIPPER,
-        SurgicalRobot.TeleopDirections.POSITIVE,
+        "GRIPPER",
+        "POSITIVE",
     )
 
     closed = dict(initial_angles)
     closed[ArmJoint.HAND] = GRIPPER_MIN_DEG
     closed = apply_teleop_jog(
         closed,
-        SurgicalRobot.TeleopAxes.GRIPPER,
-        SurgicalRobot.TeleopDirections.NEGATIVE,
+        "GRIPPER",
+        "NEGATIVE",
     )
 
     assert opened[ArmJoint.HAND] == GRIPPER_MAX_DEG
     assert closed[ArmJoint.HAND] == GRIPPER_MIN_DEG
 
 
-def test_positive_roll_increases_visual_wrist_angle(initial_angles):
-    rotated = apply_teleop_jog(
+def test_roll_left_increases_visual_wrist_angle(initial_angles):
+    rolled_left = apply_teleop_jog(
         initial_angles,
-        SurgicalRobot.TeleopAxes.ROLL,
-        SurgicalRobot.TeleopDirections.POSITIVE,
+        "ROLL",
+        "POSITIVE",
     )
-    assert rotated[ArmJoint.WRIST] - initial_angles[ArmJoint.WRIST] == ROTATION_STEP_DEG
+    assert rolled_left[ArmJoint.WRIST] - initial_angles[ArmJoint.WRIST] == ROTATION_STEP_DEG
+
+
+def test_roll_right_decreases_visual_wrist_angle(initial_angles):
+    rolled_right = apply_teleop_jog(
+        initial_angles,
+        "ROLL",
+        "NEGATIVE",
+    )
+    assert rolled_right[ArmJoint.WRIST] - initial_angles[ArmJoint.WRIST] == -ROTATION_STEP_DEG
 
 
 def test_gripper_motion_uses_small_incremental_steps(initial_angles):
     moved = apply_teleop_jog(
         initial_angles,
-        SurgicalRobot.TeleopAxes.GRIPPER,
-        SurgicalRobot.TeleopDirections.NEGATIVE,
+        "GRIPPER",
+        "NEGATIVE",
     )
     assert initial_angles[ArmJoint.HAND] - moved[ArmJoint.HAND] == GRIPPER_STEP_DEG
 
 
-def test_arm_controller_connection_indicator_is_binary():
-    class StatusLabel:
-        def setText(self, text):
-            self.text = text
+def test_device_command_transitions_are_application_logic():
+    from ApplicationLogic import device_status_after_command
 
-        def setStyleSheet(self, style):
-            self.style = style
+    assert device_status_after_command("START") == "ON"
+    assert device_status_after_command("PAUSE") == "PAUSED"
+    assert device_status_after_command("SHUTDOWN") == "OFF"
 
-    window = SimpleNamespace(controller_status_lbl=StatusLabel())
-
-    ArmWindow.set_controller_connected(window, True)
-    assert window.controller_status_lbl.text == "●  CONTROLLER CONNECTED"
-    assert "#00E676" in window.controller_status_lbl.style
-
-    ArmWindow.set_controller_connected(window, False)
-    assert window.controller_status_lbl.text == "●  NO CONTROLLER"
-    assert "#FF4444" in window.controller_status_lbl.style
+    with pytest.raises(ValueError, match="Unsupported device command"):
+        device_status_after_command("REBOOT")

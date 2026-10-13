@@ -48,8 +48,8 @@ You will need:
   See the [Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/installation_guide/installation_guide/Installing.htm) and [Python API setup](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/getting_started_guide/python/before_python.html#installing-connext-heading).
 
   > If `NDDSHOME` is not already in your environment, source the platform setup script from your Connext installation: `source <connext_dir>/resource/scripts/rtisetenv_<arch>.bash` (Linux/macOS) or `rtisetenv_<arch>.bat` (Windows). This script sets `NDDSHOME`, `CONNEXTDDS_ARCH`, and related library paths required by both `build.py` and `launch.py`.
-- **CMake** ≥ 3.17 and a C++ compiler toolchain.
-- **Python** ≥ 3.10.
+- **CMake** ≥ 3.18 and a C++ compiler toolchain.
+- **Python** ≥ 3.11.
 
 Install the system build dependencies for your platform:
 
@@ -61,7 +61,6 @@ sudo apt install \
     build-essential \
     cmake \
     pkg-config \
-    libgtkmm-3.0-dev \
     python3-venv
 ```
 
@@ -70,12 +69,20 @@ sudo apt install \
 
 </details>
 
+Browser mode is the default and does not require a desktop GUI toolkit. To
+build optional C++ native-webview support on Linux, also install GTK 3 and
+WebKitGTK 4.1 development packages:
+
+```bash
+sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
+```
+
 <details>
 <summary><strong>macOS</strong></summary>
 
 ```bash
 xcode-select --install          # compiler toolchain (if not already installed)
-brew install cmake pkg-config gtkmm3 python3
+brew install cmake pkg-config python3
 ```
 
 > Homebrew's `python3` includes `pip` and `venv` — no separate installs needed.
@@ -102,6 +109,28 @@ pip install rti.connext.activated -f $NDDSHOME/resource/python_api
 # pip install rti.connext==7.7.0
 ```
 
+Optional Python native-webview mode can be installed separately with
+`pip install -r requirements-native.txt`. Browser mode does not need this
+companion package. The embedded native window hosts the same web frontend;
+review the SDK's [native-webview support matrix and platform prerequisites](https://wcoleman-rti.github.io/rti-demo-ui/native-webview.html)
+before enabling it on a target platform.
+
+On Debian/Ubuntu with Python 3.13 or newer, Python native mode also uses the
+distro-provided GTK bindings; pip intentionally does not install PyGObject for
+these Python versions. Install the GTK/WebKit typelibs and create the virtual
+environment with system packages visible:
+
+```bash
+sudo apt install gir1.2-gtk-3.0 gir1.2-webkit2-4.1 python3-gi
+python3 -m venv --system-site-packages .venv
+source .venv/bin/activate
+pip install -r requirements.txt -r requirements-native.txt
+```
+
+Use this virtual-environment setup instead of the standard isolated venv setup
+above when you plan to use native mode. An existing isolated environment cannot
+import the system `gi` binding.
+
 ### 4. Build the C++ Modules
 
 Build all modules:
@@ -118,6 +147,27 @@ python3 build.py -- --target ArmController  # only the ArmController target
 ```
 
 The compiled binaries are placed under `build/<CONNEXTDDS_ARCH>/`.
+The C++ core and optional native companion are consumed from the RTI Demo UI
+repository root in one CMake build. The Python core and native runner are
+installed from the same pinned SDK revision using its root package and
+`native/python` subpackage, respectively. To enable native-webview support for
+the C++ graphical apps, configure with:
+
+```bash
+python3 build.py -DRTI_DEMO_BUILD_NATIVE_WEBVIEW=ON
+```
+
+Launch browser mode by default, or select the embedded desktop webview after
+installing/building the matching native companion:
+
+```bash
+python3 launch.py 01-operating-room
+python3 launch.py 01-operating-room --ui-mode native
+```
+
+Graphical apps label each printed local URL with the application name so the
+browser or native-window endpoint can be identified when several apps start
+together.
 
 ### 5. Generate Security Artifacts *(optional — skip if not using `-s`)*
 

@@ -39,9 +39,7 @@ module01_test_support = importlib.import_module("module01_test_support")
 SRC_DIR = module01_test_support.SRC_DIR
 
 from scripts.test_utils import (  # noqa: E402
-    GTK_ENV,
-    NONGUI_PROCESS_WAIT_TIMEOUT,
-    QT_ENV,
+    PROCESS_WAIT_TIMEOUT,
     wait_for_device_status,
     wait_for_process_ready,
     wait_for_reader_match,
@@ -53,7 +51,6 @@ from scripts.test_utils import (  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.gui
 @pytest.mark.slow
 class TestCrashDetection:
     """Killing an app should cause Orchestrator to detect the loss via heartbeat deadline."""
@@ -62,7 +59,7 @@ class TestCrashDetection:
         from Types import Common
 
         patient_sensor = proc_manager.start_app_ready("PatientSensor")
-        proc_manager.start_app("Orchestrator", extra_env=GTK_ENV)
+        proc_manager.start_app("Orchestrator")
 
         hb_reader = nonsecure_utility_app.device_heartbeat.reader
 
@@ -178,7 +175,6 @@ class TestPauseAndResume:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.gui
 @pytest.mark.slow
 class TestGracefulShutdown:
     """Sending SHUTDOWN to each device should cause all processes to exit."""
@@ -191,13 +187,9 @@ class TestGracefulShutdown:
 
         procs = {
             Common.DeviceType.PATIENT_SENSOR: proc_manager.start_app("PatientSensor"),
-            Common.DeviceType.ARM_CONTROLLER: proc_manager.start_app(
-                "ArmController", extra_env=GTK_ENV
-            ),
-            Common.DeviceType.ARM: proc_manager.start_app("Arm", extra_env=QT_ENV),
-            Common.DeviceType.PATIENT_MONITOR: proc_manager.start_app(
-                "PatientMonitor", extra_env=QT_ENV
-            ),
+            Common.DeviceType.ARM_CONTROLLER: proc_manager.start_app("ArmController"),
+            Common.DeviceType.ARM: proc_manager.start_app("Arm"),
+            Common.DeviceType.PATIENT_MONITOR: proc_manager.start_app("PatientMonitor"),
         }
 
         status_reader = nonsecure_utility_app.device_status.reader
@@ -253,7 +245,7 @@ class TestSecurePatientSensor:
         ps = proc_manager_secure.start_app("PatientSensor")
 
         # Wait for security handshake and DDS initialization
-        wait_for_process_ready(ps, timeout_sec=NONGUI_PROCESS_WAIT_TIMEOUT)
+        wait_for_process_ready(ps, timeout_sec=PROCESS_WAIT_TIMEOUT)
 
         if ps.poll() is not None:
             stdout = ps.stdout.read().decode(errors="replace") if ps.stdout else ""
@@ -265,7 +257,6 @@ class TestSecurePatientSensor:
 
 
 @pytest.mark.secure
-@pytest.mark.gui
 class TestSecureAllApps:
     """All C++ apps should launch successfully in secure mode."""
 
@@ -274,7 +265,7 @@ class TestSecureAllApps:
         proc_manager_secure.start_apps_ready(
             [
                 "PatientSensor",
-                ("Orchestrator", GTK_ENV),
-                ("ArmController", GTK_ENV),
+                "Orchestrator",
+                "ArmController",
             ]
         )

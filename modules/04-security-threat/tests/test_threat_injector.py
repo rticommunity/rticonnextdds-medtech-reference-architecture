@@ -78,7 +78,7 @@ class TestInjectorUnsecure:
 
     def test_unsecure_injection_succeeds(self, or_pm_nonsecure, or_env_nonsecure, threat_env):
         """Unsecured injector should match unsecured OR apps."""
-        or_pm_nonsecure.start_app_ready("Arm", extra_env={"QT_QPA_PLATFORM": "offscreen"})
+        or_pm_nonsecure.start_app_ready("Arm")
 
         result = _run_injector_probe(
             threat_env[0],
@@ -102,7 +102,7 @@ class TestInjectorSecure:
     @classmethod
     def _start_arm(cls, or_pm_secure_class):
         """Launch the TeleopControl subscriber once for all tests in this class."""
-        or_pm_secure_class.start_app_ready("Arm", extra_env={"QT_QPA_PLATFORM": "offscreen"})
+        or_pm_secure_class.start_app_ready("Arm")
 
     def test_rogue_ca_injection_blocked(self, or_pm_secure_class, or_env_secure, threat_env):
         """Injector with rogue CA identity should not match secured OR apps."""

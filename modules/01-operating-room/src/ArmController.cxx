@@ -1,121 +1,171 @@
 //
-// (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+// (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
 //
 // RTI grants Licensee a license to use, modify, compile, and create derivative
-// works of the software solely for use with RTI Connext DDS.  Licensee may
-// redistribute copies of the software provided that all such copies are
-// subject to this license. The software is provided "as is", with no warranty
-// of any type, including any warranty for fitness for any purpose. RTI is
-// under no obligation to maintain or support the software.  RTI shall not be
-// liable for any incidental or consequential damages arising out of the use or
-// inability to use the software.
+// works of the software solely for use with RTI Connext DDS. The software is
+// provided "as is", with no warranty of any type.
 
 #include <dds/core/QosProvider.hpp>
-#include <dds/sub/DataReader.hpp>
-#include <dds/sub/find.hpp>
+#include <dds/core/ddscore.hpp>
 #include <dds/pub/DataWriter.hpp>
 #include <dds/pub/find.hpp>
-#include <dds/core/ddscore.hpp>
-#include <rti/core/cond/AsyncWaitSet.hpp>
+#include <dds/sub/DataReader.hpp>
+#include <dds/sub/find.hpp>
 
-#include <thread>
-#include <chrono>
-#include <cstring>
 #include <array>
 #include <atomic>
-#include <gtkmm.h>
-#include <gdkmm/screen.h>
+#include <chrono>
+#include <ctime>
+#include <exception>
+#include <filesystem>
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <sstream>
+#include <thread>
+#include <tuple>
+#include <vector>
 
+#include <rti_demo_ui/rti_demo_ui.hpp>
+
+#include "DemoUiCommandQueue.hpp"
+#include "DemoUiRuntime.hpp"
 #include "Types.hpp"
 
-#ifdef __APPLE__
-    #include "MacOsDockIcon.h"
-#endif
-
-#ifndef _WIN32
-    #include <glib-unix.h>
-#endif
-
 using namespace DdsEntities::Constants;
+using namespace std::chrono_literals;
+using rti::demo::ui::Json;
 
-class SurgicalArmController {
+namespace {
+
+struct UiCommand {
+    std::string action;
+    std::string axis;
+    std::string direction;
+};
+
+struct TeleopAction {
+    SurgicalRobot::TeleopAxes axis;
+    SurgicalRobot::TeleopDirections direction;
+};
+
+SurgicalRobot::TeleopAxes parse_axis(const std::string &axis)
+{
+    if (axis == "X")
+        return SurgicalRobot::TeleopAxes::X;
+    if (axis == "Y")
+        return SurgicalRobot::TeleopAxes::Y;
+    if (axis == "ROLL")
+        return SurgicalRobot::TeleopAxes::ROLL;
+    return SurgicalRobot::TeleopAxes::GRIPPER;
+}
+
+SurgicalRobot::TeleopDirections parse_direction(const std::string &direction)
+{
+    if (direction == "POSITIVE")
+        return SurgicalRobot::TeleopDirections::POSITIVE;
+    if (direction == "NEGATIVE")
+        return SurgicalRobot::TeleopDirections::NEGATIVE;
+    return SurgicalRobot::TeleopDirections::STOPPED;
+}
+
+std::string current_time()
+{
+    const auto now = std::time(nullptr);
+    std::tm local_time { };
+#ifdef _WIN32
+    localtime_s(&local_time, &now);
+#else
+    localtime_r(&now, &local_time);
+#endif
+    std::ostringstream result;
+    result << std::put_time(&local_time, "%H:%M:%S");
+    return result.str();
+}
+
+class ArmControllerLogic {
 public:
-    SurgicalArmController()
-            : current_status(Common::DeviceType::ARM_CONTROLLER,
-                             Common::DeviceStatuses::ON)
+    Common::DeviceStatuses status = Common::DeviceStatuses::ON;
+
+    void start_demo()
     {
-        // Initialize Connext entities
-        initialize_connext();
+        if (status != Common::DeviceStatuses::ON)
+            return;
+        demo_motion_enabled_ = true;
+        reset_demo();
     }
 
-    void run(int argc, char const *argv[])
+    void stop_demo()
     {
-        // Start threads
-        std::thread hb_thread(&SurgicalArmController::write_hb, this);
-        std::thread play_thread(&SurgicalArmController::playing, this);
-        waitset_command.start();
-        write_status();
+        demo_motion_enabled_ = false;
+    }
 
-        // Run GTK UI
-        app = Gtk::Application::create("armcontroller.armcontroller");
-        app->signal_activate().connect(
-                sigc::mem_fun(*this, &SurgicalArmController::ui_setup));
+    void apply_device_command(Orchestrator::DeviceCommands command)
+    {
+        if (command == Orchestrator::DeviceCommands::START) {
+            status = Common::DeviceStatuses::ON;
+        } else if (command == Orchestrator::DeviceCommands::PAUSE) {
+            status = Common::DeviceStatuses::PAUSED;
+            stop_demo();
+        } else {
+            status = Common::DeviceStatuses::OFF;
+            stop_demo();
+        }
+    }
 
-#ifndef _WIN32
-        // Route SIGINT/SIGTERM through the GLib main loop so GTK functions
-        // can be called safely from the callback.
-        g_unix_signal_add(
-                SIGINT,
-                [](gpointer data) -> gboolean {
-                    static_cast<SurgicalArmController *>(data)
-                            ->window_close_from_signal();
-                    return G_SOURCE_REMOVE;
-                },
-                this);
-        g_unix_signal_add(
-                SIGTERM,
-                [](gpointer data) -> gboolean {
-                    static_cast<SurgicalArmController *>(data)
-                            ->window_close_from_signal();
-                    return G_SOURCE_REMOVE;
-                },
-                this);
-#endif
+    bool demo_enabled() const
+    {
+        return demo_motion_enabled_;
+    }
 
-        app->run(argc, const_cast<char **>(argv));
-
-        // Join threads before exiting
-        hb_thread.join();
-        play_thread.join();
+    std::vector<TeleopAction> next_demo_actions()
+    {
+        if (!demo_motion_enabled_ || status != Common::DeviceStatuses::ON) {
+            return { };
+        }
+        std::vector<TeleopAction> actions;
+        if (!tool_sequence_) {
+            const auto &segment = demo_path_[path_index_];
+            if (segment.x != SurgicalRobot::TeleopDirections::STOPPED) {
+                actions.push_back({ SurgicalRobot::TeleopAxes::X, segment.x });
+            }
+            if (segment.y != SurgicalRobot::TeleopDirections::STOPPED) {
+                actions.push_back({ SurgicalRobot::TeleopAxes::Y, segment.y });
+            }
+            if (++segment_tick_ >= segment.ticks) {
+                segment_tick_ = 0;
+                if (++path_index_ >= demo_path_.size()) {
+                    path_index_ = 0;
+                    tool_sequence_ = true;
+                }
+            }
+        } else {
+            const auto &segment = demo_tool_sequence_[tool_index_];
+            actions.push_back({ segment.axis, segment.direction });
+            if (++segment_tick_ >= segment.ticks) {
+                segment_tick_ = 0;
+                if (++tool_index_ >= demo_tool_sequence_.size()) {
+                    tool_index_ = 0;
+                    tool_sequence_ = false;
+                }
+            }
+        }
+        return actions;
     }
 
 private:
-    // Connext entities
-    dds::pub::DataWriter<Common::DeviceStatus> status_writer = dds::core::null;
-    dds::pub::DataWriter<Common::DeviceHeartbeat> hb_writer = dds::core::null;
-    dds::pub::DataWriter<SurgicalRobot::TeleopControl> teleop_writer =
-            dds::core::null;
-    dds::sub::DataReader<Orchestrator::DeviceCommand> cmd_reader =
-            dds::core::null;
-    rti::core::cond::AsyncWaitSet waitset_command;
-
-    Common::DeviceStatus current_status;
-    std::atomic<bool> demo_motion_enabled { false };
-    std::atomic<unsigned int> demo_generation { 0 };
-
-    struct DemoPathSegment {
-        SurgicalRobot::TeleopDirections x_direction;
-        SurgicalRobot::TeleopDirections y_direction;
+    struct PathSegment {
+        SurgicalRobot::TeleopDirections x;
+        SurgicalRobot::TeleopDirections y;
         unsigned int ticks;
     };
-
-    struct DemoToolSegment {
+    struct ToolSegment {
         SurgicalRobot::TeleopAxes axis;
         SurgicalRobot::TeleopDirections direction;
         unsigned int ticks;
     };
 
-    static constexpr std::array<DemoPathSegment, 8> demo_path = { {
+    static constexpr std::array<PathSegment, 8> demo_path_ = { {
             { SurgicalRobot::TeleopDirections::POSITIVE,
               SurgicalRobot::TeleopDirections::STOPPED,
               6 },
@@ -141,8 +191,7 @@ private:
               SurgicalRobot::TeleopDirections::NEGATIVE,
               4 },
     } };
-
-    static constexpr std::array<DemoToolSegment, 4> demo_tool_sequence = { {
+    static constexpr std::array<ToolSegment, 4> demo_tool_sequence_ = { {
             { SurgicalRobot::TeleopAxes::ROLL,
               SurgicalRobot::TeleopDirections::POSITIVE,
               24 },
@@ -157,418 +206,329 @@ private:
               22 },
     } };
 
-    // GTK UI entities
-    Gtk::Window *window = nullptr;
-    Glib::RefPtr<Gtk::Application> app;
-    std::map<std::string, sigc::connection> teleop_timers;
-    Gtk::TextView *console = nullptr;
+    bool demo_motion_enabled_ = false;
+    bool tool_sequence_ = false;
+    std::size_t path_index_ = 0;
+    std::size_t tool_index_ = 0;
+    unsigned int segment_tick_ = 0;
 
-    // Initialize Connext participants, readers, and writers
-    void initialize_connext()
+    void reset_demo()
     {
-        // We need to register the types before we start creating DDS entities
-        rti::domain::register_type<Orchestrator::DeviceCommand>();
-        rti::domain::register_type<Common::DeviceStatus>();
-        rti::domain::register_type<SurgicalRobot::TeleopControl>();
-        rti::domain::register_type<Common::DeviceHeartbeat>();
-
-        // Connext will load XML files through the default provider from the
-        // NDDS_QOS_PROFILES environment variable
-        auto default_provider = dds::core::QosProvider::Default();
-
-        dds::domain::DomainParticipant participant =
-                default_provider.extensions().create_participant_from_config(
-                        std::string(ARM_CONTROLLER_DP));
-
-        // Initialize DataWriters
-        status_writer = rti::pub::find_datawriter_by_name<
-                dds::pub::DataWriter<Common::DeviceStatus>>(
-                participant,
-                std::string(STATUS_DW));
-        hb_writer = rti::pub::find_datawriter_by_name<
-                dds::pub::DataWriter<Common::DeviceHeartbeat>>(
-                participant,
-                std::string(HB_DW));
-        teleop_writer = rti::pub::find_datawriter_by_name<
-                dds::pub::DataWriter<SurgicalRobot::TeleopControl>>(
-                participant,
-                std::string(TELEOP_CONTROL_DW));
-
-        // Initialize DataReader
-        cmd_reader = rti::sub::find_datareader_by_name<
-                dds::sub::DataReader<Orchestrator::DeviceCommand>>(
-                participant,
-                std::string(DEVICE_COMMAND_DR));
-
-        // Setup command handling with a WaitSet
-        dds::sub::cond::ReadCondition command_read_condition(
-                cmd_reader,
-                dds::sub::status::DataState::any(),
-                [this]() { process_command(); });
-
-        waitset_command += command_read_condition;
-    }
-
-    // Publish heartbeat every 50ms
-    void write_hb()
-    {
-        while (current_status.status != Common::DeviceStatuses::OFF) {
-            Common::DeviceHeartbeat hb(Common::DeviceType::ARM_CONTROLLER);
-            hb_writer.write(hb);
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        }
-    }
-
-    // Publish status
-    void write_status()
-    {
-        status_writer.write(current_status);
-    }
-
-    void write_teleop(SurgicalRobot::TeleopAxes axis,
-                      SurgicalRobot::TeleopDirections direction)
-    {
-        if (current_status.status == Common::DeviceStatuses::ON) {
-            if (direction != SurgicalRobot::TeleopDirections::STOPPED) {
-                demo_motion_enabled.store(false);
-            }
-            publish_teleop(axis, direction);
-        }
-    }
-
-    void publish_teleop(SurgicalRobot::TeleopAxes axis,
-                        SurgicalRobot::TeleopDirections direction)
-    {
-        if (current_status.status == Common::DeviceStatuses::ON) {
-            teleop_writer.write(SurgicalRobot::TeleopControl(axis, direction));
-        }
-    }
-
-    void stop_teleop_jogs()
-    {
-        for (auto &timer : teleop_timers) {
-            timer.second.disconnect();
-        }
-        teleop_timers.clear();
-    }
-
-    // Run a repeatable, slow planar sweep followed by wrist and gripper motion.
-    void playing()
-    {
-        std::size_t path_index = 0;
-        std::size_t tool_index = 0;
-        unsigned int segment_tick = 0;
-        bool tool_sequence = false;
-        unsigned int observed_generation = demo_generation.load();
-        bool was_running = false;
-
-        while (current_status.status != Common::DeviceStatuses::OFF) {
-            const bool running = demo_motion_enabled.load()
-                    && current_status.status == Common::DeviceStatuses::ON;
-            const unsigned int generation = demo_generation.load();
-
-            if (!running) {
-                was_running = false;
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                continue;
-            }
-
-            if (!was_running || generation != observed_generation) {
-                path_index = 0;
-                tool_index = 0;
-                segment_tick = 0;
-                tool_sequence = false;
-                observed_generation = generation;
-                was_running = true;
-            }
-
-            if (!tool_sequence) {
-                const DemoPathSegment &segment = demo_path[path_index];
-                if (segment.x_direction
-                    != SurgicalRobot::TeleopDirections::STOPPED) {
-                    publish_teleop(SurgicalRobot::TeleopAxes::X,
-                                   segment.x_direction);
-                }
-                if (segment.y_direction
-                    != SurgicalRobot::TeleopDirections::STOPPED) {
-                    publish_teleop(SurgicalRobot::TeleopAxes::Y,
-                                   segment.y_direction);
-                }
-                if (++segment_tick >= segment.ticks) {
-                    segment_tick = 0;
-                    if (++path_index >= demo_path.size()) {
-                        path_index = 0;
-                        tool_sequence = true;
-                    }
-                }
-            } else {
-                const DemoToolSegment &segment = demo_tool_sequence[tool_index];
-                publish_teleop(segment.axis, segment.direction);
-                if (++segment_tick >= segment.ticks) {
-                    segment_tick = 0;
-                    if (++tool_index >= demo_tool_sequence.size()) {
-                        tool_index = 0;
-                        tool_sequence = false;
-                    }
-                }
-            }
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-    }
-
-    // Process received device commands from Orchestrator
-    void process_command()
-    {
-        dds::sub::LoanedSamples<Orchestrator::DeviceCommand> samples =
-                cmd_reader.take();
-
-        for (const auto &sample : samples) {
-            if (sample.info().valid()) {
-                if (sample.data().command
-                    == Orchestrator::DeviceCommands::PAUSE) {
-                    demo_motion_enabled.store(false);
-                    Glib::signal_idle().connect([this]() -> bool {
-                        stop_teleop_jogs();
-                        return false;
-                    });
-                    log_alert("Received PAUSE Command from Orchestrator");
-                    current_status.status = Common::DeviceStatuses::PAUSED;
-                } else if (sample.data().command
-                           == Orchestrator::DeviceCommands::START) {
-                    log_alert("Received START Command from Orchestrator");
-                    current_status.status = Common::DeviceStatuses::ON;
-                } else {  // shutdown
-                    demo_motion_enabled.store(false);
-                    Glib::signal_idle().connect([this]() -> bool {
-                        stop_teleop_jogs();
-                        return false;
-                    });
-                    log_alert("Received SHUTDOWN Command from Orchestrator");
-                    std::cout << "Arm Controller shutting down" << std::endl;
-                    current_status.status = Common::DeviceStatuses::OFF;
-                    app->quit();
-                }
-            }
-        }
-
-        write_status();
-    }
-
-    // Start or stop the repeatable demo trajectory.
-    void set_demo_motion(bool run_demo)
-    {
-        stop_teleop_jogs();
-        if (run_demo) {
-            demo_generation.fetch_add(1);
-        }
-        demo_motion_enabled.store(run_demo);
-        if (run_demo)
-            log_alert("Started smooth demo motion");
-        else
-            log_alert("Stopped demo motion");
-    }
-
-    // Setup UI
-    void ui_setup()
-    {
-        // Load CSS stylesheet
-        auto css_provider = Gtk::CssProvider::create();
-        try {
-            css_provider->load_from_path("ui/armcontroller.css");
-        } catch (const Glib::Error &e) {
-            std::cerr << "Warning: could not load armcontroller.css: "
-                      << e.what() << std::endl;
-        }
-        Gtk::StyleContext::add_provider_for_screen(
-                Gdk::Screen::get_default(),
-                css_provider,
-                GTK_STYLE_PROVIDER_PRIORITY_USER);
-
-        auto builder = Gtk::Builder::create_from_file("ui/armcontroller.glade");
-        builder->get_widget<Gtk::Window>("window", window);
-
-        // Load RTI logo into header and set as dock/taskbar icon
-        {
-            Gtk::Box *hdr = nullptr;
-            builder->get_widget<Gtk::Box>("header_bar", hdr);
-            try {
-                auto pb = Gdk::Pixbuf::create_from_file(
-                        "../../resource/images/rti_logo.png");
-                window->set_icon(pb);
-#ifdef __APPLE__
-                set_macos_dock_icon(pb);
-#endif
-                if (hdr) {
-                    auto scaled =
-                            pb->scale_simple(56, 56, Gdk::INTERP_BILINEAR);
-                    auto *logo = Gtk::manage(new Gtk::Image(scaled));
-                    logo->set_visible(true);
-                    logo->set_margin_end(8);
-                    hdr->pack_start(*logo, false, false, 0);
-                    hdr->reorder_child(*logo, 0);
-                }
-            } catch (...) {
-            }
-        }
-
-        window->signal_delete_event().connect(
-                sigc::mem_fun(*this, &SurgicalArmController::on_window_close));
-
-        builder->get_widget<Gtk::TextView>("console", console);
-
-        // Force dark background on the text view (CSS alone is unreliable
-        // for GtkTextView internals in GTK3)
-        {
-            Gdk::RGBA bg, fg;
-            bg.set("#060F0A");
-            fg.set("#00CC66");
-            console->override_background_color(bg);
-            console->override_color(fg);
-            console->override_font(
-                    Pango::FontDescription("DejaVu Sans Mono 10"));
-        }
-
-        Gtk::Button *run_demo = nullptr;
-        builder->get_widget<Gtk::Button>("run_demo", run_demo);
-        if (run_demo) {
-            run_demo->signal_clicked().connect(
-                    [this]() { set_demo_motion(true); });
-        }
-
-        Gtk::Button *stop_motion = nullptr;
-        builder->get_widget<Gtk::Button>("stop_motion", stop_motion);
-        if (stop_motion) {
-            stop_motion->signal_clicked().connect(
-                    [this]() { set_demo_motion(false); });
-        }
-
-        connect_teleop_buttons(builder);
-
-        app->add_window(*window);
-        window->set_visible(true);
-
-        log_alert("Started Arm Controller");
-    }
-
-    // Handle window close event
-    bool on_window_close(GdkEventAny *event)
-    {
-        std::cout << "Arm Controller UI closed, shutting down" << std::endl;
-        current_status.status = Common::DeviceStatuses::OFF;
-        demo_motion_enabled.store(false);
-        stop_teleop_jogs();
-        return false;
-    }
-
-    // Close the window from within the GLib main loop (e.g. on SIGINT).
-    void window_close_from_signal()
-    {
-        if (window)
-            window->close();
-        else if (app)
-            app->quit();
-    }
-
-    void connect_teleop_buttons(const Glib::RefPtr<Gtk::Builder> &builder)
-    {
-        auto connect_jog = [this, &builder](
-                                   const std::string &button_name,
-                                   SurgicalRobot::TeleopAxes axis,
-                                   SurgicalRobot::TeleopDirections direction) {
-            Gtk::Button *button = nullptr;
-            builder->get_widget<Gtk::Button>(button_name, button);
-            if (!button)
-                return;
-
-            button->signal_button_press_event().connect(
-                    [this, axis, direction, button_name](
-                            GdkEventButton *event) -> bool {
-                        if (event->button == 1) {
-                            auto previous = teleop_timers.find(button_name);
-                            if (previous != teleop_timers.end()) {
-                                previous->second.disconnect();
-                                teleop_timers.erase(previous);
-                            }
-                            write_teleop(axis, direction);
-                            teleop_timers[button_name] =
-                                    Glib::signal_timeout().connect(
-                                            [this, axis, direction]() -> bool {
-                                                write_teleop(axis, direction);
-                                                return true;
-                                            },
-                                            20);
-                        }
-                        return false;
-                    },
-                    false);
-
-            button->signal_button_release_event().connect(
-                    [this, axis, button_name](GdkEventButton *event) -> bool {
-                        if (event->button == 1) {
-                            auto timer = teleop_timers.find(button_name);
-                            if (timer != teleop_timers.end()) {
-                                timer->second.disconnect();
-                                teleop_timers.erase(timer);
-                            }
-                            write_teleop(
-                                    axis,
-                                    SurgicalRobot::TeleopDirections::STOPPED);
-                        }
-                        return false;
-                    },
-                    false);
-        };
-
-        connect_jog("x_positive",
-                    SurgicalRobot::TeleopAxes::X,
-                    SurgicalRobot::TeleopDirections::POSITIVE);
-        connect_jog("x_negative",
-                    SurgicalRobot::TeleopAxes::X,
-                    SurgicalRobot::TeleopDirections::NEGATIVE);
-        connect_jog("y_positive",
-                    SurgicalRobot::TeleopAxes::Y,
-                    SurgicalRobot::TeleopDirections::POSITIVE);
-        connect_jog("y_negative",
-                    SurgicalRobot::TeleopAxes::Y,
-                    SurgicalRobot::TeleopDirections::NEGATIVE);
-        connect_jog("roll_left",
-                    SurgicalRobot::TeleopAxes::ROLL,
-                    SurgicalRobot::TeleopDirections::POSITIVE);
-        connect_jog("roll_right",
-                    SurgicalRobot::TeleopAxes::ROLL,
-                    SurgicalRobot::TeleopDirections::NEGATIVE);
-        connect_jog("gripper_open",
-                    SurgicalRobot::TeleopAxes::GRIPPER,
-                    SurgicalRobot::TeleopDirections::POSITIVE);
-        connect_jog("gripper_close",
-                    SurgicalRobot::TeleopAxes::GRIPPER,
-                    SurgicalRobot::TeleopDirections::NEGATIVE);
-    }
-
-    // Print message to the alerts console in the UI
-    void log_alert(const std::string &msg)
-    {
-        Glib::RefPtr<Gtk::TextBuffer> buffer = console->get_buffer();
-        Gtk::TextBuffer::iterator iter = buffer->end();
-
-        std::time_t now = std::time(nullptr);
-        std::tm *local_time = std::localtime(&now);
-        char time_str[100];
-        std::strftime(time_str,
-                      sizeof(time_str),
-                      "%Y-%m-%d %H:%M:%S",
-                      local_time);
-
-        std::stringstream ss;
-        ss << "\n" << time_str << " - " << msg;
-        buffer->insert(iter, ss.str());
+        path_index_ = 0;
+        tool_index_ = 0;
+        segment_tick_ = 0;
+        tool_sequence_ = false;
     }
 };
 
-int main(int argc, char const *argv[])
+Json arm_controller_view(const ArmControllerLogic &logic, const Json &logs)
 {
-    SurgicalArmController arm_controller;
-    arm_controller.run(argc, argv);
+    const std::string status = logic.status == Common::DeviceStatuses::ON ? "ON"
+            : logic.status == Common::DeviceStatuses::PAUSED ? "PAUSED"
+                                                             : "OFF";
+    const bool enabled = logic.status == Common::DeviceStatuses::ON;
+    Json jog_controls = Json::array();
+    for (const auto &[axis, label, direction] :
+         std::array<std::tuple<std::string, std::string, std::string>, 4> { {
+                 { "ROLL", "↶  ROLL LEFT", "POSITIVE" },
+                 { "ROLL", "↷  ROLL RIGHT", "NEGATIVE" },
+                 { "GRIPPER", "CLOSE GRIPPER", "NEGATIVE" },
+                 { "GRIPPER", "OPEN GRIPPER", "POSITIVE" },
+         } }) {
+        jog_controls.push_back({ { "type", "hold" },
+                                 { "label", label },
+                                 { "className", "tool-control" },
+                                 { "command", "teleop" },
+                                 { "axis", axis },
+                                 { "direction", direction },
+                                 { "disabled", !enabled } });
+    }
+    Json demo_controls = Json::array({ { { "type", "button" },
+                                         { "label", "RUN DEMO" },
+                                         { "command", "start-demo" },
+                                         { "payload", Json::object() },
+                                         { "style", "primary" },
+                                         { "disabled", !enabled } },
+                                       { { "type", "button" },
+                                         { "label", "STOP MOTION" },
+                                         { "command", "stop-demo" },
+                                         { "payload", Json::object() },
+                                         { "style", "danger" } } });
+    Json control_groups = Json::array();
+    control_groups.push_back(
+            { { "title", "PLANAR POSITION" },
+              { "layout", "planar-pad" },
+              { "controls",
+                Json::array({ Json { { "type", "dpad" },
+                                     { "command", "teleop" },
+                                     { "disabled", !enabled } } }) } });
+    control_groups.push_back({ { "title", "TOOL CONTROLS" },
+                               { "layout", "tool-controls" },
+                               { "controls", jog_controls } });
+    control_groups.push_back({ { "title", "DEMO MOTION" },
+                               { "layout", "demo-controls" },
+                               { "controls", demo_controls } });
+    return {
+        { "kind", "arm-controller" },
+        { "title", "Arm Controller" },
+        { "header_badges",
+          Json::array(
+                  { { { "label", "Command QoS" }, { "value", "ACTIVE" } } }) },
+        { "control_intro",
+          "Hold a direction to jog the simulated tool tip; release to stop." },
+        { "control_note",
+          "X/Y uses a simplified planar two-link model. Wrist roll and "
+          "gripper are separate controls." },
+        { "status", status },
+        { "control_groups", control_groups },
+        { "activity_title", "ALERTS" },
+        { "footer", false },
+        { "logs", logs },
+    };
+}
+
+void run_control(rti::demo::ui::DemoUiApp &app,
+                 medtech::ui::CommandQueue<UiCommand> &commands,
+                 std::atomic<bool> &stopping)
+{
+    rti::domain::register_type<Orchestrator::DeviceCommand>();
+    rti::domain::register_type<Common::DeviceStatus>();
+    rti::domain::register_type<Common::DeviceHeartbeat>();
+    rti::domain::register_type<SurgicalRobot::TeleopControl>();
+
+    auto provider = dds::core::QosProvider::Default();
+    dds::domain::DomainParticipant participant =
+            provider.extensions().create_participant_from_config(
+                    std::string(ARM_CONTROLLER_DP));
+    auto status_writer = rti::pub::find_datawriter_by_name<
+            dds::pub::DataWriter<Common::DeviceStatus>>(participant,
+                                                        std::string(STATUS_DW));
+    auto heartbeat_writer = rti::pub::find_datawriter_by_name<
+            dds::pub::DataWriter<Common::DeviceHeartbeat>>(participant,
+                                                           std::string(HB_DW));
+    auto teleop_writer = rti::pub::find_datawriter_by_name<
+            dds::pub::DataWriter<SurgicalRobot::TeleopControl>>(
+            participant,
+            std::string(TELEOP_CONTROL_DW));
+    auto command_reader = rti::sub::find_datareader_by_name<
+            dds::sub::DataReader<Orchestrator::DeviceCommand>>(
+            participant,
+            std::string(DEVICE_COMMAND_DR));
+
+    ArmControllerLogic logic;
+    struct HeldAxis {
+        SurgicalRobot::TeleopDirections direction;
+        std::chrono::steady_clock::time_point last_refresh;
+    };
+    std::map<SurgicalRobot::TeleopAxes, HeldAxis> held_axes;
+    Common::DeviceStatus status(Common::DeviceType::ARM_CONTROLLER,
+                                logic.status);
+    status_writer.write(status);
+    Json logs = Json::array();
+    auto log = [&](const std::string &message,
+                   const std::string &level = "info") {
+        logs.push_back({ { "time", current_time() },
+                         { "message", message },
+                         { "level", level } });
+        if (logs.size() > 80)
+            logs.erase(logs.begin());
+        app.set_data(arm_controller_view(logic, logs));
+    };
+    app.set_data(arm_controller_view(logic, logs));
+    log("Arm Controller is online");
+    auto next_heartbeat = std::chrono::steady_clock::now();
+    auto next_demo_tick = next_heartbeat;
+    auto next_manual_publish = next_heartbeat;
+    auto stop_held_axes = [&]() {
+        for (const auto &[axis, _] : held_axes) {
+            teleop_writer.write(SurgicalRobot::TeleopControl(
+                    axis,
+                    SurgicalRobot::TeleopDirections::STOPPED));
+        }
+        held_axes.clear();
+    };
+
+    while (!stopping.load() && logic.status != Common::DeviceStatuses::OFF) {
+        while (auto intent = commands.try_pop()) {
+            if (intent->action == "start-demo") {
+                logic.start_demo();
+                stop_held_axes();
+                log("Started smooth demo motion", "ok");
+            } else if (intent->action == "stop-demo") {
+                logic.stop_demo();
+                log("Stopped demo motion");
+            } else if (intent->action == "teleop") {
+                logic.stop_demo();
+                const auto axis = parse_axis(intent->axis);
+                const auto direction = parse_direction(intent->direction);
+                if (direction == SurgicalRobot::TeleopDirections::STOPPED) {
+                    const bool was_held = held_axes.erase(axis) > 0;
+                    teleop_writer.write(
+                            SurgicalRobot::TeleopControl(axis, direction));
+                    if (was_held) {
+                        log("Released " + intent->axis + " jog");
+                    }
+                } else {
+                    const auto now = std::chrono::steady_clock::now();
+                    auto [held, inserted] =
+                            held_axes.try_emplace(axis,
+                                                  HeldAxis { direction, now });
+                    const bool direction_changed =
+                            !inserted && held->second.direction != direction;
+                    held->second.direction = direction;
+                    held->second.last_refresh = now;
+                    if (inserted || direction_changed) {
+                        log("Started " + intent->direction + " " + intent->axis
+                            + " jog");
+                    }
+                }
+            }
+        }
+
+        for (const auto &sample : command_reader.take()) {
+            if (!sample.info().valid())
+                continue;
+            logic.apply_device_command(sample.data().command);
+            if (logic.status != Common::DeviceStatuses::ON) {
+                stop_held_axes();
+            }
+            status.status = logic.status;
+            status_writer.write(status);
+            log("Received a device command from Orchestrator");
+        }
+
+        const auto now = std::chrono::steady_clock::now();
+        for (auto held = held_axes.begin(); held != held_axes.end();) {
+            if (now - held->second.last_refresh > 1500ms) {
+                const auto axis = held->first;
+                held = held_axes.erase(held);
+                teleop_writer.write(SurgicalRobot::TeleopControl(
+                        axis,
+                        SurgicalRobot::TeleopDirections::STOPPED));
+                log("Jog input timed out; stopped "
+                            + std::string(
+                                    axis == SurgicalRobot::TeleopAxes::X ? "X"
+                                            : axis
+                                                    == SurgicalRobot::
+                                                            TeleopAxes::Y
+                                            ? "Y"
+                                            : axis
+                                                    == SurgicalRobot::
+                                                            TeleopAxes::ROLL
+                                            ? "ROLL"
+                                            : "GRIPPER")
+                            + " axis",
+                    "warn");
+            } else {
+                ++held;
+            }
+        }
+        if (now >= next_heartbeat) {
+            heartbeat_writer.write(Common::DeviceHeartbeat(
+                    Common::DeviceType::ARM_CONTROLLER));
+            next_heartbeat = now + 50ms;
+        }
+        if (logic.status == Common::DeviceStatuses::ON) {
+            if (now >= next_demo_tick) {
+                for (const auto &action : logic.next_demo_actions()) {
+                    teleop_writer.write(
+                            SurgicalRobot::TeleopControl(action.axis,
+                                                         action.direction));
+                }
+                next_demo_tick = now + 100ms;
+            }
+            if (now >= next_manual_publish) {
+                for (const auto &[axis, held] : held_axes) {
+                    teleop_writer.write(
+                            SurgicalRobot::TeleopControl(axis, held.direction));
+                }
+                next_manual_publish = now + 20ms;
+            }
+        }
+        std::this_thread::sleep_for(10ms);
+    }
+
+    status.status = Common::DeviceStatuses::OFF;
+    status_writer.write(status);
+    log("Arm Controller is shutting down");
+    app.stop();
+}
+
+}  // namespace
+
+int main()
+{
+    using namespace rti::demo::ui;
+    DemoUiApp app("Arm Controller",
+                  0,
+                  "127.0.0.1",
+                  std::filesystem::path(RTI_DEMO_UI_WEB_ROOT),
+                  Theme::dark,
+                  Layout::automatic,
+                  std::string("Arm Controller listening on"));
+    medtech::ui::CommandQueue<UiCommand> commands;
+    const auto empty_object = Json { { "type", "object" },
+                                     { "properties", Json::object() },
+                                     { "additionalProperties", false } };
+    app.register_command(
+            "start-demo",
+            CommandSchema(empty_object),
+            [&commands](const Json &) {
+                commands.push({ "start-demo", { }, { } });
+                return Json { { "message", "Demo trajectory started" } };
+            });
+    app.register_command(
+            "stop-demo",
+            CommandSchema(empty_object),
+            [&commands](const Json &) {
+                commands.push({ "stop-demo", { }, { } });
+                return Json { { "message", "Demo motion stopped" } };
+            });
+    app.register_command(
+            "teleop",
+            CommandSchema(
+                    { { "type", "object" },
+                      { "properties",
+                        { { "axis",
+                            { { "type", "string" },
+                              { "enum",
+                                Json::array(
+                                        { "X", "Y", "ROLL", "GRIPPER" }) } } },
+                          { "direction",
+                            { { "type", "string" },
+                              { "enum",
+                                Json::array({ "POSITIVE",
+                                              "NEGATIVE",
+                                              "STOPPED" }) } } } } },
+                      { "required", Json::array({ "axis", "direction" }) },
+                      { "additionalProperties", false } }),
+            [&commands](const Json &payload) {
+                commands.push({ "teleop",
+                                payload.at("axis"),
+                                payload.at("direction") });
+                return Json { { "message", "Teleoperation intent queued" } };
+            });
+
+    std::atomic<bool> stopping = false;
+    std::exception_ptr worker_error;
+    std::thread dds_worker([&]() {
+        try {
+            run_control(app, commands, stopping);
+        } catch (...) {
+            worker_error = std::current_exception();
+            app.stop();
+        }
+    });
+    try {
+        medtech::ui::run(app);
+    } catch (...) {
+        stopping.store(true);
+        dds_worker.join();
+        throw;
+    }
+    stopping.store(true);
+    dds_worker.join();
+    if (worker_error)
+        std::rethrow_exception(worker_error);
     return 0;
 }

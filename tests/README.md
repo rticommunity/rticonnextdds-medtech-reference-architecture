@@ -8,7 +8,7 @@ Module-specific tests live under each module's own `tests/` directory.
 | Requirement | Notes |
 | --- | --- |
 | RTI Connext DDS 7.7.x | `NDDSHOME` and `CONNEXTDDS_ARCH` must be set (via rtisetenv script) |
-| Python 3.10+ | With `rti.connextdds` and `pytest` installed (in `.venv` or equivalent) |
+| Python 3.11+ | With `rti.connextdds`, `rti-demo-ui`, and `pytest` installed (in `.venv` or equivalent) |
 | C++ build complete | Run `python build.py` first |
 
 ## Quick Start
@@ -103,7 +103,7 @@ docker compose -f tests/docker/docker-compose.yml run --rm --build test \
 - Reproducing CI failures in a clean environment
 - Verifying behavior when host dependencies vary
 - Final pre-merge validation
-- Testing GUI components on headless systems (Xvfb included)
+- Testing browser UI processes and their local SDK endpoints (no display server required)
 
 ### Markdown and Other Checks
 
@@ -120,7 +120,7 @@ pre-commit run --all-files
 Tests can be filtered using pytest markers. Common markers:
 
 - `@pytest.mark.slow` — Long-running tests (e.g., full application demos)
-- `@pytest.mark.gui` — GUI tests requiring a display
+- `@pytest.mark.gui` — graphical-app process/UI tests; browser mode needs no display server
 - `@pytest.mark.secure` — Security tests requiring artifacts and plugins
 
 Run fast tests only (skip slow/GUI/secure):
@@ -129,7 +129,7 @@ Run fast tests only (skip slow/GUI/secure):
 pytest -m "not slow and not gui and not secure"
 ```
 
-Run only GUI tests:
+Run only graphical-app tests:
 
 ```bash
 pytest -m "gui"

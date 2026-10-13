@@ -362,7 +362,7 @@ and update them as part of the release process.
 | --- | --- | --- |
 | RTI Connext DDS | 7.7.0 | README.md, `.github/workflows/ci.yml` |
 | RTI Code Generator | Bundled with Connext 7.7.0 | Generated source headers |
-| CMake | 3.17 | CMakeLists.txt |
+| CMake | 3.18 | CMakeLists.txt |
 
 **When a dependency version changes:**
 

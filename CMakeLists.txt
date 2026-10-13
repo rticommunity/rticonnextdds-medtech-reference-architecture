@@ -14,7 +14,7 @@
 # the Software.
 #
 
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.18)
 project(MedTechRefArch LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -35,6 +35,19 @@ FetchContent_MakeAvailable(rticonnextdds-cmake-utils)
 list(APPEND CMAKE_MODULE_PATH
     "${rticonnextdds-cmake-utils_SOURCE_DIR}/cmake/Modules"
 )
+
+# RTI Demo UI 0.4.1, pinned to an immutable commit so C++ and Python use the
+# same SDK revision.
+option(RTI_DEMO_BUILD_NATIVE_WEBVIEW
+    "Build the optional native webview companion"
+    OFF
+)
+FetchContent_Declare(
+    rti_demo_ui
+    GIT_REPOSITORY https://github.com/wcoleman-rti/rti-demo-ui.git
+    GIT_TAG        9899dc3afde1288421d335dcfc699fb98458c466
+)
+FetchContent_MakeAvailable(rti_demo_ui)
 
 # --- Find RTI Connext DDS ---
 message(STATUS "Looking for RTI Connext DDS version ${RTICONNEXTDDS_VERSION}...")

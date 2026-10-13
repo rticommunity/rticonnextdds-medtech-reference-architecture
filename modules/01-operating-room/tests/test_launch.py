@@ -16,13 +16,17 @@ GUI applications are marked so they can be skipped on headless systems.
 """
 
 import importlib
+import json
+import re
+import select
+import signal
+import time
+from urllib.request import Request, urlopen
 
 import pytest
 from module01_test_support import MODULE_DIR
 from scripts import module_runner
 from scripts.test_utils import (
-    GTK_ENV,
-    QT_ENV,
     ProcessManager,
     wait_for_device_status,
     wait_for_samples,
@@ -51,39 +55,102 @@ class TestPatientSensor:
         assert "Launching Patient Sensor" in out
 
 
-@pytest.mark.gui
 class TestOrchestrator:
-    """Orchestrator is a C++ GTK application."""
+    """Orchestrator serves the RTI Demo UI browser frontend."""
 
     def test_starts_and_stays_alive(self, proc_manager):
-        proc_manager.start_app_ready("Orchestrator", extra_env=GTK_ENV)
+        proc_manager.start_app_ready("Orchestrator")
 
 
-@pytest.mark.gui
 class TestArmController:
-    """ArmController is a C++ GTK application."""
+    """ArmController serves the RTI Demo UI browser frontend."""
 
     def test_starts_and_stays_alive(self, proc_manager):
-        proc_manager.start_app_ready("ArmController", extra_env=GTK_ENV)
+        proc_manager.start_app_ready("ArmController")
+
+    def test_unreleased_jog_command_times_out(self, proc_manager):
+        proc = proc_manager.start_app_ready("ArmController")
+        assert proc.stdout is not None
+        readable, _, _ = select.select([proc.stdout], [], [], 3)
+        assert readable, "ArmController did not print its browser URL"
+        line = proc.stdout.readline().decode(errors="replace").strip()
+        assert line.startswith("Arm Controller listening on"), line
+        match = re.search(r"https?://127\.0\.0\.1:\d+", line)
+        assert match, f"ArmController printed no local URL: {line}"
+        base_url = match.group(0)
+
+        deadline = time.monotonic() + 3
+        roll_directions = {}
+        while time.monotonic() < deadline:
+            with urlopen(f"{base_url}/api/state", timeout=2) as response:
+                state = json.load(response)
+            groups = state.get("data", {}).get("control_groups", [])
+            tool_controls = next(
+                (group["controls"] for group in groups if group["layout"] == "tool-controls"),
+                [],
+            )
+            roll_directions = {
+                control["label"]: control["direction"]
+                for control in tool_controls
+                if control.get("axis") == "ROLL"
+            }
+            if roll_directions:
+                break
+            time.sleep(0.05)
+        assert roll_directions == {
+            "↶  ROLL LEFT": "POSITIVE",
+            "↷  ROLL RIGHT": "NEGATIVE",
+        }
+
+        with urlopen(f"{base_url}/api/command-capability", timeout=2) as response:
+            capability = json.load(response)["capability"]
+        request = Request(
+            f"{base_url}/api/commands/teleop",
+            data=json.dumps({"axis": "ROLL", "direction": "POSITIVE"}).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": base_url,
+                "X-RTI-Demo-Command-Capability": capability,
+            },
+            method="POST",
+        )
+        with urlopen(request, timeout=2) as response:
+            assert json.load(response)["ok"]
+
+        deadline = time.monotonic() + 4
+        while time.monotonic() < deadline:
+            with urlopen(f"{base_url}/api/state", timeout=2) as response:
+                state = json.load(response)
+            if any(
+                "Jog input timed out" in entry["message"] for entry in state["data"].get("logs", [])
+            ):
+                return
+            time.sleep(0.1)
+        pytest.fail("ArmController did not stop an unreleased jog command")
 
 
-@pytest.mark.gui
 class TestPatientMonitor:
-    """PatientMonitor is a Python/Qt application — use offscreen platform."""
+    """PatientMonitor serves the RTI Demo UI browser frontend."""
 
     def test_starts_and_stays_alive(self, proc_manager):
-        proc_manager.start_app_ready("PatientMonitor", extra_env=QT_ENV)
+        proc_manager.start_app_ready("PatientMonitor")
 
 
-@pytest.mark.gui
 class TestArm:
-    """Arm is a Python/Qt application — use offscreen platform."""
+    """Arm serves the RTI Demo UI browser frontend."""
 
     def test_starts_and_stays_alive(self, proc_manager):
-        proc_manager.start_app_ready("Arm", extra_env=QT_ENV)
+        proc_manager.start_app_ready("Arm")
+
+    def test_ctrl_c_shuts_down_cleanly(self, proc_manager):
+        proc = proc_manager.start_app_ready("Arm")
+        proc.send_signal(signal.SIGINT)
+        proc.wait(timeout=5)
+        stdout, stderr = proc.communicate(timeout=5)
+        assert proc.returncode == 0
+        assert b"KeyboardInterrupt" not in stdout + stderr
 
 
-@pytest.mark.gui
 class TestAllApps:
     """Launch all five applications simultaneously."""
 
@@ -93,10 +160,10 @@ class TestAllApps:
         proc_manager.start_apps_ready(
             [
                 "PatientSensor",
-                ("Orchestrator", GTK_ENV),
-                ("ArmController", GTK_ENV),
-                ("PatientMonitor", QT_ENV),
-                ("Arm", QT_ENV),
+                "Orchestrator",
+                "ArmController",
+                "PatientMonitor",
+                "Arm",
             ]
         )
 
@@ -139,7 +206,6 @@ class TestArmControllerGamepad:
             proc = manager.start_app_ready(
                 "ArmController",
                 extra_env={
-                    "QT_QPA_PLATFORM": "offscreen",
                     "SDL_VIDEODRIVER": "dummy",
                 },
             )

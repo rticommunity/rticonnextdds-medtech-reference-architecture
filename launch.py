@@ -15,7 +15,8 @@
 
 Usage:
     python3 launch.py <module> [apps ...] [-s] [--variant ROLE=CHOICE ...]
-    python3 launch.py --scenario <name> [-s] [--variant ROLE=CHOICE ...]
+        [--ui-mode browser|native]
+    python3 launch.py --scenario <name> [-s] [--ui-mode browser|native]
     python3 launch.py --list-scenarios
 
 Examples:
@@ -60,6 +61,7 @@ def _resolve_module(
     app_names: list[str] | None,
     security: bool,
     variants: dict[tuple[str | None, str], str] | None = None,
+    ui_mode: str = "browser",
 ) -> tuple[list[list[str]], Path, dict[str, str]]:
     """Load a module's config and return (commands, module_dir, env)."""
     modules = module_runner.discover_modules()
@@ -76,6 +78,7 @@ def _resolve_module(
         flags={"security": security},
         variants=module_variants,
     )
+    env["RTI_DEMO_UI_MODE"] = ui_mode
 
     if app_names:
         for name in app_names:
@@ -218,7 +221,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Launch applications from module(s) or a predefined scenario.",
         usage=(
-            "launch.py (<module> [apps ...] | --scenario <name>) [-s] [--variant ROLE=CHOICE ...]"
+            "launch.py (<module> [apps ...] | --scenario <name>) [-s] "
+            "[--variant ROLE=CHOICE ...] [--ui-mode browser|native]"
         ),
     )
 
@@ -265,6 +269,15 @@ def main() -> None:
             "MODULE:ROLE=CHOICE. May be repeated."
         ),
     )
+    parser.add_argument(
+        "--ui-mode",
+        choices=("browser", "native"),
+        default="browser",
+        help=(
+            "Run graphical apps in a browser (default) or an embedded native "
+            "webview; native support is optional at build/install time."
+        ),
+    )
 
     if argcomplete:
         argcomplete.autocomplete(parser)
@@ -309,6 +322,7 @@ def main() -> None:
                     app_names,
                     args.security,
                     variants,
+                    args.ui_mode,
                 )
             except ValueError as exc:
                 parser.error(str(exc))
@@ -327,6 +341,7 @@ def main() -> None:
                 args.apps or None,
                 args.security,
                 variants,
+                args.ui_mode,
             )
         except ValueError as exc:
             parser.error(str(exc))

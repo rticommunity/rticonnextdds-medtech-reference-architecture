@@ -15,7 +15,7 @@ import sys
 
 import pytest
 from module01_test_support import REPO_ROOT, SRC_DIR
-from scripts.test_utils import GTK_ENV, make_isolated_qos_provider, register_type
+from scripts.test_utils import make_isolated_qos_provider, register_type
 
 
 def test_operational_participants_load_from_qos_profiles():
@@ -56,8 +56,7 @@ def test_operational_participants_load_from_qos_profiles():
             participant.close()
 
 
-@pytest.mark.gui
 @pytest.mark.secure
 def test_secure_log_reader_loads_from_named_participant_config(proc_manager_secure):
-    proc = proc_manager_secure.start_app_ready("Orchestrator", extra_env=GTK_ENV)
+    proc = proc_manager_secure.start_app_ready("Orchestrator")
     assert proc.poll() is None

@@ -24,9 +24,9 @@ contributors working from a fork.
 
 | Tool | Minimum Version | Notes |
 | --- | --- | --- |
-| Python | 3.10 | Use `python3.10` explicitly if multiple versions are installed |
+| Python | 3.11 | Use `python3.11` explicitly if multiple versions are installed |
 | RTI Connext DDS | 7.7.x | See [README.md](../README.md) for install instructions |
-| CMake | 3.17 | Required for C++ module builds |
+| CMake | 3.18 | Required for C++ module builds and pinned SDK FetchContent integration |
 | Docker | Any recent | Optional; required only for containerised test runs |
 
 ---
@@ -141,13 +141,35 @@ The pipeline has two CI jobs; `test` runs only after `lint` passes. A conditiona
 | Job | What it does |
 | --- | --- |
 | `lint` (Lint & Format) | Runs **all** pre-commit hooks across the repo (`pre-commit/action` with `--all-files`) — the same ruff, ruff-format, codespell, clang-format, rumdl, and hygiene hooks you run locally. |
-| `test` (Build & Test) | Installs Connext (apt) and Python deps, builds all C++ modules with `python build.py`, generates the system and Module 04 security artifacts, starts Xvfb, then runs the full suite from the repo root with `python -m pytest -v -m "not build_pipeline"` and uploads `results.xml`. |
+| `test` (Build & Test) | Installs Connext (apt) and Python deps, builds all C++ modules with `python build.py`, generates the system and Module 04 security artifacts, then runs the full suite from the repo root with `python -m pytest -v -m "not build_pipeline"` and uploads `results.xml`. |
 | `release` (Publish GitHub Release) | Validates the SemVer tag and publishes generated release notes. Pre-release tags are marked accordingly. |
 
 Because the `lint` job runs `pre-commit` itself, CI and your local hooks execute
 the **exact same** hook versions (pinned in `.pre-commit-config.yaml`). A clean
 local commit will therefore not produce lint failures in CI. See
 [Upgrading Ruff](#upgrading-ruff) for how the Ruff pin is managed.
+
+## Graphical-app architecture
+
+Graphical applications use RTI Demo UI for browser presentation, with an
+optional embedded-webview mode. Keep each demo's source flow recognizable:
+
+- Connext adapters own participant/entity setup, generated DDS types, topics,
+  security configuration, and translation of DDS samples and commands.
+- Small application models own use-case state and rules without depending on
+  the frontend.
+- Presentation maps application state to the shared web frontend and maps
+  validated UI commands back to application intents.
+
+This is a teaching-oriented separation, not a production framework. Keep
+Connext operations visible and avoid abstractions that obscure how DDS
+interacts with the medical-demo behavior.
+
+Python apps use asyncio as the RTI Demo UI owner loop; schedule cross-thread
+DDS updates onto that loop before mutating UI state. C++ apps should make
+thread ownership explicit: HTTP command handlers enqueue intents, a defined
+application/control thread performs DDS work, and the SDK's thread-safe model
+API carries state to the frontend.
 
 ## Testing CI Locally with act (Optional)
 

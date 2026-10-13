@@ -18,11 +18,9 @@ All run commands in this README are launched from the repository root. The proje
 
 ## Module Description
 
-Two Python GUI applications simulate different real-world attack scenarios against the operating room DDS bus.
+Two Python applications serve RTI Demo UI browser frontends and simulate different real-world attack scenarios against the operating room DDS bus. Use `--ui-mode native` to open the same frontend in an embedded desktop webview.
 
 ### Threat Injector
-
-![Threat Injector Example](../../resource/images/module-04-threat-injector-example.png)
 
 The *Threat Injector* application publishes fabricated teleoperation commands on `t/TeleopControl` and device commands on `t/DeviceCommand`, simulating an attacker attempting to disrupt the surgical arm or seize device control through interfaces used by trusted applications. It provides a GUI to select:
 
@@ -41,13 +39,11 @@ The *Threat Injector* application publishes fabricated teleoperation commands on
 
 Attack status is derived from `publication_matched_status` — the app checks whether its DataWriters have matched any remote subscribers. If a subscriber matches (unsecured OR is running), the status badge shows **ATTACKING** (green) and log entries appear as `[OK]`. If no subscriber matches (secured OR blocks the handshake), the status badge shows **NO ACCESS** (orange) and log entries appear as `[WARN]`.
 
-The updated Module 01 surgical-arm visualization shows injected teleoperation commands in real time. The panel renders in color when an attack mode is active and in grey when idle. Use the header's **LOG** control to collapse or reopen the activity log; it shows an event count and is expanded by default.
+The arm visualization shows injected teleoperation commands in real time. The activity stream records participant, match, and write outcomes.
 
 ### Threat Exfiltrator
 
-![Threat Exfiltrator Example](../../resource/images/module-04-threat-exfiltrator-example.png)
-
-The *Threat Exfiltrator* application subscribes to the `t/Vitals` topic, displaying patient vital signs as if harvesting them for unauthorised use. Attack status is derived from `subscription_matched_status` — when the exfiltrator's DataReader matches a remote publisher, the status badge shows **ACCESS GRANTED** and live heart rate, SpO₂, EtCO₂, and NiBP values stream in. When no match occurs (secured OR), the vitals panels show `---` and the status badge shows **NO ACCESS**. A separate data-state indicator distinguishes waiting for vitals, live data, and a quiet/stale stream. Its activity log can also be collapsed from the header and includes an event count.
+The *Threat Exfiltrator* application subscribes to the `t/Vitals` topic, displaying patient vital signs as if harvesting them for unauthorised use. Attack status is derived from `subscription_matched_status` — when the exfiltrator's DataReader matches a remote publisher, the interface shows **ACCESS GRANTED** and live heart rate, SpO₂, EtCO₂, and NiBP values stream in. When no match occurs (secured OR), the visualizations show unavailable values and the status shows **NO ACCESS**. A separate data-state indicator distinguishes waiting for vitals, live data, and a quiet/stale stream. Its activity stream records DDS and security events.
 
 ### Status States
 
@@ -122,19 +118,20 @@ python3 launch.py 04-security-threat ThreatExfiltrator
 2. Select an **Attack Type** (defaults to Motor Inject).
 3. Click **LAUNCH ATTACK**.
 
-The Activity Log and status badge update in real time.
+The activity stream and security status update in real time. Each graphical app
+prints the local URL to open; the browser is the default presentation mode.
 
 | Scenario | OR mode | Attack mode | Threat app | OR app |
 | --- | --- | --- | --- | --- |
-| Motor inject | Unsecured | Unsecure | Status: **ATTACKING**; `[OK]` log entries; arm viz moves | *Arm* GUI moves erratically |
-| Motor inject | Secured | Rogue CA | Status: **NO ACCESS**; `[WARN]` log entries; arm viz moves locally | *Arm* unaffected |
-| Motor inject | Secured | Forged Perms | Status: **NO ACCESS**; `[WARN]` log entries; arm viz moves locally | *Arm* unaffected |
-| Motor inject | Secured | Expired Cert | Status: **ATTACK FAILED**; participant creation blocked | *Arm* unaffected |
+| Teleop inject | Unsecured | Unsecure | Status: **ATTACKING**; `[OK]` log entries; arm viz moves | *Arm* browser view moves erratically |
+| Teleop inject | Secured | Rogue CA | Status: **NO ACCESS**; `[WARN]` log entries; arm viz moves locally | *Arm* unaffected |
+| Teleop inject | Secured | Forged Perms | Status: **NO ACCESS**; `[WARN]` log entries; arm viz moves locally | *Arm* unaffected |
+| Teleop inject | Secured | Expired Cert | Status: **ATTACK FAILED**; participant creation blocked | *Arm* unaffected |
 | Vitals exfiltrate | Unsecured | Unsecure | Status: **ACCESS GRANTED**; vitals panels populate | *Patient Monitor* continues normally |
 | Vitals exfiltrate | Secured | Rogue CA | Status: **NO ACCESS**; vitals panels show `---` | *Patient Monitor* continues normally |
 | Vitals exfiltrate | Secured | Expired Cert | Status: **ATTACK FAILED**; participant creation blocked | *Patient Monitor* continues normally |
 
-> **Observe:** When the OR is running in unsecured mode and you select **Motor Inject → LAUNCH ATTACK**, the *Arm* GUI in Module 01 begins receiving the fabricated commands and the arm visualization moves erratically — even though no legitimate operator is sending commands. Switch the OR to secured mode (restart with `-s`) and repeat: the arm in Module 01 is completely unaffected, and the injector's status changes to **NO ACCESS**.
+> **Observe:** When the OR is running in unsecured mode and you select **Teleop Inject → LAUNCH ATTACK**, the *Arm* browser view in Module 01 begins receiving the fabricated commands and the arm visualization moves erratically — even though no legitimate operator is sending commands. Switch the OR to secured mode (restart with `-s`) and repeat: the arm in Module 01 is completely unaffected, and the injector's status changes to **NO ACCESS**.
 >
 > **Observe:** When you switch between Rogue CA and Forged Permissions modes, both result in **NO ACCESS** because the DDS Security handshake fails at different stages — but the observable result from the threat app's perspective is the same: no publication match, no data flowing.
 
