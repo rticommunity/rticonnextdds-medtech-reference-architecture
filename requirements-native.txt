@@ -1,4 +1,4 @@
 # Optional Python embedded-webview support. The browser UI needs only
 # requirements.txt; native mode also requires the platform GTK/WebKit, WebView2,
 # or WKWebView prerequisites documented in the RTI Demo UI native-webview guide.
-rti-demo-ui-native @ git+https://github.com/wcoleman-rti/rti-demo-ui.git@4e4b0f229e4968a2245fa6f09b9a720b11d47eb8#subdirectory=native/python
+rti-demo-ui-native @ git+https://github.com/wcoleman-rti/rti-demo-ui.git@63c16f7e81baf008f370bbc15355f2a4a7e44db7#subdirectory=native/python

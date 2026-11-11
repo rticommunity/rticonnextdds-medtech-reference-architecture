@@ -63,7 +63,7 @@ Module-specific notes:
 - If you plan to use secure mode, make sure the security artifacts from the root README have been generated.
 - There is no module-local build or launch script; use the project-level `build.py` and `launch.py` scripts from the repository root.
 - The Xbox/gamepad variant is optional at runtime. Its Pygame Community Edition dependency is installed with the standard root `requirements.txt`.
-- Native webview mode is optional. Python requires `pip install -r requirements-native.txt`; on Linux with Python 3.13+, create the virtual environment with `--system-site-packages` so it can import the system `python3-gi` binding. C++ requires configuring with `-DRTI_DEMO_BUILD_NATIVE_WEBVIEW=ON`; the SDK root integration builds the core and optional native companion together. Install the platform prerequisites described in the root README and the RTI Demo UI native-webview guide.
+- Native webview mode is optional. Python requires `pip install -r requirements-native.txt`; on Linux with Python 3.13+, create the virtual environment with `--system-site-packages` so it can import the system `python3-gi` binding. C++ requires configuring with `-DRTI_DEMO_BUILD_NATIVE_WEBVIEW=ON`; the SDK root integration builds the core and optional native companion together. Native windows use the project RTI logo; Windows uses its ICO variant. Install the platform prerequisites described in the root README and the RTI Demo UI native-webview guide.
 - In native mode, the C++ System Orchestrator opens at 1600x950 and the Arm Controller at 1400x900; both windows remain resizable.
 
 ## Run the Demo

@@ -43,13 +43,21 @@ def test_launcher_propagates_native_mode():
     assert env["RTI_DEMO_UI_MODE"] == "native"
 
 
+def test_native_icon_uses_a_platform_supported_format(monkeypatch):
+    monkeypatch.setattr(DemoUiSupport.sys, "platform", "linux")
+    assert DemoUiSupport.native_icon_path() == WEB_ROOT / "rti_logo.png"
+    monkeypatch.setattr(DemoUiSupport.sys, "platform", "win32")
+    assert DemoUiSupport.native_icon_path() == WEB_ROOT / "rti_logo.ico"
+
+
 def test_native_mode_delegates_to_sdk_runner(monkeypatch):
     monkeypatch.setenv("RTI_DEMO_UI_MODE", "native")
     launched = {}
 
-    def run_native(app, *, async_main):
+    def run_native(app, *, async_main, icon):
         launched["app"] = app
         launched["async_main"] = async_main
+        launched["icon"] = icon
 
     native_module = ModuleType("rti_demo_ui_native")
     native_module.run_native = run_native
@@ -61,7 +69,11 @@ def test_native_mode_delegates_to_sdk_runner(monkeypatch):
     app = DemoUiApp("Native UI preflight", host="127.0.0.1", static_root=WEB_ROOT)
     DemoUiSupport.run_demo_ui(app, no_work)
 
-    assert launched == {"app": app, "async_main": no_work}
+    assert launched == {
+        "app": app,
+        "async_main": no_work,
+        "icon": WEB_ROOT / "rti_logo.png",
+    }
 
 
 def test_sdk_serves_the_custom_medtech_frontend_and_app_state(capsys):
@@ -84,6 +96,9 @@ def test_sdk_serves_the_custom_medtech_frontend_and_app_state(capsys):
                 async with session.get(f"{ready.url}/app.js") as response:
                     assert response.status == 200
                     assert "createClient" in await response.text()
+                async with session.get(f"{ready.url}/rti_logo.png") as response:
+                    assert response.status == 200
+                    assert response.content_type == "image/png"
                 async with session.get(f"{ready.url}/api/state") as response:
                     assert response.status == 200
                     state = await response.json()

@@ -23,6 +23,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 WEB_ROOT = PROJECT_ROOT / "resource" / "ui_web"
 
 
+def native_icon_path() -> Path:
+    filename = "rti_logo.ico" if sys.platform == "win32" else "rti_logo.png"
+    return WEB_ROOT / filename
+
+
 def arm_angles_for_view(angles, joints) -> dict[str, float]:
     return {joints[joint]: round(float(angle), 1) for joint, angle in angles.items()}
 
@@ -79,7 +84,7 @@ def run_demo_ui(app: DemoUiApp, work: AsyncWork) -> None:
                 "Native UI mode requires the optional rti-demo-ui-native package; "
                 "install requirements-native.txt and the platform webview prerequisites"
             ) from exc
-        run_native(app, async_main=work)
+        run_native(app, async_main=work, icon=native_icon_path())
         return
 
     asyncio.run(_run_browser(app, work))

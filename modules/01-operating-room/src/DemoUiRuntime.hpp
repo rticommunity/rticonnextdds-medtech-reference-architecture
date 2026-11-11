@@ -13,11 +13,13 @@
 #include <csignal>
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
 
 #ifdef RTI_DEMO_UI_NATIVE_AVAILABLE
     #include <rti_demo_ui_native/native_webview.hpp>
@@ -48,17 +50,27 @@ inline bool native_mode()
             "Unknown RTI_DEMO_UI_MODE; choose browser or native");
 }
 
+inline std::filesystem::path native_icon_path()
+{
+#ifdef _WIN32
+    return std::filesystem::path(RTI_DEMO_UI_WEB_ROOT) / "rti_logo.ico";
+#else
+    return std::filesystem::path(RTI_DEMO_UI_WEB_ROOT) / "rti_logo.png";
+#endif
+}
+
 inline void run(rti::demo::ui::DemoUiApp &app,
                 [[maybe_unused]] int native_width = 1280,
-                [[maybe_unused]] int native_height = 800)
+                [[maybe_unused]] int native_height = 800,
+                [[maybe_unused]] std::filesystem::path native_icon = { })
 {
     if (native_mode()) {
 #ifdef RTI_DEMO_UI_NATIVE_AVAILABLE
-        rti::demo::ui::native::run(app,
-                                   rti::demo::ui::native::NativeWindowOptions {
-                                           native_width,
-                                           native_height,
-                                   });
+        rti::demo::ui::native::NativeWindowOptions options;
+        options.width = native_width;
+        options.height = native_height;
+        options.icon = std::move(native_icon);
+        rti::demo::ui::native::run(app, std::move(options));
         return;
 #else
         throw std::runtime_error(

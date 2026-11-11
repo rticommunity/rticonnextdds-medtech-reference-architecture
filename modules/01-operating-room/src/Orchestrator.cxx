@@ -390,7 +390,7 @@ int main()
         }
     });
     try {
-        medtech::ui::run(app, 1600, 950);
+        medtech::ui::run(app, 1600, 950, medtech::ui::native_icon_path());
     } catch (...) {
         stopping.store(true);
         dds_worker.join();

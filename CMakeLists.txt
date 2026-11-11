@@ -36,8 +36,8 @@ list(APPEND CMAKE_MODULE_PATH
     "${rticonnextdds-cmake-utils_SOURCE_DIR}/cmake/Modules"
 )
 
-# RTI Demo UI v0.4.1 with the native GTK sizing fix, pinned so C++ and Python
-# use the same SDK revision.
+# RTI Demo UI v0.4.1 with native GTK sizing and icon support, pinned so C++ and
+# Python use the same SDK revision.
 option(RTI_DEMO_BUILD_NATIVE_WEBVIEW
     "Build the optional native webview companion"
     OFF
@@ -45,7 +45,7 @@ option(RTI_DEMO_BUILD_NATIVE_WEBVIEW
 FetchContent_Declare(
     rti_demo_ui
     GIT_REPOSITORY https://github.com/wcoleman-rti/rti-demo-ui.git
-    GIT_TAG        4e4b0f229e4968a2245fa6f09b9a720b11d47eb8
+    GIT_TAG        63c16f7e81baf008f370bbc15355f2a4a7e44db7
 )
 FetchContent_MakeAvailable(rti_demo_ui)
 
