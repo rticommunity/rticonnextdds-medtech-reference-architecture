@@ -21,6 +21,14 @@ from rti_demo_ui import DemoUiApp
 AsyncWork = Callable[[DemoUiApp], Awaitable[None]]
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 WEB_ROOT = PROJECT_ROOT / "resource" / "ui_web"
+ARM_SCENE_MODEL_URL = "/models/articulated-arm.glb"
+ARM_SCENE_CAMERA = {
+    "mode": "orbit",
+    "position": [0.72, 0.62, 0.82],
+    "target": [0.0, 0.25, 0.0],
+    "min_distance": 0.25,
+    "max_distance": 4.0,
+}
 
 
 def native_icon_path() -> Path:
@@ -30,6 +38,42 @@ def native_icon_path() -> Path:
 
 def arm_angles_for_view(angles, joints) -> dict[str, float]:
     return {joints[joint]: round(float(angle), 1) for joint, angle in angles.items()}
+
+
+def add_arm_scene(app: DemoUiApp, model):
+    """Create one persistent SDK Scene3D component for the articulated arm."""
+    scene = app.add_card("Articulated surgical arm").add_scene_3d(
+        ARM_SCENE_MODEL_URL,
+        camera=ARM_SCENE_CAMERA,
+        background="#0a0e17",
+        grid=False,
+    )
+    for node_id, transform in model.node_transforms.items():
+        scene.add_node(
+            node_id,
+            transform["path"],
+            position=transform["position"],
+            rotation=transform["rotation"],
+            status="success" if model.reachable else "warning",
+        )
+    return scene
+
+
+def update_arm_scene(scene, model) -> None:
+    """Batch local joint/TCP updates without replacing the Scene3D component."""
+    status = "success" if model.reachable else "warning"
+    scene.apply_node_batch(
+        [
+            {
+                "op": "update",
+                "id": node_id,
+                "position": transform["position"],
+                "rotation": transform["rotation"],
+                "status": status,
+            }
+            for node_id, transform in model.node_transforms.items()
+        ]
+    )
 
 
 def create_demo_ui(title: str) -> DemoUiApp:

@@ -26,7 +26,7 @@ inability to use the software. -->
             <rtps_psk_protection_kind>ENCRYPT</rtps_psk_protection_kind>
             <topic_access_rules>
                 <topic_rule>
-                    <topic_expression>t/Vitals</topic_expression>
+                    <topic_expression>t/patient/vitals</topic_expression>
                     <enable_discovery_protection>false</enable_discovery_protection>
                     <enable_liveliness_protection>false</enable_liveliness_protection>
                     <enable_read_access_control>true</enable_read_access_control>

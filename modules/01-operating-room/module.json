@@ -1,12 +1,12 @@
 {
     "description": "Digital Operating Room",
     "env": {
-        "NDDS_QOS_PROFILES": "system_arch/qos/Qos.xml;${args:security};system_arch/xml_app_creation/DomainLibrary.xml;system_arch/xml_app_creation/ParticipantLibrary.xml"
+        "NDDS_QOS_PROFILES": "system/qos/Qos.xml;${args:security};system/xml_app_creation/DomainLibrary.xml;system/xml_app_creation/ParticipantLibrary.xml"
     },
     "args": {
         "security": {
-            "true": "system_arch/qos/SecureAppsQos.xml",
-            "false": "system_arch/qos/NonSecureAppsQos.xml"
+            "true": "system/qos/SecureAppsQos.xml",
+            "false": "system/qos/NonSecureAppsQos.xml"
         }
     },
     "app_variants": {

@@ -20,7 +20,7 @@
 #include <dds/sub/DataReader.hpp>
 #include <dds/sub/find.hpp>
 #include <rti/sub/SampleProcessor.hpp>
-#include "Types.hpp"
+#include "MedTech.hpp"
 
 using namespace DdsEntities::Constants;
 #include "builtin_logging_type.hpp"

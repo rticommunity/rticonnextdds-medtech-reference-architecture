@@ -16,20 +16,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   browser mode and optional embedded native-webview mode.
 - Added a launch-time `--ui-mode` selector and an opt-in CMake build switch for
   native C++ webview support.
-- Added the `DataFlowLibrary::Control` QoS profile, based on
-  `BuiltinQosLib::Pattern.ReliableStreaming`, for teleoperation control state.
+- Added arm readiness, observed telemetry, and parallel-jaw rate control:
+  three additional operational topics.
+- Added an articulated six-axis kinematic demo and original GLB using the pinned
+  SDK's existing Scene3D renderer, without replacing the UI backend.
+- Added the `DataFlowLibrary::Control` QoS profile for best-effort, volatile,
+  depth-one arm/tool rates with diagnostic deadlines and finite writer lifespan.
 
 ### Changed
 
+- Updated the pinned Python/C++ UI SDK, restored original arm-material colors,
+  and added persistent base-relative side/top camera views without changing the
+  control frame or arm position. The SDK pin includes consumer-provided native
+  app icon support for both Python and C++ launchers.
+- Added a publication-driven blinking light to the Arm's compact reported
+  telemetry section, clarified camera-reset feedback, and consistently grouped
+  opposing Xbox controls.
+- Clarified the Arm window's locally reported telemetry, removed its incoming
+  telemetry freshness badge, and simplified/styled the scene's camera controls
+  and normal-rendering node list.
+- Switched all linear/angular TCP commands to the fixed base frame (+Z up),
+  preserving TCP position during rotation and keeping jaw travel tool-local.
+  Updated both controllers and the fixed-frame contract; earlier tool-frame
+  command recordings/publishers are semantically incompatible.
+- Adapted the Xbox layout to base X/Y stick motion, trigger up/down, right-stick
+  base X/Y rotation, and bumper base Z rotation.
+- Connected the rendered parallel jaws to a gripper palm and aligned their
+  contact faces with the TCP and observed jaw gap.
+- Made shared GUI layouts adapt to narrower windows, including controller
+  controls, header badges, feedback, and the exfiltrator's vitals panels.
+- Display on-change arm readiness as last known, independently of periodic
+  telemetry freshness, and preserve device `ERROR` in the Orchestrator display.
 - Separated Connext adapters, simple application behavior, and presentation
   state; Python graphical apps now use asyncio, while C++ apps hand UI intents
   to a DDS-owning control thread.
 - Standardized arm-controller and threat-injector commands on
-  `t/TeleopControl`, removing the legacy per-joint control path from DDS types,
+  `t/robot/arm/control`, removing the legacy per-joint control path from DDS types,
   applications, security configuration, recording/replay, and routing.
-- Kept held teleoperation commands at 50 Hz and the slow demo trajectory at
-  its existing rate without changing the Arm simulator's per-sample motion
-  steps.
+- Breaking system-contract migration: renamed `system_arch/` to `system/`,
+  replaced authored XML types with modular `MedTech.idl`, and centralized
+  generated C++/Python/XML artifacts in the architecture-specific build tree.
+- Replaced per-axis direction samples and per-message planar steps with complete
+  base-frame TCP velocity and signed jaw-gap rates. A periodic simulation reads
+  valid DDS-cached commands; lifespan expiry holds current pose/gap without a
+  duplicate application timeout. Controllers display actual DDS feedback.
+- Aligned all operational topic names with device/robot/patient namespaces,
+  including service routes, recording/replay, and least-privilege permissions.
+  Existing recordings must be recreated; no legacy wire/topic bridge is provided.
 - Raised the project Python minimum to 3.11 for RTI Demo UI and pinned the
   Python/C++ SDK dependency to an immutable commit.
 - Added RTI copyright and license notices to comment-capable source and
@@ -38,6 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Removed
 
+- Removed the maintained System Designer project and its recommended-use workflow.
 - Removed the GTK/gtkmm and Qt/PySide6 frontends, Glade layouts, and
   pyqtgraph dependency from the graphical applications.
 
@@ -70,7 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Strengthened LAN, WAN, and threat-example governance with RTPS origin
   authentication and pre-authentication PSK encryption.
-- Added topic-level metadata encryption for `t/Vitals` and `t/MotorControl`,
+- Added topic-level metadata encryption for `t/patient/vitals` and `t/MotorControl`,
   with encryption applied to all topics over WAN connections.
 - Restricted the external System Observer to read-only access across topics
   and partitions.
@@ -146,7 +180,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   field shapes, type checks, `${args:X}` cross-reference) and negative
   `load_module_config` parsing tests (missing flags, unknown placeholders,
   undefined args references)
-- `tests/test_security_status.py` — validates `system_arch/security/` certificate
+- `tests/test_security_status.py` — validates `system/security/` certificate
   chain via `setup_security.py --status`; fails on any EXPIRED artifact
 - `modules/04-security-threat/tests/test_threat_security_status.py` — same
   status check for the Module 04 threat security tree via `setup_threat_security.py --status`
@@ -194,12 +228,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `security_tree.py` with templates (`ca.cnf.j2`, `governance.xml.j2`,
   `identity.cnf.j2`, `permissions.xml.j2`)
 - Hierarchical security tree: `ca/`, `domain_scope/`, and `identity/`
-  directories under both `system_arch/security/` and
+  directories under both `system/security/` and
   `modules/04-security-threat/security/`
 - Three-tier CA hierarchy: TrustedRootCa, TrustedIdentityCa,
   TrustedPermissionsCa
 - Domain-scoped governance and permissions for OperationalDomain and
-  TeleopWanDomain (system_arch) and ThreatDomain (module 04)
+  TeleopWanDomain (system) and ThreatDomain (module 04)
 - Per-participant identity configs organized by module
   (operating-room, record-playback, remote-teleop, security-threat)
 - `.markdownlint.json` for consistent Markdown linting across contributors
@@ -210,7 +244,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Replaced all per-module `scripts/` directories with the unified
   top-level `build.py` + `launch.py` orchestration
-- Restructured `system_arch/security/` from flat `identities/` + `xml/`
+- Restructured `system/security/` from flat `identities/` + `xml/`
   layout to hierarchical `ca/` + `domain_scope/` + `identity/` tree
 - Restructured `modules/04-security-threat/security/` from flat layout
   (`expired/`, `forged_perms/`, `identities/`, `rogue_ca/`, `xml/`) to
@@ -235,12 +269,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Per-module `scripts/` directories (modules 01, 03, 04) — replaced by
   centralized `build.py` + `launch.py`
-- `system_arch/scripts/platform_setup.py` — moved to
+- `system/scripts/platform_setup.py` — moved to
   `resource/python/scripts/platform_setup.py`
 - `resource/cmake/rticonnextdds-cmake-utils` submodule — replaced by
   CMake FetchContent
-- Flat security layouts: `system_arch/security/identities/`,
-  `system_arch/security/xml/`, and module 04 equivalents
+- Flat security layouts: `system/security/identities/`,
+  `system/security/xml/`, and module 04 equivalents
   (`expired/`, `forged_perms/`, `identities/`, `rogue_ca/`, `xml/`)
 
 ## [1.1.0] - 2026-03-27
@@ -274,7 +308,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   custom target
 - Module 01 `README.md`: updated Python dependency references from PyQt5 to
   PySide6
-- `system_arch/qos/Qos.xml`: removed volatile durability override from
+- `system/qos/Qos.xml`: removed volatile durability override from
   secure-log DataReader QoS profile
 - Root `.gitignore`: added patterns for `builtin_logging_type.py` and
   `*_timestamp.cmake` generated files
@@ -326,6 +360,6 @@ formal versioning:
 | 2025-09-18 | `39aff1b` | Changed `patient_name` to `patient_id` for HIPAA compliance |
 | 2025-10-27 | `81cb841` | Module 03 (Remote Teleoperation) added |
 | 2025-11-25 | `bc15eee` | Fixed unsigned int types for measurement fields |
-| 2025-11-25 | `964f40d` | Refactored naming conventions (demo → module), consolidated security under system_arch |
+| 2025-11-25 | `964f40d` | Refactored naming conventions (demo → module), consolidated security under system |
 | 2025-11-26 | `b949a18` | Made launch scripts executable |
 | 2025-11-26 | `d227e59` | Renovated GUIs merged (PR #2) |

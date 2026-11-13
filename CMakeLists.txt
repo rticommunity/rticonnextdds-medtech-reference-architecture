@@ -36,7 +36,7 @@ list(APPEND CMAKE_MODULE_PATH
     "${rticonnextdds-cmake-utils_SOURCE_DIR}/cmake/Modules"
 )
 
-# RTI Demo UI v0.4.1 with native GTK sizing and icon support, pinned so C++ and
+# RTI Demo UI with Scene3D material/preset controls, pinned so C++ and
 # Python use the same SDK revision.
 option(RTI_DEMO_BUILD_NATIVE_WEBVIEW
     "Build the optional native webview companion"
@@ -45,7 +45,7 @@ option(RTI_DEMO_BUILD_NATIVE_WEBVIEW
 FetchContent_Declare(
     rti_demo_ui
     GIT_REPOSITORY https://github.com/wcoleman-rti/rti-demo-ui.git
-    GIT_TAG        63c16f7e81baf008f370bbc15355f2a4a7e44db7
+    GIT_TAG        3bdae37cbaf530efe5dee6cbeb0094868349d70a
 )
 FetchContent_MakeAvailable(rti_demo_ui)
 
@@ -56,6 +56,7 @@ find_package(RTIConnextDDS ${RTICONNEXTDDS_VERSION} REQUIRED
 )
 
 # --- Modules with C++ code ---
+add_subdirectory(system)
 add_subdirectory(modules/01-operating-room)
 add_subdirectory(modules/02-record-playback)
 add_subdirectory(modules/03-remote-teleoperation)

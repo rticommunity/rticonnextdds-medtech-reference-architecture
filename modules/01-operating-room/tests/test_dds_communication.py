@@ -16,6 +16,9 @@ verify that the expected topics carry the right data — the same data paths
 described in the module README.
 """
 
+import math
+import time
+
 import pytest
 from scripts.test_utils import (
     check_no_deadline_missed,
@@ -23,7 +26,6 @@ from scripts.test_utils import (
     wait_for_reader_match,
     wait_for_samples,
     wait_for_writer_match,
-    write_and_wait_for_ack,
 )
 
 # ---------------------------------------------------------------------------
@@ -71,17 +73,17 @@ class TestPatientSensorReadOnly:
         assert check_no_deadline_missed(heartbeat_reader), "Deadline missed on Heartbeat reader"
 
     def test_status_on(self, nonsecure_utility_app):
-        from Types import Common
+        from MedTech import Device
 
         status_reader = nonsecure_utility_app.device_status.reader
 
         seen = wait_for_device_status(
             status_reader,
-            expected_devices={Common.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Common.DeviceStatuses.ON],
+            expected_devices={Device.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Device.DeviceStatuses.ON],
             timeout_sec=10,
         )
-        assert Common.DeviceType.PATIENT_SENSOR in seen, (
+        assert Device.DeviceType.PATIENT_SENSOR in seen, (
             "PatientSensor did not report DeviceStatus ON within the timeout"
         )
 
@@ -90,7 +92,7 @@ class TestPatientSensorCommands:
     """PatientSensor should respond to DeviceCommand messages."""
 
     def test_responds_to_pause(self, proc_manager, nonsecure_utility_app):
-        from Types import Common, Orchestrator
+        from MedTech import Device
 
         proc_manager.start_app("PatientSensor")
 
@@ -100,35 +102,35 @@ class TestPatientSensorCommands:
         # Wait for device status
         seen = wait_for_device_status(
             status_reader,
-            expected_devices={Common.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Common.DeviceStatuses.ON],
+            expected_devices={Device.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Device.DeviceStatuses.ON],
             timeout_sec=10,
         )
-        assert Common.DeviceType.PATIENT_SENSOR in seen, (
+        assert Device.DeviceType.PATIENT_SENSOR in seen, (
             "PatientSensor did not report DeviceStatus ON within the timeout"
         )
 
         # Send PAUSE command
         assert wait_for_writer_match(cmd_writer), "Command writer never matched a reader"
-        cmd = Orchestrator.DeviceCommand(
-            device=Common.DeviceType.PATIENT_SENSOR,
-            command=Orchestrator.DeviceCommands.PAUSE,
+        cmd = Device.Command(
+            device=Device.DeviceType.PATIENT_SENSOR,
+            command=Device.DeviceCommands.PAUSE,
         )
         cmd_writer.write(cmd)
 
         # Wait for status to change to PAUSED
         seen = wait_for_device_status(
             status_reader,
-            expected_devices={Common.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Common.DeviceStatuses.PAUSED],
+            expected_devices={Device.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Device.DeviceStatuses.PAUSED],
             timeout_sec=2,
         )
-        assert Common.DeviceType.PATIENT_SENSOR in seen, (
+        assert Device.DeviceType.PATIENT_SENSOR in seen, (
             "PatientSensor did not transition to PAUSED"
         )
 
     def test_responds_to_shutdown(self, proc_manager, nonsecure_utility_app):
-        from Types import Common, Orchestrator
+        from MedTech import Device
 
         proc = proc_manager.start_app("PatientSensor")
 
@@ -138,19 +140,19 @@ class TestPatientSensorCommands:
         # Wait for device status
         seen = wait_for_device_status(
             status_reader,
-            expected_devices={Common.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Common.DeviceStatuses.ON],
+            expected_devices={Device.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Device.DeviceStatuses.ON],
             timeout_sec=10,
         )
-        assert Common.DeviceType.PATIENT_SENSOR in seen, (
+        assert Device.DeviceType.PATIENT_SENSOR in seen, (
             "PatientSensor did not report DeviceStatus ON within the timeout"
         )
 
         # Send SHUTDOWN command
         assert wait_for_writer_match(cmd_writer), "Command writer never matched a reader"
-        cmd = Orchestrator.DeviceCommand(
-            device=Common.DeviceType.PATIENT_SENSOR,
-            command=Orchestrator.DeviceCommands.SHUTDOWN,
+        cmd = Device.Command(
+            device=Device.DeviceType.PATIENT_SENSOR,
+            command=Device.DeviceCommands.SHUTDOWN,
         )
         cmd_writer.write(cmd)
 
@@ -169,8 +171,9 @@ class TestPatientSensorCommands:
 class TestArmTeleopControl:
     """Arm should receive operator-level teleoperation commands."""
 
-    def test_arm_receives_teleop_control(self, proc_manager, nonsecure_utility_app):
-        from Types import Common, SurgicalRobot
+    @pytest.mark.parametrize("lost_stream", ["arm", "tool"])
+    def test_arm_receives_teleop_control(self, proc_manager, nonsecure_utility_app, lost_stream):
+        from MedTech import Device, Geometry, Robot
 
         proc_manager.start_app("Arm")
 
@@ -178,23 +181,77 @@ class TestArmTeleopControl:
         # Wait for device status
         seen = wait_for_device_status(
             status_reader,
-            expected_devices={Common.DeviceType.ARM},
-            device_statuses=[Common.DeviceStatuses.ON],
+            expected_devices={Device.DeviceType.ARM},
+            device_statuses=[Device.DeviceStatuses.ON],
             timeout_sec=10,
         )
-        assert Common.DeviceType.ARM in seen, (
+        assert Device.DeviceType.ARM in seen, (
             "Arm did not report DeviceStatus ON within the timeout"
         )
 
         teleop_writer = nonsecure_utility_app.teleop_control.writer
-        teleop_command = SurgicalRobot.TeleopControl(
-            axis=SurgicalRobot.TeleopAxes.X,
-            direction=SurgicalRobot.TeleopDirections.POSITIVE,
+        tool_writer = nonsecure_utility_app.tool_control.writer
+        telemetry = nonsecure_utility_app.arm_telemetry.reader
+        readiness = nonsecure_utility_app.arm_status.reader
+        teleop_command = Robot.Arm.TeleopControl(
+            arm_id="arm-1",
+            linear_velocity=Geometry.Vector3(x=0.01),
         )
+        tool_command = Robot.Tool.ParallelJawControl(arm_id="arm-1", opening_rate=0.01)
         assert wait_for_writer_match(teleop_writer), "TeleopControl writer never matched a reader"
-        assert write_and_wait_for_ack(teleop_writer, teleop_command, timeout_sec=2), (
-            "Arm did not ack TeleopControl command"
+        assert wait_for_writer_match(tool_writer)
+        assert wait_for_reader_match(telemetry)
+        initial = wait_for_samples(telemetry, n=1, timeout_sec=2)[-1]
+        assert initial.tcp_pose is not None
+        assert initial.parallel_jaw is not None
+
+        until = time.monotonic() + 0.2
+        while time.monotonic() < until:
+            teleop_writer.write(teleop_command)
+            tool_writer.write(tool_command)
+            time.sleep(0.02)
+        moved = wait_for_samples(telemetry, n=1, timeout_sec=2)[-1]
+
+        def position(sample):
+            point = sample.tcp_pose.position
+            return (point.x, point.y, point.z)
+
+        assert position(moved)[0] - position(initial)[0] > 0.0005
+        assert position(moved)[1:] == pytest.approx(position(initial)[1:], abs=1e-8)
+        assert moved.parallel_jaw.opening_width > initial.parallel_jaw.opening_width
+
+        remaining_writer, remaining_command = (
+            (tool_writer, tool_command) if lost_stream == "arm" else (teleop_writer, teleop_command)
         )
+        until = time.monotonic() + 0.7
+        settled = None
+        while time.monotonic() < until:
+            remaining_writer.write(remaining_command)
+            if until - time.monotonic() < 0.2 and settled is None:
+                settled = wait_for_samples(telemetry, n=1, timeout_sec=2)[-1]
+            time.sleep(0.02)
+        held = wait_for_samples(telemetry, n=1, timeout_sec=2)[-1]
+        assert settled is not None
+        assert held.parallel_jaw.opening_width == pytest.approx(
+            settled.parallel_jaw.opening_width, abs=1e-8
+        )
+        if lost_stream == "arm":
+            assert position(held) == pytest.approx(position(settled), abs=1e-8)
+            assert wait_for_samples(readiness, n=1, timeout_sec=2)[-1].readiness == (
+                Robot.Arm.Readiness.NOT_READY
+            )
+        else:
+            assert math.dist(position(held), position(settled)) > 0.0005
+
+        until = time.monotonic() + 0.2
+        tool_command.opening_rate = -0.01
+        while time.monotonic() < until:
+            teleop_writer.write(teleop_command)
+            tool_writer.write(tool_command)
+            time.sleep(0.02)
+        recovered = wait_for_samples(telemetry, n=1, timeout_sec=2)[-1]
+        assert math.dist(position(held), position(recovered)) > 0.0005
+        assert recovered.parallel_jaw.opening_width < held.parallel_jaw.opening_width
 
 
 # ---------------------------------------------------------------------------
@@ -206,7 +263,7 @@ class TestAllAppsStatus:
     """All five apps should report DeviceStatus ON when running."""
 
     def test_all_apps_report_status_on(self, proc_manager, nonsecure_utility_app):
-        from Types import Common
+        from MedTech import Device
 
         proc_manager.start_app("PatientSensor")
         proc_manager.start_app("Orchestrator")
@@ -223,15 +280,15 @@ class TestAllAppsStatus:
 
         # Wait for device status
         expected_devices = {
-            Common.DeviceType.PATIENT_SENSOR,
-            Common.DeviceType.ARM_CONTROLLER,
-            Common.DeviceType.ARM,
-            Common.DeviceType.PATIENT_MONITOR,
+            Device.DeviceType.PATIENT_SENSOR,
+            Device.DeviceType.ARM_CONTROLLER,
+            Device.DeviceType.ARM,
+            Device.DeviceType.PATIENT_MONITOR,
         }
         seen = wait_for_device_status(
             status_reader,
             expected_devices=expected_devices,
-            device_statuses=[Common.DeviceStatuses.ON],
+            device_statuses=[Device.DeviceStatuses.ON],
             timeout_sec=10,
         )
         for device in expected_devices:
@@ -250,7 +307,7 @@ class TestContentFilter:
 
     def test_patient_sensor_receives_own_command(self, proc_manager, nonsecure_utility_app):
         """PatientSensor should receive a command addressed to PATIENT_SENSOR."""
-        from Types import Common, Orchestrator
+        from MedTech import Device
 
         proc_manager.start_app("PatientSensor")
 
@@ -260,50 +317,50 @@ class TestContentFilter:
         # Wait for device status
         seen = wait_for_device_status(
             status_reader,
-            expected_devices={Common.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Common.DeviceStatuses.ON],
+            expected_devices={Device.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Device.DeviceStatuses.ON],
             timeout_sec=10,
         )
-        assert Common.DeviceType.PATIENT_SENSOR in seen, (
+        assert Device.DeviceType.PATIENT_SENSOR in seen, (
             "PatientSensor did not report DeviceStatus ON within the timeout"
         )
 
         # Send PAUSE addressed to PATIENT_SENSOR
-        cmd = Orchestrator.DeviceCommand(
-            device=Common.DeviceType.PATIENT_SENSOR,
-            command=Orchestrator.DeviceCommands.PAUSE,
+        cmd = Device.Command(
+            device=Device.DeviceType.PATIENT_SENSOR,
+            command=Device.DeviceCommands.PAUSE,
         )
         cmd_writer.write(cmd)
 
         # Verify PatientSensor transitioned to PAUSED
         seen = wait_for_device_status(
             status_reader,
-            expected_devices={Common.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Common.DeviceStatuses.PAUSED],
+            expected_devices={Device.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Device.DeviceStatuses.PAUSED],
             timeout_sec=2,
         )
-        assert Common.DeviceType.PATIENT_SENSOR in seen, (
+        assert Device.DeviceType.PATIENT_SENSOR in seen, (
             "PatientSensor did not receive its own PAUSE command"
         )
 
         # Send START command
-        cmd = Orchestrator.DeviceCommand(
-            device=Common.DeviceType.PATIENT_SENSOR,
-            command=Orchestrator.DeviceCommands.START,
+        cmd = Device.Command(
+            device=Device.DeviceType.PATIENT_SENSOR,
+            command=Device.DeviceCommands.START,
         )
         cmd_writer.write(cmd)
 
         seen = wait_for_device_status(
             status_reader,
-            expected_devices={Common.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Common.DeviceStatuses.ON],
+            expected_devices={Device.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Device.DeviceStatuses.ON],
             timeout_sec=2,
         )
-        assert Common.DeviceType.PATIENT_SENSOR in seen, "PatientSensor did not publish ON status"
+        assert Device.DeviceType.PATIENT_SENSOR in seen, "PatientSensor did not publish ON status"
 
     def test_patient_sensor_ignores_arm_command(self, proc_manager, nonsecure_utility_app):
         """PatientSensor should NOT react to a command addressed to ARM."""
-        from Types import Common, Orchestrator
+        from MedTech import Device
 
         proc_manager.start_app("PatientSensor")
 
@@ -314,11 +371,11 @@ class TestContentFilter:
         # Wait for device status
         seen = wait_for_device_status(
             status_reader,
-            expected_devices={Common.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Common.DeviceStatuses.ON],
+            expected_devices={Device.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Device.DeviceStatuses.ON],
             timeout_sec=10,
         )
-        assert Common.DeviceType.PATIENT_SENSOR in seen, (
+        assert Device.DeviceType.PATIENT_SENSOR in seen, (
             "PatientSensor did not report DeviceStatus ON within the timeout"
         )
 
@@ -327,18 +384,18 @@ class TestContentFilter:
         assert len(samples) >= 1, "No vitals received from PatientSensor"
 
         # Send PAUSE addressed to ARM — PatientSensor should ignore it
-        cmd = Orchestrator.DeviceCommand(
-            device=Common.DeviceType.ARM,
-            command=Orchestrator.DeviceCommands.PAUSE,
+        cmd = Device.Command(
+            device=Device.DeviceType.ARM,
+            command=Device.DeviceCommands.PAUSE,
         )
         cmd_writer.write(cmd)
         seen = wait_for_device_status(
             status_reader,
-            expected_devices={Common.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Common.DeviceStatuses.PAUSED],
+            expected_devices={Device.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Device.DeviceStatuses.PAUSED],
             timeout_sec=2,
         )
-        assert Common.DeviceType.PATIENT_SENSOR not in seen, (
+        assert Device.DeviceType.PATIENT_SENSOR not in seen, (
             "PatientSensor changed status in response to a command addressed to ARM"
             " — content filter may be broken"
         )

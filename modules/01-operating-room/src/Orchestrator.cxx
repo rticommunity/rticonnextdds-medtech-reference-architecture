@@ -29,7 +29,7 @@
 
 #include "DemoUiCommandQueue.hpp"
 #include "DemoUiRuntime.hpp"
-#include "Types.hpp"
+#include "MedTech.hpp"
 
 #ifdef RTI_SECURITY_AVAILABLE
     #include "SecureLogUtils.hpp"
@@ -62,64 +62,66 @@ std::string current_time()
     return result.str();
 }
 
-std::string device_name(Common::DeviceType device)
+std::string device_name(Device::DeviceType device)
 {
     switch (device) {
-    case Common::DeviceType::ARM:
+    case Device::DeviceType::ARM:
         return "ARM";
-    case Common::DeviceType::ARM_CONTROLLER:
+    case Device::DeviceType::ARM_CONTROLLER:
         return "ARM_CONTROLLER";
-    case Common::DeviceType::PATIENT_SENSOR:
+    case Device::DeviceType::PATIENT_SENSOR:
         return "PATIENT_SENSOR";
-    case Common::DeviceType::PATIENT_MONITOR:
+    case Device::DeviceType::PATIENT_MONITOR:
         return "PATIENT_MONITOR";
     }
     return "UNKNOWN";
 }
 
-Common::DeviceType parse_device(const std::string &name)
+Device::DeviceType parse_device(const std::string &name)
 {
     if (name == "ARM")
-        return Common::DeviceType::ARM;
+        return Device::DeviceType::ARM;
     if (name == "ARM_CONTROLLER")
-        return Common::DeviceType::ARM_CONTROLLER;
+        return Device::DeviceType::ARM_CONTROLLER;
     if (name == "PATIENT_SENSOR")
-        return Common::DeviceType::PATIENT_SENSOR;
-    return Common::DeviceType::PATIENT_MONITOR;
+        return Device::DeviceType::PATIENT_SENSOR;
+    return Device::DeviceType::PATIENT_MONITOR;
 }
 
-Orchestrator::DeviceCommands parse_command(const std::string &name)
+Device::DeviceCommands parse_command(const std::string &name)
 {
     if (name == "START")
-        return Orchestrator::DeviceCommands::START;
+        return Device::DeviceCommands::START;
     if (name == "PAUSE")
-        return Orchestrator::DeviceCommands::PAUSE;
-    return Orchestrator::DeviceCommands::SHUTDOWN;
+        return Device::DeviceCommands::PAUSE;
+    return Device::DeviceCommands::SHUTDOWN;
 }
 
-std::string status_name(Common::DeviceStatuses status)
+std::string status_name(Device::DeviceStatuses status)
 {
-    if (status == Common::DeviceStatuses::ON)
+    if (status == Device::DeviceStatuses::ON)
         return "ON";
-    if (status == Common::DeviceStatuses::PAUSED)
+    if (status == Device::DeviceStatuses::PAUSED)
         return "PAUSED";
+    if (status == Device::DeviceStatuses::ERROR)
+        return "ERROR";
     return "OFF";
 }
 
 Json orchestrator_view(
-        const std::map<Common::DeviceType, std::string> &statuses,
-        const std::map<Common::DeviceType,
+        const std::map<Device::DeviceType, std::string> &statuses,
+        const std::map<Device::DeviceType,
                        std::chrono::steady_clock::time_point> &heartbeats,
-        Common::DeviceType selected_device,
+        Device::DeviceType selected_device,
         bool secure,
         bool security_threat,
         const Json &logs)
 {
     const std::array devices = {
-        Common::DeviceType::ARM,
-        Common::DeviceType::ARM_CONTROLLER,
-        Common::DeviceType::PATIENT_SENSOR,
-        Common::DeviceType::PATIENT_MONITOR,
+        Device::DeviceType::ARM,
+        Device::DeviceType::ARM_CONTROLLER,
+        Device::DeviceType::PATIENT_SENSOR,
+        Device::DeviceType::PATIENT_MONITOR,
     };
     Json device_rows = Json::array();
     for (const auto device : devices) {
@@ -184,36 +186,36 @@ void run_control(rti::demo::ui::DemoUiApp &app,
                  medtech::ui::CommandQueue<UiEvent> &events,
                  std::atomic<bool> &stopping)
 {
-    rti::domain::register_type<Orchestrator::DeviceCommand>();
-    rti::domain::register_type<Common::DeviceStatus>();
-    rti::domain::register_type<Common::DeviceHeartbeat>();
+    rti::domain::register_type<Device::Command>();
+    rti::domain::register_type<Device::Status>();
+    rti::domain::register_type<Device::Heartbeat>();
 
     auto provider = dds::core::QosProvider::Default();
     auto participant = provider.extensions().create_participant_from_config(
             std::string(ORCHESTRATOR_DP));
     auto command_writer = rti::pub::find_datawriter_by_name<
-            dds::pub::DataWriter<Orchestrator::DeviceCommand>>(
+            dds::pub::DataWriter<Device::Command>>(
             participant,
             std::string(DEVICE_COMMAND_DW));
     auto status_reader = rti::sub::find_datareader_by_name<
-            dds::sub::DataReader<Common::DeviceStatus>>(participant,
-                                                        std::string(STATUS_DR));
+            dds::sub::DataReader<Device::Status>>(participant,
+                                                  std::string(STATUS_DR));
     auto heartbeat_reader = rti::sub::find_datareader_by_name<
-            dds::sub::DataReader<Common::DeviceHeartbeat>>(participant,
-                                                           std::string(HB_DR));
+            dds::sub::DataReader<Device::Heartbeat>>(participant,
+                                                     std::string(HB_DR));
 
-    std::map<Common::DeviceType, std::string> statuses;
-    std::map<Common::DeviceType, std::chrono::steady_clock::time_point>
+    std::map<Device::DeviceType, std::string> statuses;
+    std::map<Device::DeviceType, std::chrono::steady_clock::time_point>
             heartbeats;
     for (const auto device : {
-                 Common::DeviceType::ARM,
-                 Common::DeviceType::ARM_CONTROLLER,
-                 Common::DeviceType::PATIENT_SENSOR,
-                 Common::DeviceType::PATIENT_MONITOR,
+                 Device::DeviceType::ARM,
+                 Device::DeviceType::ARM_CONTROLLER,
+                 Device::DeviceType::PATIENT_SENSOR,
+                 Device::DeviceType::PATIENT_MONITOR,
          }) {
         statuses[device] = "OFF";
     }
-    auto selected_device = Common::DeviceType::ARM;
+    auto selected_device = Device::DeviceType::ARM;
     Json logs = Json::array();
     auto secure = false;
     auto security_threat_until = std::chrono::steady_clock::time_point { };
@@ -268,8 +270,7 @@ void run_control(rti::demo::ui::DemoUiApp &app,
         while (auto event = events.try_pop()) {
             if (event->kind == "command") {
                 const auto command = parse_command(event->command);
-                command_writer.write(
-                        Orchestrator::DeviceCommand(selected_device, command));
+                command_writer.write(Device::Command(selected_device, command));
                 append_log("Writing " + event->command + " to "
                            + device_name(selected_device));
             } else if (event->kind == "select-device") {

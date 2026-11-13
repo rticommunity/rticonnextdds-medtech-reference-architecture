@@ -32,7 +32,7 @@ class TestRecording:
         self, or_proc_manager, svc_proc_manager, clean_recording_dir
     ):
         """Recording Service should create or_recording_database.dat."""
-        # Start PatientSensor to produce t/Vitals data
+        # Start PatientSensor to produce t/patient/vitals data
         or_proc_manager.start_app_ready("PatientSensor")
 
         # Start Recording Service

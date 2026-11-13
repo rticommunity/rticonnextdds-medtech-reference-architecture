@@ -54,6 +54,22 @@ not need to invoke them manually.
 
 ## Day-to-Day Workflow
 
+### Shared system contract
+
+Edit domain IDL under [system/idl](../system/idl/), included by `MedTech.idl`.
+Keep topic constants beside payloads and XML entity/service/security bindings
+consistent with the contract. Run `python build.py` to generate central C++,
+joined Python, and XML under
+`build/<CONNEXTDDS_ARCH>/system/generated/`; never edit generated files.
+The launcher and shared test bootstrap expose the generated Python path.
+
+Permanent tests protect intended behavior and workflows, not arguments for a
+design alternative. Prefer focused cases in existing tests for changed motion,
+command-loss hold/recovery, actual feedback, lifecycle, services, and security.
+Use browser verification for Scene3D motion/camera/fallback; native WebGL requires
+the optional companion and a supported platform. A fallback is not a passed
+3D rendering check.
+
 ### Manual checks (run anytime)
 
 ```bash

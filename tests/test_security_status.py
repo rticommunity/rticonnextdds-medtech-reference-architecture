@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SCRIPT = PROJECT_ROOT / "system_arch" / "security" / "setup_security.py"
+SCRIPT = PROJECT_ROOT / "system" / "security" / "setup_security.py"
 
 
 @pytest.mark.secure

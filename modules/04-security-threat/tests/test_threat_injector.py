@@ -43,14 +43,14 @@ def _run_injector_probe(
       - "created": bool — whether the participant was created successfully
       - "matched": bool — whether publication_matched_status.current_count > 0
     """
-    from Types import SurgicalRobot
+    from MedTech import Robot
 
     xml_files = env["NDDS_QOS_PROFILES"].split(";")
     provider = make_isolated_qos_provider(*xml_files)
 
     result = {"created": False, "matched": False}
     try:
-        register_type(SurgicalRobot.TeleopControl)
+        register_type(Robot.Arm.TeleopControl)
         participant = provider.create_participant_from_config(dp_name)
         if participant is not None:
             result["created"] = True

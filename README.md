@@ -128,8 +128,9 @@ pip install -r requirements.txt -r requirements-native.txt
 ```
 
 Use this virtual-environment setup instead of the standard isolated venv setup
-above when you plan to use native mode. An existing isolated environment cannot
-import the system `gi` binding.
+above when you plan to use native mode. For an existing isolated environment,
+rerun `python3 -m venv --system-site-packages .venv` to expose the system `gi`
+binding; installed project packages are retained.
 
 ### 4. Build the C++ Modules
 
@@ -147,6 +148,14 @@ python3 build.py -- --target ArmController  # only the ArmController target
 ```
 
 The compiled binaries are placed under `build/<CONNEXTDDS_ARCH>/`.
+The shared [system definition](./system/README.md) is IDL-first. The same build
+generates C++, joined Python, and XML under
+`build/<CONNEXTDDS_ARCH>/system/generated/`; application source directories do not
+own shared generated bindings. The launcher exposes the generated Python path
+while preserving inherited `PYTHONPATH`. Build before launching Python-only
+variants too. For direct runs, add the absolute generated `python/` directory to
+`PYTHONPATH` and use the module's normal DDS environment.
+
 The C++ core and optional native companion are consumed from the RTI Demo UI
 repository root in one CMake build. The Python core and native runner are
 installed from the same pinned SDK revision using its root package and
@@ -167,17 +176,21 @@ python3 launch.py 01-operating-room --ui-mode native
 
 Graphical apps label each printed local URL with the application name so the
 browser or native-window endpoint can be identified when several apps start
-together.
+together. Native mode opens the windows automatically; those URLs are diagnostic
+endpoints, not instructions to open a separate browser. Browser mode remains the
+default and requires opening the printed URLs manually. Both modes use the same
+responsive layouts: controls and panels reflow in narrow windows, and short
+windows scroll vertically instead of clipping controls.
 
 ### 5. Generate Security Artifacts *(optional — skip if not using `-s`)*
 
 The security flag (`-s`) requires PKI certificates, signed governance/permissions XML, and a WAN PSK seed file. Generate them once:
 
 ```bash
-python3 system_arch/security/setup_security.py
+python3 system/security/setup_security.py
 ```
 
-Re-run with `--force` to regenerate existing artifacts. See the [Security README](./system_arch/security/README.md) for full details.
+Re-run with `--force` to regenerate existing artifacts. See the [Security README](./system/security/README.md) for full details.
 
 When setup is complete, use the module-specific READMEs below to choose a workflow. They explain what each demo launches and how to run it from the repository root with the project-level `launch.py` script.
 
@@ -203,23 +216,10 @@ python3 launch.py --list-scenarios
 
 ## Hands-On: Architecture
 
-RTI System Designer allows you to graphically design, configure, examine, and share Connext system architectures.
-
-*RTI recommends using the provided RTI System Designer project file ([RefArch.rtisdproj](./system_arch/RefArch.rtisdproj)) to follow along with the next section, [Architecture Overview](#architecture-overview).*
-
-1. Launch RTI System Designer.
-   - From RTI Launcher:
-      1. Open *RTI Launcher*.
-      2. Navigate to the **Tools** tab.
-      3. Click the *System Designer* button.
-   - From a terminal:
-      1. Launch the `rtisystemdesigner[.bat]` script found in the *$NDDSHOME/bin* folder. *Where *$NDDSHOME* is the folder where Connext is installed.*
-2. Open the Project File.
-   1. Select **Projects** in the toolbar.
-   2. Click **Open** in the dropdown.
-   3. In the file browser popup, navigate to *system_arch/RefArch.rtisdproj* and open.
-
-*Please refer to [Project Management](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/tools/system_designer/project_mgmt.html) documentation for more detailed instructions on working with RTI System Designer projects.*
+Explore the [central system definition](./system/README.md) directly: domain
+types are authored in IDL, and DDS entities, QoS, and security are configured
+in XML. Generated XML remains available for runtime/tooling consumers; a
+System Designer project is not required or maintained.
 
 ## Architecture Overview
 
@@ -233,7 +233,10 @@ The RTI MedTech Reference Architecture consists of the following key components:
 - [DomainParticipants & DDS Entities](#domainparticipants--dds-entities)
 - [DDS Security](#dds-security)
 
-Through *RTI XML-Based Application Creation*, aspects of all 4 components are expressed in XML statically, separate from application code and choice of language. This allows for the extraction of a common system definition from the application logic and behavior - a must-have for designing integrated systems with multiple development teams.
+The [central system definition](./system/README.md) expresses types in IDL and
+uses *RTI XML-Based Application Creation* for entities, topics, QoS, and security.
+Application implementations evolve around this shared contract, separate from
+application logic and programming language.
 
 Please find a diagram of the Digital OR module module below:
 
@@ -243,15 +246,19 @@ Please find a diagram of the Digital OR module module below:
 
 DDS is a **data-centric** communication standard that understands user-defined Data Types. You can define a Data Type, its members, and annotations in IDL, XML, or XSD. *Conversion between file formats and type-support code generation for (de)serialization can be done with [RTI Code Generator](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/code_generator/users_manual/code_generator/users_manual/UsersManual_Title.htm#).*
 
-This reference architecture defines the following Data Types in [Types.xml](./system_arch/Types.xml):
+This reference architecture collects its domain-owned types in
+[MedTech.idl](./system/idl/MedTech.idl):
 
 | Data Type | Intended Use
 | --------- | -----------
-| DeviceStatus | Describes a status (e.g. `ON`, `PAUSED`) for a unique device
-| DeviceHeartbeat | Asserts that a unique device is alive
-| TeleopControl | Jogs the simulated arm end effector in planar X/Y, wrist roll, or gripper opening
-| DeviceCommand | Commands initiating a status (e.g. `START`, `SHUTDOWN`) to a unique device
-| Vitals | Describes data representative of a unique patient's collected vital signs
+| Device::Status | Lifecycle state (e.g. `ON`, `PAUSED`) for a unique device
+| Device::Heartbeat | Asserts that a unique device is alive
+| Robot::Arm::TeleopControl | Complete base-frame linear/angular TCP velocity
+| Robot::Tool::ParallelJawControl | Signed total jaw-gap opening rate
+| Robot::Arm::Status | Initial/on-change readiness, separate from device lifecycle
+| Robot::Arm::Telemetry | Periodic observed base-relative TCP pose and optional jaw gap
+| Device::Command | START, PAUSE, or SHUTDOWN for a unique device
+| Patient::Vitals | Collected vital signs for a keyed patient
 
 ### Quality of Service (QoS)
 
@@ -269,7 +276,7 @@ QoS Profile
 └── DataReader QoS
 ```
 
-This reference architecture defines the following QoS Profiles in [Qos.xml](./system_arch/qos/Qos.xml):
+This reference architecture defines the following QoS Profiles in [Qos.xml](./system/qos/Qos.xml):
 
 | Qos Library | Qos Profile | Intended Use
 | ----------- | --------- | -----------
@@ -278,6 +285,8 @@ This reference architecture defines the following QoS Profiles in [Qos.xml](./sy
 | DataFlow | Streaming | Periodic data that is published at a high frequency (i.e. frequencies <1 second)
 | DataFlow | Status | "Current status"-like data, sent once at the beginning of operation and again only upon change to the status
 | DataFlow | Command | Data that represents commands or trigger some action in the system
+| DataFlow | Control | Best-effort complete arm/tool rates with a 250 ms writer lifespan
+| DataFlow | Telemetry | Best-effort observed arm pose/tool state, separate from readiness
 | DataFlow | Heartbeat | Assert and detect the presence of system devices
 | DataFlow | SecureLog | Reliable, transient-local delivery for the DDS Security builtin secure-log topic
 
@@ -296,7 +305,7 @@ Legend:
  → references
 ```
 
-This reference architecture defines the following Domains in [DomainLibrary.xml](./system_arch/xml_app_creation/DomainLibrary.xml):
+This reference architecture defines the following Domains in [DomainLibrary.xml](./system/xml_app_creation/DomainLibrary.xml):
 
 | Domain | Domain ID | Intended Use
 | ------ | --------- | -----------
@@ -305,15 +314,18 @@ This reference architecture defines the following Domains in [DomainLibrary.xml]
 
 *Note, both domains are defined with the same Domain ID (`0`), so they currently resolve to the **same** DDS domain. `SecureLogDomain` is defined separately to keep the secure-logging configuration distinct.*
 
-This reference architecture defines the following Topics in [DomainLibrary.xml](./system_arch/xml_app_creation/DomainLibrary.xml):
+This reference architecture defines the following Topics in [DomainLibrary.xml](./system/xml_app_creation/DomainLibrary.xml):
 
 | Domain | Topic | Intended Use
 | ------ | ----- | -----------
-| OperationalDataDomain | `t/TeleopControl` | Jog the simulated arm end effector in planar X/Y or operate wrist roll and gripper
-| OperationalDataDomain | `t/DeviceStatus` | Status (e.g. `ON`, `PAUSED`) for a unique system component
-| OperationalDataDomain | `t/DeviceHeartbeat` | Assert that a unique system component is alive
-| OperationalDataDomain | `t/DeviceCommand` | Command initiating a status (e.g. `START`, `SHUTDOWN`) to a unique system component
-| OperationalDataDomain | `t/Vitals` | Data representative of a unique patient's collected vital signs
+| OperationalDataDomain | `t/robot/arm/control` | Complete base-frame linear/angular TCP velocity
+| OperationalDataDomain | `t/robot/tool/control` | Signed parallel-jaw total opening rate
+| OperationalDataDomain | `t/robot/arm/status` | Initial/on-change readiness
+| OperationalDataDomain | `t/robot/arm/telemetry` | Periodic observed base-relative TCP pose and optional jaw gap
+| OperationalDataDomain | `t/device/status` | Status (e.g. `ON`, `PAUSED`) for a unique system component
+| OperationalDataDomain | `t/device/heartbeat` | Assert that a unique system component is alive
+| OperationalDataDomain | `t/device/command` | Command initiating a status (e.g. `START`, `SHUTDOWN`) to a unique system component
+| OperationalDataDomain | `t/patient/vitals` | Data representative of a unique patient's collected vital signs
 | SecureLogDomain | `DDS:Security:LogTopicV2` | DDS Security builtin logging topic, carrying the `DDSSecurity::BuiltinLoggingTypeV2` type
 
 *Note, this reference architecture defines a unique Topic for each Data Type defined. While a Topic may only reference a single Data Type, a multi-purpose Data Type can be associated with multiple Topics. It is a **best practice** to limit the number of defined Topics, but in doing so, it may be feasible to reuse a Data Type for several Topics.*
@@ -351,15 +363,15 @@ Legend:
  → references
 ```
 
-This reference architecture defines the following DomainParticipants in [ParticipantLibrary.xml](./system_arch/xml_app_creation/ParticipantLibrary.xml):
+This reference architecture defines the following DomainParticipants in [ParticipantLibrary.xml](./system/xml_app_creation/ParticipantLibrary.xml):
 
 | Domain | DomainParticipant | Subscriptions | Publications | Intended Use
 | --------------------- | ----------------- | ------------------------------------- | -------------------------------------------------- | ------------
-| OperationalDataDomain | Arm | `t/DeviceCommand`, `t/TeleopControl` | `t/DeviceStatus`, `t/DeviceHeartbeat` | Operate a simulated surgical arm with planar end-effector jogs.
-| OperationalDataDomain | ArmController | `t/DeviceCommand` | `t/TeleopControl`, `t/DeviceHeartbeat` | Administer operator-style teleoperation and service commands to the Arm.
-| OperationalDataDomain | Orchestrator | `t/DeviceStatus`, `t/DeviceHeartbeat` | `t/DeviceCommand` | Administer device-level commands and monitor presence and status of all devices.
-| OperationalDataDomain | PatientSensor | `t/DeviceCommand` | `t/Vitals`, `t/DeviceStatus`, `t/DeviceHeartbeat` | Stream simulated patient vitals.
-| OperationalDataDomain | PatientMonitor | `t/DeviceCommand`, `t/Vitals` | `t/DeviceStatus`, `t/DeviceHeartbeat` | Process and display patient vitals.
+| OperationalDataDomain | Arm | Device command; arm/tool control | Device status/heartbeat; arm status/telemetry | Simulate six-axis base-frame TCP motion and parallel jaws.
+| OperationalDataDomain | ArmController | Device command; arm status/telemetry | Arm/tool control; device status/heartbeat | Publish operator rates and display observed feedback. The Xbox variant uses the same contract.
+| OperationalDataDomain | Orchestrator | `t/device/status`, `t/device/heartbeat` | `t/device/command` | Administer device-level commands and monitor presence and status of all devices.
+| OperationalDataDomain | PatientSensor | `t/device/command` | `t/patient/vitals`, `t/device/status`, `t/device/heartbeat` | Stream simulated patient vitals.
+| OperationalDataDomain | PatientMonitor | `t/device/command`, `t/patient/vitals` | `t/device/status`, `t/device/heartbeat` | Process and display patient vitals.
 | OperationalDataDomain | SystemObserver (external/optional) | All available topics | -- | Read-only observer integration: subscribes to every operational Topic and publishes nothing. Its DDS Security permissions allow subscribe on any Topic and deny all publication.
 | SecureLogDomain | SecureLogReader | `DDS:Security:LogTopicV2` | -- | Subscribe to the DDS Security builtin secure-log topic.
 
@@ -371,37 +383,36 @@ DDS Security defines authentication, access control, and encryption capabilities
 
 DDS Security is meant to be a pluggable component to the system architecture. This reference architecture demonstrates the flexibility of the RTI Security Plugins, and how a system can be secured purely through configuration. It should be noted that enabling security does have an effect on performance - both at initialization due to authentication and in steady-state operation due to encryption. It is because of this, that a system's architecture should be designed with security in mind, even if application code has no dependency on the use of security.
 
-The reference architecture configures security in [SecureAppsQos.xml](./system_arch/qos/SecureAppsQos.xml) following the [Builtin Security Plugins domain-level protection](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/threat_modeling.html#dds-security-threat-protection) pattern with topic-level protection for sensitive topics:
+The reference architecture configures security in [SecureAppsQos.xml](./system/qos/SecureAppsQos.xml) following the [Builtin Security Plugins domain-level protection](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/threat_modeling.html#dds-security-threat-protection) pattern with topic-level protection for sensitive topics:
 
 | Component | Security Features
 | ---------------------- | -----------------
 | **LAN Communications** | `OperationalDomain` governance with `ENCRYPT_WITH_ORIGIN_AUTHENTICATION` RTPS protection, PSK encryption (`OperationalDomain.psk`), participant-specific certificates and permissions
 | **WAN Communications** | `TeleopWanDomain` governance with `ENCRYPT_WITH_ORIGIN_AUTHENTICATION` RTPS protection, PSK encryption (`TeleopWanDomain.psk`) for WAN connections (Module 03)
-| **Topic-level protection** | `t/Vitals` and `t/TeleopControl` topics use `metadata_protection_kind=ENCRYPT` for insider confidentiality protection
+| **Topic-level protection** | `t/patient/vitals` and `t/robot/arm/control` topics use `metadata_protection_kind=ENCRYPT` for insider confidentiality protection
 | **RTI Services** | Dedicated security profiles for Recording/Replay Services and Routing Services
 
-For independent, security-specific observer integrations (not part of the demo applications), use [SecureExternalAppsQos.xml](./system_arch/qos/SecureExternalAppsQos.xml). It provides the `SecureExternalAppsQosLib::SecureSystemObserver` QoS snippet, which is intended to be composed into external DomainParticipants.
+For independent, security-specific observer integrations (not part of the demo applications), use [SecureExternalAppsQos.xml](./system/qos/SecureExternalAppsQos.xml). It provides the `SecureExternalAppsQosLib::SecureSystemObserver` QoS snippet, which is intended to be composed into external DomainParticipants.
 
-This external snippet is ideal for Connext Studio when configuring an RTI Spy source: include [SecureExternalAppsQos.xml](./system_arch/qos/SecureExternalAppsQos.xml) and apply `SecureSystemObserver` so Spy can attach as a read-only secure observer.
+This external snippet is ideal for Connext Studio when configuring an RTI Spy source: include [SecureExternalAppsQos.xml](./system/qos/SecureExternalAppsQos.xml) and apply `SecureSystemObserver` so Spy can attach as a read-only secure observer.
 
-Security Artifacts Structure in [security](./system_arch/security/):
+Security Artifacts Structure in [security](./system/security/):
 
 - `ca/` - Certificate Authority hierarchy (root CA → intermediate identity CA + intermediate permissions CA)
 - `domain_scope/` - Per-domain governance and permissions XML documents with signed versions
 - `identity/` - Per-participant identity certificates, private keys, and cert chains organized by module
 
-See the [Security README](./system_arch/security/README.md) for generation instructions and full details.
+See the [Security README](./system/security/README.md) for generation instructions and full details.
 
 ## Going Further
 
 ### Want to dig deeper?
 
-Check out the the [system_arch](./system_arch/) folder, where the system architecture artifacts live and are covered in more depth!
+Check out the the [system](./system/) folder, where the system architecture artifacts live and are covered in more depth!
 
 ## Additional References
 
 - [RTI XML-Based Application Creation](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/xml_application_creation/xml_based_app_creation_guide/XMLAppCreationGSG_title.htm#)
-- [RTI System Designer](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/tools/system_designer/index.html)
 - [RTI Core Libraries Users Manual](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/title.htm#)
 - [RTI Security Plugins](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/index.html)
 - [RTI Connext Modern C++ API](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/api/connext_dds/api_cpp2/index.html) *, used in Module 01: Digital Operating Room*

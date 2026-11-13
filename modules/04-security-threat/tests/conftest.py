@@ -30,7 +30,7 @@ module_runner = importlib.import_module("scripts.module_runner")
 
 MODULE_01_DIR = module04_test_support.MODULE_01_DIR
 MODULE_DIR = module04_test_support.MODULE_DIR
-SYSTEM_ARCH_DIR = module04_test_support.SYSTEM_ARCH_DIR
+SYSTEM_DIR = module04_test_support.SYSTEM_DIR
 
 from scripts.test_utils import (  # noqa: E402
     ProcessManager,
@@ -41,7 +41,7 @@ from scripts.test_utils import (  # noqa: E402
 
 def _or_security_artifacts_exist() -> bool:
     """Check that Module 01 security artifacts exist."""
-    domain_scope_dir = SYSTEM_ARCH_DIR / "security" / "domain_scope"
+    domain_scope_dir = SYSTEM_DIR / "security" / "domain_scope"
     return domain_scope_dir.is_dir() and any(domain_scope_dir.rglob("*.p7s"))
 
 
@@ -94,14 +94,16 @@ def or_env_secure():
 
 @pytest.fixture(scope="session")
 def threat_env():
-    """Module 04 threat app environment with Types.xml prepended."""
+    """Module 04 threat app environment with generated XML types prepended."""
     env, apps = module_runner.load_module_config(MODULE_DIR)
-    types_xml = str(SYSTEM_ARCH_DIR / "Types.xml")
+    from scripts.platform_setup import generated_system_path
+
+    types_xml = str(generated_system_path() / "xml" / "MedTech.xml")
     env["NDDS_QOS_PROFILES"] = types_xml + ";" + env["NDDS_QOS_PROFILES"]
     # Propagate security artifact paths into os.environ so that in-process
     # DDS QosProvider calls can resolve $(THREAT_SECURITY_ARTIFACTS_DIR) and
     # $(RTI_SECURITY_ARTIFACTS_DIR) from ThreatQos.xml.  load_module_config
-    # already resolved these to absolute paths via ${MODULE_DIR}/${SYSTEM_ARCH}.
+    # already resolved these to absolute paths via ${MODULE_DIR}/${SYSTEM_DIR}.
     for key in ("THREAT_SECURITY_ARTIFACTS_DIR", "RTI_SECURITY_ARTIFACTS_DIR"):
         if key in env:
             os.environ[key] = env[key]

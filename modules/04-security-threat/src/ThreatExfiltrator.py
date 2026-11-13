@@ -23,8 +23,8 @@ sys.path.insert(
 )
 from DdsUtils import register_type, vitals_from_sample
 from DemoUiSupport import DemoUiState, create_demo_ui, run_demo_ui
+from MedTech import DdsEntities, Patient
 from ThreatTypes import ThreatEntities
-from Types import DdsEntities, PatientMonitor
 
 _MODES = ("UNSECURE", "ROGUE CA", "FORGED PERMS", "EXPIRED CERT")
 _MODE_TO_PARTICIPANT = {
@@ -62,7 +62,7 @@ class ThreatExfiltratorDdsAdapter:
         self.reader = None
 
     def open(self, mode: str) -> None:
-        register_type(PatientMonitor.Vitals)
+        register_type(Patient.Vitals)
         self.participant = dds.QosProvider.default.create_participant_from_config(
             _MODE_TO_PARTICIPANT[mode]
         )

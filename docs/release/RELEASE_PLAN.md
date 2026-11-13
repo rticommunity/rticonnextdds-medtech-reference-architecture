@@ -53,7 +53,7 @@ with, or understood by users and downstream consumers.
 | Change | Version Impact |
 | --- | --- |
 | New module added (e.g., `04-security-threat/`) | MINOR |
-| Breaking change to DDS topic types in `Types.xml` | MAJOR |
+| Breaking change to DDS topic types in `system/idl/` | MAJOR |
 | QoS profile restructured in a non-backward-compatible way | MAJOR |
 | Bug fix in `PatientSensor.cxx` that corrects data publishing | PATCH |
 | New QoS profile added (existing profiles unchanged) | MINOR |
@@ -75,7 +75,7 @@ setup, code, or configuration to accommodate the change.
 
 **Increment MAJOR when:**
 
-- DDS type definitions (`Types.xml`) change in a way that breaks existing
+- DDS type definitions (`system/idl/`) change in a way that breaks existing
   subscribers or publishers (e.g., removing a field, renaming a topic, changing a
   field type)
 - QoS profiles are renamed, removed, or restructured such that existing

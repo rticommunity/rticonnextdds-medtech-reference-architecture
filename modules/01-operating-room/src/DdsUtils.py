@@ -11,7 +11,16 @@
 # inability to use the software.
 
 import rti.connextdds as dds
-from Types import idl
+
+try:
+    from MedTech import idl
+except ModuleNotFoundError as exc:
+    if exc.name != "MedTech":
+        raise
+    raise RuntimeError(
+        "Shared DDS bindings are missing. Run python build.py, then launch through "
+        "launch.py or add build/<CONNEXTDDS_ARCH>/system/generated/python to PYTHONPATH."
+    ) from exc
 
 
 # Simplifying how to register a type since we're using the same name

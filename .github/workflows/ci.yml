@@ -127,7 +127,7 @@ jobs:
 
       - name: Generate security artifacts
         run: |
-          python system_arch/security/setup_security.py --force
+          python system/security/setup_security.py --force
           python modules/04-security-threat/security/setup_threat_security.py --force
 
       - name: Configure Connext runtime environment

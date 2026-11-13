@@ -56,7 +56,7 @@ class TestCrashDetection:
     """Killing an app should cause Orchestrator to detect the loss via heartbeat deadline."""
 
     def test_orchestrator_detects_patient_sensor_crash(self, proc_manager, nonsecure_utility_app):
-        from Types import Common
+        from MedTech import Device
 
         patient_sensor = proc_manager.start_app_ready("PatientSensor")
         proc_manager.start_app("Orchestrator")
@@ -66,7 +66,7 @@ class TestCrashDetection:
         # Wait for PatientSensor heartbeats to start flowing
         assert wait_for_reader_match(hb_reader), "Reader never matched a writer"
         samples = wait_for_samples(hb_reader, timeout_sec=5)
-        assert any(s.device == Common.DeviceType.PATIENT_SENSOR for s in samples), (
+        assert any(s.device == Device.DeviceType.PATIENT_SENSOR for s in samples), (
             "PatientSensor heartbeats never arrived"
         )
 
@@ -102,9 +102,8 @@ class TestPauseAndResume:
     """Pausing PatientSensor should stop vitals; resuming should restart them."""
 
     def test_pause_stops_vitals_then_resume_restarts(self, proc_manager, nonsecure_utility_app):
-        from Types import (
-            Common,
-            Orchestrator,
+        from MedTech import (
+            Device,
         )
 
         proc_manager.start_app_ready("PatientSensor")
@@ -116,11 +115,11 @@ class TestPauseAndResume:
         # Wait for device status
         seen = wait_for_device_status(
             status_reader,
-            expected_devices={Common.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Common.DeviceStatuses.ON],
+            expected_devices={Device.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Device.DeviceStatuses.ON],
             timeout_sec=10,
         )
-        assert Common.DeviceType.PATIENT_SENSOR in seen, (
+        assert Device.DeviceType.PATIENT_SENSOR in seen, (
             "PatientSensor did not report DeviceStatus ON within the timeout"
         )
 
@@ -131,20 +130,20 @@ class TestPauseAndResume:
 
         # Send PAUSE
         cmd_writer.write(
-            Orchestrator.DeviceCommand(
-                device=Common.DeviceType.PATIENT_SENSOR,
-                command=Orchestrator.DeviceCommands.PAUSE,
+            Device.Command(
+                device=Device.DeviceType.PATIENT_SENSOR,
+                command=Device.DeviceCommands.PAUSE,
             )
         )
 
         # Wait for PAUSED status
         seen = wait_for_device_status(
             status_reader,
-            expected_devices={Common.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Common.DeviceStatuses.PAUSED],
+            expected_devices={Device.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Device.DeviceStatuses.PAUSED],
             timeout_sec=5,
         )
-        assert Common.DeviceType.PATIENT_SENSOR in seen, (
+        assert Device.DeviceType.PATIENT_SENSOR in seen, (
             "PatientSensor did not transition to PAUSED"
         )
 
@@ -159,9 +158,9 @@ class TestPauseAndResume:
 
         # Send START
         cmd_writer.write(
-            Orchestrator.DeviceCommand(
-                device=Common.DeviceType.PATIENT_SENSOR,
-                command=Orchestrator.DeviceCommands.START,
+            Device.Command(
+                device=Device.DeviceType.PATIENT_SENSOR,
+                command=Device.DeviceCommands.START,
             )
         )
 
@@ -180,16 +179,15 @@ class TestGracefulShutdown:
     """Sending SHUTDOWN to each device should cause all processes to exit."""
 
     def test_shutdown_all_devices(self, proc_manager, nonsecure_utility_app):
-        from Types import (
-            Common,
-            Orchestrator,
+        from MedTech import (
+            Device,
         )
 
         procs = {
-            Common.DeviceType.PATIENT_SENSOR: proc_manager.start_app("PatientSensor"),
-            Common.DeviceType.ARM_CONTROLLER: proc_manager.start_app("ArmController"),
-            Common.DeviceType.ARM: proc_manager.start_app("Arm"),
-            Common.DeviceType.PATIENT_MONITOR: proc_manager.start_app("PatientMonitor"),
+            Device.DeviceType.PATIENT_SENSOR: proc_manager.start_app("PatientSensor"),
+            Device.DeviceType.ARM_CONTROLLER: proc_manager.start_app("ArmController"),
+            Device.DeviceType.ARM: proc_manager.start_app("Arm"),
+            Device.DeviceType.PATIENT_MONITOR: proc_manager.start_app("PatientMonitor"),
         }
 
         status_reader = nonsecure_utility_app.device_status.reader
@@ -200,7 +198,7 @@ class TestGracefulShutdown:
         seen = wait_for_device_status(
             status_reader,
             expected,
-            device_statuses=[Common.DeviceStatuses.ON],
+            device_statuses=[Device.DeviceStatuses.ON],
             timeout_sec=30,
         )
         assert seen == expected, (
@@ -210,9 +208,9 @@ class TestGracefulShutdown:
         # Send SHUTDOWN to each device
         for device_type in procs:
             cmd_writer.write(
-                Orchestrator.DeviceCommand(
+                Device.Command(
                     device=device_type,
-                    command=Orchestrator.DeviceCommands.SHUTDOWN,
+                    command=Device.DeviceCommands.SHUTDOWN,
                 )
             )
 

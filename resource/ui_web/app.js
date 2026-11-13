@@ -14,6 +14,13 @@ let waveformFrame = 0;
 let activityVisible = true;
 let renderedKind = null;
 let renderedControlSignature = null;
+let renderedGamepadSignature = null;
+let sceneRendererPromise = null;
+let sceneComponentId = null;
+let pendingSceneComponent = null;
+let sceneReconcileRunning = false;
+let telemetryPublicationSequence = null;
+let telemetryPublicationTimer = null;
 const waveformSampleRate = 200;
 const waveformBufferLength = waveformSampleRate * 6;
 const waveformStates = {
@@ -97,7 +104,7 @@ function sendCommand(command, payload) {
 }
 
 function stopActiveHolds() {
-  for (const stop of [...activeHolds.values()]) stop();
+  for (const hold of [...activeHolds.values()]) hold.stop();
 }
 
 window.addEventListener("blur", stopActiveHolds);
@@ -109,30 +116,32 @@ function bindHold(button, control) {
   const holdId = nextHoldId++;
   let pressed = false;
   let refreshTimer = 0;
+  const command = control.command;
+  const payload = control.payload ?? control.rate_payload
+    ?? (control.axis ? { axis: control.axis, direction: control.direction } : {});
+  const stopPayload = control.stop_payload ?? (control.axis
+    ? { axis: control.axis, direction: "STOPPED" }
+    : zeroPayload(payload));
 
   const stop = () => {
     if (!pressed) return;
     pressed = false;
     window.clearInterval(refreshTimer);
     activeHolds.delete(holdId);
-    sendCommand(control.command, {
-      axis: control.axis,
-      direction: "STOPPED",
-    });
+    publishHeldPayload(command, stopPayload);
   };
 
   const start = (event) => {
     event.preventDefault();
     if (pressed || button.disabled) return;
     pressed = true;
-    activeHolds.set(holdId, stop);
     if (event.pointerId !== undefined) {
       button.setPointerCapture?.(event.pointerId);
     }
-    const payload = { axis: control.axis, direction: control.direction };
-    sendCommand(control.command, payload);
+    activeHolds.set(holdId, { command, payload, stopPayload, stop });
+    publishHeldPayload(command, payload);
     refreshTimer = window.setInterval(() => {
-      if (pressed) sendCommand(control.command, payload);
+      if (pressed) publishHeldPayload(command, payload);
     }, 200);
   };
 
@@ -146,6 +155,52 @@ function bindHold(button, control) {
   button.addEventListener("keyup", (event) => {
     if (event.key === " " || event.key === "Enter") stop();
   });
+}
+
+function zeroPayload(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => typeof item === "number" ? 0 : zeroPayload(item));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        typeof item === "number" ? 0 : zeroPayload(item),
+      ]),
+    );
+  }
+  return value;
+}
+
+function addPayloadValues(left, right) {
+  if (typeof left === "number" && typeof right === "number") return left + right;
+  if (Array.isArray(left) && Array.isArray(right) && left.length === right.length) {
+    return left.map((item, index) => addPayloadValues(item, right[index]));
+  }
+  if (left && right && typeof left === "object" && typeof right === "object"
+      && !Array.isArray(left) && !Array.isArray(right)) {
+    return Object.fromEntries(
+      [...new Set([...Object.keys(left), ...Object.keys(right)])].map((key) => [
+        key,
+        key in left && key in right
+          ? addPayloadValues(left[key], right[key])
+          : left[key] ?? right[key],
+      ]),
+    );
+  }
+  return left ?? right;
+}
+
+function publishHeldPayload(command, fallback) {
+  if (fallback && typeof fallback === "object" && "axis" in fallback) {
+    sendCommand(command, fallback);
+    return;
+  }
+  const active = [...activeHolds.values()]
+    .filter((hold) => hold.command === command)
+    .map((hold) => hold.payload);
+  const payload = active.reduce(addPayloadValues, null) ?? fallback;
+  sendCommand(command, active.length ? payload : fallback);
 }
 
 function renderDpad(command, disabled) {
@@ -269,192 +324,52 @@ function renderActivity(logs = [], title = "ALERTS") {
   return panel;
 }
 
-function svgNode(name, attrs = {}, text = "") {
-  const node = document.createElementNS("http://www.w3.org/2000/svg", name);
-  for (const [key, value] of Object.entries(attrs)) {
-    node.setAttribute(key, value);
-  }
-  if (text) node.textContent = text;
-  return node;
-}
-
-function renderArm(arm, { compact = false } = {}) {
-  const angles = arm?.angles || {};
-  const width = compact ? 360 : 640;
-  const height = compact ? 600 : 520;
-  const scale = compact ? .65 : 1;
-  const svg = svgNode("svg", {
-    viewBox: `0 0 ${width} ${height}`,
-    class: "arm-scene",
-    role: "img",
-    "aria-label": "Simulated surgical arm",
-  });
-  const defs = svgNode("defs");
-  const pattern = svgNode("pattern", {
-    id: "arm-grid",
-    width: "36",
-    height: "36",
-    patternUnits: "userSpaceOnUse",
-  });
-  pattern.append(
-    svgNode("path", {
-      d: "M 36 0 L 0 0 0 36",
-      fill: "none",
-      stroke: "#162230",
-      "stroke-width": "1",
-    }),
+function renderArmPreview(arm, previewLabel) {
+  const panel = element("section", "arm-command-preview");
+  panel.append(
+    element("h2", "", previewLabel || "COMMAND PREVIEW · NOT OBSERVED ARM FEEDBACK"),
+    element(
+      "p",
+      "",
+      "This local simulation preview is not observed arm feedback and does not prove DDS actuation.",
+    ),
   );
-  defs.append(pattern);
-  svg.append(defs, svgNode("rect", { width, height, fill: "url(#arm-grid)" }));
-
-  const base = { x: width / 2, y: compact ? height - 74 : 430 };
-  const shoulder = { x: base.x, y: base.y - (compact ? 43 : 52) * scale };
-  const radians = (degrees) => degrees * Math.PI / 180;
-  const theta1 = radians(90 + (angles.shoulder ?? 220) - 180);
-  const theta2 = theta1 + radians((angles.elbow ?? 120) - 180);
-  const theta3 = theta2 + radians((angles.wrist ?? 220) - 180);
-  const endpoint = (point, theta, length) => ({
-    x: point.x + length * Math.cos(theta),
-    y: point.y - length * Math.sin(theta),
-  });
-  const elbow = endpoint(shoulder, theta1, (compact ? 145 : 165) * scale);
-  const wrist = endpoint(elbow, theta2, (compact ? 110 : 125) * scale);
-  const tip = endpoint(wrist, theta3, (compact ? 45 : 55) * scale);
-  const jawOpening = radians(10 + 28 * Number(angles.hand ?? 45) / 90);
-  const jawStart = {
-    x: tip.x - 5 * Math.cos(theta3),
-    y: tip.y + 5 * Math.sin(theta3),
-  };
-
-  svg.append(
-    svgNode("text", {
-      x: 20,
-      y: 28,
-      fill: "#91a7bb",
-      "font-size": "11",
-      "font-weight": "700",
-    }, "SIMULATED SURGICAL MANIPULATOR  /  SIDE VIEW"),
-    svgNode("rect", {
-      x: base.x - 48 * scale,
-      y: base.y - 44 * scale,
-      width: 96 * scale,
-      height: 44 * scale,
-      rx: 8,
-      fill: "#182635",
-      stroke: "#36495c",
-      "stroke-width": "2",
-    }),
-    svgNode("ellipse", {
-      cx: base.x,
-      cy: base.y - 43 * scale,
-      rx: 20 * scale,
-      ry: 9 * scale,
-      fill: "#182635",
-      stroke: "#73879a",
-      "stroke-width": 3,
-    }),
-    svgNode("ellipse", {
-      cx: base.x,
-      cy: base.y - 43 * scale,
-      rx: 32 * scale,
-      ry: 15 * scale,
-      fill: "none",
-      stroke: "#33485d",
-      "stroke-width": 2,
-    }),
-  );
-
-  const links = [
-    [shoulder, elbow, 25, "#8296a9"],
-    [elbow, wrist, 20, "#6f8498"],
-    [wrist, tip, 12, "#a9bbcb"],
-  ];
-  for (const [from, to, width, color] of links) {
-    svg.append(
-      svgNode("line", {
-        x1: from.x,
-        y1: from.y,
-        x2: to.x,
-        y2: to.y,
-        stroke: "#101924",
-        "stroke-width": width * scale + 6,
-        "stroke-linecap": "round",
-      }),
-      svgNode("line", {
-        x1: from.x,
-        y1: from.y,
-        x2: to.x,
-        y2: to.y,
-        stroke: arm?.active ? color : "#536273",
-        "stroke-width": Math.max(3, (width - 7) * scale),
-        "stroke-linecap": "round",
-      }),
-    );
-  }
-  for (const offset of [-jawOpening, jawOpening]) {
-    const jawEnd = endpoint(jawStart, theta3 + offset, 31 * scale);
-    svg.append(
-      svgNode("line", {
-        x1: jawStart.x,
-        y1: jawStart.y,
-        x2: jawEnd.x,
-        y2: jawEnd.y,
-        stroke: arm?.active ? "#dce6ee" : "#536273",
-        "stroke-width": 4 * scale,
-        "stroke-linecap": "round",
-      }),
-    );
-  }
-  for (const [point, label, joint] of [
-    [shoulder, "SHOULDER", "shoulder"],
-    [elbow, "ELBOW", "elbow"],
-    [wrist, "WRIST", "wrist"],
+  const row = element("div", "command-preview-rates");
+  const rates = arm?.rates || arm?.command || arm || {};
+  for (const [label, value, unit] of [
+    ["Linear", rates.linear_velocity, "m/s"],
+    ["Angular", rates.angular_velocity, "rad/s"],
+    ["Jaw opening", rates.opening_rate, "m/s"],
   ]) {
-    svg.append(
-      svgNode("circle", {
-        cx: point.x,
-        cy: point.y,
-        r: 12 * scale,
-        fill: "#25384a",
-        stroke: "#d0dce6",
-        "stroke-width": "2",
-      }),
-      svgNode("circle", {
-        cx: point.x,
-        cy: point.y,
-        r: 6 * scale,
-        fill: "none",
-        stroke: arm?.active ? "#8296a9" : "#536273",
-        "stroke-width": 3 * scale,
-      }),
-      svgNode("text", {
-        x: point.x + 16 * scale,
-        y: point.y - 8 * scale,
-        fill: "#c8d7e5",
-        "font-size": "12",
-        "font-weight": "700",
-      }, `${label}  ${Number(angles[joint] ?? 0).toFixed(0)}°`),
-    );
+    const formatted = label === "Linear"
+      ? formatVector(value, ["x", "y", "z"], 3)
+      : label === "Angular"
+        ? formatVector(value, ["x", "y", "z"], 3)
+        : Number.isFinite(Number(value)) ? Number(value).toFixed(3) : "---";
+    row.append(element("span", "", `${label}: ${formatted} ${unit}`));
   }
-  svg.append(
-    svgNode("text", {
-      x: base.x,
-      y: base.y - (compact ? 10 : 18) * scale,
-      fill: "#c8d7e5",
-      "font-size": "12",
-      "font-weight": "700",
-      "text-anchor": "middle",
-    }, `BASE  ${Number(angles.base ?? 204).toFixed(0)}°`),
-    svgNode("text", {
-      x: tip.x - 16 * scale,
-      y: tip.y + 14 * scale,
-      "text-anchor": "end",
-      fill: arm?.active ? "#52d69a" : "#536273",
-      "font-size": "12",
-      "font-weight": "700",
-    }, `GRIPPER  ${Number(angles.hand ?? 45).toFixed(0)}°`),
+  panel.append(row);
+  const pose = arm?.pose || {};
+  const state = element("div", "command-preview-state");
+  state.append(
+    element(
+      "span",
+      "",
+      `Simulated TCP position · m: ${formatVector(pose.position || arm?.position, ["x", "y", "z"], 3)}`,
+    ),
+    element(
+      "span",
+      "",
+      `Simulated TCP orientation · x y z w: ${formatVector(pose.orientation || arm?.orientation, ["x", "y", "z", "w"], 3)}`,
+    ),
+    element(
+      "span",
+      "",
+      `Simulated jaw gap · m: ${arm?.opening_width != null && Number.isFinite(Number(arm.opening_width)) ? Number(arm.opening_width).toFixed(3) : "---"}`,
+    ),
   );
-  return svg;
+  panel.append(state);
+  return panel;
 }
 
 function drawWaveforms(timestamp) {
@@ -641,9 +556,246 @@ function renderBadges(data) {
 
 function renderArmApp(data) {
   const body = element("div", "arm-view");
-  body.append(renderArm(data.arm));
+  const scenePanel = element("section", "arm-scene-panel");
+  const heading = element("div", "arm-scene-heading");
+  heading.append(
+    element("h2", "", "ARTICULATED ARM · SIMULATION"),
+    element("span", "arm-scene-status", "Connecting to 3D renderer"),
+  );
+  const host = element("div", "arm-scene-host");
+  host.id = "arm-scene-host";
+  const motion = element("p", "arm-motion-status");
+  motion.setAttribute("role", "status");
+  scenePanel.append(heading, host, motion);
+  body.append(scenePanel);
+  if (data.arm_feedback || data.feedback) {
+    body.append(renderActualFeedback(data.arm_feedback || data.feedback));
+  }
   appMain.append(body);
+  updateArmMotionStatus(data);
 }
+
+function updateArmMotionStatus(data) {
+  const motion = $(".arm-motion-status");
+  if (!motion) return;
+  const message = data.arm?.error || "";
+  motion.textContent = message;
+  motion.title = message;
+  motion.classList.toggle("active", Boolean(message));
+}
+
+function findSceneComponent(snapshot) {
+  for (const card of snapshot?.cards || []) {
+    const component = (card.components || []).find((item) => item.type === "scene3d");
+    if (component) return component;
+  }
+  return null;
+}
+
+function disposeArmScene() {
+  const oldId = sceneComponentId;
+  sceneComponentId = null;
+  pendingSceneComponent = null;
+  if (!oldId) return;
+  if (sceneRendererPromise) {
+    sceneRendererPromise.then((renderer) => renderer.disposeScene3d(oldId)).catch(() => {});
+  }
+}
+
+function reconcileArmScene(snapshot) {
+  const component = findSceneComponent(snapshot);
+  if (!component) return;
+  if (sceneComponentId && sceneComponentId !== component.id) disposeArmScene();
+  sceneComponentId = component.id;
+  pendingSceneComponent = component;
+  if (sceneReconcileRunning) return;
+  sceneReconcileRunning = true;
+  sceneRendererPromise ||= import("/sdk/runtime3d.js");
+  sceneRendererPromise
+    .then(async (renderer) => {
+      while (pendingSceneComponent) {
+        const next = pendingSceneComponent;
+        pendingSceneComponent = null;
+        const host = $("#arm-scene-host");
+        if (!host || !host.isConnected || next.id !== sceneComponentId) continue;
+        await renderer.reconcileScene3d(next, host, {
+          materialMode: "original",
+          showNodeList: false,
+          reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+          onLoadState: (state) => {
+            const label = $(".arm-scene-status");
+            if (label) {
+              label.textContent = state === "loaded"
+                ? "3D model loaded · orbit / zoom enabled"
+                : state === "failed" ? "3D unavailable · text fallback active" : state;
+            }
+          },
+          onSelection: () => {},
+        });
+        for (const [action, label, description] of [
+          ["reset-camera", "Reset camera", "Restore the initial camera view. Does not reset the arm position."],
+          ["zoom-model", "Fit arm", "Center and fit the model while keeping the current viewing direction."],
+        ]) {
+          const button = host.querySelector(`[data-action="${action}"]`);
+          if (button) {
+            button.textContent = label;
+            button.title = description;
+            button.disabled = host.classList.contains("sdk-scene3d-fallback");
+            if (!button.dataset.armCameraAction) {
+              button.dataset.armCameraAction = action;
+              button.addEventListener("click", () => {
+                if (action === "reset-camera") {
+                  renderer.setScene3dCamera(next.id, {
+                    position: next.data.camera.position,
+                    target: next.data.camera.target,
+                    up: [0, 1, 0],
+                  });
+                }
+                let status = host.querySelector(".camera-action-status");
+                if (!status) {
+                  status = element("span", "camera-action-status");
+                  status.setAttribute("role", "status");
+                  button.parentElement.append(status);
+                }
+                status.textContent = action === "reset-camera"
+                  ? "Camera reset; arm position unchanged."
+                  : "Arm fitted to the current view.";
+              });
+            }
+          }
+          const toolbar = host.querySelector(".sdk-scene3d-toolbar");
+          if (toolbar && !toolbar.querySelector("[data-arm-view]")) {
+            // Model Z-up is mapped to renderer Y-up by the GLB root transform.
+            for (const [label, position, up] of [
+              ["Side view", [0, 0.25, 1.2], [0, 1, 0]],
+              ["Top view", [0, 1.45, 0], [0, 0, -1]],
+            ]) {
+              const button = element("button", "sdk-button", label);
+              button.type = "button";
+              button.dataset.armView = label;
+              button.title = `${label} relative to the fixed arm base; does not change control axes.`;
+              button.addEventListener("click", () => {
+                renderer.setScene3dCamera(next.id, { position, target: [0, 0.25, 0], up });
+                toolbar.querySelector('[data-action="zoom-model"]').click();
+                toolbar.querySelector(".camera-action-status").textContent =
+                  `${label}; arm position unchanged.`;
+              });
+              toolbar.insertBefore(button, toolbar.querySelector(".camera-action-status"));
+            }
+          }
+          for (const button of host.querySelectorAll("[data-arm-view]")) {
+            button.disabled = host.classList.contains("sdk-scene3d-fallback");
+          }
+        }
+      }
+    })
+    .catch((error) => {
+      const host = $("#arm-scene-host");
+      if (!host) return;
+      host.classList.add("arm-scene-fallback");
+      host.textContent = `3D renderer unavailable: ${error.message}`;
+      const label = $(".arm-scene-status");
+      if (label) label.textContent = "3D unavailable · text fallback active";
+    })
+    .finally(() => {
+      sceneReconcileRunning = false;
+      if (pendingSceneComponent) reconcileArmScene(snapshot);
+    });
+}
+
+function feedbackVector(value, keys) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === "object") return keys.map((key) => value[key]);
+  return null;
+}
+
+function formatVector(value, keys, digits) {
+  const components = feedbackVector(value, keys);
+  if (!components || components.length !== keys.length
+      || components.some((component) => !Number.isFinite(Number(component)))) return "---";
+  return components.map((component) => Number(component).toFixed(digits)).join("  ");
+}
+
+function renderActualFeedback(feedback = {}) {
+  const panel = element("section", "actual-feedback");
+  const heading = element("h2");
+  const publication = element("span", "telemetry-publication");
+  publication.setAttribute("role", "img");
+  heading.append(element("span", "feedback-heading"), publication);
+  panel.append(
+    heading,
+    element("div", "feedback-readiness", ""),
+    element("div", "feedback-freshness", ""),
+  );
+  for (const [label, key] of [
+    ["TCP position · m", "position"],
+    ["TCP orientation · x y z w", "orientation"],
+    ["Total jaw gap · m", "opening_width"],
+  ]) {
+    const row = element("div", "feedback-row");
+    row.append(element("span", "feedback-label", label), element("strong", "feedback-value", "---"));
+    row.dataset.feedback = key;
+    panel.append(row);
+  }
+  updateActualFeedback(feedback, panel);
+  return panel;
+}
+
+function updateActualFeedback(feedback = {}, panel = $(".actual-feedback")) {
+  if (!panel) return;
+  const freshness = feedback.freshness || {};
+  const telemetryFresh = freshness.telemetry === true;
+  const reported = feedback.source === "reported";
+  const displayValues = reported || telemetryFresh;
+  const statusKnown = feedback.status_known === true;
+  panel.querySelector(".feedback-heading").textContent =
+    reported ? "REPORTED TELEMETRY" : "OBSERVED ARM FEEDBACK";
+  const publication = panel.querySelector(".telemetry-publication");
+  publication.hidden = !reported;
+  const setPublishing = (active) => {
+    publication.classList.toggle("publishing", active);
+    publication.setAttribute("aria-label", active
+      ? "Publishing telemetry" : "No recent telemetry publication");
+    publication.title = publication.getAttribute("aria-label");
+  };
+  const sequence = feedback.publication_sequence;
+  if (!reported || !Number.isSafeInteger(sequence) || sequence <= 0) {
+    clearTimeout(telemetryPublicationTimer);
+    telemetryPublicationSequence = null;
+    setPublishing(false);
+  } else if (sequence !== telemetryPublicationSequence) {
+    telemetryPublicationSequence = sequence;
+    clearTimeout(telemetryPublicationTimer);
+    setPublishing(true);
+    telemetryPublicationTimer = setTimeout(() => setPublishing(false), 500);
+  }
+  const readiness = panel.querySelector(".feedback-readiness");
+  const freshReadout = panel.querySelector(".feedback-freshness");
+  if (readiness) readiness.textContent =
+    `${reported ? "Arm readiness" : "Readiness (last known)"}: ${statusKnown ? feedback.readiness || "UNKNOWN" : "UNKNOWN"}`;
+  if (freshReadout) {
+    freshReadout.hidden = reported;
+    freshReadout.textContent =
+      `Telemetry ${telemetryFresh ? "FRESH" : "STALE"}`;
+    freshReadout.className = `feedback-freshness ${telemetryFresh ? "fresh" : "stale"}`;
+  }
+  const values = {
+    position: displayValues ? formatVector(feedback.position, ["x", "y", "z"], 3) : "---",
+    orientation: displayValues
+      ? formatVector(feedback.orientation, ["x", "y", "z", "w"], 3)
+      : "---",
+    opening_width: displayValues && feedback.opening_width != null
+      && Number.isFinite(Number(feedback.opening_width))
+      ? Number(feedback.opening_width).toFixed(3)
+      : "---",
+  };
+  for (const [key, value] of Object.entries(values)) {
+    const row = panel.querySelector(`[data-feedback="${key}"] .feedback-value`);
+    if (row) row.textContent = value;
+  }
+}
+
+window.addEventListener("pagehide", disposeArmScene);
 
 function renderPatientMonitor(data) {
   appMain.className = "app-main patient-monitor-main";
@@ -654,7 +806,7 @@ function renderPatientMonitor(data) {
 function renderArmController(data) {
   appMain.className = "app-main arm-controller";
   const teleop = element("section", "teleop-panel");
-  teleop.append(element("h2", "", "TELEOPERATION  ·  END-EFFECTOR JOG"));
+  teleop.append(element("h2", "", "TELEOPERATION  ·  SIX-AXIS BASE-FRAME VELOCITY HOLD"));
   const content = element("div", "teleop-content");
   const copy = element("div", "teleop-copy");
   copy.append(
@@ -663,11 +815,10 @@ function renderArmController(data) {
     element("p", "teleop-note", data.control_note || ""),
   );
   const groups = data.control_groups || [];
-  const planar = groups.find((group) => group.layout === "planar-pad");
-  const tools = groups.find((group) => group.layout === "tool-controls");
   const demo = groups.find((group) => group.layout === "demo-controls");
-  if (planar) content.append(renderControlGroups([planar]));
-  if (tools) content.append(renderControlGroups([tools]));
+  for (const group of groups) {
+    if (group !== demo) content.append(renderControlGroups([group]));
+  }
   content.insertBefore(copy, content.firstChild);
   teleop.append(content);
   appMain.append(teleop);
@@ -677,6 +828,7 @@ function renderArmController(data) {
     actionBar.append(...demo.controls.map(renderControl));
     appMain.append(actionBar);
   }
+  appMain.append(renderActualFeedback(data.feedback));
   if (data.logs?.length) {
     appMain.append(renderActivity(data.logs, data.activity_title || "ALERTS"));
   }
@@ -715,8 +867,9 @@ function renderGamepad(data) {
     element(
       "p",
       "gamepad-instruction",
-      "Hold a control to jog. Return it to neutral to stop that axis.",
+      "Hold a control to command a base-frame velocity (+Z up). Directions do not follow the camera or tool. Return it to neutral to stop.",
     ),
+    renderActualFeedback(data.feedback),
   );
 }
 
@@ -777,8 +930,7 @@ function renderThreat(data) {
 
   const main = element("section", "threat-visual");
   if (data.kind === "threat-injector") {
-    main.append(element("h2", "", "SURGICAL ARM"));
-    main.append(renderArm(data.arm, { compact: true }));
+    main.append(renderArmPreview(data.arm_preview || data.arm, data.preview_label));
   } else {
     main.classList.add("threat-vitals");
     main.append(
@@ -838,6 +990,17 @@ function render(snapshot, connectionState = "connected") {
   const controlSignature = JSON.stringify(data.control_groups || []);
   const oldActivity = $("#activity-panel");
   if (
+    data.kind === "arm" &&
+    data.kind === renderedKind &&
+    appMain.querySelector(".arm-view")
+  ) {
+    renderBadges(data);
+    updateArmMotionStatus(data);
+    updateActualFeedback(data.arm_feedback || data.feedback);
+    reconcileArmScene(snapshot);
+    return;
+  }
+  if (
     data.kind === "patient-monitor" &&
     data.kind === renderedKind &&
     appMain.querySelector(".vitals-grid")
@@ -868,6 +1031,7 @@ function render(snapshot, connectionState = "connected") {
     controlSignature === renderedControlSignature
   ) {
     renderBadges(data);
+    updateActualFeedback(data.feedback);
     if (oldActivity) {
       oldActivity.replaceWith(
         renderActivity(data.logs, data.activity_title || "ALERTS"),
@@ -876,12 +1040,31 @@ function render(snapshot, connectionState = "connected") {
     setActivityToggle(data);
     return;
   }
+  if (data.kind === "gamepad-controller" && data.kind === renderedKind) {
+    renderBadges(data);
+    updateActualFeedback(data.feedback);
+    const gamepadSignature = JSON.stringify([
+      data.input_connected,
+      data.gamepad_name,
+      data.inputs || [],
+    ]);
+    if (gamepadSignature !== renderedGamepadSignature) {
+      appMain.replaceChildren();
+      renderGamepad(data);
+      renderedGamepadSignature = gamepadSignature;
+    }
+    return;
+  }
   if (data.kind === "arm-controller" && data.kind === renderedKind) {
     stopActiveHolds();
   }
+  if (data.kind !== renderedKind && renderedKind === "arm") disposeArmScene();
   if (data.kind !== renderedKind) resetWaveforms();
   renderedKind = data.kind;
   renderedControlSignature = controlSignature;
+  renderedGamepadSignature = data.kind === "gamepad-controller"
+    ? JSON.stringify([data.input_connected, data.gamepad_name, data.inputs || []])
+    : null;
   document.body.dataset.appKind = data.kind || "";
   const title = data.title || snapshot?.title || "";
   $("#app-title").textContent = title;
@@ -889,7 +1072,10 @@ function render(snapshot, connectionState = "connected") {
   renderBadges(data);
   appMain.replaceChildren();
   appMain.className = `app-main ${data.kind || ""}`;
-  if (data.kind === "arm") renderArmApp(data);
+  if (data.kind === "arm") {
+    renderArmApp(data);
+    reconcileArmScene(snapshot);
+  }
   else if (data.kind === "patient-monitor") renderPatientMonitor(data);
   else if (data.kind === "arm-controller") renderArmController(data);
   else if (data.kind === "gamepad-controller") renderGamepad(data);

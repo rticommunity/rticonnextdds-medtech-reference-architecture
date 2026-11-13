@@ -24,7 +24,7 @@ Usage::
     # (Maintainer-only) Scaffold directory tree from templates
     python3 setup_threat_security.py --scaffold
 
-Prerequisite: ``system_arch/security/setup_security.py`` must have been run
+Prerequisite: ``system/security/setup_security.py`` must have been run
 first so that the trusted CA artifacts exist.
 """
 
@@ -37,7 +37,7 @@ from pathlib import Path
 # Add the main security dir to the import path
 sys.path.insert(
     0,
-    str(Path(__file__).parent.parent.parent.parent.resolve() / "system_arch" / "security"),
+    str(Path(__file__).parent.parent.parent.parent.resolve() / "system" / "security"),
 )
 
 from dds_security import generate_expired_identity
@@ -56,7 +56,7 @@ from security_tree import (
 
 MODULE_DIR = Path(__file__).parent.parent.resolve()
 PROJECT_ROOT = MODULE_DIR.parent.parent.resolve()
-MAIN_SECURITY_DIR = PROJECT_ROOT / "system_arch" / "security"
+MAIN_SECURITY_DIR = PROJECT_ROOT / "system" / "security"
 MODULE_SECURITY_DIR = MODULE_DIR / "security"
 
 # ---------------------------------------------------------------------------
@@ -111,14 +111,14 @@ THREAT_DOMAIN_TRUSTED = DomainScope(
         Permissions(
             name="ThreatInjector",
             issuer=TRUSTED_PERMISSIONS_CA,
-            publish_topics=["t/TeleopControl", "t/DeviceCommand"],
-            subscribe_topics=["t/TeleopControl", "t/DeviceCommand"],
+            publish_topics=["t/robot/arm/control", "t/device/command"],
+            subscribe_topics=["t/robot/arm/control", "t/device/command"],
         ),
         Permissions(
             name="ThreatExfiltrator",
             issuer=TRUSTED_PERMISSIONS_CA,
             publish_topics=[],
-            subscribe_topics=["t/Vitals"],
+            subscribe_topics=["t/patient/vitals"],
         ),
     ],
 )
@@ -130,14 +130,14 @@ THREAT_DOMAIN_ROGUE = DomainScope(
         Permissions(
             name="ThreatInjector",
             issuer=ROGUE_CA,
-            publish_topics=["t/TeleopControl", "t/DeviceCommand"],
-            subscribe_topics=["t/TeleopControl", "t/DeviceCommand"],
+            publish_topics=["t/robot/arm/control", "t/device/command"],
+            subscribe_topics=["t/robot/arm/control", "t/device/command"],
         ),
         Permissions(
             name="ThreatExfiltrator",
             issuer=ROGUE_CA,
             publish_topics=[],
-            subscribe_topics=["t/Vitals"],
+            subscribe_topics=["t/patient/vitals"],
         ),
     ],
 )

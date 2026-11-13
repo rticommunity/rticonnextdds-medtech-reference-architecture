@@ -11,6 +11,10 @@ Module-specific tests live under each module's own `tests/` directory.
 | Python 3.11+ | With `rti.connextdds`, `rti-demo-ui`, and `pytest` installed (in `.venv` or equivalent) |
 | C++ build complete | Run `python build.py` first |
 
+The responsive-window cases in `test_ui_mode.py` additionally use the optional
+Playwright Python package and a system `google-chrome` or `chromium` executable.
+They skip when these are unavailable; they run headlessly without a display.
+
 ## Quick Start
 
 From the repository root, after sourcing the RTI environment and activating the Python venv:
@@ -20,7 +24,7 @@ From the repository root, after sourcing the RTI environment and activating the 
 pip install -r requirements-dev.txt
 
 # If you want to run the security tests
-python3 system_arch/security/setup_security.py
+python3 system/security/setup_security.py
 python modules/04-security-threat/security/setup_threat_security.py
 
 # Run all 110+ tests (repo-level + all modules)

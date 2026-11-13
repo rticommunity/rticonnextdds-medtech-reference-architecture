@@ -16,8 +16,8 @@ import rti.connextdds as dds
 from ApplicationLogic import device_status_after_command
 from DdsUtils import register_type, vitals_from_sample
 from DemoUiSupport import DemoUiState, create_demo_ui, run_demo_ui
-from Types import Common, DdsEntities, Orchestrator
-from Types import PatientMonitor as PatientTypes
+from MedTech import DdsEntities, Device
+from MedTech import Patient as PatientTypes
 
 
 class PatientMonitorApplication:
@@ -68,9 +68,9 @@ class PatientMonitorDdsAdapter:
     def __init__(self) -> None:
         entities = DdsEntities.Constants
         for data_type in (
-            Common.DeviceStatus,
-            Common.DeviceHeartbeat,
-            Orchestrator.DeviceCommand,
+            Device.Status,
+            Device.Heartbeat,
+            Device.Command,
             PatientTypes.Vitals,
         ):
             register_type(data_type)
@@ -82,20 +82,18 @@ class PatientMonitorDdsAdapter:
         self.command_reader = dds.DataReader(
             self.participant.find_datareader(entities.DEVICE_COMMAND_DR)
         )
-        self.status = Common.DeviceStatus(
-            device=Common.DeviceType.PATIENT_MONITOR,
-            status=Common.DeviceStatuses.ON,
+        self.status = Device.Status(
+            device=Device.DeviceType.PATIENT_MONITOR,
+            status=Device.DeviceStatuses.ON,
         )
         self.status_writer.write(self.status)
 
     def write_status(self, status: str) -> None:
-        self.status.status = getattr(Common.DeviceStatuses, status)
+        self.status.status = getattr(Device.DeviceStatuses, status)
         self.status_writer.write(self.status)
 
     def write_heartbeat(self) -> None:
-        self.heartbeat_writer.write(
-            Common.DeviceHeartbeat(device=Common.DeviceType.PATIENT_MONITOR)
-        )
+        self.heartbeat_writer.write(Device.Heartbeat(device=Device.DeviceType.PATIENT_MONITOR))
 
     def close(self) -> None:
         self.participant.close()

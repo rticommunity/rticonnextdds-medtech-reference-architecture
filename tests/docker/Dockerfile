@@ -130,7 +130,7 @@ COPY . .
 RUN eval $(rtienv) && python${PYTHON_VERSION} build.py -DRTICONNEXTDDS_VERSION=${CONNEXT_VERSION} -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
 
 # Generate security artifacts (certificates, signed governance/permissions)
-RUN python${PYTHON_VERSION} system_arch/security/setup_security.py --force
+RUN python${PYTHON_VERSION} system/security/setup_security.py --force
 RUN python${PYTHON_VERSION} modules/04-security-threat/security/setup_threat_security.py --force
 
 # ------------------------------------------------------------------

@@ -12,7 +12,7 @@ injector and exfiltrator participants depending on the attack mode.
 | Python 3.10+ | With the Connext Python API (`rti.connextdds`) |
 | pytest | `pip install pytest` |
 | Module 01 C++ build complete | Run `python scripts/build.py` in `modules/01-operating-room/` |
-| Security artifacts | Run `system_arch/security/setup_security.py` |
+| Security artifacts | Run `system/security/setup_security.py` |
 | Threat security artifacts | Run `modules/04-security-threat/security/setup_threat_security.py` |
 
 Tests are automatically skipped if security artifacts have not been

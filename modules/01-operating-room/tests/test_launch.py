@@ -84,6 +84,74 @@ class TestArmController:
     def test_starts_and_stays_alive(self, proc_manager):
         proc_manager.start_app_ready("ArmController")
 
+    @pytest.mark.parametrize("variant", ("simulated", "xbox"))
+    def test_readiness_remains_known_when_unchanged_and_telemetry_can_go_stale(self, variant):
+        env, apps = module_runner.load_module_config(
+            MODULE_DIR,
+            flags={"security": False},
+            variants={"ArmController": variant},
+        )
+        manager = ProcessManager(env, apps, cwd=MODULE_DIR)
+        try:
+            arm = manager.start_app_ready("Arm")
+            controller = manager.start_app_ready(
+                "ArmController", extra_env={"SDL_VIDEODRIVER": "dummy"}
+            )
+            assert controller.stdout is not None
+            deadline = time.monotonic() + 5
+            url = None
+            output = ""
+            while time.monotonic() < deadline:
+                readable, _, _ = select.select([controller.stdout], [], [], 0.25)
+                if readable:
+                    output += controller.stdout.read1(4096).decode()
+                    match = re.search(r"https?://127\.0\.0\.1:\d+/", output)
+                    if match:
+                        url = match.group(0).rstrip("/")
+                        break
+            assert url is not None
+
+            if variant == "xbox":
+                with urlopen(f"{url}/api/state", timeout=2) as response:
+                    inputs = json.load(response)["data"]["inputs"]
+                labels = [item["label"] for item in inputs]
+                assert labels.count("LT / RT") == 1
+                assert labels.count("LB") == 1
+                assert labels.count("A / B") == 1
+                assert "LEFT TRIGGER" not in labels and "RIGHT TRIGGER" not in labels
+
+            def feedback():
+                with urlopen(f"{url}/api/state", timeout=2) as response:
+                    return json.load(response)["data"].get("feedback", {})
+
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                state = feedback()
+                if state.get("status_known") and state.get("readiness") == "READY":
+                    break
+                time.sleep(0.05)
+            else:
+                pytest.fail("Controller did not observe READY")
+            time.sleep(1)
+            state = feedback()
+            assert state["status_known"]
+            assert state["readiness"] == "READY"
+            assert state["freshness"]["telemetry"]
+
+            arm.terminate()
+            arm.wait(timeout=5)
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                state = feedback()
+                if not state["freshness"]["telemetry"]:
+                    break
+                time.sleep(0.05)
+            assert not state["freshness"]["telemetry"]
+            assert state["status_known"]
+            assert state["readiness"] in {"READY", "NOT_READY"}
+        finally:
+            manager.shutdown_all()
+
     def test_unreleased_jog_command_times_out(self, proc_manager):
         proc = proc_manager.start_app_ready("ArmController")
         assert proc.stdout is not None
@@ -96,33 +164,27 @@ class TestArmController:
         base_url = match.group(0)
 
         deadline = time.monotonic() + 3
-        roll_directions = {}
+        angular_directions = {}
         while time.monotonic() < deadline:
             with urlopen(f"{base_url}/api/state", timeout=2) as response:
                 state = json.load(response)
             groups = state.get("data", {}).get("control_groups", [])
-            tool_controls = next(
-                (group["controls"] for group in groups if group["layout"] == "tool-controls"),
-                [],
-            )
-            roll_directions = {
+            tool_controls = [control for group in groups for control in group["controls"]]
+            angular_directions = {
                 control["label"]: control["direction"]
                 for control in tool_controls
-                if control.get("axis") == "ROLL"
+                if control.get("axis") == "ANGULAR_Z"
             }
-            if roll_directions:
+            if angular_directions:
                 break
             time.sleep(0.05)
-        assert roll_directions == {
-            "↶  ROLL LEFT": "POSITIVE",
-            "↷  ROLL RIGHT": "NEGATIVE",
-        }
+        assert set(angular_directions.values()) == {"POSITIVE", "NEGATIVE"}
 
         with urlopen(f"{base_url}/api/command-capability", timeout=2) as response:
             capability = json.load(response)["capability"]
         request = Request(
             f"{base_url}/api/commands/teleop",
-            data=json.dumps({"axis": "ROLL", "direction": "POSITIVE"}).encode(),
+            data=json.dumps({"axis": "ANGULAR_Z", "direction": "POSITIVE"}).encode(),
             headers={
                 "Content-Type": "application/json",
                 "Origin": base_url,
@@ -171,7 +233,7 @@ class TestAllApps:
     """Launch all five applications simultaneously."""
 
     def test_all_apps_launch_together(self, proc_manager, nonsecure_utility_app):
-        from Types import Common
+        from MedTech import Device
 
         proc_manager.start_apps_ready(
             [
@@ -187,15 +249,15 @@ class TestAllApps:
         # (Orchestrator doesn't publish DeviceStatus — it's the controller)
         status_reader = nonsecure_utility_app.device_status.reader
         expected = {
-            Common.DeviceType.PATIENT_SENSOR,
-            Common.DeviceType.ARM_CONTROLLER,
-            Common.DeviceType.ARM,
-            Common.DeviceType.PATIENT_MONITOR,
+            Device.DeviceType.PATIENT_SENSOR,
+            Device.DeviceType.ARM_CONTROLLER,
+            Device.DeviceType.ARM,
+            Device.DeviceType.PATIENT_MONITOR,
         }
         seen = wait_for_device_status(
             status_reader,
             expected,
-            device_statuses=[Common.DeviceStatuses.ON],
+            device_statuses=[Device.DeviceStatuses.ON],
             timeout_sec=30,
         )
         assert seen == expected, (
@@ -233,7 +295,7 @@ class TestArmControllerGamepad:
         pytest.importorskip("pygame")
         importlib.import_module("pygame._sdl2.controller")
 
-        from Types import Common
+        from MedTech import Device
 
         env, apps = module_runner.load_module_config(
             MODULE_DIR,
@@ -250,17 +312,17 @@ class TestArmControllerGamepad:
             )
             seen = wait_for_device_status(
                 nonsecure_utility_app.device_status.reader,
-                expected_devices={Common.DeviceType.ARM_CONTROLLER},
-                device_statuses=[Common.DeviceStatuses.ON],
+                expected_devices={Device.DeviceType.ARM_CONTROLLER},
+                device_statuses=[Device.DeviceStatuses.ON],
                 timeout_sec=10,
             )
-            assert Common.DeviceType.ARM_CONTROLLER in seen
+            assert Device.DeviceType.ARM_CONTROLLER in seen
             assert proc.poll() is None
             heartbeats = wait_for_samples(
                 nonsecure_utility_app.device_heartbeat.reader,
                 n=1,
                 timeout_sec=2,
             )
-            assert any(sample.device == Common.DeviceType.ARM_CONTROLLER for sample in heartbeats)
+            assert any(sample.device == Device.DeviceType.ARM_CONTROLLER for sample in heartbeats)
         finally:
             manager.shutdown_all()

@@ -1,0 +1,42 @@
+/*
+ * (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+ *
+ * RTI grants Licensee a license to use, modify, compile, and create derivative
+ * works of the software solely for use with RTI Connext DDS. Licensee may
+ * redistribute copies of the software provided that all such copies are
+ * subject to this license. The software is provided "as is", with no warranty
+ * of any type, including any warranty for fitness for any purpose. RTI is
+ * under no obligation to maintain or support the software. RTI shall not be
+ * liable for any incidental or consequential damages arising out of the use or
+ * inability to use the software.
+ */
+#ifndef MEDTECH_DDS_ENTITIES_IDL
+#define MEDTECH_DDS_ENTITIES_IDL
+module DdsEntities {
+    module Constants {
+        const string ARM_CONTROLLER_DP = "MedicalDemoParticipantLibrary::dp/ArmController";
+        const string ARM_DP = "MedicalDemoParticipantLibrary::dp/Arm";
+        const string ORCHESTRATOR_DP = "MedicalDemoParticipantLibrary::dp/Orchestrator";
+        const string PATIENT_MONITOR_DP = "MedicalDemoParticipantLibrary::dp/PatientMonitor";
+        const string PATIENT_SENSOR_DP = "MedicalDemoParticipantLibrary::dp/PatientSensor";
+        const string SECURELOG_READER_DP = "MedicalDemoParticipantLibrary::dp/SecureLogReader";
+        const string STATUS_DW = "p/publisher::dw/DeviceStatus";
+        const string STATUS_DR = "s/subscriber::dr/DeviceStatus";
+        const string HB_DW = "p/publisher::dw/DeviceHeartbeat";
+        const string HB_DR = "s/subscriber::dr/DeviceHeartbeat";
+        const string TELEOP_CONTROL_DW = "p/publisher::dw/TeleopControl";
+        const string TELEOP_CONTROL_DR = "s/subscriber::dr/TeleopControl";
+        const string TOOL_CONTROL_DW = "p/publisher::dw/ToolControl";
+        const string TOOL_CONTROL_DR = "s/subscriber::dr/ToolControl";
+        const string ARM_STATUS_DW = "p/publisher::dw/ArmStatus";
+        const string ARM_STATUS_DR = "s/subscriber::dr/ArmStatus";
+        const string ARM_TELEMETRY_DW = "p/publisher::dw/ArmTelemetry";
+        const string ARM_TELEMETRY_DR = "s/subscriber::dr/ArmTelemetry";
+        const string DEVICE_COMMAND_DW = "p/publisher::dw/DeviceCommand";
+        const string DEVICE_COMMAND_DR = "s/subscriber::dr/DeviceCommand";
+        const string VITALS_DW = "p/publisher::dw/Vitals";
+        const string VITALS_DR = "s/subscriber::dr/Vitals";
+        const string SECURELOG_DR = "s/subscriber::dr/SecureLog";
+    };
+};
+#endif

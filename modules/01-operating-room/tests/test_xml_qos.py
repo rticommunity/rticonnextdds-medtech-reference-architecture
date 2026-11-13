@@ -15,6 +15,7 @@ import sys
 
 import pytest
 from module01_test_support import REPO_ROOT, SRC_DIR
+from scripts.platform_setup import generated_system_path
 from scripts.test_utils import make_isolated_qos_provider, register_type
 
 
@@ -22,24 +23,27 @@ def test_operational_participants_load_from_qos_profiles():
     if str(SRC_DIR) not in sys.path:
         sys.path.insert(0, str(SRC_DIR))
 
-    from Types import Common, DdsEntities, Orchestrator, PatientMonitor, SurgicalRobot
+    from MedTech import DdsEntities, Device, Patient, Robot
 
     for type_class in (
-        Common.DeviceStatus,
-        Common.DeviceHeartbeat,
-        Orchestrator.DeviceCommand,
-        PatientMonitor.Vitals,
-        SurgicalRobot.TeleopControl,
+        Device.Status,
+        Device.Heartbeat,
+        Device.Command,
+        Patient.Vitals,
+        Robot.Arm.TeleopControl,
+        Robot.Tool.ParallelJawControl,
+        Robot.Arm.Status,
+        Robot.Arm.Telemetry,
     ):
         register_type(type_class)
 
-    system_arch = REPO_ROOT / "system_arch"
+    system = REPO_ROOT / "system"
     provider = make_isolated_qos_provider(
-        str(system_arch / "Types.xml"),
-        str(system_arch / "qos" / "Qos.xml"),
-        str(system_arch / "qos" / "NonSecureAppsQos.xml"),
-        str(system_arch / "xml_app_creation" / "DomainLibrary.xml"),
-        str(system_arch / "xml_app_creation" / "ParticipantLibrary.xml"),
+        str(generated_system_path() / "xml" / "MedTech.xml"),
+        str(system / "qos" / "Qos.xml"),
+        str(system / "qos" / "NonSecureAppsQos.xml"),
+        str(system / "xml_app_creation" / "DomainLibrary.xml"),
+        str(system / "xml_app_creation" / "ParticipantLibrary.xml"),
     )
     participants = []
     try:

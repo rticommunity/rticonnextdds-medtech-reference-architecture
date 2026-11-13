@@ -6,6 +6,21 @@ This module shows how the *ArmController* from [Module 01: Digital Operating Roo
 
 All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
 
+The routes separate best-effort arm/jaw rates
+(`t/robot/arm/control`, `t/robot/tool/control`) from reliable device lifecycle
+commands. They also carry arm readiness (`t/robot/arm/status`, reliable
+transient-local) and periodic observed feedback (`t/robot/arm/telemetry`, best
+effort), alongside the existing device and patient flows. Every routed command
+writer uses `DataFlowLibrary::Control`, including its 250 ms lifespan and
+compatible diagnostic deadline. Reliable route readers would not match the
+best-effort controller writers.
+
+Original-info/loop-prevention behavior is retained. Lifespan is a local
+reception-based validity window, not a guarantee of source-to-actuator command
+age across WAN hops. Connectivity recovery admits current valid rates without
+a neutral/rearm latch. This demonstration is not a physical teleoperation safety
+system; see the [shared contract](../../system/README.md#rate-command-validity).
+
 ## Contents
 
 - [Module Description](#module-description)
@@ -37,7 +52,7 @@ Together, the RTI Real-Time WAN Transport, RTI Security Plugins, and RTI Cloud D
 
 - **Low-latency communication** across WAN connections
 - **Automatic NAT traversal** capabilities
-- **Secure data transmission** with domain-level protection (`ENCRYPT_WITH_ORIGIN_AUTHENTICATION` + PSK encryption) and topic-level encryption applied to **every** topic. Over the WAN, participants use the *TeleopWanDomain* governance, which is identical to the LAN-side *OperationalDomain* governance (used in Modules 01 and 04) except for one difference: it extends metadata encryption to all topics via a catch-all rule, rather than encrypting only the sensitive topics `t/Vitals` and `t/TeleopControl`.
+- **Secure data transmission** with domain-level protection (`ENCRYPT_WITH_ORIGIN_AUTHENTICATION` + PSK encryption) and topic-level encryption applied to **every** topic. WAN *TeleopWanDomain* governance extends metadata encryption to every topic; LAN *OperationalDomain* governance applies it to patient vitals and the four robot control/status/telemetry topics.
 - **Bandwidth optimization** for efficient data transfer (when compared to TCP-based communication)
 - **Connection resilience** with automatic reconnection
 

@@ -9,12 +9,12 @@ behave as described in the module README.
 | Requirement | Notes |
 | --- | --- |
 | RTI Connext DDS 7.7.x | `NDDSHOME` must be set |
-| Python 3.10+ | With the Connext Python API (`rti.connextdds`) |
+| Python 3.11+ | With the Connext Python API (`rti.connextdds`) |
 | pytest | `pip install pytest` |
-| C++ build complete | Run `python scripts/build.py` first |
+| Central build complete | Run `python build.py` from the repository root, including generated C++/Python/XML |
 | `rti-demo-ui` | For browser UI process and API tests |
 | Pygame CE | Installed through the root `requirements.txt`; used by the gamepad app |
-| Security artifacts (optional) | Run `system_arch/security/setup_security.py` for `@secure` tests |
+| Security artifacts (optional) | Run `system/security/setup_security.py` for `@secure` tests |
 
 ## Running Tests
 
@@ -49,8 +49,8 @@ pytest tests/ -v -m "not secure"
 | --- | --- | --- |
 | `test_types.py` | Generated Python type import smoke test | — |
 | `test_launch.py` | Each app starts without crashing | browser mode, no display server |
-| `test_arm_kinematics.py` | Simulated end-effector jogging and the Arm controller-connection indicator | — |
-| `test_dds_communication.py` | DDS topics carry correct data (vitals, heartbeats, statuses, commands) | `gui` for Arm tests |
+| `test_arm_kinematics.py` | Base-frame TCP motion, FK/IK, reach/joint limits, signed jaw travel | — |
+| `test_dds_communication.py` | Actual data paths, including arm/jaw motion, hold after stream loss, and fresh-command recovery | `gui` for Arm tests |
 | `test_demo_flow.py` | End-to-end README scenarios (crash detection, pause/resume, shutdown) | `gui`, `slow`, `secure` |
 | `test_xml_qos.py` | Loads system QoS XML and creates the five operational named participants; secure Orchestrator startup creates SecureLogReader | `gui`, `secure` for SecureLogReader |
 
@@ -58,12 +58,15 @@ pytest tests/ -v -m "not secure"
 
 Tests create their own DDS participant on domain 0 and use it to:
 
-- **Subscribe** to topics (`t/Vitals`, `t/DeviceStatus`, `t/DeviceHeartbeat`) to
+- **Subscribe** to topics (`t/patient/vitals`, `t/device/status`, `t/device/heartbeat`) to
   verify apps are publishing the expected data.
-- **Publish** commands (`t/DeviceCommand`, `t/TeleopControl`) to verify apps
+- **Publish** commands (`t/device/command`, `t/robot/arm/control`) to verify apps
   respond correctly (pause, shutdown, and teleoperation).
 
 This tests the real DDS communication paths independently of the browser frontend.
+The bootstrap imports the central generated model, not module-local bindings.
+Command-loss tests observe pose/width/readiness with explicit timing tolerance;
+they do not independently test Connext internals or compare design alternatives.
 
 ## Markers
 

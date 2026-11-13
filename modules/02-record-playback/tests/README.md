@@ -43,7 +43,7 @@ pytest tests/test_replay.py -v
 ## How It Works
 
 1. **Recording test** — Starts PatientSensor (from Module 01) to produce
-   `t/Vitals` data, launches Recording Service for ~8 seconds, then verifies
+   `t/patient/vitals` data, launches Recording Service for ~8 seconds, then verifies
    that `or_recording/or_recording_database.dat` exists and has non-trivial size.
 
 2. **Replay test** — First records data (same as above), kills all apps, then

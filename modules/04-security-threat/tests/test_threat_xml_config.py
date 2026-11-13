@@ -22,12 +22,12 @@ def test_unsecure_threat_participants_load_from_qos_profiles(threat_env):
         if str(source_dir) not in sys.path:
             sys.path.insert(0, str(source_dir))
 
-    from Types import Orchestrator, PatientMonitor, SurgicalRobot
+    from MedTech import Device, Patient, Robot
 
     for type_class in (
-        Orchestrator.DeviceCommand,
-        PatientMonitor.Vitals,
-        SurgicalRobot.TeleopControl,
+        Device.Command,
+        Patient.Vitals,
+        Robot.Arm.TeleopControl,
     ):
         register_type(type_class)
 

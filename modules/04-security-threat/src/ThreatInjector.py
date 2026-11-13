@@ -19,16 +19,15 @@ sys.path.insert(
     0,
     str(Path(__file__).resolve().parents[3] / "modules" / "01-operating-room" / "src"),
 )
-from ArmKinematics import ArmJoint, apply_teleop_jog
+from ArmKinematics import ArmModel
 from DdsUtils import register_type
 from DemoUiSupport import (
     DemoUiState,
-    arm_angles_for_view,
     create_demo_ui,
     run_demo_ui,
 )
+from MedTech import DdsEntities, Device, Geometry, Robot
 from ThreatTypes import ThreatEntities
-from Types import Common, DdsEntities, Orchestrator, SurgicalRobot
 
 _MODES = ("UNSECURE", "ROGUE CA", "FORGED PERMS", "EXPIRED CERT")
 _ATTACKS = ("TELEOP INJECT", "CMD INJECT (PAUSE)", "CMD INJECT (SHUTDOWN)")
@@ -38,21 +37,18 @@ _MODE_TO_PARTICIPANT = {
     "FORGED PERMS": ThreatEntities.Constants.INJECTOR_FORGED_PERMS_DP,
     "EXPIRED CERT": ThreatEntities.Constants.INJECTOR_EXPIRED_CERT_DP,
 }
-_AXES = ("X", "Y", "ROLL", "GRIPPER")
-_JOINT_NAMES = {
-    ArmJoint.BASE: "base",
-    ArmJoint.SHOULDER: "shoulder",
-    ArmJoint.ELBOW: "elbow",
-    ArmJoint.WRIST: "wrist",
-    ArmJoint.HAND: "hand",
-}
-_INITIAL_ANGLES = {
-    ArmJoint.BASE: 204.0,
-    ArmJoint.SHOULDER: 220.0,
-    ArmJoint.ELBOW: 120.0,
-    ArmJoint.WRIST: 220.0,
-    ArmJoint.HAND: 45.0,
-}
+_AXES = ("X", "Y", "ANGULAR_Z")
+
+
+def _rates(axis: str, direction: str):
+    sign = 1.0 if direction == "POSITIVE" else -1.0
+    linear = [0.0, 0.0, 0.0]
+    angular = [0.0, 0.0, 0.0]
+    if axis == "ANGULAR_Z":
+        angular[2] = sign * 0.25
+    else:
+        linear[_AXES.index(axis)] = sign * 0.02
+    return tuple(linear), tuple(angular)
 
 
 class ThreatInjectionLogic:
@@ -62,14 +58,15 @@ class ThreatInjectionLogic:
         self.attacking = False
         self.frequency_hz = 5
         self.tick = 0
-        self.angles = dict(_INITIAL_ANGLES)
+        self.model = ArmModel()
         self.failure_state: str | None = None
 
     def next_teleop(self) -> tuple[str, str]:
         axis = _AXES[(self.tick // 10) % len(_AXES)]
         direction = "POSITIVE" if (self.tick // (10 * len(_AXES))) % 2 == 0 else "NEGATIVE"
         self.tick += 1
-        self.angles = apply_teleop_jog(self.angles, axis, direction)
+        linear, angular = _rates(axis, direction)
+        self.model.step(linear, angular, 0.0, 0.02)
         return axis, direction
 
     def command_attack(self) -> str:
@@ -84,9 +81,9 @@ class ThreatInjectorDdsAdapter:
 
     def open(self, mode: str) -> None:
         for data_type in (
-            Common.DeviceStatus,
-            Orchestrator.DeviceCommand,
-            SurgicalRobot.TeleopControl,
+            Device.Status,
+            Device.Command,
+            Robot.Arm.TeleopControl,
         ):
             register_type(data_type)
         provider = dds.QosProvider.default
@@ -105,17 +102,19 @@ class ThreatInjectorDdsAdapter:
         self.participant = self.teleop_writer = self.command_writer = None
 
     def write_teleop(self, axis: str, direction: str) -> None:
-        sample = SurgicalRobot.TeleopControl(
-            axis=getattr(SurgicalRobot.TeleopAxes, axis),
-            direction=getattr(SurgicalRobot.TeleopDirections, direction),
+        linear, angular = _rates(axis, direction)
+        sample = Robot.Arm.TeleopControl(
+            arm_id="arm-1",
+            linear_velocity=Geometry.Vector3(*linear),
+            angular_velocity=Geometry.Vector3(*angular),
         )
         self.teleop_writer.write(sample)
 
     def write_device_command(self, command: str) -> None:
         self.command_writer.write(
-            Orchestrator.DeviceCommand(
-                device=Common.DeviceType.ARM,
-                command=getattr(Orchestrator.DeviceCommands, command),
+            Device.Command(
+                device=Device.DeviceType.ARM,
+                command=getattr(Device.DeviceCommands, command),
             )
         )
 
@@ -248,9 +247,11 @@ class ThreatInjectorApplication:
             "activity_title": "SECURITY ACTIVITY",
             "show_activity_toggle": True,
             "arm": {
+                **self.logic.model.view(),
                 "active": self._matched is True,
-                "angles": arm_angles_for_view(self.logic.angles, _JOINT_NAMES),
+                "preview": True,
             },
+            "preview_label": "COMMAND PREVIEW - not observed arm feedback",
             "control_groups": controls,
             "footer": True,
         }
@@ -366,9 +367,9 @@ class ThreatInjectorApplication:
 
 def configure_app(app):
     for data_type in (
-        Common.DeviceStatus,
-        Orchestrator.DeviceCommand,
-        SurgicalRobot.TeleopControl,
+        Device.Status,
+        Device.Command,
+        Robot.Arm.TeleopControl,
     ):
         register_type(data_type)
     ui = DemoUiState(

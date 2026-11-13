@@ -32,5 +32,5 @@ sys.path.insert(
 MODULE_DIR = Path(__file__).resolve().parent.parent  # modules/01-operating-room
 REPO_ROOT = MODULE_DIR.parent.parent  # repo root
 SRC_DIR = MODULE_DIR / "src"
-SYSTEM_ARCH_DIR = REPO_ROOT / "system_arch"
-SECURITY_DIR = SYSTEM_ARCH_DIR / "security"
+SYSTEM_DIR = REPO_ROOT / "system"
+SECURITY_DIR = SYSTEM_DIR / "security"

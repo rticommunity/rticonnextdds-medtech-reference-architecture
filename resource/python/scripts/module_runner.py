@@ -15,9 +15,9 @@
 Each module provides a ``module.json`` at its root describing:
 
 - ``env``: environment variables to set, with values that may contain
-  ``${args:<name>}``, ``${MODULE_DIR}``, or ``${SYSTEM_ARCH}``
+  ``${args:<name>}``, ``${MODULE_DIR}``, or ``${SYSTEM_DIR}``
   placeholders.  Semicolon-delimited path entries in env values starting
-  with ``system_arch/`` resolve relative to the project root; all others
+  with ``system/`` resolve relative to the project root; all others
   resolve relative to the module directory.
 - ``args``: conditional variable definitions.  Each key is a variable
   name referenced as ``${args:<name>}`` in ``env`` or ``apps``.  The
@@ -27,7 +27,7 @@ Each module provides a ``module.json`` at its root describing:
   directories to the dynamic-library search path (default ``true``).
 - ``apps``: ``{name: [cmd_args...]}`` with placeholder tokens:
   ``${PYTHON:<name>}``, ``${CPP:<name>}``, ``${RTISERVICE:<name>}``,
-  ``${args:<name>}``, ``${MODULE_DIR}``, ``${SYSTEM_ARCH}``.
+  ``${args:<name>}``, ``${MODULE_DIR}``, ``${SYSTEM_DIR}``.
   ``${PYTHON:<name>}`` expands to two args (interpreter + ``src/<name>.py``).
   ``${CPP:<name>}`` locates a compiled executable in the build tree.
 - ``app_variants``: logical app roles mapped to a default choice and concrete
@@ -57,7 +57,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 MODULES_DIR = PROJECT_ROOT / "modules"
 
-SYSTEM_ARCH = PROJECT_ROOT / "system_arch"
+SYSTEM_DIR = PROJECT_ROOT / "system"
 
 
 def discover_modules() -> dict[str, Path]:
@@ -229,8 +229,8 @@ def _expand_string(
             return resolved_args[arg]
         if kind == "MODULE_DIR":
             return str(module_dir)
-        if kind == "SYSTEM_ARCH":
-            return str(SYSTEM_ARCH)
+        if kind == "SYSTEM_DIR":
+            return str(SYSTEM_DIR)
         if kind == "PYTHON":
             return sys.executable
         if kind == "CPP":
@@ -263,10 +263,10 @@ def _expand_app_token(
 def _resolve_env_path(raw: str, module_dir: Path) -> str:
     """Resolve a single path segment from an env value.
 
-    Paths starting with ``system_arch/`` resolve from the project root.
+    Paths starting with ``system/`` resolve from the project root.
     All other paths resolve from the module directory.
     """
-    if raw.startswith("system_arch/") or raw.startswith("system_arch\\"):
+    if raw.startswith("system/") or raw.startswith("system\\"):
         return str(PROJECT_ROOT / raw)
     return str(module_dir / raw)
 
@@ -326,6 +326,11 @@ def load_module_config(
 
     if raw.get("setup_library_paths", True):
         platform_setup.setup_library_env(env, nddshome)
+
+    generated_python = platform_setup.generated_system_path() / "python"
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(generated_python), *filter(None, [env.get("PYTHONPATH", "")])]
+    )
 
     desc = raw.get("description", module_dir.name)
     active_flags = [k for k, v in flags.items() if v]

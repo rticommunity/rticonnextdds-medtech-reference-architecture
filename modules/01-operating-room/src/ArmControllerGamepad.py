@@ -10,111 +10,185 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import os
 import time
+from typing import Any
 
 import pygame
 import rti.asyncio  # noqa: F401 - installs Connext's asyncio integration
 import rti.connextdds as dds
-from DdsUtils import register_type
 from DemoUiSupport import DemoUiState, create_demo_ui, run_demo_ui
 from pygame._sdl2 import controller
-from Types import Common, DdsEntities, Orchestrator, SurgicalRobot
 
 CONTROL_PERIOD_SECONDS = 0.02
 HEARTBEAT_PERIOD_SECONDS = 0.05
+FEEDBACK_STALE_SECONDS = 0.5
 AXIS_DEAD_ZONE = 0.35
-TELEOP_AXES = ("X", "Y", "ROLL", "GRIPPER")
+MAX_LINEAR_SPEED = 0.05
+MAX_ANGULAR_SPEED = 0.5
+MAX_OPENING_RATE = 0.02
+ARM_ID = "arm-1"
 
 
-def teleop_directions_from_controls(
+def _bounded_input(value: float, lower: float, upper: float) -> float:
+    value = float(value)
+    if not math.isfinite(value):
+        return 0.0
+    return max(lower, min(upper, value))
+
+
+def _dead_zone(value: float) -> float:
+    value = _bounded_input(value, -1.0, 1.0)
+    magnitude = abs(value)
+    if magnitude <= AXIS_DEAD_ZONE:
+        return 0.0
+    scaled = (magnitude - AXIS_DEAD_ZONE) / (1.0 - AXIS_DEAD_ZONE)
+    return math.copysign(min(scaled, 1.0), value)
+
+
+def _unit_vector(values: tuple[float, float, float]) -> tuple[float, float, float]:
+    magnitude = math.sqrt(sum(value * value for value in values))
+    if magnitude <= 1.0:
+        return values
+    return tuple(value / magnitude for value in values)
+
+
+def teleop_rates_from_controls(
     left_x: float,
     left_y: float,
-    roll: float,
-    gripper_open: bool,
-    gripper_close: bool,
-) -> dict[str, str]:
-    def direction(value: float, *, invert: bool = False) -> str:
-        if invert:
-            value = -value
-        if abs(value) < AXIS_DEAD_ZONE:
-            return "STOPPED"
-        return "POSITIVE" if value > 0 else "NEGATIVE"
+    right_x: float,
+    right_y: float,
+    left_trigger: float,
+    right_trigger: float,
+    dpad: dict[str, bool],
+    bumpers: dict[str, bool],
+    jaw_buttons: dict[str, bool],
+    z_translation_enabled: bool = True,
+) -> dict[str, dict[str, float] | float]:
+    stick_x = _dead_zone(left_x)
+    stick_y = _dead_zone(-left_y)
+    dpad_x = float(dpad["right"]) - float(dpad["left"])
+    dpad_y = float(dpad["up"]) - float(dpad["down"])
+    if stick_x == 0.0:
+        stick_x = dpad_x
+    if stick_y == 0.0:
+        stick_y = dpad_y
 
-    gripper_direction = "STOPPED"
-    if gripper_open != gripper_close:
-        gripper_direction = "POSITIVE" if gripper_open else "NEGATIVE"
+    rotating = bumpers["left"]
+    linear = _unit_vector(
+        (stick_x, stick_y, -_dead_zone(right_y) if not rotating and z_translation_enabled else 0.0)
+    )
+    angular = (0.0, 0.0, 0.0)
+    if rotating:
+        angular = _unit_vector(
+            (
+                _dead_zone(right_y),
+                _dead_zone(right_x),
+                _dead_zone(_bounded_input(right_trigger, 0.0, 1.0))
+                - _dead_zone(_bounded_input(left_trigger, 0.0, 1.0)),
+            )
+        )
+    jaw_direction = float(jaw_buttons["open"]) - float(jaw_buttons["close"])
     return {
-        "X": direction(left_x),
-        "Y": direction(left_y, invert=True),
-        "ROLL": direction(roll, invert=True),
-        "GRIPPER": gripper_direction,
+        "linear_velocity": {
+            "x": linear[0] * MAX_LINEAR_SPEED,
+            "y": linear[1] * MAX_LINEAR_SPEED,
+            "z": linear[2] * MAX_LINEAR_SPEED,
+        },
+        "angular_velocity": {
+            "x": angular[0] * MAX_ANGULAR_SPEED,
+            "y": angular[1] * MAX_ANGULAR_SPEED,
+            "z": angular[2] * MAX_ANGULAR_SPEED,
+        },
+        "opening_rate": jaw_direction * MAX_OPENING_RATE,
     }
 
 
-def active_controls_from_directions(directions: dict[str, str]) -> dict[str, bool]:
+def bounded_teleop_rates(rates: dict) -> dict:
+    def bounded_vector(vector: dict[str, float], limit: float) -> dict[str, float]:
+        values = {
+            axis: _bounded_input(vector.get(axis, 0.0), -limit, limit) for axis in ("x", "y", "z")
+        }
+        magnitude = math.sqrt(sum(value * value for value in values.values()))
+        if magnitude > limit:
+            scale = limit / magnitude
+            values = {axis: value * scale for axis, value in values.items()}
+        return values
+
     return {
-        "LEFT STICK": any(directions[axis] != "STOPPED" for axis in ("X", "Y")),
-        "RIGHT STICK": directions["ROLL"] != "STOPPED",
-        "LEFT TRIGGER": directions["GRIPPER"] == "POSITIVE",
-        "RIGHT TRIGGER": directions["GRIPPER"] == "NEGATIVE",
-        "D-PAD": False,
-        "BUMPERS": False,
-        "A / B": False,
+        "linear_velocity": bounded_vector(rates.get("linear_velocity", {}), MAX_LINEAR_SPEED),
+        "angular_velocity": bounded_vector(rates.get("angular_velocity", {}), MAX_ANGULAR_SPEED),
+        "opening_rate": _bounded_input(
+            rates.get("opening_rate", 0.0), -MAX_OPENING_RATE, MAX_OPENING_RATE
+        ),
     }
 
 
-def _merge_digital_direction(
-    analog_direction: str,
-    positive_pressed: bool,
-    negative_pressed: bool,
-) -> str:
-    if analog_direction != "STOPPED":
-        return analog_direction
-    if positive_pressed != negative_pressed:
-        return "POSITIVE" if positive_pressed else "NEGATIVE"
-    return "STOPPED"
+def active_controls_from_rates(
+    rates: dict[str, dict[str, float] | float],
+    dpad: dict[str, bool],
+    bumpers: dict[str, bool],
+    jaw_buttons: dict[str, bool],
+) -> dict[str, bool]:
+    linear = rates["linear_velocity"]
+    angular = rates["angular_velocity"]
+    assert isinstance(linear, dict) and isinstance(angular, dict)
+    return {
+        "LEFT STICK": linear["x"] != 0.0 or linear["y"] != 0.0,
+        "RIGHT STICK": linear["z"] != 0.0 or angular["x"] != 0.0 or angular["y"] != 0.0,
+        "LT / RT": angular["z"] != 0.0,
+        "D-PAD": any(dpad.values()),
+        "LB": bumpers["left"],
+        "A / B": any(jaw_buttons.values()),
+    }
 
 
-def read_controller_state(gamepad) -> tuple[dict[str, str], dict[str, bool]]:
+class GamepadControlState:
+    def __init__(self) -> None:
+        self.awaiting_right_stick_neutral = False
+
+    def update(self, rotating: bool, right_x: float, right_y: float) -> None:
+        if rotating:
+            self.awaiting_right_stick_neutral = True
+        elif _dead_zone(right_x) == 0.0 and _dead_zone(right_y) == 0.0:
+            self.awaiting_right_stick_neutral = False
+
+
+def read_controller_state(
+    gamepad, control_state: GamepadControlState
+) -> tuple[dict, dict[str, bool]]:
     axis = GamepadApplication.normalize_axis
     trigger = GamepadApplication.normalize_trigger
-    analog = teleop_directions_from_controls(
-        axis(gamepad.get_axis(pygame.CONTROLLER_AXIS_LEFTX)),
-        axis(gamepad.get_axis(pygame.CONTROLLER_AXIS_LEFTY)),
-        axis(gamepad.get_axis(pygame.CONTROLLER_AXIS_RIGHTX)),
-        trigger(gamepad.get_axis(pygame.CONTROLLER_AXIS_TRIGGERLEFT)) > AXIS_DEAD_ZONE,
-        trigger(gamepad.get_axis(pygame.CONTROLLER_AXIS_TRIGGERRIGHT)) > AXIS_DEAD_ZONE,
-    )
     dpad = {
-        "up": gamepad.get_button(pygame.CONTROLLER_BUTTON_DPAD_UP),
-        "down": gamepad.get_button(pygame.CONTROLLER_BUTTON_DPAD_DOWN),
-        "left": gamepad.get_button(pygame.CONTROLLER_BUTTON_DPAD_LEFT),
-        "right": gamepad.get_button(pygame.CONTROLLER_BUTTON_DPAD_RIGHT),
+        "up": bool(gamepad.get_button(pygame.CONTROLLER_BUTTON_DPAD_UP)),
+        "down": bool(gamepad.get_button(pygame.CONTROLLER_BUTTON_DPAD_DOWN)),
+        "left": bool(gamepad.get_button(pygame.CONTROLLER_BUTTON_DPAD_LEFT)),
+        "right": bool(gamepad.get_button(pygame.CONTROLLER_BUTTON_DPAD_RIGHT)),
     }
     bumpers = {
-        "left": gamepad.get_button(pygame.CONTROLLER_BUTTON_LEFTSHOULDER),
-        "right": gamepad.get_button(pygame.CONTROLLER_BUTTON_RIGHTSHOULDER),
+        "left": bool(gamepad.get_button(pygame.CONTROLLER_BUTTON_LEFTSHOULDER)),
     }
-    face = {
-        "open": gamepad.get_button(pygame.CONTROLLER_BUTTON_A),
-        "close": gamepad.get_button(pygame.CONTROLLER_BUTTON_B),
+    jaw_buttons = {
+        "open": bool(gamepad.get_button(pygame.CONTROLLER_BUTTON_A)),
+        "close": bool(gamepad.get_button(pygame.CONTROLLER_BUTTON_B)),
     }
-    directions = {
-        "X": _merge_digital_direction(analog["X"], dpad["right"], dpad["left"]),
-        "Y": _merge_digital_direction(analog["Y"], dpad["up"], dpad["down"]),
-        "ROLL": _merge_digital_direction(analog["ROLL"], bumpers["left"], bumpers["right"]),
-        "GRIPPER": _merge_digital_direction(analog["GRIPPER"], face["open"], face["close"]),
-    }
-    active = active_controls_from_directions(analog)
-    active["D-PAD"] = any(dpad.values())
-    active["BUMPERS"] = any(bumpers.values())
-    active["A / B"] = any(face.values())
-    return directions, active
-
-
-def read_controller_directions(gamepad) -> dict[str, str]:
-    return read_controller_state(gamepad)[0]
+    right_x = axis(gamepad.get_axis(pygame.CONTROLLER_AXIS_RIGHTX))
+    right_y = axis(gamepad.get_axis(pygame.CONTROLLER_AXIS_RIGHTY))
+    control_state.update(bumpers["left"], right_x, right_y)
+    rates = teleop_rates_from_controls(
+        axis(gamepad.get_axis(pygame.CONTROLLER_AXIS_LEFTX)),
+        axis(gamepad.get_axis(pygame.CONTROLLER_AXIS_LEFTY)),
+        right_x,
+        right_y,
+        trigger(gamepad.get_axis(pygame.CONTROLLER_AXIS_TRIGGERLEFT)),
+        trigger(gamepad.get_axis(pygame.CONTROLLER_AXIS_TRIGGERRIGHT)),
+        dpad,
+        bumpers,
+        jaw_buttons,
+        z_translation_enabled=not control_state.awaiting_right_stick_neutral,
+    )
+    return rates, active_controls_from_rates(rates, dpad, bumpers, jaw_buttons)
 
 
 def initialize_gamepad_input() -> None:
@@ -127,11 +201,20 @@ def initialize_gamepad_input() -> None:
 
 class GamepadDdsAdapter:
     def __init__(self) -> None:
+        from DdsUtils import register_type
+        from MedTech import DdsEntities, Device, Geometry, Robot
+
+        self.device = Device
+        self.geometry = Geometry
+        self.robot = Robot
         for data_type in (
-            Common.DeviceStatus,
-            Common.DeviceHeartbeat,
-            Orchestrator.DeviceCommand,
-            SurgicalRobot.TeleopControl,
+            self.device.Status,
+            self.device.Heartbeat,
+            self.device.Command,
+            self.robot.Arm.TeleopControl,
+            self.robot.Tool.ParallelJawControl,
+            self.robot.Arm.Status,
+            self.robot.Arm.Telemetry,
         ):
             register_type(data_type)
         entities = DdsEntities.Constants
@@ -143,28 +226,49 @@ class GamepadDdsAdapter:
         self.teleop_writer = dds.DataWriter(
             self.participant.find_datawriter(entities.TELEOP_CONTROL_DW)
         )
+        self.tool_writer = dds.DataWriter(
+            self.participant.find_datawriter(entities.TOOL_CONTROL_DW)
+        )
         self.command_reader = dds.DataReader(
             self.participant.find_datareader(entities.DEVICE_COMMAND_DR)
         )
-        self.status = Common.DeviceStatus(
-            device=Common.DeviceType.ARM_CONTROLLER,
-            status=Common.DeviceStatuses.ON,
+        self.arm_status_reader = dds.DataReader(
+            self.participant.find_datareader(entities.ARM_STATUS_DR)
+        )
+        self.arm_telemetry_reader = dds.DataReader(
+            self.participant.find_datareader(entities.ARM_TELEMETRY_DR)
+        )
+        self.status = self.device.Status(
+            device=self.device.DeviceType.ARM_CONTROLLER,
+            status=self.device.DeviceStatuses.ON,
         )
         self.status_writer.write(self.status)
 
     def set_status(self, status: str) -> None:
-        self.status.status = getattr(Common.DeviceStatuses, status)
+        self.status.status = getattr(self.device.DeviceStatuses, status)
         self.status_writer.write(self.status)
 
     def publish_heartbeat(self) -> None:
-        self.heartbeat_writer.write(Common.DeviceHeartbeat(device=Common.DeviceType.ARM_CONTROLLER))
-
-    def publish_teleop(self, axis_name: str, direction_name: str) -> None:
-        sample = SurgicalRobot.TeleopControl(
-            axis=getattr(SurgicalRobot.TeleopAxes, axis_name),
-            direction=getattr(SurgicalRobot.TeleopDirections, direction_name),
+        self.heartbeat_writer.write(
+            self.device.Heartbeat(device=self.device.DeviceType.ARM_CONTROLLER)
         )
-        self.teleop_writer.write(sample)
+
+    def publish_rates(self, rates: dict) -> None:
+        rates = bounded_teleop_rates(rates)
+        linear = rates["linear_velocity"]
+        angular = rates["angular_velocity"]
+        self.teleop_writer.write(
+            self.robot.Arm.TeleopControl(
+                arm_id=ARM_ID,
+                linear_velocity=self.geometry.Vector3(x=linear["x"], y=linear["y"], z=linear["z"]),
+                angular_velocity=self.geometry.Vector3(
+                    x=angular["x"], y=angular["y"], z=angular["z"]
+                ),
+            )
+        )
+        self.tool_writer.write(
+            self.robot.Tool.ParallelJawControl(arm_id=ARM_ID, opening_rate=rates["opening_rate"])
+        )
 
     async def device_commands(self):
         async for sample in self.command_reader.take_data_async():
@@ -172,6 +276,10 @@ class GamepadDdsAdapter:
 
     def close(self) -> None:
         self.participant.close()
+
+
+def _vector_view(vector) -> dict[str, float]:
+    return {axis: round(float(getattr(vector, axis)), 4) for axis in ("x", "y", "z")}
 
 
 class GamepadApplication:
@@ -182,14 +290,60 @@ class GamepadApplication:
         self.gamepad = None
         self.gamepad_instance_id = None
         self.gamepad_name = "No supported gamepad connected; waiting"
-        self.directions = dict.fromkeys(TELEOP_AXES, "STOPPED")
-        self.active_inputs = active_controls_from_directions(self.directions)
-        self.last_published = dict.fromkeys(TELEOP_AXES, "STOPPED")
-        self.next_publish = dict.fromkeys(TELEOP_AXES, 0.0)
+        self.control_state = GamepadControlState()
+        self.rates = self.zero_rates()
+        self.active_inputs: dict[str, bool] = dict.fromkeys(
+            (
+                "LEFT STICK",
+                "RIGHT STICK",
+                "LT / RT",
+                "D-PAD",
+                "LB",
+                "A / B",
+            ),
+            False,
+        )
         self.next_heartbeat = 0.0
+        self.last_arm_readiness = "NOT_READY"
+        self.has_arm_status = False
+        self.last_telemetry: dict | None = None
+        self.last_telemetry_time: float | None = None
         self.running = True
 
+    @staticmethod
+    def zero_rates() -> dict:
+        return {
+            "linear_velocity": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "angular_velocity": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "opening_rate": 0.0,
+        }
+
+    def feedback_view(self) -> dict:
+        now = time.monotonic()
+        telemetry = self.last_telemetry or {}
+        return {
+            "feedback": {
+                "readiness": self.last_arm_readiness,
+                "status_known": self.has_arm_status,
+                "position": None
+                if telemetry.get("tcp_pose") is None
+                else telemetry["tcp_pose"]["position"],
+                "orientation": None
+                if telemetry.get("tcp_pose") is None
+                else telemetry["tcp_pose"]["orientation"],
+                "opening_width": telemetry.get("jaw_opening_width"),
+                "freshness": {
+                    "telemetry": self.last_telemetry_time is not None
+                    and now - self.last_telemetry_time <= FEEDBACK_STALE_SECONDS,
+                },
+            }
+        }
+
     def view(self) -> dict:
+        feedback = self.feedback_view()["feedback"]
+        readiness_badge = (
+            feedback["readiness"] + " · LAST KNOWN" if self.has_arm_status else "UNKNOWN"
+        )
         return {
             "kind": "gamepad-controller",
             "title": "Xbox Arm Controller",
@@ -201,6 +355,14 @@ class GamepadApplication:
                     "tone": "good" if self.gamepad is not None else "warn",
                 },
                 {"label": "Device", "value": self.status},
+                {"label": "Control frame", "value": "BASE (+Z UP)"},
+                {
+                    "label": "Arm",
+                    "value": readiness_badge,
+                    "tone": "good"
+                    if feedback["readiness"] == "READY" and self.has_arm_status
+                    else "warn",
+                },
             ],
             "input_connected": self.gamepad is not None,
             "gamepad_name": self.gamepad_name,
@@ -211,16 +373,23 @@ class GamepadApplication:
                     "active": self.active_inputs[label],
                 }
                 for label, description in (
-                    ("LEFT STICK", "Jog end effector in planar X / Y"),
-                    ("RIGHT STICK", "Rotate gripper wrist"),
-                    ("LEFT TRIGGER", "Open gripper"),
-                    ("RIGHT TRIGGER", "Close gripper"),
-                    ("D-PAD", "Jog end effector in planar X / Y"),
-                    ("BUMPERS", "Left / right bumpers roll left / right"),
-                    ("A / B", "Open / close gripper"),
+                    ("LEFT STICK", "Move across the workspace: base X / Y"),
+                    (
+                        "RIGHT STICK",
+                        "Return to neutral to resume Z motion"
+                        if self.control_state.awaiting_right_stick_neutral
+                        and not self.active_inputs["LB"]
+                        else "Up / down: +Z / -Z; with LB: right / left rotate +Y / -Y, "
+                        "up / down rotate -X / +X",
+                    ),
+                    ("LB", "Hold to rotate; releases rotation and pauses Z until stick is neutral"),
+                    ("LT / RT", "With LB: rotate base Z negative / positive"),
+                    ("D-PAD", "Digital base X / Y motion fallback"),
+                    ("A / B", "A opens / B closes the parallel jaws while held"),
                 )
             ],
             "footer": True,
+            "feedback": feedback,
         }
 
     def set_status(self, status) -> None:
@@ -229,18 +398,14 @@ class GamepadApplication:
             self.dds.set_status(status)
         self.ui.update(**self.view())
 
-    def publish_direction(self, axis_name: str, direction_name: str) -> None:
-        if self.status != "ON":
-            return
-        self.dds.publish_teleop(axis_name, direction_name)
-        self.last_published[axis_name] = direction_name
-        self.next_publish[axis_name] = time.monotonic() + CONTROL_PERIOD_SECONDS
+    def publish_rates(self, rates: dict) -> None:
+        if self.status == "ON":
+            self.dds.publish_rates(rates)
 
-    def stop_active_axes(self) -> None:
-        for axis_name, direction in self.last_published.items():
-            if direction != "STOPPED":
-                self.publish_direction(axis_name, "STOPPED")
-        self.directions = dict.fromkeys(TELEOP_AXES, "STOPPED")
+    def stop_motion(self) -> None:
+        self.rates = self.zero_rates()
+        if self.status == "ON":
+            self.publish_rates(self.rates)
 
     def connect_controller(self, device_index: int) -> None:
         if self.gamepad is not None or not controller.is_controller(device_index):
@@ -257,8 +422,8 @@ class GamepadApplication:
         self.gamepad = None
         self.gamepad_instance_id = None
         self.gamepad_name = "No supported gamepad connected; waiting"
-        self.stop_active_axes()
-        self.active_inputs = active_controls_from_directions(self.directions)
+        self.stop_motion()
+        self.active_inputs = dict.fromkeys(self.active_inputs, False)
         self.ui.log(self.gamepad_name, "warn")
 
     @staticmethod
@@ -269,11 +434,11 @@ class GamepadApplication:
     def normalize_trigger(value: int) -> float:
         return max(0.0, min(1.0, value / 32767.0))
 
-    def read_controls(self) -> tuple[dict[str, str], dict[str, bool]]:
+    def read_controls(self) -> tuple[dict, dict[str, bool]]:
         if self.gamepad is None:
-            directions = dict.fromkeys(TELEOP_AXES, "STOPPED")
-            return directions, active_controls_from_directions(directions)
-        return read_controller_state(self.gamepad)
+            rates = self.zero_rates()
+            return rates, dict.fromkeys(self.active_inputs, False)
+        return read_controller_state(self.gamepad, self.control_state)
 
     def process_events(self) -> None:
         for event in pygame.event.get():
@@ -288,18 +453,53 @@ class GamepadApplication:
     async def receive_commands(self) -> None:
         async for command in self.dds.device_commands():
             if command == "PAUSE":
-                self.stop_active_axes()
+                self.rates = self.zero_rates()
                 self.set_status("PAUSED")
                 self.ui.log("Arm Controller paused by Orchestrator", "warn")
             elif command == "START":
                 self.set_status("ON")
                 self.ui.log("Arm Controller started by Orchestrator", "ok")
             else:
-                self.stop_active_axes()
+                self.rates = self.zero_rates()
                 self.set_status("OFF")
                 self.running = False
                 await self.app.stop()
                 return
+
+    @staticmethod
+    def _sample_data(sample: Any):
+        return getattr(sample, "data", sample)
+
+    async def receive_arm_status(self) -> None:
+        async for sample in self.dds.arm_status_reader.take_data_async():
+            status = self._sample_data(sample)
+            if getattr(status, "arm_id", None) != ARM_ID:
+                continue
+            self.last_arm_readiness = status.readiness.name
+            self.has_arm_status = True
+            self.ui.update(**self.view())
+
+    async def receive_arm_telemetry(self) -> None:
+        async for sample in self.dds.arm_telemetry_reader.take_data_async():
+            telemetry = self._sample_data(sample)
+            if getattr(telemetry, "arm_id", None) != ARM_ID:
+                continue
+            pose = getattr(telemetry, "tcp_pose", None)
+            jaw = getattr(telemetry, "parallel_jaw", None)
+            self.last_telemetry = {
+                "tcp_pose": None
+                if pose is None
+                else {
+                    "position": _vector_view(pose.position),
+                    "orientation": {
+                        axis: round(float(getattr(pose.orientation, axis)), 5)
+                        for axis in ("x", "y", "z", "w")
+                    },
+                },
+                "jaw_opening_width": None if jaw is None else round(float(jaw.opening_width), 4),
+            }
+            self.last_telemetry_time = time.monotonic()
+            self.ui.update(**self.view())
 
     async def run(self, app) -> None:
         self.app = app
@@ -313,16 +513,14 @@ class GamepadApplication:
         try:
             async with asyncio.TaskGroup() as tasks:
                 tasks.create_task(self.receive_commands())
+                tasks.create_task(self.receive_arm_status())
+                tasks.create_task(self.receive_arm_telemetry())
                 while self.running:
                     now = time.monotonic()
                     self.process_events()
-                    self.directions, self.active_inputs = self.read_controls()
+                    self.rates, self.active_inputs = self.read_controls()
                     if self.status == "ON":
-                        for axis_name, direction in self.directions.items():
-                            if direction != self.last_published[axis_name] or (
-                                direction != "STOPPED" and now >= self.next_publish[axis_name]
-                            ):
-                                self.publish_direction(axis_name, direction)
+                        self.publish_rates(self.rates)
                     if now >= self.next_heartbeat:
                         self.dds.publish_heartbeat()
                         self.next_heartbeat = now + HEARTBEAT_PERIOD_SECONDS
@@ -331,7 +529,7 @@ class GamepadApplication:
                         next_ui_refresh = now + 0.2
                     await asyncio.sleep(CONTROL_PERIOD_SECONDS)
         finally:
-            self.stop_active_axes()
+            self.stop_motion()
             self.status = "OFF"
             self.dds.set_status("OFF")
             if self.gamepad is not None:

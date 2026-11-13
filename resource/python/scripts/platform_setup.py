@@ -46,6 +46,10 @@ def build_path() -> Path:
     return Path("build") / get_connextdds_arch()
 
 
+def generated_system_path() -> Path:
+    return Path(__file__).resolve().parents[3] / build_path() / "system" / "generated"
+
+
 # -- Library discovery -------------------------------------------------------
 
 

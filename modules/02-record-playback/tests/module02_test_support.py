@@ -32,6 +32,6 @@ sys.path.insert(
 MODULE_DIR = Path(__file__).resolve().parent.parent  # modules/02-record-playback
 REPO_ROOT = MODULE_DIR.parent.parent  # repo root
 MODULE_01_DIR = MODULE_DIR.parent / "01-operating-room"
-SYSTEM_ARCH_DIR = REPO_ROOT / "system_arch"
+SYSTEM_DIR = REPO_ROOT / "system"
 
 RECORDING_DIR = MODULE_DIR / "or_recording"

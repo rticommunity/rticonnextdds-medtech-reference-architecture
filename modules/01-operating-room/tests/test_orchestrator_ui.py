@@ -15,7 +15,7 @@ import select
 import time
 from urllib.request import Request, urlopen
 
-from scripts.test_utils import wait_for_device_status
+from scripts.test_utils import wait_for_device_status, wait_for_writer_match
 
 
 def _local_ui_url(process, expected_prefix: str) -> str:
@@ -54,7 +54,7 @@ def test_orchestrator_selected_device_receives_browser_command(
     proc_manager,
     nonsecure_utility_app,
 ):
-    from Types import Common
+    from MedTech import Device
 
     proc_manager.start_app_ready("PatientSensor")
     orchestrator = proc_manager.start_app_ready("Orchestrator")
@@ -83,11 +83,11 @@ def test_orchestrator_selected_device_receives_browser_command(
 
     seen = wait_for_device_status(
         nonsecure_utility_app.device_status.reader,
-        expected_devices={Common.DeviceType.PATIENT_SENSOR},
-        device_statuses=[Common.DeviceStatuses.PAUSED],
+        expected_devices={Device.DeviceType.PATIENT_SENSOR},
+        device_statuses=[Device.DeviceStatuses.PAUSED],
         timeout_sec=5,
     )
-    assert Common.DeviceType.PATIENT_SENSOR in seen
+    assert Device.DeviceType.PATIENT_SENSOR in seen
 
     deadline = time.monotonic() + 3
     while time.monotonic() < deadline:
@@ -100,3 +100,41 @@ def test_orchestrator_selected_device_receives_browser_command(
             return
         time.sleep(0.05)
     raise AssertionError("Orchestrator did not record the command sent from its UI")
+
+
+def test_orchestrator_displays_live_device_error_then_off_on_heartbeat_loss(
+    proc_manager, nonsecure_utility_app
+):
+    from MedTech import Device
+
+    process = proc_manager.start_app_ready("Orchestrator")
+    url = _local_ui_url(process, "System Orchestrator listening on")
+    status = nonsecure_utility_app.device_status.writer
+    heartbeat = nonsecure_utility_app.device_heartbeat.writer
+    assert wait_for_writer_match(status)
+    assert wait_for_writer_match(heartbeat)
+    status.write(Device.Status(device=Device.DeviceType.ARM, status=Device.DeviceStatuses.ERROR))
+
+    def arm_status():
+        with urlopen(f"{url}/api/state", timeout=2) as response:
+            return next(
+                row["status"]
+                for row in json.load(response)["data"]["devices"]
+                if row["name"] == "ARM"
+            )
+
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        heartbeat.write(Device.Heartbeat(device=Device.DeviceType.ARM))
+        if arm_status() == "ERROR":
+            break
+        time.sleep(0.05)
+    else:
+        raise AssertionError("Live device ERROR was not preserved")
+
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        if arm_status() == "OFF":
+            return
+        time.sleep(0.05)
+    raise AssertionError("Heartbeat loss no longer marks the device OFF")

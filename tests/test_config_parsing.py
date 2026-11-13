@@ -141,7 +141,7 @@ class TestRemoteTeleoperationRoutes:
         for route_file in route_files:
             content = route_file.read_text(encoding="utf-8")
             ET.parse(route_file)
-            assert "t/TeleopControl" in content, f"{route_file.name} omits teleop routes"
+            assert "t/robot/arm/control" in content, f"{route_file.name} omits teleop routes"
 
     def test_module_json_app_variants_reference_defined_apps(self):
         for module_name, module_dir in module_runner.discover_modules().items():

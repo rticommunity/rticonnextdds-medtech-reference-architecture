@@ -24,4 +24,4 @@ class TestPythonTypes:
         if str(SRC_DIR) not in sys.path:
             sys.path.insert(0, str(SRC_DIR))
 
-        importlib.import_module("Types")
+        importlib.import_module("MedTech")
