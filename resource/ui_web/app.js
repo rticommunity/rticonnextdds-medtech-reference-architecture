@@ -626,7 +626,7 @@ function reconcileArmScene(snapshot) {
             const label = $(".arm-scene-status");
             if (label) {
               label.textContent = state === "loaded"
-                ? "3D model loaded · orbit / zoom enabled"
+                ? "3D model loaded · drag: orbit · right or Shift-drag: pan · scroll: zoom"
                 : state === "failed" ? "3D unavailable · text fallback active" : state;
             }
           },
@@ -638,7 +638,7 @@ function reconcileArmScene(snapshot) {
         ]) {
           const button = host.querySelector(`[data-action="${action}"]`);
           if (button) {
-            button.textContent = label;
+            if (button.textContent !== label) button.textContent = label;
             button.title = description;
             button.disabled = host.classList.contains("sdk-scene3d-fallback");
             if (!button.dataset.armCameraAction) {

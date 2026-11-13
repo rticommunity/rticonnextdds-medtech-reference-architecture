@@ -217,7 +217,7 @@ class TestArmTeleopControl:
             return (point.x, point.y, point.z)
 
         assert position(moved)[0] - position(initial)[0] > 0.0005
-        assert position(moved)[1:] == pytest.approx(position(initial)[1:], abs=1e-8)
+        assert position(moved)[1:] == pytest.approx(position(initial)[1:], abs=1e-4)
         assert moved.parallel_jaw.opening_width > initial.parallel_jaw.opening_width
 
         remaining_writer, remaining_command = (

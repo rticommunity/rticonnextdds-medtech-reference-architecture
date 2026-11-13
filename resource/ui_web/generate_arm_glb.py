@@ -220,6 +220,47 @@ def cylinder(
     return name, vertices, normals, indices, material
 
 
+def turned_housing(name: str, profile, material: str, *, axis="z", segments=40):
+    """Create a smoothly shaded housing from axial positions and radii."""
+    vertices, normals, indices = [], [], []
+
+    def vector(along, radial, angle):
+        x, y = radial * math.cos(angle), radial * math.sin(angle)
+        if axis == "x":
+            return (along, x, y)
+        if axis == "y":
+            return (x, along, -y)
+        return (x, y, along)
+
+    for row, (position, radius) in enumerate(profile):
+        before = profile[max(0, row - 1)]
+        after = profile[min(len(profile) - 1, row + 1)]
+        slope = (after[1] - before[1]) / (after[0] - before[0])
+        normal_scale = math.hypot(slope, 1)
+        for column in range(segments):
+            angle = 2 * math.pi * column / segments
+            vertices.append(vector(position, radius, angle))
+            normals.append(vector(-slope / normal_scale, 1 / normal_scale, angle))
+    for row in range(len(profile) - 1):
+        for column in range(segments):
+            a = row * segments + column
+            b = row * segments + (column + 1) % segments
+            c, d = b + segments, a + segments
+            indices.extend((a, b, c, a, c, d))
+    for row, direction in ((0, -1), (len(profile) - 1, 1)):
+        center = len(vertices)
+        vertices.append(vector(profile[row][0], 0, 0))
+        normals.append(vector(direction, 0, 0))
+        for column in range(segments):
+            angle = 2 * math.pi * column / segments
+            vertices.append(vector(profile[row][0], profile[row][1], angle))
+            normals.append(vector(direction, 0, angle))
+        for column in range(segments):
+            a, b = center + 1 + column, center + 1 + (column + 1) % segments
+            indices.extend((center, b, a) if direction < 0 else (center, a, b))
+    return name, vertices, normals, indices, material
+
+
 def ring(name: str, radius: float, thickness: float, material: str, segments=48):
     vertices, normals, indices = [], [], []
     inner, outer = radius - thickness / 2, radius + thickness / 2
@@ -243,11 +284,11 @@ def ring(name: str, radius: float, thickness: float, material: str, segments=48)
 def main() -> None:
     glb = GlbBuilder()
     for name, color, metallic in (
-        ("graphite", "#263748", 0.5),
-        ("steel", "#8ba0b4", 0.65),
-        ("silver", "#c5d3df", 0.6),
-        ("blue", "#168de2", 0.25),
-        ("cyan", "#36d5e8", 0.2),
+        ("graphite", "#27333c", 0.4),
+        ("steel", "#9aa9b3", 0.5),
+        ("silver", "#e0e5e8", 0.25),
+        ("blue", "#1476b3", 0.35),
+        ("cyan", "#37adc0", 0.2),
         ("orange", "#ed8b00", 0.2),
         ("axis_x", "#ff5252", 0.0),
         ("axis_y", "#00e676", 0.0),
@@ -257,14 +298,97 @@ def main() -> None:
         glb.material(name, color, metallic)
 
     geometries = [
-        box("base-block", (0.19, 0.19, 0.14), "graphite"),
-        cylinder("yaw-bearing", 0.035, 0.072, "blue"),
-        cylinder("shoulder-housing", 0.06, 0.052, "steel"),
-        cylinder("upper-arm", UPPER_ARM, 0.034, "silver", axis="x"),
-        cylinder("elbow-housing", 0.07, 0.043, "blue"),
-        cylinder("forearm", FOREARM, 0.028, "steel", axis="x"),
-        cylinder("wrist-housing", 0.065, 0.037, "graphite"),
-        cylinder("wrist-ring", 0.014, 0.043, "cyan"),
+        turned_housing(
+            "base-block",
+            [(-0.07, 0.08), (-0.065, 0.09), (0.045, 0.09), (0.065, 0.075), (0.07, 0.07)],
+            "graphite",
+        ),
+        turned_housing(
+            "yaw-bearing",
+            [(-0.022, 0.064), (-0.016, 0.071), (0.012, 0.071), (0.022, 0.061)],
+            "steel",
+        ),
+        turned_housing(
+            "shoulder-housing",
+            [
+                (-0.045, 0.035),
+                (-0.039, 0.05),
+                (-0.03, 0.055),
+                (0.03, 0.055),
+                (0.039, 0.05),
+                (0.045, 0.035),
+            ],
+            "silver",
+            axis="y",
+        ),
+        turned_housing(
+            "upper-arm",
+            [
+                (-UPPER_ARM / 2, 0.029),
+                (-UPPER_ARM / 2 + 0.025, 0.04),
+                (-0.05, 0.042),
+                (0.055, 0.037),
+                (UPPER_ARM / 2 - 0.025, 0.033),
+                (UPPER_ARM / 2, 0.025),
+            ],
+            "silver",
+            axis="x",
+        ),
+        turned_housing(
+            "elbow-housing",
+            [
+                (-0.038, 0.029),
+                (-0.033, 0.041),
+                (-0.027, 0.046),
+                (0.027, 0.046),
+                (0.033, 0.041),
+                (0.038, 0.029),
+            ],
+            "silver",
+            axis="y",
+        ),
+        turned_housing(
+            "forearm",
+            [
+                (-FOREARM / 2, 0.026),
+                (-FOREARM / 2 + 0.025, 0.035),
+                (-0.04, 0.036),
+                (0.045, 0.032),
+                (FOREARM / 2 - 0.02, 0.029),
+                (FOREARM / 2, 0.023),
+            ],
+            "silver",
+            axis="x",
+        ),
+        turned_housing(
+            "wrist-housing",
+            [
+                (-0.037, 0.025),
+                (-0.03, 0.035),
+                (-0.02, 0.037),
+                (0.02, 0.037),
+                (0.03, 0.033),
+                (0.037, 0.025),
+            ],
+            "steel",
+        ),
+        turned_housing(
+            "wrist-ring",
+            [(-0.006, 0.035), (-0.004, 0.039), (0.004, 0.039), (0.006, 0.035)],
+            "graphite",
+        ),
+        turned_housing(
+            "joint-cap",
+            [(-0.003, 0.026), (-0.001, 0.032), (0.001, 0.032), (0.003, 0.026)],
+            "graphite",
+            axis="y",
+        ),
+        turned_housing(
+            "joint-accent", [(-0.001, 0.017), (0, 0.020), (0.001, 0.017)], "blue", axis="y"
+        ),
+        turned_housing(
+            "base-trim", [(-0.004, 0.087), (-0.002, 0.091), (0.002, 0.091), (0.004, 0.087)], "steel"
+        ),
         cylinder("tool-shaft", SHAFT_LENGTH, 0.014, "silver"),
         box("gripper-palm", (MAX_JAW_GAP_M + 2 * PAD_WIDTH + 0.010, 0.036, PALM_DEPTH), "graphite"),
         box("tool-roll-mark", (0.028, 0.009, 0.018), "orange"),
@@ -291,6 +415,19 @@ def main() -> None:
         "BaseYaw", root, mesh=meshes["yaw-bearing"], translation=(0, 0, BASE_HEIGHT)
     )
     shoulder = glb.node("Shoulder", base_yaw, mesh=meshes["shoulder-housing"])
+    for sign in (-1, 1):
+        glb.node(
+            f"ShoulderCap{sign}",
+            shoulder,
+            mesh=meshes["joint-cap"],
+            translation=(0, sign * 0.046, 0),
+        )
+        glb.node(
+            f"ShoulderAccent{sign}",
+            shoulder,
+            mesh=meshes["joint-accent"],
+            translation=(0, sign * 0.050, 0),
+        )
     glb.node("UpperLink", shoulder, mesh=meshes["upper-arm"], translation=(UPPER_ARM / 2, 0, 0))
     elbow = glb.node(
         "Elbow",
@@ -298,6 +435,16 @@ def main() -> None:
         mesh=meshes["elbow-housing"],
         translation=(UPPER_ARM, 0, 0),
     )
+    for sign in (-1, 1):
+        glb.node(
+            f"ElbowCap{sign}", elbow, mesh=meshes["joint-cap"], translation=(0, sign * 0.039, 0)
+        )
+        glb.node(
+            f"ElbowAccent{sign}",
+            elbow,
+            mesh=meshes["joint-accent"],
+            translation=(0, sign * 0.043, 0),
+        )
     glb.node("ForearmLink", elbow, mesh=meshes["forearm"], translation=(FOREARM / 2, 0, 0))
     wrist = glb.node(
         "Wrist",
@@ -337,6 +484,7 @@ def main() -> None:
             translation=(sign * PAD_WIDTH / 2, 0, 0),
         )
     workspace = glb.node("Workspace", root)
+    glb.node("BaseTrim", root, mesh=meshes["base-trim"], translation=(0, 0, 0.025))
     glb.node("ReferenceRing", workspace, mesh=meshes["workspace-ring"], translation=(0, 0, 0.004))
     glb.node("AxisX", workspace, mesh=meshes["axis-x"], translation=(0.06, 0, 0.008))
     glb.node("AxisY", workspace, mesh=meshes["axis-y"], translation=(0, 0.06, 0.008))

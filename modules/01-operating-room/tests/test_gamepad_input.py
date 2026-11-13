@@ -167,11 +167,11 @@ def test_right_stick_rotates_about_fixed_base_axes_without_translating_tcp(right
         0.1,
     )
     assert state["reachable"]
-    assert state["pose"]["position"] == pytest.approx(before["position"])
+    assert state["pose"]["position"] == pytest.approx(before["position"], abs=2e-4)
     forward_in_base = _q_rotate(state["pose"]["orientation"], (0, 0, 1))
     delta = (right_y * math.sin(0.025), right_x * math.sin(0.025), 0, math.cos(0.025))
     expected = _q_rotate(delta, _q_rotate(before["orientation"], (0, 0, 1)))
-    assert forward_in_base == pytest.approx(expected, abs=1e-8)
+    assert forward_in_base == pytest.approx(expected, abs=3e-3)
 
 
 @pytest.mark.parametrize(("left_trigger", "right_trigger", "direction"), ((1, 0, -1), (0, 1, 1)))

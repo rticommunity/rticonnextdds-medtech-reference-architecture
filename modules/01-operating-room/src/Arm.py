@@ -20,6 +20,7 @@ from ArmKinematics import (
     MAX_LINEAR_SPEED,
     MAX_OPENING_RATE,
     ArmModel,
+    ArmSimulationError,
 )
 from DdsUtils import register_type
 from DemoUiSupport import (
@@ -231,7 +232,7 @@ async def run_application(app) -> None:
             if application.status == "ON":
                 try:
                     application.model.step(linear, angular, opening_rate, dt)
-                except (ArithmeticError, ValueError) as exc:
+                except (ArithmeticError, ValueError, ArmSimulationError) as exc:
                     application.status = "ERROR"
                     application.readiness = "FAULT"
                     adapter.write_status("ERROR")

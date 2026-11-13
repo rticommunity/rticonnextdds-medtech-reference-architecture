@@ -115,6 +115,22 @@ companion package. The embedded native window hosts the same web frontend;
 review the SDK's [native-webview support matrix and platform prerequisites](https://wcoleman-rti.github.io/rti-demo-ui/native-webview.html)
 before enabling it on a target platform.
 
+The simulated Arm uses MuJoCo and Mink, installed through `requirements.txt`.
+It runs headlessly and retains the project's existing renderer; no ROS, GPU,
+or separate simulator service is required. MuJoCo is pinned to 3.10.0 to retain
+native wheels for Intel macOS as well as Apple Silicon, Linux, and Windows.
+See the [Arm model and simulation notes](./modules/01-operating-room/README.md#arm-model-command-validity-and-observed-feedback).
+
+Third-party dependencies retain their own licenses; the project's
+Connext-specific license applies to project-authored code, not those packages.
+[MuJoCo](https://github.com/google-deepmind/mujoco/blob/main/LICENSE) and
+[Mink](https://github.com/kevinzakka/mink/blob/main/LICENSE) use Apache-2.0,
+[qpsolvers](https://github.com/qpsolvers/qpsolvers/blob/main/LICENSE) uses
+LGPL-3.0, and [DAQP](https://github.com/darnstrom/daqp/blob/master/LICENSE)
+uses MIT. These packages are installed from upstream, not vendored here.
+Keep their notices/licenses and ability to replace the library intact if
+redistributing an environment, container, or packaged application.
+
 On Debian/Ubuntu with Python 3.13 or newer, Python native mode also uses the
 distro-provided GTK bindings; pip intentionally does not install PyGObject for
 these Python versions. Install the GTK/WebKit typelibs and create the virtual

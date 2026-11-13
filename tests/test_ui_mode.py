@@ -187,6 +187,23 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                     canvas = page.locator("#arm-scene-host canvas")
                     page.wait_for_timeout(300)
                     home = canvas.screenshot()
+                    assert "pan" in page.locator(".arm-scene-status").inner_text()
+                    label_mutations = page.evaluate("""async () => {
+                        const buttons = [
+                            ...document.querySelectorAll(
+                                '[data-action="reset-camera"], [data-action="zoom-model"]'
+                            )
+                        ];
+                        let mutations = 0;
+                        const observer = new MutationObserver(records => {
+                            mutations += records.length;
+                        });
+                        buttons.forEach(button => observer.observe(button, { childList: true }));
+                        await new Promise(resolve => setTimeout(resolve, 600));
+                        observer.disconnect();
+                        return mutations;
+                    }""")
+                    assert label_mutations == 0, "Live updates must not replace button labels"
                     blue_pixels = page.evaluate(
                         """async (png) => {
                         const image = new Image();
@@ -220,6 +237,46 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                         assert preset != home
                         page.wait_for_timeout(600)
                         assert canvas.screenshot() == preset
+                        page.get_by_role("button", name="Reset camera", exact=True).click()
+                        page.wait_for_timeout(300)
+                        assert canvas.screenshot() == home
+                    canvas_box = canvas.bounding_box()
+                    assert canvas_box
+                    x = canvas_box["x"] + canvas_box["width"] * 0.2
+                    y = canvas_box["y"] + canvas_box["height"] * 0.2
+                    telemetry = panel.locator(".feedback-value").all_inner_texts()
+                    pan_view = None
+                    for modifier in ("right", "shift"):
+                        page.mouse.move(x, y)
+                        if modifier == "shift":
+                            page.keyboard.down("Shift")
+                        page.mouse.down(button="right" if modifier == "right" else "left")
+                        page.mouse.move(x + 80, y + 40, steps=8)
+                        page.mouse.up(button="right" if modifier == "right" else "left")
+                        if modifier == "shift":
+                            page.keyboard.up("Shift")
+                        page.wait_for_timeout(200)
+                        panned = canvas.screenshot()
+                        assert panned != home
+                        if pan_view is None:
+                            pan_view = panned
+                        else:
+                            assert panned == pan_view
+                        assert panel.locator(".feedback-value").all_inner_texts() == telemetry
+                        page.get_by_role("button", name="Reset camera", exact=True).click()
+                        page.wait_for_timeout(300)
+                        assert canvas.screenshot() == home
+                    for delta in (-200, 200):
+                        page.mouse.move(x, y)
+                        page.mouse.down()
+                        page.mouse.move(x + 80, y + 40, steps=8)
+                        page.mouse.up()
+                        page.mouse.wheel(0, delta)
+                        page.wait_for_timeout(200)
+                        adjusted = canvas.screenshot()
+                        page.get_by_role("button", name="Fit arm", exact=True).click()
+                        page.wait_for_timeout(300)
+                        assert canvas.screenshot() != adjusted
                         page.get_by_role("button", name="Reset camera", exact=True).click()
                         page.wait_for_timeout(300)
                         assert canvas.screenshot() == home
@@ -304,6 +361,15 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                     assert overflow["horizontal"] <= 1, (app, width, overflow)
                     assert not overflow["controls"], (app, width, overflow)
                     assert not overflow["overlappingPanels"], (app, width, overflow)
+                    if app == "Arm":
+                        scene = page.locator(".arm-scene-panel").bounding_box()
+                        telemetry = page.locator(".actual-feedback").bounding_box()
+                        assert scene and telemetry
+                        if width > 900:
+                            assert telemetry["x"] >= scene["x"] + scene["width"]
+                            assert abs(telemetry["y"] - scene["y"]) <= 1
+                        else:
+                            assert telemetry["y"] >= scene["y"] + scene["height"]
                 if app == "Arm":
                     fallback = browser.new_page()
                     fallback.route("**/models/articulated-arm.glb", lambda route: route.abort())

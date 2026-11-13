@@ -12,9 +12,13 @@
 
 import json
 import math
+import random
 import struct
 import sys
 
+import mink
+import mujoco
+import numpy as np
 import pytest
 from module01_test_support import REPO_ROOT, SRC_DIR
 
@@ -30,9 +34,8 @@ from ArmKinematics import (  # noqa: E402
     TCP_OFFSET_M,
     UPPER_ARM_M,
     ArmModel,
-    Pose,
+    ArmSimulationError,
     forward_kinematics,
-    inverse_kinematics,
 )
 
 
@@ -53,10 +56,12 @@ def _distance(a, b):
     return math.sqrt(sum((a[index] - b[index]) ** 2 for index in range(3)))
 
 
-def test_startup_tool_points_forward_and_remains_stationary_when_idle():
+def test_startup_tool_points_forward_and_down_and_remains_stationary_when_idle():
     model = ArmModel()
     before = model.pose
-    assert _rotate(before["orientation"], (0, 0, 1)) == pytest.approx((1, 0, 0), abs=1e-9)
+    assert _rotate(before["orientation"], (0, 0, 1)) == pytest.approx(
+        (math.cos(0.35), 0, -math.sin(0.35)), abs=1e-9
+    )
     assert before["position"][2] > BASE_HEIGHT_M
     state = model.step((0, 0, 0), (0, 0, 0), 0.0, 0.02)
     assert state["reachable"]
@@ -92,19 +97,11 @@ def test_startup_allows_one_second_of_motion_in_each_base_axis_direction():
         (0.0, 1.3, 2.3, 0.0, 0.0, 0.0),
     ],
 )
-def test_fk_ik_round_trip_preserves_fixed_links_and_tcp_offset(joints):
+def test_engine_fk_preserves_original_fixed_links_and_tcp_offset(joints):
     pose = forward_kinematics(joints)
-    solved = inverse_kinematics(pose, near=joints)
-    solved_from_view_shape = inverse_kinematics(
-        {"position": pose.position, "orientation": pose.orientation},
-        near=joints,
-    )
-
-    assert solved == pytest.approx(joints, abs=1e-8)
-    assert solved_from_view_shape == pytest.approx(joints, abs=1e-8)
-    round_trip = forward_kinematics(solved)
-    assert round_trip.position == pytest.approx(pose.position, abs=1e-8)
-    assert round_trip.orientation == pytest.approx(pose.orientation, abs=1e-8)
+    model = ArmModel(joints=joints)
+    assert model.pose["position"] == pytest.approx(pose.position, abs=1e-8)
+    assert model.pose["orientation"] == pytest.approx(pose.orientation, abs=1e-8)
     shoulder = (0.0, 0.0, BASE_HEIGHT_M)
     elbow = (
         UPPER_ARM_M * math.cos(joints[0]) * math.cos(joints[1]),
@@ -123,7 +120,6 @@ def test_fk_ik_round_trip_preserves_fixed_links_and_tcp_offset(joints):
     assert _distance(shoulder, elbow) == pytest.approx(UPPER_ARM_M)
     assert _distance(elbow, wrist_center) == pytest.approx(FOREARM_M)
     assert _distance(wrist_center, pose.position) == pytest.approx(TCP_OFFSET_M)
-    model = ArmModel(joints=joints)
     state = model.step((0, 0, 0), (0, 0, 0), 0.0, 0.1)
     assert state["reachable"]
     assert state["joints"] == pytest.approx(joints, abs=1e-8)
@@ -144,9 +140,9 @@ def test_base_frame_translation_is_independent_of_tool_orientation(joints):
     assert state["reachable"] is True
     assert state["pose"]["position"] == pytest.approx(
         tuple(before["position"][i] + expected_delta[i] for i in range(3)),
-        abs=1e-8,
+        abs=2e-4,
     )
-    assert state["pose"]["orientation"] == pytest.approx(before["orientation"])
+    assert state["pose"]["orientation"] == pytest.approx(before["orientation"], abs=1e-3)
 
 
 @pytest.mark.parametrize("axis", range(3))
@@ -159,13 +155,13 @@ def test_rotation_uses_base_axes_through_tcp_without_translating_it(axis):
 
     orientation = state["pose"]["orientation"]
     assert state["reachable"]
-    assert state["pose"]["position"] == pytest.approx(before["position"])
+    assert state["pose"]["position"] == pytest.approx(before["position"], abs=2e-4)
     assert orientation != pytest.approx(before["orientation"])
     assert math.sqrt(sum(value * value for value in orientation)) == pytest.approx(1.0)
     delta = tuple(math.sin(0.02) if i == axis else 0.0 for i in range(3)) + (math.cos(0.02),)
     for basis in ((1, 0, 0), (0, 1, 0), (0, 0, 1)):
         expected = _rotate(delta, _rotate(before["orientation"], basis))
-        assert _rotate(orientation, basis) == pytest.approx(expected, abs=1e-8)
+        assert _rotate(orientation, basis) == pytest.approx(expected, abs=3e-3)
 
 
 def test_combined_base_twist_reaches_nearby_continuous_joint_configuration():
@@ -199,17 +195,17 @@ def test_joint_branch_jump_is_prevented_and_reversing_recovers(joints, angular):
 
     state = model.step((0, 0, 0), angular, 0.02, 0.02)
 
-    assert "joint speed" in state["error"].lower()
-    assert max(abs(a - b) for a, b in zip(model.joints, joints)) <= 2.0 * 0.02
-    assert model.pose["position"] == pytest.approx(before["position"])
-    assert model.jaw_gap == pytest.approx(before_gap + 0.0004)
+    assert state["error"] == "Motion limit: reducing motion"
+    assert max(abs(a - b) for a, b in zip(model.joints, joints)) <= 2.0 * 0.02 + 1e-4
+    assert model.pose["position"] == pytest.approx(before["position"], abs=2e-4)
+    assert model.jaw_gap == pytest.approx(before_gap + 0.0004, abs=3e-5)
 
     previous = model.joints
     recovered = model.step((0, 0, 0), tuple(-value for value in angular), 0.0, 0.02)
     assert recovered["reachable"]
     assert recovered["error"] is None
     assert model.pose != before
-    assert max(abs(a - b) for a, b in zip(model.joints, previous)) <= 2.0 * 0.02
+    assert max(abs(a - b) for a, b in zip(model.joints, previous)) <= 2.0 * 0.02 + 1e-4
 
 
 @pytest.mark.parametrize(
@@ -230,12 +226,14 @@ def test_reachable_straight_x_motion_slows_down_instead_of_freezing(joints, spee
     state = model.step((speed, 0, 0), (0, 0, 0), 0.0, 0.02)
 
     assert state["reachable"]
-    assert state["error"] == "Joint speed limit: reducing motion"
+    assert state["error"] == "Motion limit: reducing motion"
     fraction = (model.pose["position"][0] - before["position"][0]) / (speed * 0.02)
     assert 0.0 < fraction < 1.0
-    assert model.pose["position"][1:] == pytest.approx(before["position"][1:], abs=1e-9)
-    assert model.pose["orientation"] == pytest.approx(before["orientation"], abs=1e-9)
-    assert max(abs(a - b) for a, b in zip(model.joints, previous)) <= 2.0 * 0.02
+    assert model.pose["position"][1:] == pytest.approx(before["position"][1:], abs=3e-4)
+    assert model.pose["orientation"] == pytest.approx(before["orientation"], abs=1e-3)
+    assert max(abs(a - b) for a, b in zip(model.joints, previous)) <= 2.0 * 0.02 + 1e-4
+    model.step((0, 0, 0), (0, 0, 0), 0.0, 0.1)
+    assert model.pose["position"][1:] == pytest.approx(before["position"][1:], abs=1e-5)
 
 
 def test_joint_speed_limit_scales_with_elapsed_time():
@@ -244,18 +242,18 @@ def test_joint_speed_limit_scales_with_elapsed_time():
         previous = model.joints
         state = model.step((0.02, 0.01, -0.01), (0.1, 0.15, -0.1), 0.0, dt)
         assert state["reachable"]
-        assert max(abs(a - b) for a, b in zip(model.joints, previous)) <= 2.0 * dt + 1e-9
+        assert max(abs(a - b) for a, b in zip(model.joints, previous)) <= 2.0 * dt + 1e-4
 
 
 def test_wrist_singularity_can_be_crossed_when_joint_motion_is_continuous():
     model = ArmModel(joints=(0.0, 0.35, -0.75, 0.0, 1.56, 0.0))
     before = model.joints
 
-    state = model.step((0, 0, 0), (0, 0.5, 0), 0.0, 0.02)
+    state = model.step((0, 0, 0), (0, 0.5, 0), 0.0, 0.08)
 
     assert state["reachable"]
     assert before[4] < math.pi / 2 < model.joints[4]
-    assert max(abs(a - b) for a, b in zip(model.joints, before)) <= 2.0 * 0.02
+    assert max(abs(a - b) for a, b in zip(model.joints, before)) <= 2.0 * 0.08
 
 
 def test_unreachable_step_retains_last_actual_pose_and_joint_state():
@@ -267,41 +265,22 @@ def test_unreachable_step_retains_last_actual_pose_and_joint_state():
 
     assert state["reachable"] is False
     assert state["error"]
-    assert state["pose"] == before_pose
-    assert state["joints"] == before_joints
-
-
-def test_ik_rejects_unreachable_and_joint_limited_pose():
-    assert (
-        inverse_kinematics(
-            Pose((4.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0)),
-            near=(0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
-        )
-        is None
-    )
-    outside_joint_limits = forward_kinematics((0.2, 2.4, 2.8, 0, 0, 0))
-    assert (
-        inverse_kinematics(
-            outside_joint_limits,
-            near=(0.2, 0.35, -0.75, 0, 0, 0),
-        )
-        is None
-    )
+    assert state["pose"]["position"] == pytest.approx(before_pose["position"], abs=1e-9)
+    assert state["pose"]["orientation"] == pytest.approx(before_pose["orientation"], abs=1e-9)
+    assert state["joints"] == pytest.approx(before_joints, abs=1e-9)
 
 
 @pytest.mark.parametrize(
-    ("pose", "near", "message"),
+    ("joints", "message"),
     [
-        ({}, None, "position and orientation"),
-        (Pose((math.nan, 0, 0), (0, 0, 0, 1)), None, "pose position"),
-        (Pose((0, 0, 0), (0, math.inf, 0, 1)), None, "pose orientation"),
-        (Pose((0, 0, 0), (0, 0, 0, 0)), None, "orientation quaternion"),
-        (Pose((0, 0, 0), (0, 0, 0, 1)), (), "near joints"),
+        ((), "joints"),
+        ((math.nan, 0, 0, 0, 0, 0), "finite"),
+        ((0, 2.4, 0, 0, 0, 0), "exceeds demo limits"),
     ],
 )
-def test_ik_rejects_malformed_input(pose, near, message):
+def test_model_rejects_invalid_initial_joints(joints, message):
     with pytest.raises(ValueError, match=message):
-        inverse_kinematics(pose, near)
+        ArmModel(joints=joints)
 
 
 def test_signed_jaw_rate_changes_total_gap_symmetrically_and_clamps():
@@ -309,17 +288,40 @@ def test_signed_jaw_rate_changes_total_gap_symmetrically_and_clamps():
     start = model.jaw_gap
 
     opened = model.step((0, 0, 0), (0, 0, 0), 0.02, 0.1)
-    assert opened["jaw_gap"] == pytest.approx(start + 0.002)
+    assert opened["jaw_gap"] == pytest.approx(start + 0.002, abs=3e-5)
     nodes = model.node_transforms
-    assert nodes["left_finger"]["position"][0] == pytest.approx(opened["jaw_gap"] / 2)
-    assert nodes["right_finger"]["position"][0] == pytest.approx(-opened["jaw_gap"] / 2)
+    assert nodes["left_finger"]["position"][0] == pytest.approx(opened["jaw_gap"] / 2, abs=2e-6)
+    assert nodes["right_finger"]["position"][0] == pytest.approx(-opened["jaw_gap"] / 2, abs=2e-6)
 
     for _ in range(100):
         model.step((0, 0, 0), (0, 0, 0), 0.02, 0.1)
-    assert model.jaw_gap == MAX_JAW_GAP_M
+    assert model.jaw_gap == pytest.approx(MAX_JAW_GAP_M, abs=1e-7)
     for _ in range(100):
         model.step((0, 0, 0), (0, 0, 0), -0.02, 0.1)
-    assert model.jaw_gap == MIN_JAW_GAP_M
+    assert model.jaw_gap == pytest.approx(MIN_JAW_GAP_M, abs=1e-7)
+
+
+def test_combined_motion_keeps_closed_jaws_coupled_without_false_limit_faults():
+    rng = random.Random(712)
+    model = ArmModel()
+    reached_closed = False
+    for tick in range(600):
+        if tick % 30 == 0:
+            linear = np.array([rng.uniform(-1, 1) for _ in range(3)])
+            linear *= 0.05 / np.linalg.norm(linear)
+            angular = np.array([rng.uniform(-1, 1) for _ in range(3)])
+            angular *= 0.5 / np.linalg.norm(angular)
+            rate = rng.choice((-0.02, 0, 0.02))
+        model.step(tuple(linear), tuple(angular), rate, 0.02)
+        assert MIN_JAW_GAP_M - 1e-6 <= model.opening_width <= MAX_JAW_GAP_M + 1e-6
+        reached_closed |= model.opening_width < 1e-6
+        nodes = model.node_transforms
+        left = nodes["left_finger"]["position"][0]
+        right = nodes["right_finger"]["position"][0]
+        assert left - right == pytest.approx(model.opening_width, abs=1e-10)
+        # The physical gear constraint permits small compliance under acceleration.
+        assert abs(left + right) < 5e-4
+    assert reached_closed
 
 
 @pytest.mark.parametrize("opening_rate", (-0.02, 0.0, 0.02))
@@ -369,7 +371,7 @@ def test_elapsed_step_is_bounded_and_invalid_rates_are_rejected():
     state = model.step((0.05, 0.0, 0.0), (0, 0, 0), 0.0, 2.0)
     expected = _rotate(model.pose["orientation"], (0.05 * MAX_STEP_DT_S, 0, 0))
     assert _distance(initial, state["pose"]["position"]) == pytest.approx(
-        math.sqrt(sum(value * value for value in expected))
+        math.sqrt(sum(value * value for value in expected)), abs=2e-4
     )
 
     with pytest.raises(ValueError, match="linear speed"):
@@ -382,6 +384,122 @@ def test_elapsed_step_is_bounded_and_invalid_rates_are_rejected():
         model.step((float("nan"), 0, 0), (0, 0, 0), 0.0, 0.1)
     with pytest.raises(ValueError, match="dt"):
         model.step((0, 0, 0), (0, 0, 0), 0.0, -0.1)
+
+
+def test_workspace_limit_does_not_flip_elbow_or_block_return_to_previous_position():
+    model = ArmModel()
+    start = model.pose
+    limited = False
+    for direction in (1, -1):
+        for _ in range(350):
+            previous = model.joints
+            state = model.step((direction * 0.05, 0, 0), (0, 0, 0), 0, 0.02)
+            limited |= state["error"] is not None
+            assert model.joints[2] < 0, "The elbow must not cross its extension singularity"
+            assert max(abs(a - b) for a, b in zip(model.joints, previous)) <= 0.0405
+            assert model.pose["position"][1:] == pytest.approx(start["position"][1:], abs=1e-3)
+            assert all(
+                lo - 1e-6 <= q <= hi + 1e-6 for q, (lo, hi) in zip(model.joints, JOINT_LIMITS)
+            )
+    assert limited
+    assert state["error"] is None
+    assert model.pose["position"][0] <= start["position"][0] + 0.003
+
+
+@pytest.mark.parametrize(
+    ("joints", "velocity", "pair"),
+    [
+        (
+            (-0.9564, 1.5549, -2.5288, 0.9333, 2.0245, -1.1802),
+            (-0.03792, 0.03258, 0),
+            ("base", "palm"),
+        ),
+        (
+            (1.6068424, 1.4425253, 2.2408657, 0.0514485, -1.8052425, -2.7561504),
+            (-0.0000302, 0.0495897, -0.0063920),
+            ("upper_arm", "right_finger_pad"),
+        ),
+    ],
+)
+def test_collision_approach_slows_before_contact_and_reverse_recovers(joints, velocity, pair):
+    model = ArmModel(joints=joints)
+    geom_a, geom_b = (model._model.geom(name).id for name in pair)
+    points = np.zeros(6)
+    limited = False
+    for _ in range(200):
+        state = model.step(velocity, (0, 0, 0), 0, 0.02)
+        limited |= state["error"] is not None
+        for first, second in model._limits[2].geom_id_pairs:
+            clearance = mujoco.mj_geomDistance(
+                model._model, model._data, first, second, 0.1, points
+            )
+            assert clearance > 0
+    assert limited
+    assert mujoco.mj_geomDistance(model._model, model._data, geom_a, geom_b, 0.1, points) < 0.025
+    stopped = model.pose["position"]
+    for _ in range(100):
+        state = model.step(tuple(-value for value in velocity), (0, 0, 0), 0, 0.02)
+    assert _distance(stopped, model.pose["position"]) > 0.02
+    assert state["error"] is None
+
+
+def test_arm_ik_cannot_solve_collisions_using_uncommanded_jaw_motion(monkeypatch):
+    model = ArmModel(joints=(-0.9564, 1.5549, -2.5288, 0.9333, 2.0245, -1.1802))
+    solve_ik = mink.solve_ik
+    finger_velocities = []
+
+    def record(*args, **kwargs):
+        velocity = solve_ik(*args, **kwargs)
+        finger_velocities.extend(velocity[6:])
+        return velocity
+
+    monkeypatch.setattr(mink, "solve_ik", record)
+    for _ in range(100):
+        model.step((-0.03792, 0.03258, 0), (0, 0, 0), 0, 0.02)
+    assert max(abs(value) for value in finger_velocities) < 1e-8
+
+
+def test_actuators_brake_on_release_without_chasing_a_previous_pose_target():
+    model = ArmModel()
+    for _ in range(50):
+        model.step((0.05, 0, 0), (0, 0, 0), 0.02, 0.02)
+    released_pose = model.pose
+    released_gap = model.opening_width
+    assert np.max(np.abs(model._data.qvel)) > 0
+    for _ in range(25):
+        state = model.step((0, 0, 0), (0, 0, 0), 0, 0.02)
+    assert _distance(released_pose["position"], model.pose["position"]) < 3e-4
+    assert abs(model.opening_width - released_gap) < 3e-5
+    assert np.max(np.abs(model._data.qvel)) < 1e-8
+    assert state["error"] is None
+    held_pose = model.pose
+    held_gap = model.opening_width
+    model.step((0, 0, 0), (0, 0, 0), 0, 0.1)
+    assert model.pose["position"] == pytest.approx(held_pose["position"], abs=1e-9)
+    assert model.opening_width == pytest.approx(held_gap, abs=1e-9)
+
+
+def test_numerical_backend_failure_is_not_reported_as_success(monkeypatch):
+    def fail(*args, **kwargs):
+        raise mink.NoSolutionFound("daqp")
+
+    model = ArmModel()
+    monkeypatch.setattr(mink, "solve_ik", fail)
+    with pytest.raises(ArmSimulationError, match="daqp"):
+        model.step((0.05, 0, 0), (0, 0, 0), 0, 0.02)
+    assert not model.reachable
+    assert model.last_error
+    assert np.all(model._data.ctrl == 0)
+
+
+@pytest.mark.parametrize("gap", (-0.002, 0.062))
+def test_out_of_range_physical_jaw_gap_is_a_backend_fault(gap):
+    model = ArmModel()
+    model._data.qpos[6:] = gap / 2
+    with pytest.raises(ArmSimulationError, match="mechanical range"):
+        model.step((0, 0, 0), (0, 0, 0), 0, 0.002)
+    assert not model.reachable
+    assert np.all(model._data.ctrl == 0)
 
 
 def test_device_command_transitions_are_application_logic():
