@@ -40,8 +40,9 @@ Run these once after cloning the repository.
 python3 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
-# 2. Install all development dependencies
-pip install -r requirements-dev.txt
+# 2. Bootstrap uv and install the locked maintainer profile
+python -m pip install uv==0.13.8
+uv sync --active --locked --inexact --no-dev --extra maint
 
 # 3. Register git hooks so pre-commit runs automatically on every commit
 pre-commit install
@@ -49,6 +50,14 @@ pre-commit install
 
 After step 3, quality checks run automatically on every `git commit` — you do
 not need to invoke them manually.
+
+The `user`, `dev`, and `maint` extras compose runtime capabilities, tests, and
+maintainer tools respectively. Contributors can bootstrap uv through
+`python -m pip install '.[maint]'` as well; that initial pip install is not
+locked, so follow it with the locked sync above. Keep the separately installed
+Connext Python API with `--inexact`. After changing dependency metadata, run
+`uv lock` and review `uv.lock`; use `uv lock --check` to verify it is current.
+The package version in metadata is provisional and is not a release decision.
 
 ---
 
@@ -283,10 +292,9 @@ governs both local hooks and CI: the `astral-sh/ruff-pre-commit` revision in
 | File | Setting to change | When |
 | --- | --- | --- |
 | `.pre-commit-config.yaml` | `rev: v<new-version>` under `astral-sh/ruff-pre-commit` | Every Ruff bump (this is the authoritative pin used by CI). |
-| `pyproject.toml` | `required-version = ">=<major.minor>"` | Only when raising the minimum supported version. |
-| `requirements-dev.txt` | `ruff>=<major.minor>` | Only when raising the minimum supported version. |
+| `pyproject.toml` | `required-version = ">=<major.minor>"` and maint dependency `ruff>=<major.minor>` | Only when raising the minimum supported version. |
 
-The `pyproject.toml` and `requirements-dev.txt` bounds are lower bounds for
+The `pyproject.toml` bounds are lower bounds for
 developers who run Ruff outside pre-commit; they do **not** need to change on
 every Ruff bump unless the new version introduces a breaking change to the
 configuration format.
@@ -304,9 +312,10 @@ pre-commit run --all-files
 
 # 4. Update the minimum version bounds only if appropriate
 #    pyproject.toml:      required-version = ">=<new-major.minor>"
-#    requirements-dev.txt: ruff>=<new-major.minor>
+#    pyproject.toml:      maint dependency ruff>=<new-major.minor>
+#    uv lock
 
 # 5. Commit everything together
-git add .pre-commit-config.yaml pyproject.toml requirements-dev.txt
+git add .pre-commit-config.yaml pyproject.toml uv.lock
 git commit -m "chore: bump Ruff to <new-version>"
 ```

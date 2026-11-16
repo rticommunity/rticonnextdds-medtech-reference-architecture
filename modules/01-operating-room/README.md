@@ -72,8 +72,8 @@ Module-specific notes:
 
 - If you plan to use secure mode, make sure the security artifacts from the root README have been generated.
 - There is no module-local build or launch script; use the project-level `build.py` and `launch.py` scripts from the repository root.
-- The Xbox/gamepad variant is optional at runtime. Its Pygame Community Edition dependency is installed with the standard root `requirements.txt`.
-- Native webview mode is optional. Python requires `pip install -r requirements-native.txt`; on Linux with Python 3.13+, create the virtual environment with `--system-site-packages` so it can import the system `python3-gi` binding. C++ requires configuring with `-DRTI_DEMO_BUILD_NATIVE_WEBVIEW=ON`; the SDK root integration builds the core and optional native companion together. Native windows use the project RTI logo; Windows uses its ICO variant. Install the platform prerequisites described in the root README and the RTI Demo UI native-webview guide.
+- The Xbox/gamepad variant is optional at runtime. Its Pygame Community Edition dependency is included in the root `user` profile or the `gamepad` capability.
+- Native webview mode is optional. Python requires the `native` capability: `uv sync --active --locked --inexact --no-dev --extra user --extra native`. On Linux with Python 3.13+, create the virtual environment with `--system-site-packages` and verify the interpreter can import the distro's `python3-gi` and WebKit2 bindings as described in the root README. C++ requires configuring with `-DRTI_DEMO_BUILD_NATIVE_WEBVIEW=ON`; the SDK root integration builds the core and optional native companion together. Native windows use the project RTI logo; Windows uses its ICO variant. Install the platform prerequisites described in the root README and the RTI Demo UI native-webview guide.
 - In native mode, the C++ System Orchestrator opens at 1600x950 and the Arm Controller at 1400x900; both windows remain resizable.
 
 ## Run the Demo
@@ -179,7 +179,7 @@ pointing forward and 20 degrees downward. This keeps the initial posture away
 from full extension and gives room for translation and rotation. It is
 initialization only; no HOME action is implemented.
 
-The Arm uses **MuJoCo + Mink**, installed by the root `requirements.txt`.
+The Arm uses **MuJoCo + Mink**, installed by the root `arm` capability.
 The original [MJCF model](./models/arm.xml) is authoritative for the six-axis
 chain, jaw slides, link dimensions, joint ranges, velocity actuators, illustrative
 inertias, gravity compensation, a coupled parallel-jaw mechanism, and demo rate

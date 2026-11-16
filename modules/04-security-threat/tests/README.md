@@ -9,9 +9,9 @@ injector and exfiltrator participants depending on the attack mode.
 | Requirement | Notes |
 | --- | --- |
 | RTI Connext DDS 7.7.x | `NDDSHOME` must be set |
-| Python 3.10+ | With the Connext Python API (`rti.connextdds`) |
-| pytest | `pip install pytest` |
-| Module 01 C++ build complete | Run `python scripts/build.py` in `modules/01-operating-room/` |
+| Python 3.11+ | With the Connext Python API (`rti.connextdds`) |
+| pytest | Install the locked developer dependencies as described in the [project test guide](../../../tests/README.md) |
+| Project C++ build complete | From the repository root, run `python build.py` |
 | Security artifacts | Run `system/security/setup_security.py` |
 | Threat security artifacts | Run `modules/04-security-threat/security/setup_threat_security.py` |
 
@@ -20,20 +20,20 @@ generated.
 
 ## Running Tests
 
-From the `modules/04-security-threat/` directory:
+From the repository root, after building the project and sourcing the Connext environment:
 
 ```bash
 # All tests
-pytest tests/ -v
+python -m pytest modules/04-security-threat/tests/ -v
 
 # Only injector tests
-pytest tests/test_threat_injector.py -v
+python -m pytest modules/04-security-threat/tests/test_threat_injector.py -v
 
 # Only exfiltrator tests
-pytest tests/test_threat_exfiltrator.py -v
+python -m pytest modules/04-security-threat/tests/test_threat_exfiltrator.py -v
 
 # Only unsecure tests (faster)
-pytest tests/ -v -k "Unsecure"
+python -m pytest modules/04-security-threat/tests/ -v -k "Unsecure"
 ```
 
 ## Test Structure

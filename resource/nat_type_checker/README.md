@@ -9,7 +9,7 @@ with the IP address seen by a STUN server.
 - `requests` library
 - `pystun3` library
 
-These are included in the project's `requirements.txt`. If you have already followed the [Quick Start](../../README.md#quick-start) setup, no additional installation is needed.
+These are included in the project's base Python dependencies. If you have already followed the [Quick Start](../../README.md#quick-start) setup, no additional installation is needed.
 
 To install standalone:
 

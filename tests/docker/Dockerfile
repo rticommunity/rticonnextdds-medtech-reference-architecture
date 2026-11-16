@@ -111,12 +111,13 @@ RUN python${PYTHON_VERSION} -m venv ${VIRTUAL_ENV}
 ENV PATH=${VIRTUAL_ENV}/bin:${PATH}
 
 WORKDIR /workspace
-COPY requirements*.txt ./
+# Keep the dependency layer keyed only by project metadata and the committed lock.
+COPY pyproject.toml uv.lock ./
 
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir \
-        rti.connext~=${CONNEXT_VERSION}.0 \
-        -r requirements-dev.txt
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir uv==0.13.8 \
+    && python -m pip install --no-cache-dir "rti.connext~=${CONNEXT_VERSION}.0" \
+    && uv sync --active --locked --inexact --no-dev --extra dev --no-install-project
 
 # ------------------------------------------------------------------
 # Stage 3: Build C++ modules + security artifacts

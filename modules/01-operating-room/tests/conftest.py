@@ -25,16 +25,8 @@ sys.path.insert(0, str(TESTS_DIR))
 sys.path.insert(0, str(RESOURCE_PYTHON_DIR))
 
 module01_test_support = importlib.import_module("module01_test_support")
-module_runner = importlib.import_module("scripts.module_runner")
-
 MODULE_DIR = module01_test_support.MODULE_DIR
 SECURITY_DIR = module01_test_support.SECURITY_DIR
-
-from scripts.test_utils import (  # noqa: E402
-    ProcessManager,
-    UtilityApp,
-    security_plugin_available,
-)
 
 
 def _security_artifacts_exist() -> bool:
@@ -50,11 +42,6 @@ def pytest_collection_modifyitems(config, items):
     skip_sec_artifacts = pytest.mark.skip(
         reason="Security artifacts not generated (run setup_security.py)",
     )
-    skip_sec_plugin = pytest.mark.skip(
-        reason="DDS Security runtime probe failed",
-    )
-
-    __has_security_plugin = security_plugin_available()
     _has_security_artifacts = _security_artifacts_exist()
 
     module_items = [i for i in items if Path(i.fspath).is_relative_to(TESTS_DIR)]
@@ -62,13 +49,13 @@ def pytest_collection_modifyitems(config, items):
     for item in module_items:
         if "secure" in item.keywords and not _has_security_artifacts:
             item.add_marker(skip_sec_artifacts)
-        elif "secure" in item.keywords and not __has_security_plugin:
-            item.add_marker(skip_sec_plugin)
 
 
 @pytest.fixture(scope="session")
 def dds_env():
     """Session-scoped environment for non-secure subprocess launches."""
+    from scripts import module_runner
+
     env, apps = module_runner.load_module_config(MODULE_DIR, flags={"security": False})
     return env, apps
 
@@ -76,6 +63,12 @@ def dds_env():
 @pytest.fixture(scope="session")
 def dds_env_secure():
     """Session-scoped environment for secure subprocess launches."""
+    from scripts import module_runner
+    from scripts.test_utils import security_plugin_available
+
+    if not security_plugin_available():
+        pytest.skip("DDS Security runtime probe failed")
+
     env, apps = module_runner.load_module_config(MODULE_DIR, flags={"security": True})
     env["RTI_SECURITY_ARTIFACTS_DIR"] = str(SECURITY_DIR)
     return env, apps
@@ -84,6 +77,8 @@ def dds_env_secure():
 @pytest.fixture()
 def proc_manager(dds_env):
     """Yield a ProcessManager wired to the non-secure DDS environment."""
+    from scripts.test_utils import ProcessManager
+
     env, apps = dds_env
     pm = ProcessManager(env, apps, cwd=MODULE_DIR)
     yield pm
@@ -93,6 +88,8 @@ def proc_manager(dds_env):
 @pytest.fixture(scope="class")
 def class_proc_manager(dds_env):
     """Class-scoped ProcessManager for read-only test classes."""
+    from scripts.test_utils import ProcessManager
+
     env, apps = dds_env
     pm = ProcessManager(env, apps, cwd=MODULE_DIR)
     yield pm
@@ -102,6 +99,8 @@ def class_proc_manager(dds_env):
 @pytest.fixture()
 def proc_manager_secure(dds_env_secure):
     """Yield a ProcessManager wired to the secure DDS environment."""
+    from scripts.test_utils import ProcessManager
+
     env, apps = dds_env_secure
     pm = ProcessManager(env, apps, cwd=MODULE_DIR)
     yield pm
@@ -111,6 +110,8 @@ def proc_manager_secure(dds_env_secure):
 @pytest.fixture()
 def nonsecure_utility_app():
     """Create a UtilityApp for in-process DDS observation."""
+    from scripts.test_utils import UtilityApp
+
     app = UtilityApp.make_non_secure()
     yield app
     app.close()

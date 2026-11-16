@@ -10,7 +10,7 @@ applications as end-user runtime containers.
 | Image | Target | Purpose |
 | --- | --- | --- |
 | `medtech-build` | `build` | Ubuntu 24.04 + Connext 7.7.0 + CMake build of C++ modules + security artifacts |
-| `medtech-test` | `test` | Extends build with Python deps, pytest, and rumdl for browser-mode tests |
+| `medtech-test` | `test` | Extends build with locked Python dependencies and pytest |
 
 ## Prerequisites
 
@@ -84,20 +84,27 @@ docker run --rm -it \
 
 ## Understanding the Test Flow
 
-The Docker entrypoint (`tests/docker/entrypoint.sh`):
+The image build is the explicit configure/codegen/build stage. The
+`medtech-test` stage inherits those prepared outputs. The Docker entrypoint
+(`tests/docker/entrypoint.sh`):
 
 1. Sources the RTI Connext environment
-2. Runs `pytest` with any provided arguments
+2. Runs pytest with any provided arguments; it does not reconfigure or rebuild
 
-Example: `docker run medtech-test` → entrypoint calls `pytest .` (the full suite)
+Example: `docker run medtech-test` → entrypoint calls `pytest .` against the
+outputs built into the image
 
 Example: `docker run medtech-test -k "test_types"` → entrypoint calls `pytest -k "test_types"`
+
+The dependency layer copies `pyproject.toml` and the committed `uv.lock`, then
+uses the locked developer extra with an inexact sync. The Connext Python API is
+installed explicitly before synchronization and is not removed.
 
 ## Why two images?
 
 - **`medtech-build`** contains the compiled C++ binaries and all system-level
   dependencies. It can be used standalone if you only need the build artifacts.
-- **`medtech-test`** adds Python packages, pytest, and rumdl on top. Keeping
+- **`medtech-test`** adds the locked Python test dependencies on top. Keeping
   them separate means faster rebuilds when only Python deps change.
 
 ## Notes

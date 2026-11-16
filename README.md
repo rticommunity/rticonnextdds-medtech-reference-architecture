@@ -101,21 +101,33 @@ cd rticonnextdds-medtech-reference-architecture
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+python -m pip install uv==0.13.8
+uv sync --active --locked --inexact --no-dev --extra user
 
 # Install the RTI Connext Python API from your local Connext installation:
-pip install rti.connext.activated -f $NDDSHOME/resource/python_api
+python -m pip install --no-index --find-links "$NDDSHOME/resource/python_api" \
+  rti.connext.activated==7.7.0
 # Alternatively, if the above path is not available, install from PyPI:
-# pip install rti.connext==7.7.0
+# python -m pip install rti.connext==7.7.0
 ```
 
+[`pyproject.toml`](./pyproject.toml) defines capability and persona extras;
+[`uv.lock`](./uv.lock) records resolved dependencies across platforms. The
+`user` persona includes the Arm simulation and gamepad capabilities. Use
+`--extra arm` instead for the Arm without the gamepad, or omit the extra for
+the base dependencies only. The externally supplied Connext API is not in the
+lock. Always use `--inexact` when syncing an environment that contains it:
+uv's default exact sync removes packages not selected by the lock. `--locked`
+rejects an out-of-date lock rather than updating it. The lock does not pin the
+Connext installation, system libraries, compiler, or all build-tool dependencies.
+
 Optional Python native-webview mode can be installed separately with
-`pip install -r requirements-native.txt`. Browser mode does not need this
-companion package. The embedded native window hosts the same web frontend;
+`uv sync --active --locked --inexact --no-dev --extra user --extra native`.
+Browser mode does not need this companion package. The embedded native window hosts the same web frontend;
 review the SDK's [native-webview support matrix and platform prerequisites](https://wcoleman-rti.github.io/rti-demo-ui/native-webview.html)
 before enabling it on a target platform.
 
-The simulated Arm uses MuJoCo and Mink, installed through `requirements.txt`.
+The simulated Arm uses MuJoCo and Mink, installed through the `arm` capability.
 It runs headlessly and retains the project's existing renderer; no ROS, GPU,
 or separate simulator service is required. MuJoCo is pinned to 3.10.0 to retain
 native wheels for Intel macOS as well as Apple Silicon, Linux, and Windows.
@@ -140,13 +152,19 @@ environment with system packages visible:
 sudo apt install gir1.2-gtk-3.0 gir1.2-webkit2-4.1 python3-gi
 python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
-pip install -r requirements.txt -r requirements-native.txt
+python -m pip install uv==0.13.8
+uv sync --active --locked --inexact --no-dev --extra user --extra native
+python -m pip install --no-index --find-links "$NDDSHOME/resource/python_api" \
+  rti.connext.activated==7.7.0
 ```
 
 Use this virtual-environment setup instead of the standard isolated venv setup
 above when you plan to use native mode. For an existing isolated environment,
 rerun `python3 -m venv --system-site-packages .venv` to expose the system `gi`
-binding; installed project packages are retained.
+binding; installed project packages are retained. The interpreter used for the
+venv must match the distro's `python3-gi` build. Verify it with
+`python -c "import gi; gi.require_version('WebKit2', '4.1'); from gi.repository import WebKit2"`;
+system packages may not support a separately installed Python interpreter.
 
 ### 4. Build the C++ Modules
 

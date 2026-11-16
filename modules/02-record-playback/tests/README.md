@@ -9,9 +9,9 @@ and that RTI Replay Service re-publishes recorded samples.
 | Requirement | Notes |
 | --- | --- |
 | RTI Connext DDS 7.7.x | `NDDSHOME` must be set |
-| Python 3.10+ | With the Connext Python API (`rti.connextdds`) |
-| pytest | `pip install pytest` |
-| Module 01 C++ build complete | Run `python scripts/build.py` in `modules/01-operating-room/` |
+| Python 3.11+ | With the Connext Python API (`rti.connextdds`) |
+| pytest | Install the locked developer dependencies as described in the [project test guide](../../../tests/README.md) |
+| Project C++ build complete | From the repository root, run `python build.py` |
 | `rtirecordingservice` | Must be present in `$NDDSHOME/bin/` |
 | `rtireplayservice` | Must be present in `$NDDSHOME/bin/` |
 
@@ -20,17 +20,17 @@ are not found.
 
 ## Running Tests
 
-From the `modules/02-record-playback/` directory:
+From the repository root, after building the project and sourcing the Connext environment:
 
 ```bash
 # All tests
-pytest tests/ -v
+python -m pytest modules/02-record-playback/tests/ -v
 
 # Only recording tests
-pytest tests/test_recording.py -v
+python -m pytest modules/02-record-playback/tests/test_recording.py -v
 
 # Only replay tests
-pytest tests/test_replay.py -v
+python -m pytest modules/02-record-playback/tests/test_replay.py -v
 ```
 
 ## Test Structure
@@ -50,8 +50,10 @@ pytest tests/test_replay.py -v
    starts Replay Service and a DDS subscriber subprocess. Verifies that the
    subscriber receives vitals samples from the replayed recording.
 
-Both tests use a `clean_recording_dir` fixture that removes any previous
-recording output before each run.
+Each test copies the service configurations into its own pytest temporary
+working directory. Recording and replay output stays there and is removed by
+pytest; the normal `modules/02-record-playback/or_recording/` operator data is
+never cleaned or used by the tests. The DDS service tests run sequentially.
 
 ## Markers
 

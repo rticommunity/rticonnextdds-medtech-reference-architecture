@@ -10,6 +10,51 @@
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
 
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rti-medtech-reference-architecture"
+version = "2.0.0.dev0"
+description = "RTI Connext DDS MedTech Reference Architecture"
+requires-python = ">=3.11"
+dependencies = [
+    "argcomplete>=3.1",
+    "Jinja2>=3.1",
+    "pystun3>=2.0",
+    "requests>=2.31",
+    "rti-demo-ui @ git+https://github.com/wcoleman-rti/rti-demo-ui.git@309cb0ccb377ec4a70c0aaf3be8de5fcb1d4ec5a",
+]
+
+[project.optional-dependencies]
+arm = [
+    "mink==1.4.0",
+    "mujoco==3.10.0",
+    "qpsolvers[daqp]==4.13.0",
+]
+gamepad = ["pygame-ce>=2.5.8,<3"]
+native = [
+    "rti-demo-ui-native @ git+https://github.com/wcoleman-rti/rti-demo-ui.git@309cb0ccb377ec4a70c0aaf3be8de5fcb1d4ec5a#subdirectory=native/python",
+]
+user = ["rti-medtech-reference-architecture[arm,gamepad]"]
+dev = [
+    "rti-medtech-reference-architecture[user]",
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+maint = [
+    "rti-medtech-reference-architecture[dev]",
+    "codespell>=2.4",
+    "pre-commit>=3.0",
+    "ruff>=0.15",
+    "rumdl>=0.1.84",
+    "uv==0.13.8",
+]
+
+[tool.setuptools]
+packages = []
+
 [tool.ruff]
 required-version = ">=0.15"
 line-length = 100

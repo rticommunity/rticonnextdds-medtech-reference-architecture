@@ -26,17 +26,9 @@ sys.path.insert(0, str(TESTS_DIR))
 sys.path.insert(0, str(RESOURCE_PYTHON_DIR))
 
 module04_test_support = importlib.import_module("module04_test_support")
-module_runner = importlib.import_module("scripts.module_runner")
-
 MODULE_01_DIR = module04_test_support.MODULE_01_DIR
 MODULE_DIR = module04_test_support.MODULE_DIR
 SYSTEM_DIR = module04_test_support.SYSTEM_DIR
-
-from scripts.test_utils import (  # noqa: E402
-    ProcessManager,
-    disable_monitoring,
-    security_plugin_available,
-)
 
 
 def _or_security_artifacts_exist() -> bool:
@@ -54,7 +46,18 @@ def _threat_artifacts_exist() -> bool:
 @pytest.fixture(scope="session", autouse=True)
 def _monitoring_off():
     """Disable RTI Monitoring 2.0 so in-process secure participants can be created."""
+    from scripts.test_utils import disable_monitoring
+
     disable_monitoring()
+
+
+@pytest.fixture(autouse=True)
+def _secure_runtime_available(request):
+    if request.node.get_closest_marker("secure"):
+        from scripts.test_utils import security_plugin_available
+
+        if not security_plugin_available():
+            pytest.skip("DDS Security runtime probe failed")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -62,11 +65,7 @@ def pytest_collection_modifyitems(config, items):
     skip_sec_artifacts = pytest.mark.skip(
         reason="Security artifacts not generated (run setup_security.py)",
     )
-    skip_sec_plugin = pytest.mark.skip(
-        reason="DDS Security runtime probe failed",
-    )
 
-    __has_security_plugin = security_plugin_available()
     _has_security_artifacts = _or_security_artifacts_exist() and _threat_artifacts_exist()
 
     module_items = [i for i in items if Path(i.fspath).is_relative_to(TESTS_DIR)]
@@ -74,13 +73,13 @@ def pytest_collection_modifyitems(config, items):
     for item in module_items:
         if "secure" in item.keywords and not _has_security_artifacts:
             item.add_marker(skip_sec_artifacts)
-        elif "secure" in item.keywords and not __has_security_plugin:
-            item.add_marker(skip_sec_plugin)
 
 
 @pytest.fixture(scope="session")
 def or_env_nonsecure():
     """Module 01 OR env — non-secure mode."""
+    from scripts import module_runner
+
     env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": False})
     return env, apps
 
@@ -88,6 +87,8 @@ def or_env_nonsecure():
 @pytest.fixture(scope="session")
 def or_env_secure():
     """Module 01 OR env — secure mode."""
+    from scripts import module_runner
+
     env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": True})
     return env, apps
 
@@ -95,6 +96,8 @@ def or_env_secure():
 @pytest.fixture(scope="session")
 def threat_env():
     """Module 04 threat app environment with generated XML types prepended."""
+    from scripts import module_runner
+
     env, apps = module_runner.load_module_config(MODULE_DIR)
     from scripts.platform_setup import generated_system_path
 
@@ -112,6 +115,8 @@ def threat_env():
 
 @pytest.fixture()
 def or_pm_nonsecure(or_env_nonsecure):
+    from scripts.test_utils import ProcessManager
+
     env, apps = or_env_nonsecure
     pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
     yield pm
@@ -120,6 +125,8 @@ def or_pm_nonsecure(or_env_nonsecure):
 
 @pytest.fixture()
 def or_pm_secure(or_env_secure):
+    from scripts.test_utils import ProcessManager
+
     env, apps = or_env_secure
     pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
     yield pm
@@ -129,6 +136,8 @@ def or_pm_secure(or_env_secure):
 @pytest.fixture(scope="class")
 def or_pm_secure_class(or_env_secure):
     """Class-scoped secure ProcessManager — reuses PatientSensor across tests."""
+    from scripts.test_utils import ProcessManager
+
     env, apps = or_env_secure
     pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
     yield pm

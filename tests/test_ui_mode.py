@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import importlib
 import json
 import re
 import select
@@ -22,16 +23,17 @@ from types import ModuleType
 
 import pytest
 from aiohttp import ClientSession
-from rti_demo_ui import DemoUiApp
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 WEB_ROOT = PROJECT_ROOT / "resource" / "ui_web"
 sys.path.insert(0, str(PROJECT_ROOT / "modules" / "01-operating-room" / "src"))
 sys.path.insert(0, str(PROJECT_ROOT / "resource" / "python"))
 
-import DemoUiSupport  # noqa: E402
-
 import launch  # noqa: E402
+
+
+def _demo_ui_support():
+    return importlib.import_module("DemoUiSupport")
 
 
 def test_launcher_defaults_to_browser_mode():
@@ -50,13 +52,16 @@ def test_launcher_propagates_native_mode():
 
 
 def test_native_icon_uses_a_platform_supported_format(monkeypatch):
-    monkeypatch.setattr(DemoUiSupport.sys, "platform", "linux")
-    assert DemoUiSupport.native_icon_path() == WEB_ROOT / "rti_logo.png"
-    monkeypatch.setattr(DemoUiSupport.sys, "platform", "win32")
-    assert DemoUiSupport.native_icon_path() == WEB_ROOT / "rti_logo.ico"
+    demo_ui_support = _demo_ui_support()
+    monkeypatch.setattr(demo_ui_support.sys, "platform", "linux")
+    assert demo_ui_support.native_icon_path() == WEB_ROOT / "rti_logo.png"
+    monkeypatch.setattr(demo_ui_support.sys, "platform", "win32")
+    assert demo_ui_support.native_icon_path() == WEB_ROOT / "rti_logo.ico"
 
 
 def test_native_mode_delegates_to_sdk_runner(monkeypatch):
+    demo_ui_support = _demo_ui_support()
+    demo_ui_app = importlib.import_module("rti_demo_ui").DemoUiApp
     monkeypatch.setenv("RTI_DEMO_UI_MODE", "native")
     launched = {}
 
@@ -72,8 +77,8 @@ def test_native_mode_delegates_to_sdk_runner(monkeypatch):
     async def no_work(_app):
         pass
 
-    app = DemoUiApp("Native UI preflight", host="127.0.0.1", static_root=WEB_ROOT)
-    DemoUiSupport.run_demo_ui(app, no_work)
+    app = demo_ui_app("Native UI preflight", host="127.0.0.1", static_root=WEB_ROOT)
+    demo_ui_support.run_demo_ui(app, no_work)
 
     assert launched == {
         "app": app,
@@ -83,8 +88,10 @@ def test_native_mode_delegates_to_sdk_runner(monkeypatch):
 
 
 def test_sdk_serves_the_custom_medtech_frontend_and_app_state(capsys):
+    demo_ui_support = _demo_ui_support()
+
     async def check_server():
-        app = DemoUiSupport.create_demo_ui("RTI MedTech UI smoke test")
+        app = demo_ui_support.create_demo_ui("RTI MedTech UI smoke test")
         app.set_data({"kind": "test", "status": "ON"})
         server_task = asyncio.create_task(app.run())
         try:

@@ -17,10 +17,28 @@ and verifies that data is captured to a SQLite database.
 
 import time
 
+import module02_test_support
 import pytest
-from module02_test_support import (
-    RECORDING_DIR,
-)
+from module02_test_support import prepare_test_recording_workspace
+
+
+def test_test_recording_workspace_preserves_existing_operator_recording(tmp_path, monkeypatch):
+    """Test setup refuses the operator path and leaves its existing data unchanged."""
+    operator_recording = tmp_path / "operator" / "or_recording"
+    operator_recording.mkdir(parents=True)
+    sentinel = operator_recording / "operator-recording.dat"
+    sentinel.write_bytes(b"keep this operator recording")
+    monkeypatch.setattr(module02_test_support, "OPERATOR_RECORDING_DIR", operator_recording)
+
+    with pytest.raises(ValueError, match="operator recording directory"):
+        prepare_test_recording_workspace(operator_recording.parent)
+
+    workspace = prepare_test_recording_workspace(tmp_path / "test")
+
+    assert workspace / "or_recording" != operator_recording
+    assert sentinel.read_bytes() == b"keep this operator recording"
+    assert (workspace / "RecordingServiceConfiguration.xml").is_file()
+    assert (workspace / "ReplayServiceConfiguration.xml").is_file()
 
 
 @pytest.mark.service
@@ -50,11 +68,13 @@ class TestRecording:
         svc_proc_manager.shutdown_all()
 
         # Verify the database file was created
-        db_file = RECORDING_DIR / "or_recording_database.dat"
+        db_file = clean_recording_dir / "or_recording_database.dat"
+        contents = (
+            list(clean_recording_dir.iterdir()) if clean_recording_dir.is_dir() else "dir not found"
+        )
         assert db_file.is_file(), (
             f"Recording database not found at {db_file}. "
-            f"Contents of {RECORDING_DIR}: "
-            f"{list(RECORDING_DIR.iterdir()) if RECORDING_DIR.is_dir() else 'dir not found'}"
+            f"Contents of {clean_recording_dir}: {contents}"
         )
         # Database should have non-trivial size (at least a few KB of data)
         assert db_file.stat().st_size > 1024, (

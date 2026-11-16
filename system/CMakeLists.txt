@@ -15,6 +15,9 @@ include(ConnextDdsCodegen)
 set(MEDTECH_IDL_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/idl")
 set(MEDTECH_GENERATED "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(GLOB_RECURSE MEDTECH_IDLS CONFIGURE_DEPENDS "${MEDTECH_IDL_ROOT}/*.idl")
+# ConnextDdsCodegen tracks the primary IDL for each run; declare the shared
+# IDL set as prerequisites so changes to included files regenerate all outputs.
+set(MEDTECH_IDL_DEPENDS ${MEDTECH_IDLS})
 set(MEDTECH_CXX_SOURCES)
 set(MEDTECH_XML_FILES)
 foreach(idl IN LISTS MEDTECH_IDLS)
@@ -29,12 +32,12 @@ foreach(idl IN LISTS MEDTECH_IDLS)
     )
     list(APPEND MEDTECH_CXX_SOURCES ${model_CXX11_GENERATED_SOURCES})
     list(GET model_CXX11_SOURCES 0 first_output)
-    add_custom_command(OUTPUT "${first_output}" APPEND DEPENDS ${MEDTECH_IDLS})
+    add_custom_command(OUTPUT "${first_output}" APPEND DEPENDS ${MEDTECH_IDL_DEPENDS})
     connextdds_rtiddsgen_convert(
         INPUT "${idl}" FROM IDL TO XML
         OUTPUT_DIRECTORY "${MEDTECH_GENERATED}/xml/${relative_dir}"
         INCLUDE_DIRS "${MEDTECH_IDL_ROOT}"
-        DEPENDS ${MEDTECH_IDLS}
+        DEPENDS ${MEDTECH_IDL_DEPENDS}
         VAR xml_output
     )
     list(APPEND MEDTECH_XML_FILES "${xml_output}")
@@ -44,11 +47,12 @@ connextdds_rtiddsgen_run(
     IDL_FILE "${MEDTECH_IDL_ROOT}/MedTech.idl"
     OUTPUT_DIRECTORY "${MEDTECH_GENERATED}/python"
     LANG Python
+    INCLUDE_DIRS "${MEDTECH_IDL_ROOT}"
     EXTRA_ARGS -joinInputFiles -joinedFilesOutputName MedTech
 )
 add_custom_command(
     OUTPUT "${MEDTECH_GENERATED}/python/MedTech.py"
-    APPEND DEPENDS ${MEDTECH_IDLS}
+    APPEND DEPENDS ${MEDTECH_IDL_DEPENDS}
 )
 
 set(BUILTIN_LOGGING_IDL "${CONNEXTDDS_DIR}/resource/idl/builtin_logging_type.idl")

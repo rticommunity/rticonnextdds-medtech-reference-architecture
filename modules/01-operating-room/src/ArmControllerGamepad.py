@@ -16,8 +16,6 @@ import time
 from typing import Any
 
 import pygame
-import rti.asyncio  # noqa: F401 - installs Connext's asyncio integration
-import rti.connextdds as dds
 from DemoUiSupport import DemoUiState, create_demo_ui, run_demo_ui
 from pygame._sdl2 import controller
 
@@ -201,6 +199,8 @@ def initialize_gamepad_input() -> None:
 
 class GamepadDdsAdapter:
     def __init__(self) -> None:
+        import rti.asyncio  # noqa: F401 - installs Connext's asyncio integration
+        import rti.connextdds as dds
         from DdsUtils import register_type
         from MedTech import DdsEntities, Device, Geometry, Robot
 

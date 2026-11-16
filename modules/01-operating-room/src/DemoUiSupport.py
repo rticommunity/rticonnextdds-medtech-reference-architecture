@@ -126,7 +126,7 @@ def run_demo_ui(app: DemoUiApp, work: AsyncWork) -> None:
         except ImportError as exc:
             raise RuntimeError(
                 "Native UI mode requires the optional rti-demo-ui-native package; "
-                "install requirements-native.txt and the platform webview prerequisites"
+                "sync the native capability and install the platform webview prerequisites"
             ) from exc
         run_native(app, async_main=work, icon=native_icon_path())
         return

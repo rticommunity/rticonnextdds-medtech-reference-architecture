@@ -20,18 +20,22 @@ They skip when these are unavailable; they run headlessly without a display.
 From the repository root, after sourcing the RTI environment and activating the Python venv:
 
 ```bash
-# Install dev dependencies
-pip install -r requirements-dev.txt
+# Install locked developer dependencies in the active virtual environment
+python -m pip install uv==0.13.8
+uv sync --active --locked --inexact --no-dev --extra dev --no-install-project
+
+# Configure, generate and build once before test execution
+python build.py
 
 # If you want to run the security tests
 python3 system/security/setup_security.py
 python modules/04-security-threat/security/setup_threat_security.py
 
-# Run all 110+ tests (repo-level + all modules)
-pytest
+# Run all tests against the prepared outputs
+python -m pytest
 
 # Run with verbose output
-pytest -v
+python -m pytest -v
 
 # Run specific module or test
 pytest modules/01-operating-room/tests/test_types.py -v
@@ -63,17 +67,18 @@ source .venv/bin/activate
 
 ### Direct pytest (Recommended for Day-to-Day)
 
-Use root-level `pytest` directly for fast iteration and clear output:
+Use root-level pytest for fast iteration and clear output. The project build is
+an explicit prerequisite and is not started by test collection or execution:
 
 ```bash
-# All tests
-pytest
+# Pure collection/configuration checks (no generated bindings or DDS runtime)
+python -m pytest --collect-only -q tests/test_config_parsing.py
 
-# With markers to skip slow/gui/secure tests
-pytest -m "not slow and not gui and not secure"
+# All tests, after `python build.py`
+python -m pytest
 
 # Fast feedback on a single file
-pytest tests/test_config_parsing.py -v
+python -m pytest tests/test_config_parsing.py -v
 ```
 
 **When to use:**
@@ -84,7 +89,9 @@ pytest tests/test_config_parsing.py -v
 
 ### Docker Container Testing
 
-Use Docker for reproducible, isolated test environments:
+Use Docker for reproducible, isolated test environments. Building the test
+image configures/codegens/builds once; the container entrypoint only runs pytest
+against those prepared outputs:
 
 ```bash
 # Set up license file
@@ -143,6 +150,6 @@ pytest -m "gui"
 
 | File | What it tests |
 | --- | --- |
-| `test_project_build_pipeline.py` | CMake configure & build; Module 01 C++ binaries & shared libraries exist |
+| `test_project_build_pipeline.py` | Prepared CMake/codegen outputs and Module 01 executables exist |
 | `test_config_parsing.py` | Module JSON schemas and configuration parsing for all modules |
 | `test_security_status.py` | Security artifacts generation and availability for secure tests |

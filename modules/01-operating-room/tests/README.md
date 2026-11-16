@@ -13,8 +13,8 @@ behave as described in the module README.
 | pytest | `pip install pytest` |
 | Central build complete | Run `python build.py` from the repository root, including generated C++/Python/XML |
 | `rti-demo-ui` | For browser UI process and API tests |
-| Pygame CE | Installed through the root `requirements.txt`; used by the gamepad app |
-| MuJoCo, Mink, DAQP | Installed through the root `requirements.txt`; headless arm simulation needs no ROS/GPU |
+| Pygame CE | Installed through the root `user` extra; used by the gamepad app |
+| MuJoCo, Mink, DAQP | Installed through the root `user` extra; headless arm simulation needs no ROS/GPU |
 | Security artifacts (optional) | Run `system/security/setup_security.py` for `@secure` tests |
 
 ## Running Tests

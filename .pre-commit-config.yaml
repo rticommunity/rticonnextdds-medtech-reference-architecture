@@ -37,6 +37,7 @@ repos:
       - id: detect-private-key
       - id: check-added-large-files
         args: [--maxkb=500]
+        exclude: ^uv\.lock$
       - id: requirements-txt-fixer
       - id: mixed-line-ending
         name: mixed-line-ending-lf

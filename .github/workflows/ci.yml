@@ -22,12 +22,18 @@ name: CI
 
 on:
   push:
+    branches: [main, develop, integration/v2]
+    tags: ["v*"]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, integration/v2]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 env:
   CONNEXT_VERSION: "7.7.0"
@@ -51,14 +57,88 @@ jobs:
         with:
           extra_args: --all-files --show-diff-on-failure
 
-  # ── Build + Test (root-level pytest) ─────────────────────────────────────
+  # ── License-free pull-request checks ─────────────────────────────────────
   test:
-    name: Build & Test (root pytest)
+    name: Test (license-free)
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     needs: lint
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: uv.lock
+
+      - name: Set up active Python environment
+        run: |
+          python -m venv .venv
+          echo "VIRTUAL_ENV=$GITHUB_WORKSPACE/.venv" >> "$GITHUB_ENV"
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install uv==0.13.8
+          uv sync --active --locked --inexact --no-dev --extra dev --no-install-project
+
+      - name: Run pure and project-owned tests
+        run: |
+          python -m pytest -v --junitxml=results.xml \
+            tests/test_config_parsing.py \
+            modules/01-operating-room/tests/test_arm_kinematics.py \
+            modules/01-operating-room/tests/test_gamepad_input.py \
+            modules/02-record-playback/tests/test_recording.py::test_test_recording_workspace_preserves_existing_operator_recording \
+            tests/test_ui_mode.py \
+            -k "not gui_controls_remain_within_resized_windows"
+
+      - name: Report deferred licensed capabilities
+        run: |
+          {
+            echo "## Capability results"
+            echo ""
+            echo "| Capability | Result |"
+            echo "| --- | --- |"
+            echo "| Pure logic/configuration | executed |"
+            echo "| Licensed DDS/service integration | not run on pull-request code; runs after a trusted push to an integration branch |"
+            echo "| Browser visual smoke | not required in the license-free lane |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: pull-request-test-results
+          path: results.xml
+
+  # This job receives the RTI license only on pushes to the selected branches
+  # or release tags. Protect these refs before treating its result as a gate.
+  # Never run fork/PR code with the secret.
+  integration:
+    name: Build & DDS Integration (trusted push)
+    if: github.event_name == 'push'
+    needs: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Verify licensed integration is authorized
+        id: license_preflight
+        env:
+          RTI_LICENSE_FILE_B64: ${{ secrets.RTI_LICENSE_FILE }}
+        run: |
+          if [[ -z "$RTI_LICENSE_FILE_B64" ]]; then
+            echo "::error::RTI_LICENSE_FILE is required for trusted DDS integration."
+            exit 1
+          fi
+          echo "available=true" >> "$GITHUB_OUTPUT"
 
       - name: Cache Connext installation
         id: cache-connext
@@ -99,10 +179,12 @@ jobs:
           echo "CONNEXTDDS_ARCH=$CONNEXTDDS_ARCH" >> "$GITHUB_ENV"
 
       - name: Verify installation
+        id: sdk
         run: |
-          test -d $NDDSHOME
-          test -f $NDDSHOME/lib/$CONNEXTDDS_ARCH/libnddssecurity.so
-          ls $NDDSHOME/third_party/openssl-*/$CONNEXTDDS_ARCH/release/lib/libssl.so* | head -1
+          test -d "$NDDSHOME"
+          test -f "$NDDSHOME/lib/$CONNEXTDDS_ARCH/libnddssecurity.so"
+          ls "$NDDSHOME"/third_party/openssl-*/"$CONNEXTDDS_ARCH"/release/lib/libssl.so* | head -1
+          echo "available=true" >> "$GITHUB_OUTPUT"
 
       - name: Install system dependencies
         run: |
@@ -115,15 +197,28 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          cache-dependency-path: uv.lock
+
+      - name: Set up active Python environment
+        run: |
+          python -m venv .venv
+          echo "VIRTUAL_ENV=$GITHUB_WORKSPACE/.venv" >> "$GITHUB_ENV"
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Install Python dependencies
         run: |
-          pip install --upgrade pip
-          pip install rti.connext~=${{ env.CONNEXT_VERSION }}.0 \
-            -r requirements-dev.txt
+          python -m pip install --upgrade pip
+          python -m pip install uv==0.13.8
+          python -m pip install "rti.connext~=${{ env.CONNEXT_VERSION }}.0"
+          uv sync --active --locked --inexact --no-dev --extra dev --no-install-project
 
       - name: Build project binaries
-        run: python build.py -DRTICONNEXTDDS_VERSION=${{ env.CONNEXT_VERSION }} -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+        run: |
+          python build.py \
+            -DRTICONNEXTDDS_VERSION=${{ env.CONNEXT_VERSION }} \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON \
+            -- --parallel 2
 
       - name: Generate security artifacts
         run: |
@@ -138,37 +233,72 @@ jobs:
           echo "$NDDSHOME/bin" >> "$GITHUB_PATH"
 
       - name: Write license file
+        id: license
+        env:
+          RTI_LICENSE_FILE_B64: ${{ secrets.RTI_LICENSE_FILE }}
         run: |
           RTI_LICENSE_FILE="$RUNNER_TEMP/rti_license.dat"
-          echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > "$RTI_LICENSE_FILE"
+          printf '%s' "$RTI_LICENSE_FILE_B64" | base64 --decode > "$RTI_LICENSE_FILE"
           echo "RTI_LICENSE_FILE=$RTI_LICENSE_FILE" >> "$GITHUB_ENV"
-          echo "License file check:"
-          if [ ! -f "$RTI_LICENSE_FILE" ]; then
-            echo "  ERROR: License file was not created"
+          if [ ! -s "$RTI_LICENSE_FILE" ]; then
+            echo "::error::RTI license decode produced an empty file."
             exit 1
-          elif [ ! -s "$RTI_LICENSE_FILE" ]; then
-            echo "  ERROR: License file is empty (secret RTI_LICENSE_FILE may not be set)"
-            exit 1
-          else
-            echo "  Path: $RTI_LICENSE_FILE"
-            echo "  Size: $(wc -c < $RTI_LICENSE_FILE) bytes"
-            echo "  Contains 'Security': $(grep -ci 'security' $RTI_LICENSE_FILE || echo 0) matches"
           fi
+          echo "available=true" >> "$GITHUB_OUTPUT"
 
-      - name: Run full test suite from project root
-        run: python -m pytest -v -m "not build_pipeline" --junitxml=results.xml
+      - name: Verify required services
+        id: services
+        run: |
+          test -x "$NDDSHOME/bin/rtirecordingservice"
+          test -x "$NDDSHOME/bin/rtireplayservice"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Detect optional browser smoke capability
+        id: browser
+        run: |
+          status=not_provisioned
+          if python -c 'import importlib.util; raise SystemExit(0 if importlib.util.find_spec("playwright") else 1)' \
+            && { command -v google-chrome >/dev/null || command -v chromium >/dev/null; }; then
+            status=available
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Run full test suite against prepared outputs
+        run: python -m pytest -v --junitxml=results.xml
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: test-results
+          name: integration-test-results
           path: results.xml
+
+      - name: Report integration capabilities
+        if: always()
+        env:
+          LICENSE_AUTHORIZED: ${{ steps.license_preflight.outputs.available }}
+          LICENSE_AVAILABLE: ${{ steps.license.outputs.available }}
+          SDK_AVAILABLE: ${{ steps.sdk.outputs.available }}
+          SERVICES_AVAILABLE: ${{ steps.services.outputs.available }}
+          BROWSER_STATUS: ${{ steps.browser.outputs.status }}
+        run: |
+          {
+            echo "## Capability results"
+            echo ""
+            echo "| Capability | Result |"
+            echo "| --- | --- |"
+            echo "| Trusted push context | yes |"
+            echo "| RTI license secret preflight | ${LICENSE_AUTHORIZED:-failed or not reached} |"
+            echo "| Connext SDK | ${SDK_AVAILABLE:-failed or not reached} |"
+            echo "| RTI license file | ${LICENSE_AVAILABLE:-failed or not reached} |"
+            echo "| Recording/Replay Service | ${SERVICES_AVAILABLE:-failed or not reached} |"
+            echo "| Browser visual smoke | ${BROWSER_STATUS:-not reached (optional)} |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   release:
     name: Publish GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: test
+    needs: integration
     runs-on: ubuntu-24.04
     permissions:
       contents: write

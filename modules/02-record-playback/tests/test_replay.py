@@ -19,15 +19,6 @@ import math
 import time
 
 import pytest
-from module02_test_support import (
-    RECORDING_DIR,
-)
-from scripts.test_utils import (
-    UtilityApp,
-    wait_for_reader_match,
-    wait_for_samples,
-    wait_for_writer_match,
-)
 
 
 @pytest.mark.service
@@ -37,6 +28,8 @@ class TestReplay:
 
     def test_replay_produces_vitals(self, or_proc_manager, svc_proc_manager, clean_recording_dir):
         """Replay Service should publish t/patient/vitals from a recording."""
+        from scripts.test_utils import UtilityApp, wait_for_reader_match, wait_for_samples
+
         # ── Phase 1: Record some data ─────────────────────────────────
         ps = or_proc_manager.start_app_ready("PatientSensor")
 
@@ -50,7 +43,7 @@ class TestReplay:
         assert rec_proc.poll() is not None, "Recording Service did not exit"
         assert ps.poll() is not None, "PatientSensor did not exit"
 
-        db_file = RECORDING_DIR / "or_recording_database.dat"
+        db_file = clean_recording_dir / "or_recording_database.dat"
         assert db_file.is_file(), "Recording phase failed — no database"
 
         # ── Phase 2: Replay and verify data arrives ───────────────────
@@ -72,6 +65,12 @@ class TestReplay:
         self, or_proc_manager, svc_proc_manager, clean_recording_dir
     ):
         from MedTech import Geometry, Robot
+        from scripts.test_utils import (
+            UtilityApp,
+            wait_for_reader_match,
+            wait_for_samples,
+            wait_for_writer_match,
+        )
 
         with UtilityApp.make_non_secure() as source:
             arm_writer = source.teleop_control.writer

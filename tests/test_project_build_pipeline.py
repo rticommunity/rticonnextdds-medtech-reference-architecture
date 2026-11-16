@@ -9,56 +9,49 @@
 # under no obligation to maintain or support the software.  RTI shall not be
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
-"""Project-level build verification tests.
+"""Project-level prepared-build output tests.
 
-Validates that the CMake build pipeline (driven by ``build.py``) succeeds
-and produces the expected binaries for all modules.
+Validates that the explicit CMake build stage prepared generated types and
+application executables before pytest runs.
 """
 
 from __future__ import annotations
 
-import subprocess
+import os
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "resource" / "python"))
-from build import build_command, configure_command
-
-pytestmark = pytest.mark.build_pipeline
+from scripts import platform_setup
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# ---------------------------------------------------------------------------
-# CMake configure & build
-# ---------------------------------------------------------------------------
+
+def _build_dir() -> Path:
+    arch = os.environ.get("CONNEXTDDS_ARCH")
+    assert arch, "CONNEXTDDS_ARCH must be set after sourcing the Connext environment"
+    return PROJECT_ROOT / "build" / arch
 
 
-class TestCMakeBuild:
-    """Validate the project-level CMake configure and build."""
+def test_configure_and_codegen_outputs_are_prepared():
+    """The explicit build stage must prepare CMake and generated type outputs."""
+    build_dir = _build_dir()
+    generated_dir = build_dir / "system" / "generated"
+    expected_outputs = (
+        build_dir / "CMakeCache.txt",
+        generated_dir / "python" / "MedTech.py",
+        generated_dir / "xml" / "MedTech.xml",
+    )
+    missing = [path for path in expected_outputs if not path.is_file()]
+    assert not missing, f"Build outputs are missing; run `python build.py` first: {missing}"
 
-    def test_cmake_configure_succeeds(self):
-        """cmake -S <root> -B build/<arch> exits cleanly."""
-        result = subprocess.run(
-            configure_command(args=[]),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        assert result.returncode == 0, (
-            f"CMake configure failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
 
-    def test_cmake_build_succeeds(self):
-        """cmake --build build/<arch> exits cleanly."""
-        result = subprocess.run(
-            build_command(args=[]),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        assert result.returncode == 0, (
-            f"CMake build failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
+def test_module_01_executables_are_prepared():
+    """The configured application binaries must be available to test fixtures."""
+    executables = {
+        name: Path(platform_setup.find_executable(name))
+        for name in ("PatientSensor", "ArmController", "Orchestrator")
+    }
+    missing = [path for path in executables.values() if not path.is_file()]
+    assert not missing, f"Built application executables are missing: {missing}"
