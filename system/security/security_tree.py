@@ -47,19 +47,12 @@ from dds_security import (
 log = logging.getLogger(__name__)
 
 
-def detect_connext_version() -> tuple[int, ...] | None:
-    """Detect the installed Connext version from the Python bindings.
+def detect_connext_version() -> tuple[int, ...]:
+    """Detect the installed Connext version from the Python bindings."""
+    import rti.connextdds as dds
 
-    Returns a tuple like ``(7, 3, 0)`` or ``None`` if the bindings are not
-    available.
-    """
-    try:
-        import rti.connextdds as dds
-
-        v = dds.ProductVersion.current
-        return (v.major_version, v.minor_version, v.release_version)
-    except Exception:
-        return None
+    version = dds.ProductVersion.current
+    return (version.major_version, version.minor_version, version.release_version)
 
 
 def _version_str(version: tuple[int, ...] | None) -> str:

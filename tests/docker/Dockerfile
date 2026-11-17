@@ -22,7 +22,7 @@
 # RTI license file is NOT baked into the image.
 # Mount it at runtime via -v:
 #   docker run --rm \
-#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
+#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_license.dat:ro \
 #     medtech-test
 #
 # Build targets (from repo root):
@@ -31,7 +31,7 @@
 #
 # Run all tests:
 #   docker run --rm \
-#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
+#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_license.dat:ro \
 #     medtech-test
 #
 # Run specific tests:
@@ -116,8 +116,7 @@ COPY pyproject.toml uv.lock ./
 
 RUN python -m pip install --no-cache-dir --upgrade pip \
     && python -m pip install --no-cache-dir uv==0.13.8 \
-    && python -m pip install --no-cache-dir "rti.connext~=${CONNEXT_VERSION}.0" \
-    && uv sync --active --locked --inexact --no-dev --extra dev --no-install-project
+    && uv sync --active --locked --no-dev --extra dev --no-install-project
 
 # ------------------------------------------------------------------
 # Stage 3: Build C++ modules + security artifacts
@@ -126,6 +125,9 @@ FROM build-base AS build
 
 WORKDIR /workspace
 COPY . .
+
+# Check the locked Python API against this image's SDK before configuring CMake.
+RUN python${PYTHON_VERSION} resource/python/scripts/check_connext_install.py
 
 # Build project with CMake
 RUN eval $(rtienv) && python${PYTHON_VERSION} build.py -DRTICONNEXTDDS_VERSION=${CONNEXT_VERSION} -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON

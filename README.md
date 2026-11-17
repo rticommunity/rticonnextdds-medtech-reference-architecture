@@ -42,10 +42,12 @@ The steps below cover environment setup, dependencies, security artifacts, and b
 
 ### 1. Prerequisites
 
-You will need:
-
-- **RTI Connext DDS 7.7.0** installed and `NDDSHOME` set, including the Python API `.whl`.
-  See the [Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/installation_guide/installation_guide/Installing.htm) and [Python API setup](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/getting_started_guide/python/before_python.html#installing-connext-heading).
+- **RTI Connext DDS SDK 7.7.0** installed and `NDDSHOME` set. The SDK supplies
+  the C++ libraries, IDL/code-generation tools, services, and add-ons; the
+  Python API is installed separately from PyPI by the project lock.
+  See the [Installation Guide](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/installation_guide/installing.html).
+  Python DDS applications using the locked PyPI API need a valid RTI license
+  at runtime; see [License Management](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/installation_guide/license_management.html).
 
   > If `NDDSHOME` is not already in your environment, source the platform setup script from your Connext installation: `source <connext_dir>/resource/scripts/rtisetenv_<arch>.bash` (Linux/macOS) or `rtisetenv_<arch>.bat` (Windows). This script sets `NDDSHOME`, `CONNEXTDDS_ARCH`, and related library paths required by both `build.py` and `launch.py`.
 - **CMake** ≥ 3.18 and a C++ compiler toolchain.
@@ -102,27 +104,41 @@ cd rticonnextdds-medtech-reference-architecture
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 python -m pip install uv==0.13.8
-uv sync --active --locked --inexact --no-dev --extra user
-
-# Install the RTI Connext Python API from your local Connext installation:
-python -m pip install --no-index --find-links "$NDDSHOME/resource/python_api" \
-  rti.connext.activated==7.7.0
-# Alternatively, if the above path is not available, install from PyPI:
-# python -m pip install rti.connext==7.7.0
+uv sync --active --locked --no-dev --extra user
+python resource/python/scripts/check_connext_install.py
 ```
 
 [`pyproject.toml`](./pyproject.toml) defines capability and persona extras;
 [`uv.lock`](./uv.lock) records resolved dependencies across platforms. The
 `user` persona includes the Arm simulation and gamepad capabilities. Use
 `--extra arm` instead for the Arm without the gamepad, or omit the extra for
-the base dependencies only. The externally supplied Connext API is not in the
-lock. Always use `--inexact` when syncing an environment that contains it:
-uv's default exact sync removes packages not selected by the lock. `--locked`
-rejects an out-of-date lock rather than updating it. The lock does not pin the
-Connext installation, system libraries, compiler, or all build-tool dependencies.
+the base dependencies only. The lock pins the Python distribution
+`rti.connext==7.7.0`, imported in code as `rti.connextdds`; do not install a
+second API distribution manually. The exact locked sync installs and keeps
+that API. The compatibility preflight checks the Python
+distribution, SDK, and code-generator versions. The lock does not pin the
+Connext SDK installation, system libraries, compiler, or all build-tool
+dependencies.
+
+Obtain a valid `rti_license.dat` from the [RTI Evaluation site](https://evaluation.rti.com/)
+or, for licensed customers, the [RTI Customer Portal](https://support.rti.com/).
+Keep the file outside the repository and configure its full path through
+`RTI_LICENSE_FILE`; do not add it to source control or bake it into an image:
+
+```bash
+export RTI_LICENSE_FILE=/secure/path/to/rti_license.dat
+python resource/python/scripts/smoke_connext_runtime.py
+```
+
+The separate runtime smoke creates and closes a DDS participant, so run it
+only where a valid license is available. It is not part of license-free tests.
+The PyPI package requires a license when an application creates a participant.
+RTI also supports a license file in the application working directory or a
+participant QoS license setting; use the environment variable for local,
+container, and CI secret-based setups.
 
 Optional Python native-webview mode can be installed separately with
-`uv sync --active --locked --inexact --no-dev --extra user --extra native`.
+`uv sync --active --locked --no-dev --extra user --extra native`.
 Browser mode does not need this companion package. The embedded native window hosts the same web frontend;
 review the SDK's [native-webview support matrix and platform prerequisites](https://wcoleman-rti.github.io/rti-demo-ui/native-webview.html)
 before enabling it on a target platform.
@@ -153,16 +169,16 @@ sudo apt install gir1.2-gtk-3.0 gir1.2-webkit2-4.1 python3-gi
 python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
 python -m pip install uv==0.13.8
-uv sync --active --locked --inexact --no-dev --extra user --extra native
-python -m pip install --no-index --find-links "$NDDSHOME/resource/python_api" \
-  rti.connext.activated==7.7.0
+uv sync --active --locked --no-dev --extra user --extra native
+python resource/python/scripts/check_connext_install.py
 ```
 
 Use this virtual-environment setup instead of the standard isolated venv setup
 above when you plan to use native mode. For an existing isolated environment,
 rerun `python3 -m venv --system-site-packages .venv` to expose the system `gi`
-binding; installed project packages are retained. The interpreter used for the
-venv must match the distro's `python3-gi` build. Verify it with
+binding. Exact uv synchronization manages the virtual environment and leaves
+distro packages visible through `--system-site-packages`. The interpreter used
+for the venv must match the distro's `python3-gi` build. Verify it with
 `python -c "import gi; gi.require_version('WebKit2', '4.1'); from gi.repository import WebKit2"`;
 system packages may not support a separately installed Python interpreter.
 

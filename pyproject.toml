@@ -18,12 +18,13 @@ build-backend = "setuptools.build_meta"
 name = "rti-medtech-reference-architecture"
 version = "2.0.0.dev0"
 description = "RTI Connext DDS MedTech Reference Architecture"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.15"
 dependencies = [
     "argcomplete>=3.1",
     "Jinja2>=3.1",
     "pystun3>=2.0",
     "requests>=2.31",
+    "rti.connext==7.7.0",
     "rti-demo-ui @ git+https://github.com/wcoleman-rti/rti-demo-ui.git@309cb0ccb377ec4a70c0aaf3be8de5fcb1d4ec5a",
 ]
 

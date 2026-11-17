@@ -9,8 +9,8 @@ applications as end-user runtime containers.
 
 | Image | Target | Purpose |
 | --- | --- | --- |
-| `medtech-build` | `build` | Ubuntu 24.04 + Connext 7.7.0 + CMake build of C++ modules + security artifacts |
-| `medtech-test` | `test` | Extends build with locked Python dependencies and pytest |
+| `medtech-build` | `build` | Ubuntu 24.04 + Connext SDK 7.7.0 + CMake build of C++ modules + security artifacts |
+| `medtech-test` | `test` | Extends build with locked Python dependencies (`rti.connext==7.7.0`) and pytest |
 
 ## Prerequisites
 
@@ -89,7 +89,8 @@ The image build is the explicit configure/codegen/build stage. The
 (`tests/docker/entrypoint.sh`):
 
 1. Sources the RTI Connext environment
-2. Runs pytest with any provided arguments; it does not reconfigure or rebuild
+2. Runs the separate licensed Python participant smoke
+3. Runs pytest with any provided arguments; it does not reconfigure or rebuild
 
 Example: `docker run medtech-test` → entrypoint calls `pytest .` against the
 outputs built into the image
@@ -97,8 +98,8 @@ outputs built into the image
 Example: `docker run medtech-test -k "test_types"` → entrypoint calls `pytest -k "test_types"`
 
 The dependency layer copies `pyproject.toml` and the committed `uv.lock`, then
-uses the locked developer extra with an inexact sync. The Connext Python API is
-installed explicitly before synchronization and is not removed.
+uses an exact locked developer sync. The PyPI Connext API is part of that lock;
+it is neither installed separately nor duplicated during synchronization.
 
 ## Why two images?
 
@@ -116,5 +117,8 @@ installed explicitly before synchronization and is not removed.
   build stage so secure tests can run.
 - `docker compose run --rm ...` avoids leftover one-off containers after test
   completion.
+- The runtime smoke needs a valid license mounted at runtime. The image contains
+  neither the license file nor its contents; provide the file through the
+  compose volume or another secret/file mount.
 - All 110+ tests (repo-level + modules) are collected and run via the unified
   `pytest` approach configured in the root `pyproject.toml`.

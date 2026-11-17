@@ -7,8 +7,8 @@ Module-specific tests live under each module's own `tests/` directory.
 
 | Requirement | Notes |
 | --- | --- |
-| RTI Connext DDS 7.7.x | `NDDSHOME` and `CONNEXTDDS_ARCH` must be set (via rtisetenv script) |
-| Python 3.11+ | With `rti.connextdds`, `rti-demo-ui`, and `pytest` installed (in `.venv` or equivalent) |
+| RTI Connext DDS SDK 7.7.0 | `NDDSHOME` and `CONNEXTDDS_ARCH` must be set (via rtisetenv script) |
+| Python 3.11+ | With locked `rti.connext==7.7.0`, `rti-demo-ui`, and `pytest` installed (in `.venv` or equivalent) |
 | C++ build complete | Run `python build.py` first |
 
 The responsive-window cases in `test_ui_mode.py` additionally use the optional
@@ -22,7 +22,8 @@ From the repository root, after sourcing the RTI environment and activating the 
 ```bash
 # Install locked developer dependencies in the active virtual environment
 python -m pip install uv==0.13.8
-uv sync --active --locked --inexact --no-dev --extra dev --no-install-project
+uv sync --active --locked --no-dev --extra dev --no-install-project
+python resource/python/scripts/check_connext_install.py
 
 # Configure, generate and build once before test execution
 python build.py
@@ -86,6 +87,10 @@ python -m pytest tests/test_config_parsing.py -v
 - Daily development on single tests or modules
 - Tight edit-test cycles where speed matters
 - Focused debugging of one area
+
+The separate licensed Python participant smoke is run only when a valid RTI
+license is configured. The license-free CI lane does not run it and does not
+claim that runtime licensing passed.
 
 ### Docker Container Testing
 

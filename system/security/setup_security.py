@@ -524,11 +524,10 @@ def main():
         SECURITY_TREE.connext_version = tuple(int(x) for x in args.connext_version.split("."))
     else:
         detected = detect_connext_version()
-        if detected:
-            SECURITY_TREE.connext_version = detected
-            logging.getLogger(__name__).info(
-                "Detected Connext version: %s", ".".join(str(x) for x in detected)
-            )
+        SECURITY_TREE.connext_version = detected
+        logging.getLogger(__name__).info(
+            "Detected Connext version: %s", ".".join(str(x) for x in detected)
+        )
 
     if args.status:
         SECURITY_TREE.check_status(root=SECURITY_DIR, warn_days=args.warn_days)

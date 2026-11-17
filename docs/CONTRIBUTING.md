@@ -25,7 +25,7 @@ contributors working from a fork.
 | Tool | Minimum Version | Notes |
 | --- | --- | --- |
 | Python | 3.11 | Use `python3.11` explicitly if multiple versions are installed |
-| RTI Connext DDS | 7.7.x | See [README.md](../README.md) for install instructions |
+| RTI Connext DDS SDK | 7.7.0 | See [README.md](../README.md) for install and license instructions |
 | CMake | 3.18 | Required for C++ module builds and pinned SDK FetchContent integration |
 | Docker | Any recent | Optional; required only for containerised test runs |
 
@@ -42,7 +42,8 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
 # 2. Bootstrap uv and install the locked maintainer profile
 python -m pip install uv==0.13.8
-uv sync --active --locked --inexact --no-dev --extra maint
+uv sync --active --locked --no-dev --extra maint
+python resource/python/scripts/check_connext_install.py
 
 # 3. Register git hooks so pre-commit runs automatically on every commit
 pre-commit install
@@ -52,12 +53,15 @@ After step 3, quality checks run automatically on every `git commit` — you do
 not need to invoke them manually.
 
 The `user`, `dev`, and `maint` extras compose runtime capabilities, tests, and
-maintainer tools respectively. Contributors can bootstrap uv through
-`python -m pip install '.[maint]'` as well; that initial pip install is not
-locked, so follow it with the locked sync above. Keep the separately installed
-Connext Python API with `--inexact`. After changing dependency metadata, run
-`uv lock` and review `uv.lock`; use `uv lock --check` to verify it is current.
-The package version in metadata is provisional and is not a release decision.
+maintainer tools respectively. The locked `rti.connext==7.7.0` Python API is
+installed by `uv sync`; do not install a second API from the SDK. Contributors
+can bootstrap uv through `python -m pip install '.[maint]'` as well; that
+initial pip install is not locked, so follow it with the locked sync above.
+Configure a valid runtime license using `RTI_LICENSE_FILE` as described in the
+root README before running Python DDS applications or licensed tests. After
+changing dependency metadata, run `uv lock` and review `uv.lock`; use
+`uv lock --check` to verify it is current. The package version in metadata is
+provisional and is not a release decision.
 
 ---
 
