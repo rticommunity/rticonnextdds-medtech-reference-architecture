@@ -128,11 +128,10 @@ Run fast tests only (skip slow/secure):
 pytest -m "not slow and not secure"
 ```
 
-Run browser endpoint and scenario tests:
+Run browser endpoint and threat command tests:
 
 ```bash
-pytest tests/test_web_apps.py tests/test_web_scenarios.py tests/test_web_server.py tests/test_threat_web.py
-node --test modules/01-operating-room/tests/web.test.js modules/04-security-threat/tests/web.test.js
+pytest tests/test_web_apps.py tests/test_web_server.py tests/test_threat_web.py
 ```
 
 ## Test Structure

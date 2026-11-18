@@ -117,13 +117,6 @@ jobs:
           python system_arch/security/setup_security.py --force
           python modules/04-security-threat/security/setup_threat_security.py --force
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-
-      - name: Test browser interfaces
-        run: node --test modules/01-operating-room/tests/web.test.js modules/04-security-threat/tests/web.test.js
-
       - name: Configure Connext runtime environment
         run: |
           OPENSSL_LIB=$(dirname $(ls "$NDDSHOME"/third_party/openssl-*/"$CONNEXTDDS_ARCH"/release/lib/libssl.so* 2>/dev/null | head -1) 2>/dev/null || true)

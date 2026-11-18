@@ -56,7 +56,7 @@ repos:
         exclude: ^modules/01-operating-room/src/third_party/
 
   - repo: https://github.com/rvben/rumdl-pre-commit
-    rev: v0.1.84
+    rev: v0.1.96
     hooks:
       - id: rumdl
       - id: rumdl-fmt

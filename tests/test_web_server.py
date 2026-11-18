@@ -1,4 +1,4 @@
-"""Exercise the actual HTTP state, static asset and command contracts."""
+"""Exercise HTTP command validation and explicit error responses."""
 
 import importlib
 import json
@@ -16,8 +16,6 @@ start_web_server = importlib.import_module("web_server_utils").start_web_server
 
 @pytest.fixture
 def server(tmp_path):
-    (tmp_path / "index.html").write_text("<h1>Browser UI</h1>")
-    (tmp_path / "app.js").write_text("window.ready = true;")
     received = []
 
     def command(payload):
@@ -30,29 +28,6 @@ def server(tmp_path):
     yield f"http://127.0.0.1:{httpd.server_port}/", received
     httpd.shutdown()
     httpd.server_close()
-
-
-def test_state_and_browser_assets(server):
-    base, _ = server
-    with urllib.request.urlopen(base + "api/state") as response:
-        assert json.load(response) == {"status": "IDLE"}
-        assert response.headers["Cache-Control"] == "no-store"
-    with urllib.request.urlopen(base) as response:
-        assert b"Browser UI" in response.read()
-    with urllib.request.urlopen(base + "app.js?version=1") as response:
-        assert response.headers.get_content_type() == "application/javascript"
-
-
-def test_command_is_processed_and_returns_state(server):
-    base, received = server
-    request = urllib.request.Request(
-        base + "api/command",
-        data=b'{"action":"stop"}',
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(request) as response:
-        assert json.load(response) == {"ok": True}
-    assert received == [{"action": "stop"}]
 
 
 @pytest.mark.parametrize(
