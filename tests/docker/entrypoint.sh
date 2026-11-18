@@ -1,15 +1,7 @@
 #!/usr/bin/env bash
-# Docker test entrypoint: Start Xvfb for headless GUI tests, then run tests.
+# Docker test entrypoint: Run browser-based application tests without a display.
 # The RTI Connext environment and Python venv are already configured in the Dockerfile.
 set -e
-
-# Start Xvfb virtual display for headless GUI testing
-Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp 2>/dev/null &
-XVFB_PID=$!
-trap 'kill $XVFB_PID 2>/dev/null || true' EXIT
-
-# Give Xvfb a moment to start
-sleep 0.5
 
 # Source RTI & Python environments
 eval $(rtienv)

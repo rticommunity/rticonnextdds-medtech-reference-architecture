@@ -7,7 +7,7 @@ select = ["E", "F", "I"]
 
 [tool.codespell]
 # Keep spelling checks focused on source/docs and skip generated/cache content.
-skip = ".git,.venv,.venv*,build,**/build,.pytest_cache,__pycache__,resource/images,*.svg"
+skip = ".git,.venv,.venv*,build,**/build,.pytest_cache,__pycache__,resource/images,*.svg,*/third_party/*"
 ignore-words-list = "nddshome,connextdds,rtisetenv,dpqoslib,unsecure"
 check-hidden = false
 
@@ -20,7 +20,6 @@ testpaths = [
 ]
 markers = [
     "build_pipeline: tests that verify project-level configure/build pipeline",
-    "gui: test requires a graphical display (deselect with '-m not gui')",
     "secure: test requires DDS Security artifacts (deselect with '-m not secure')",
     "service: test requires RTI Recording/Replay Service (deselect with '-m not service')",
     "slow: long-running scenario (deselect with '-m not slow')",

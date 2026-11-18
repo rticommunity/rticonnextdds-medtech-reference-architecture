@@ -18,8 +18,6 @@ described in the module README.
 
 import pytest
 from scripts.test_utils import (
-    GTK_ENV,
-    QT_ENV,
     check_no_deadline_missed,
     wait_for_device_status,
     wait_for_reader_match,
@@ -164,18 +162,17 @@ class TestPatientSensorCommands:
 
 
 # ---------------------------------------------------------------------------
-# Arm (Qt GUI) — needs display
+# Arm (browser UI) — no display needed
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.gui
 class TestArmMotorControl:
     """Arm should receive MotorControl commands and stay alive."""
 
     def test_arm_receives_motor_control(self, proc_manager, nonsecure_utility_app):
         from Types import Common, SurgicalRobot
 
-        proc_manager.start_app("Arm", extra_env=QT_ENV)
+        proc_manager.start_app("Arm")
 
         status_reader = nonsecure_utility_app.device_status.reader
         control_writer = nonsecure_utility_app.motor_control.writer
@@ -207,7 +204,6 @@ class TestArmMotorControl:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.gui
 class TestAllAppsStatus:
     """All five apps should report DeviceStatus ON when running."""
 
@@ -215,10 +211,10 @@ class TestAllAppsStatus:
         from Types import Common
 
         proc_manager.start_app("PatientSensor")
-        proc_manager.start_app("Orchestrator", extra_env=GTK_ENV)
-        proc_manager.start_app("ArmController", extra_env=GTK_ENV)
-        proc_manager.start_app("PatientMonitor", extra_env=QT_ENV)
-        proc_manager.start_app("Arm", extra_env=QT_ENV)
+        proc_manager.start_app("Orchestrator")
+        proc_manager.start_app("ArmController")
+        proc_manager.start_app("PatientMonitor")
+        proc_manager.start_app("Arm")
 
         status_reader = nonsecure_utility_app.device_status.reader
 

@@ -60,8 +60,6 @@ Install the system build dependencies for your platform:
 sudo apt install \
     build-essential \
     cmake \
-    pkg-config \
-    libgtkmm-3.0-dev \
     python3-venv
 ```
 
@@ -75,7 +73,7 @@ sudo apt install \
 
 ```bash
 xcode-select --install          # compiler toolchain (if not already installed)
-brew install cmake pkg-config gtkmm3 python3
+brew install cmake python3
 ```
 
 > Homebrew's `python3` includes `pip` and `venv` — no separate installs needed.
@@ -142,6 +140,36 @@ Use the module-specific READMEs when you want to run a demo. They describe what 
 ```bash
 python3 launch.py --list-scenarios
 ```
+
+The launcher prints and opens browser URLs for the selected applications.
+Use `--no-browser` to print URLs without opening tabs, for example:
+
+```bash
+python3 launch.py --scenario record --no-browser
+python3 launch.py --scenario security-threat -s --no-browser
+```
+
+| Browser interface | Default port |
+| --- | --- |
+| Orchestrator | 8090 |
+| Arm Controller | 8091 |
+| Arm | 8092 |
+| Patient Monitor | 8093 |
+| Threat Injector | 8094 |
+| Threat Exfiltrator | 8095 |
+
+Recording/replay and teleoperation scenarios reuse these same interfaces; the
+RTI services remain headless. Scenario names, including the legacy `or-gui` and
+`or-headless` names, are preserved. Closing a browser tab does not stop its DDS
+application; use Orchestrator commands or `Ctrl-C` in the launcher terminal.
+Restart the scenario to relaunch a device that has been shut down.
+
+In a cloud IDE, set `MEDTECH_CLOUD=1` and `MEDTECH_CLOUD_URL` to the external IDE
+base URL (including its path). The launcher prints proxied URLs instead of
+opening a server-side browser. Only expose these HTTP interfaces through the
+workspace's authenticated proxy; they do not implement authentication themselves.
+The installed Connext distribution still needs the services/plugins and license
+required by the scenario you select.
 
 ### [Module 01: Digital Operating Room](./modules/01-operating-room/)
 

@@ -20,8 +20,6 @@ concurrency:
 env:
   CONNEXT_VERSION: "7.7.0"
   PYTHON_VERSION: "3.10"
-  QT_QPA_PLATFORM: offscreen
-  DISPLAY: ":99"
 
 jobs:
   # ── Lint ────────────────────────────────────────────────────────────────
@@ -98,14 +96,7 @@ jobs:
         run: |
           sudo rm -f /etc/apt/sources.list.d/{microsoft-prod,azure-cli}.*
           sudo apt-get update
-          sudo apt-get install -y \
-            cmake \
-            libgtkmm-3.0-dev \
-            xvfb \
-            libegl1 \
-            libxkbcommon0 \
-            libgl1 \
-            libglib2.0-0
+          sudo apt-get install -y cmake
 
       - uses: actions/setup-python@v6
         with:
@@ -126,10 +117,12 @@ jobs:
           python system_arch/security/setup_security.py --force
           python modules/04-security-threat/security/setup_threat_security.py --force
 
-      - name: Start Xvfb
-        run: |
-          Xvfb :99 -screen 0 1024x768x24 &
-          sleep 1
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Test browser interfaces
+        run: node --test modules/01-operating-room/tests/web.test.js modules/04-security-threat/tests/web.test.js
 
       - name: Configure Connext runtime environment
         run: |

@@ -2,7 +2,8 @@
 
 Module 01 simulates a Digital Operating Room.
 
-The applications have been tested to work in Debian-based environments with a GUI, including those in [WSL2 with GUI support](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps#install-support-for-linux-gui-apps) (Windows 10 and 11), as well as on macOS.
+The four interactive applications use browser interfaces; Patient Sensor remains
+headless.
 
 All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
 
@@ -30,13 +31,13 @@ It has no user interface.
 
 The *Patient Monitor* application's primary function is to subscribe to patient vitals data on Topic `t/Vitals`.
 
-It displays the received patient vital data in a GUI as a live "Patient Monitor Graph" line plot.
+It displays the received patient vital data in a browser as live patient-monitor waveforms.
 
 ### Arm
 
 The *Arm* application's primary function is to simulate a surgical robot with 5 motors: Base, Shoulder, Elbow, Wrist, and Hand. It receives commands on Topic `t/MotorControl` to control the movement of the individual motors.
 
-It displays the motor angles as an "Arm Motor Angles" line plot. This is a very basic representation of the movement of a robotic arm. We've intentionally made it simple to focus on the data transfer.
+It displays motor angles and a robotic-arm visualization in the browser.
 
 ### Arm Controller
 
@@ -85,6 +86,13 @@ python3 launch.py 01-operating-room -s
 
 2. Launch the application executables.
 
+3. Print and open the four browser interfaces (ports 8090-8093). Add
+   `--no-browser` to print the URLs without opening tabs.
+
+Closing a browser tab does not terminate a device. Use the Orchestrator's
+shutdown command or stop the launcher with `Ctrl-C`; restart the scenario to
+relaunch a stopped process.
+
 *Note, applications can be launched individually by name, e.g. `python3 launch.py 01-operating-room Arm PatientMonitor`. Refer to [module.json](./module.json) for the list of available app names and QoS configuration.*
 
 ### 2. Observe the application behavior
@@ -93,7 +101,7 @@ Observe and play around with the interactive operating room applications. The fo
 
 - From the *Orchestrator* application, send a "PAUSE" command to the *Patient Sensor* Medical Device. Observe the effect in the *Patient Monitor* GUI application. Resume the *Patient Sensor* by sending a "START" command.
 - From the *Arm Controller* application, send a command to stop all *Arm* motors. Observe the effect in the *Arm* GUI application. Resume just the *Elbow* motor by clicking the respective "PLAY" button in the *Arm Controller* application. While still stopped, increment or decrement the *Wrist* motor angle by clicking the respective "+" or "-" buttons in the *Arm Controller* application. Resume all *Arm* motors by pressing "PLAY ALL".
-- Ungracefully terminate the *Arm* application by closing the application window. Observe the effect in the *Orchestrator* application "Alerts" panel.
+- Terminate the *Arm* process using its specific PID (not by closing its browser tab). Observe the effect in the *Orchestrator* application's "Alerts" panel.
 - Initiate a graceful remote shutdown of the *Arm Controller* by sending the appropriate command from the *Orchestrator*. Observe the effect of the *Arm Controller* application.
 
 ### 3. Kill the applications
@@ -131,7 +139,7 @@ Let's try testing how modifying QoS Profiles can adjust system behavior without 
 
 3. Relaunch the operating room applications.
 
-4. While monitoring the *Orchestrator* "Alerts" panel, ungracefully terminate the *Patient Monitor* application by closing the respective application window.
+4. While monitoring the *Orchestrator* "Alerts" panel, terminate the *Patient Monitor* process using its specific PID, leaving its browser tab open.
 
    >**Observe:** You should see the alert mentioned above logged, 5 seconds after the *Patient Monitor* application has been closed.
 

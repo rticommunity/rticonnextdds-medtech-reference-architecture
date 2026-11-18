@@ -12,13 +12,10 @@
 """Launch / smoke tests for Module 01 applications.
 
 Verifies that each application starts without crashing.
-GUI applications are marked so they can be skipped on headless systems.
+All application interfaces are browser-based and need no graphical display.
 """
 
-import pytest
 from scripts.test_utils import (
-    GTK_ENV,
-    QT_ENV,
     wait_for_device_status,
 )
 
@@ -45,39 +42,34 @@ class TestPatientSensor:
         assert "Launching Patient Sensor" in out
 
 
-@pytest.mark.gui
 class TestOrchestrator:
-    """Orchestrator is a C++ GTK application."""
+    """Orchestrator is a C++ browser-based application."""
 
     def test_starts_and_stays_alive(self, proc_manager):
-        proc_manager.start_app_ready("Orchestrator", extra_env=GTK_ENV)
+        proc_manager.start_app_ready("Orchestrator")
 
 
-@pytest.mark.gui
 class TestArmController:
-    """ArmController is a C++ GTK application."""
+    """ArmController is a C++ browser-based application."""
 
     def test_starts_and_stays_alive(self, proc_manager):
-        proc_manager.start_app_ready("ArmController", extra_env=GTK_ENV)
+        proc_manager.start_app_ready("ArmController")
 
 
-@pytest.mark.gui
 class TestPatientMonitor:
-    """PatientMonitor is a Python/Qt application — use offscreen platform."""
+    """PatientMonitor is a Python browser-based application."""
 
     def test_starts_and_stays_alive(self, proc_manager):
-        proc_manager.start_app_ready("PatientMonitor", extra_env=QT_ENV)
+        proc_manager.start_app_ready("PatientMonitor")
 
 
-@pytest.mark.gui
 class TestArm:
-    """Arm is a Python/Qt application — use offscreen platform."""
+    """Arm is a Python browser-based application."""
 
     def test_starts_and_stays_alive(self, proc_manager):
-        proc_manager.start_app_ready("Arm", extra_env=QT_ENV)
+        proc_manager.start_app_ready("Arm")
 
 
-@pytest.mark.gui
 class TestAllApps:
     """Launch all five applications simultaneously."""
 
@@ -87,10 +79,10 @@ class TestAllApps:
         proc_manager.start_apps_ready(
             [
                 "PatientSensor",
-                ("Orchestrator", GTK_ENV),
-                ("ArmController", GTK_ENV),
-                ("PatientMonitor", QT_ENV),
-                ("Arm", QT_ENV),
+                "Orchestrator",
+                "ArmController",
+                "PatientMonitor",
+                "Arm",
             ]
         )
 

@@ -43,6 +43,7 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
+        exclude: ^modules/01-operating-room/src/third_party/
         additional_dependencies:
           - tomli
 
@@ -52,6 +53,7 @@ repos:
       - id: clang-format
         types_or: [c, c++]
         files: \.(cxx|cpp|hpp|h)$
+        exclude: ^modules/01-operating-room/src/third_party/
 
   - repo: https://github.com/rvben/rumdl-pre-commit
     rev: v0.1.84

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RTI Connext Security Demonstration</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header><span>RTI Connext</span><h1 id="title">Security Demonstration</h1><strong id="status">Connecting...</strong></header>
+  <p id="error" role="alert" hidden></p>
+  <main>
+    <aside>
+      <h2>Attack mode</h2>
+      <div id="modes"></div>
+      <section id="injector-controls" hidden>
+        <h2>Attack type</h2>
+        <label for="attack">Type</label><select id="attack"></select>
+        <label for="frequency">Inject frequency: <output id="hz">5</output> Hz</label>
+        <input id="frequency" type="range" min="1" max="20" value="5">
+        <button id="launch">Launch attack</button>
+      </section>
+      <button id="stop" disabled>Stop attack</button>
+      <p>These controls exercise the existing DDS Security demonstration participants.
+        Select a mode to compare access to secured and unsecured demo applications.</p>
+    </aside>
+    <section id="arm" hidden><h2>Arm visualization</h2><canvas id="arm-canvas" width="500" height="500"></canvas></section>
+    <section id="vitals" hidden>
+      <h2>Patient vitals</h2>
+      <div class="metrics">
+        <article>Heart rate <strong id="hr">---</strong>bpm</article>
+        <article>SpO2 <strong id="spo2">---</strong>%</article>
+        <article>EtCO2 <strong id="etco2">---</strong>mmHg</article>
+        <article>NiBP <strong id="nibp">---</strong>mmHg</article>
+      </div>
+      <p id="patient">Waiting for data</p>
+      <canvas id="vitals-canvas" width="600" height="260" aria-label="Recent received vital samples"></canvas>
+    </section>
+    <section class="log"><h2>Event log</h2><pre id="log" aria-live="polite"></pre></section>
+  </main>
+</body>
+</html>

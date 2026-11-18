@@ -10,10 +10,10 @@
         }
     },
     "apps": {
-        "ArmController":  ["${CPP:ArmController}"],
-        "Orchestrator":   ["${CPP:Orchestrator}"],
+        "ArmController":  ["${CPP:ArmController}", "--port", "8091"],
+        "Orchestrator":   ["${CPP:Orchestrator}", "--port", "8090"],
         "PatientSensor":  ["${CPP:PatientSensor}"],
-        "Arm":            ["${PYTHON:Arm}"],
-        "PatientMonitor": ["${PYTHON:PatientMonitor}"]
+        "Arm":            ["${PYTHON:Arm}", "--port", "8092"],
+        "PatientMonitor": ["${PYTHON:PatientMonitor}", "--port", "8093"]
     }
 }

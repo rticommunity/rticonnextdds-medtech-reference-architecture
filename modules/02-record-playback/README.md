@@ -9,7 +9,10 @@ RTI Recording Service is used to record realtime DDS data on the following Topic
 
 RTI Replay Service is used to play back the recorded data to the Arm and Patient Monitor GUI applications, simulating live data.
 
-This module reuses the operating room applications from [Module 01](../01-operating-room/). Those applications have been tested to work in Debian-based environments with a GUI, including those in [WSL2 with GUI support](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps#install-support-for-linux-gui-apps).
+This module reuses the browser-based applications from [Module 01](../01-operating-room/).
+Recording and Replay Service remain headless; no desktop display is needed.
+The `record` and `replay` scenarios open the browser interfaces for their selected
+applications; use `--no-browser` to print URLs instead.
 
 RTI Recording Service and RTI Replay Service can be run on any [officially supported platform](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/release_notes/pam_table.html#rti-infrastructure-services), provided the machine is directly discoverable by the machine the operating room applications are launched from.
 

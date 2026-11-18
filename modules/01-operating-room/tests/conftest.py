@@ -21,7 +21,6 @@ SECURITY_DIR = module01_test_support.SECURITY_DIR
 from scripts.test_utils import (  # noqa: E402
     ProcessManager,
     UtilityApp,
-    has_display,
     security_plugin_available,
 )
 
@@ -36,9 +35,6 @@ def _security_artifacts_exist() -> bool:
 
 def pytest_collection_modifyitems(config, items):
     """Skip tests when prerequisites are missing."""
-    skip_gui = pytest.mark.skip(
-        reason="No graphical display available (need DISPLAY or WAYLAND_DISPLAY)",
-    )
     skip_sec_artifacts = pytest.mark.skip(
         reason="Security artifacts not generated (run setup_security.py)",
     )
@@ -46,15 +42,12 @@ def pytest_collection_modifyitems(config, items):
         reason="DDS Security runtime probe failed",
     )
 
-    _has_display = has_display()
     __has_security_plugin = security_plugin_available()
     _has_security_artifacts = _security_artifacts_exist()
 
     module_items = [i for i in items if Path(i.fspath).is_relative_to(TESTS_DIR)]
 
     for item in module_items:
-        if "gui" in item.keywords and not _has_display:
-            item.add_marker(skip_gui)
         if "secure" in item.keywords and not _has_security_artifacts:
             item.add_marker(skip_sec_artifacts)
         elif "secure" in item.keywords and not __has_security_plugin:
