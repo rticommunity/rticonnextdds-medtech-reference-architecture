@@ -270,8 +270,41 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                     assert "---" not in panel.locator(".feedback-value").all_inner_texts()
                     assert not page.locator(".sdk-scene3d-list").is_visible()
                     canvas = page.locator("#arm-scene-host canvas")
+
+                    def scene_snapshot():
+                        # WebGL can present a cleared frame while changing views.
+                        deadline = time.monotonic() + 5
+                        while time.monotonic() < deadline:
+                            image = canvas.screenshot()
+                            visible_pixels = page.evaluate(
+                                """async (png) => {
+                                    const image = new Image();
+                                    image.src = `data:image/png;base64,${png}`;
+                                    await image.decode();
+                                    const buffer = document.createElement('canvas');
+                                    buffer.width = image.width; buffer.height = image.height;
+                                    const context = buffer.getContext('2d');
+                                    context.drawImage(image, 0, 0);
+                                    const pixels = context.getImageData(
+                                        0, 0, buffer.width, buffer.height
+                                    ).data;
+                                    let visible = 0;
+                                    for (let i = 0; i < pixels.length; i += 4) {
+                                        if ([0, 1, 2].some(channel =>
+                                            Math.abs(pixels[i + channel] - pixels[channel]) > 8
+                                        )) visible++;
+                                    }
+                                    return visible;
+                                }""",
+                                base64.b64encode(image).decode(),
+                            )
+                            if visible_pixels > 50:
+                                return image
+                            page.wait_for_timeout(50)
+                        pytest.fail("Arm canvas did not present visible geometry within 5 seconds")
+
                     page.wait_for_timeout(300)
-                    home = canvas.screenshot()
+                    home = scene_snapshot()
                     assert "pan" in page.locator(".arm-scene-status").inner_text()
                     label_mutations = page.evaluate("""async () => {
                         const buttons = [
@@ -311,20 +344,20 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                     assert blue_pixels > 50, "Original blue arm accents must not be painted green"
                     page.get_by_role("button", name="Fit arm", exact=True).click()
                     page.wait_for_timeout(300)
-                    assert canvas.screenshot() != home
+                    assert scene_snapshot() != home
                     page.get_by_role("button", name="Reset camera", exact=True).click()
                     page.wait_for_timeout(300)
-                    assert canvas.screenshot() == home
+                    assert scene_snapshot() == home
                     for view in ("Side view", "Top view"):
                         page.get_by_role("button", name=view, exact=True).click()
                         page.wait_for_timeout(300)
-                        preset = canvas.screenshot()
+                        preset = scene_snapshot()
                         assert preset != home
                         page.wait_for_timeout(600)
-                        assert canvas.screenshot() == preset
+                        assert scene_snapshot() == preset
                         page.get_by_role("button", name="Reset camera", exact=True).click()
                         page.wait_for_timeout(300)
-                        assert canvas.screenshot() == home
+                        assert scene_snapshot() == home
                     canvas_box = canvas.bounding_box()
                     assert canvas_box
                     x = canvas_box["x"] + canvas_box["width"] * 0.2
@@ -341,7 +374,7 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                         if modifier == "shift":
                             page.keyboard.up("Shift")
                         page.wait_for_timeout(200)
-                        panned = canvas.screenshot()
+                        panned = scene_snapshot()
                         assert panned != home
                         if pan_view is None:
                             pan_view = panned
@@ -350,7 +383,7 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                         assert panel.locator(".feedback-value").all_inner_texts() == telemetry
                         page.get_by_role("button", name="Reset camera", exact=True).click()
                         page.wait_for_timeout(300)
-                        assert canvas.screenshot() == home
+                        assert scene_snapshot() == home
                     for delta in (-200, 200):
                         page.mouse.move(x, y)
                         page.mouse.down()
@@ -358,13 +391,13 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                         page.mouse.up()
                         page.mouse.wheel(0, delta)
                         page.wait_for_timeout(200)
-                        adjusted = canvas.screenshot()
+                        adjusted = scene_snapshot()
                         page.get_by_role("button", name="Fit arm", exact=True).click()
                         page.wait_for_timeout(300)
-                        assert canvas.screenshot() != adjusted
+                        assert scene_snapshot() != adjusted
                         page.get_by_role("button", name="Reset camera", exact=True).click()
                         page.wait_for_timeout(300)
-                        assert canvas.screenshot() == home
+                        assert scene_snapshot() == home
                     assert page.locator(".camera-action-status").inner_text() == (
                         "Camera reset; arm position unchanged."
                     )

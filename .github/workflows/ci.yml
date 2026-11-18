@@ -278,7 +278,7 @@ jobs:
       - name: Install required browser prerequisites
         id: browser
         run: |
-          python -m playwright install --with-deps chromium
+          python -m playwright install --no-shell chromium
           echo "status=available" >> "$GITHUB_OUTPUT"
 
       - name: Run full test suite against prepared outputs

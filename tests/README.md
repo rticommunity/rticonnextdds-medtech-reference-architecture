@@ -56,8 +56,10 @@ pytest tests/test_config_parsing.py::TestModuleJsonContract -v
 
 On Linux, Playwright may request administrator access to install browser system
 libraries. On macOS and Windows the same command installs the matching browser.
-The Docker test image and trusted integration CI job provision these prerequisites
-automatically. Browser coverage does not validate native-webview mode.
+The Docker test image provisions these prerequisites automatically. The trusted
+integration CI job uses the Ubuntu runner's system libraries and installs only
+the matching Chromium browser; missing libraries still fail browser launch.
+Browser coverage does not validate native-webview mode.
 
 ## Environment Setup
 
