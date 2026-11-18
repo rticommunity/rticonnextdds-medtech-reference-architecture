@@ -9,13 +9,14 @@
 # under no obligation to maintain or support the software.  RTI shall not be
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
-"""Module config and environment setup validation tests.
+"""Module config, environment setup, and process lifecycle tests.
 
 Ensures that ``module_runner.load_module_config()`` produces a correct
 environment and that all referenced XML files actually exist.
 """
 
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from module01_test_support import MODULE_DIR
@@ -116,3 +117,44 @@ class TestModuleConfigErrors:
         for path_str in env["NDDS_QOS_PROFILES"].split(";"):
             p = Path(path_str)
             assert p.stat().st_size > 0, f"XML file is empty: {p}"
+
+
+class TestProcessLifecycle:
+    def test_crashed_app_does_not_stop_other_apps(self, monkeypatch, capsys):
+        healthy = Mock(args=["Orchestrator"])
+        healthy.poll.return_value = None
+        crashed = Mock(args=["Arm.py"])
+        crashed.poll.return_value = -9
+        monkeypatch.setattr(module_runner.subprocess, "Popen", Mock(side_effect=[healthy, crashed]))
+        ticks = 0
+
+        def interrupt_after_two_ticks(_):
+            nonlocal ticks
+            healthy.terminate.assert_not_called()
+            ticks += 1
+            if ticks == 2:
+                raise KeyboardInterrupt
+
+        monkeypatch.setattr(module_runner.time, "sleep", interrupt_after_two_ticks)
+        with pytest.raises(KeyboardInterrupt):
+            module_runner.launch_multi([([["Orchestrator"], ["Arm.py"]], MODULE_DIR, {})])
+
+        assert ticks == 2
+        assert crashed.poll.call_count == 1
+        assert capsys.readouterr().err.count("Arm.py") == 1
+        healthy.terminate.assert_called_once()
+        healthy.wait.assert_called_once()
+
+    def test_spawn_failure_stops_already_started_apps(self, monkeypatch):
+        healthy = Mock()
+        healthy.poll.return_value = None
+        monkeypatch.setattr(
+            module_runner.subprocess,
+            "Popen",
+            Mock(side_effect=[healthy, FileNotFoundError("missing application")]),
+        )
+        with pytest.raises(FileNotFoundError, match="missing application"):
+            module_runner.launch_multi([([["Orchestrator"], ["missing"]], MODULE_DIR, {})])
+
+        healthy.terminate.assert_called_once()
+        healthy.wait.assert_called_once()

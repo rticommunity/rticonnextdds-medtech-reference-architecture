@@ -253,7 +253,8 @@ def launch_multi(
 
     *specs* is a list of ``(commands, module_dir, env)`` tuples — one per
     module.  All processes across all modules are spawned concurrently and
-    ``Ctrl-C`` tears down everything.
+    ``Ctrl-C`` tears down everything. An exited process does not stop the
+    remaining applications.
     """
     children: list[subprocess.Popen] = []
     try:
@@ -267,9 +268,13 @@ def launch_multi(
                 if code is None:
                     running.append(child)
                 elif code != 0:
-                    raise subprocess.CalledProcessError(code, child.args)
-            if not running:
-                break
-            time.sleep(0.1)
+                    print(
+                        f"Application exited with code {code}: {child.args}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+            children = running
+            if children:
+                time.sleep(0.1)
     finally:
         _shutdown(children)
