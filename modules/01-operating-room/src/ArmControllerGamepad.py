@@ -13,14 +13,16 @@ import asyncio
 import math
 import os
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pygame
-from DemoUiSupport import DemoUiState, create_demo_ui, run_demo_ui
+from DemoUiSupport import DemoUiState, create_demo_ui, log_failure, run_app_task, run_demo_ui
 from pygame._sdl2 import controller
 
+if TYPE_CHECKING:
+    from MedTech import Device
+
 CONTROL_PERIOD_SECONDS = 0.02
-HEARTBEAT_PERIOD_SECONDS = 0.05
 FEEDBACK_STALE_SECONDS = 0.5
 AXIS_DEAD_ZONE = 0.35
 MAX_LINEAR_SPEED = 0.05
@@ -156,8 +158,8 @@ class GamepadControlState:
 def read_controller_state(
     gamepad, control_state: GamepadControlState
 ) -> tuple[dict, dict[str, bool]]:
-    axis = GamepadApplication.normalize_axis
-    trigger = GamepadApplication.normalize_trigger
+    axis = ArmControllerGamepadApp.normalize_axis
+    trigger = ArmControllerGamepadApp.normalize_trigger
     dpad = {
         "up": bool(gamepad.get_button(pygame.CONTROLLER_BUTTON_DPAD_UP)),
         "down": bool(gamepad.get_button(pygame.CONTROLLER_BUTTON_DPAD_DOWN)),
@@ -197,24 +199,25 @@ def initialize_gamepad_input() -> None:
     controller.init()
 
 
-class GamepadDdsAdapter:
-    def __init__(self) -> None:
+def _vector_view(vector) -> dict[str, float]:
+    return {axis: round(float(getattr(vector, axis)), 4) for axis in ("x", "y", "z")}
+
+
+class ArmControllerGamepadApp:
+    def __init__(self, ui: DemoUiState) -> None:
         import rti.asyncio  # noqa: F401 - installs Connext's asyncio integration
         import rti.connextdds as dds
-        from DdsUtils import register_type
-        from MedTech import DdsEntities, Device, Geometry, Robot
+        from MedTech import DdsEntities, Device, Robot
+        from MedTechTypes import register_type
 
-        self.device = Device
-        self.geometry = Geometry
-        self.robot = Robot
         for data_type in (
-            self.device.Status,
-            self.device.Heartbeat,
-            self.device.Command,
-            self.robot.Arm.TeleopControl,
-            self.robot.Tool.ParallelJawControl,
-            self.robot.Arm.Status,
-            self.robot.Arm.Telemetry,
+            Device.Status,
+            Device.Heartbeat,
+            Device.Command,
+            Robot.Arm.TeleopControl,
+            Robot.Tool.ParallelJawControl,
+            Robot.Arm.Status,
+            Robot.Arm.Telemetry,
         ):
             register_type(data_type)
         entities = DdsEntities.Constants
@@ -238,55 +241,13 @@ class GamepadDdsAdapter:
         self.arm_telemetry_reader = dds.DataReader(
             self.participant.find_datareader(entities.ARM_TELEMETRY_DR)
         )
-        self.status = self.device.Status(
-            device=self.device.DeviceType.ARM_CONTROLLER,
-            status=self.device.DeviceStatuses.ON,
+        self.status_sample = Device.Status(
+            device=Device.DeviceType.ARM_CONTROLLER,
+            status=Device.DeviceStatuses.ON,
         )
-        self.status_writer.write(self.status)
-
-    def set_status(self, status: str) -> None:
-        self.status.status = getattr(self.device.DeviceStatuses, status)
-        self.status_writer.write(self.status)
-
-    def publish_heartbeat(self) -> None:
-        self.heartbeat_writer.write(
-            self.device.Heartbeat(device=self.device.DeviceType.ARM_CONTROLLER)
-        )
-
-    def publish_rates(self, rates: dict) -> None:
-        rates = bounded_teleop_rates(rates)
-        linear = rates["linear_velocity"]
-        angular = rates["angular_velocity"]
-        self.teleop_writer.write(
-            self.robot.Arm.TeleopControl(
-                arm_id=ARM_ID,
-                linear_velocity=self.geometry.Vector3(x=linear["x"], y=linear["y"], z=linear["z"]),
-                angular_velocity=self.geometry.Vector3(
-                    x=angular["x"], y=angular["y"], z=angular["z"]
-                ),
-            )
-        )
-        self.tool_writer.write(
-            self.robot.Tool.ParallelJawControl(arm_id=ARM_ID, opening_rate=rates["opening_rate"])
-        )
-
-    async def device_commands(self):
-        async for sample in self.command_reader.take_data_async():
-            yield sample.command.name
-
-    def close(self) -> None:
-        self.participant.close()
-
-
-def _vector_view(vector) -> dict[str, float]:
-    return {axis: round(float(getattr(vector, axis)), 4) for axis in ("x", "y", "z")}
-
-
-class GamepadApplication:
-    def __init__(self, ui: DemoUiState) -> None:
-        self.dds = GamepadDdsAdapter()
+        self.failed = False
         self.ui = ui
-        self.status = "ON"
+        self.status = Device.DeviceStatuses.ON
         self.gamepad = None
         self.gamepad_instance_id = None
         self.gamepad_name = "No supported gamepad connected; waiting"
@@ -303,7 +264,6 @@ class GamepadApplication:
             ),
             False,
         )
-        self.next_heartbeat = 0.0
         self.last_arm_readiness = "NOT_READY"
         self.has_arm_status = False
         self.last_telemetry: dict | None = None
@@ -347,14 +307,14 @@ class GamepadApplication:
         return {
             "kind": "gamepad-controller",
             "title": "Xbox Arm Controller",
-            "status": self.status,
+            "status": self.status.name,
             "header_badges": [
                 {
                     "label": "Input",
                     "value": "CONNECTED" if self.gamepad is not None else "WAITING",
                     "tone": "good" if self.gamepad is not None else "warn",
                 },
-                {"label": "Device", "value": self.status},
+                {"label": "Device", "value": self.status.name},
                 {"label": "Control frame", "value": "BASE (+Z UP)"},
                 {
                     "label": "Arm",
@@ -392,19 +352,41 @@ class GamepadApplication:
             "feedback": feedback,
         }
 
-    def set_status(self, status) -> None:
+    def set_status(self, status: Device.DeviceStatuses) -> None:
         if self.status != status:
             self.status = status
-            self.dds.set_status(status)
+            self.write_status(status)
         self.ui.update(**self.view())
 
     def publish_rates(self, rates: dict) -> None:
-        if self.status == "ON":
-            self.dds.publish_rates(rates)
+        from MedTech import Device, Geometry, Robot
+
+        if self.status == Device.DeviceStatuses.ON:
+            rates = bounded_teleop_rates(rates)
+            linear = rates["linear_velocity"]
+            angular = rates["angular_velocity"]
+            self.teleop_writer.write(
+                Robot.Arm.TeleopControl(
+                    arm_id=ARM_ID,
+                    linear_velocity=Geometry.Vector3(x=linear["x"], y=linear["y"], z=linear["z"]),
+                    angular_velocity=Geometry.Vector3(
+                        x=angular["x"], y=angular["y"], z=angular["z"]
+                    ),
+                )
+            )
+            self.tool_writer.write(
+                Robot.Tool.ParallelJawControl(arm_id=ARM_ID, opening_rate=rates["opening_rate"])
+            )
+
+    def write_status(self, status: Device.DeviceStatuses) -> None:
+        self.status_sample.status = status
+        self.status_writer.write(self.status_sample)
 
     def stop_motion(self) -> None:
+        from MedTech import Device
+
         self.rates = self.zero_rates()
-        if self.status == "ON":
+        if self.status == Device.DeviceStatuses.ON:
             self.publish_rates(self.rates)
 
     def connect_controller(self, device_index: int) -> None:
@@ -451,17 +433,22 @@ class GamepadApplication:
                 self.disconnect_controller()
 
     async def receive_commands(self) -> None:
-        async for command in self.dds.device_commands():
-            if command == "PAUSE":
+        from MedTech import Device
+        from MedTechTypes import device_status_after_command
+
+        async for sample in self.command_reader.take_data_async():
+            command = sample.command
+            status = device_status_after_command(command)
+            if command == Device.DeviceCommands.PAUSE:
                 self.rates = self.zero_rates()
-                self.set_status("PAUSED")
+                self.set_status(status)
                 self.ui.log("Arm Controller paused by Orchestrator", "warn")
-            elif command == "START":
-                self.set_status("ON")
+            elif command == Device.DeviceCommands.START:
+                self.set_status(status)
                 self.ui.log("Arm Controller started by Orchestrator", "ok")
             else:
                 self.rates = self.zero_rates()
-                self.set_status("OFF")
+                self.set_status(status)
                 self.running = False
                 await self.app.stop()
                 return
@@ -471,7 +458,7 @@ class GamepadApplication:
         return getattr(sample, "data", sample)
 
     async def receive_arm_status(self) -> None:
-        async for sample in self.dds.arm_status_reader.take_data_async():
+        async for sample in self.arm_status_reader.take_data_async():
             status = self._sample_data(sample)
             if getattr(status, "arm_id", None) != ARM_ID:
                 continue
@@ -480,7 +467,7 @@ class GamepadApplication:
             self.ui.update(**self.view())
 
     async def receive_arm_telemetry(self) -> None:
-        async for sample in self.dds.arm_telemetry_reader.take_data_async():
+        async for sample in self.arm_telemetry_reader.take_data_async():
             telemetry = self._sample_data(sample)
             if getattr(telemetry, "arm_id", None) != ARM_ID:
                 continue
@@ -502,57 +489,149 @@ class GamepadApplication:
             self.ui.update(**self.view())
 
     async def run(self, app) -> None:
+        from HeartbeatPresence import publish_heartbeats
+        from MedTech import Device
+
         self.app = app
-        initialize_gamepad_input()
-        pygame.display.set_mode((1, 1), pygame.HIDDEN)
-        for index in range(controller.get_count()):
-            self.connect_controller(index)
-        self.ui.update(**self.view())
-        self.ui.log("Xbox Arm Controller is online")
-        next_ui_refresh = 0.0
+        heartbeat_stop = asyncio.Event()
+        workers = []
+        enabled = False
+
+        async def task_failed() -> None:
+            self.failed = True
+            self.running = False
+            heartbeat_stop.set()
+            for task in workers:
+                if task is not asyncio.current_task():
+                    task.cancel()
+            await app.stop()
+
         try:
+            self.participant.enable()
+            self.status_writer.write(self.status_sample)
+            enabled = True
+            initialize_gamepad_input()
+            pygame.display.set_mode((1, 1), pygame.HIDDEN)
+            for index in range(controller.get_count()):
+                self.connect_controller(index)
+            self.ui.update(**self.view())
+            self.ui.log("Xbox Arm Controller is online")
+            next_ui_refresh = 0.0
             async with asyncio.TaskGroup() as tasks:
-                tasks.create_task(self.receive_commands())
-                tasks.create_task(self.receive_arm_status())
-                tasks.create_task(self.receive_arm_telemetry())
-                while self.running:
-                    now = time.monotonic()
-                    self.process_events()
-                    self.rates, self.active_inputs = self.read_controls()
-                    if self.status == "ON":
-                        self.publish_rates(self.rates)
-                    if now >= self.next_heartbeat:
-                        self.dds.publish_heartbeat()
-                        self.next_heartbeat = now + HEARTBEAT_PERIOD_SECONDS
-                    if now >= next_ui_refresh:
-                        self.ui.update(**self.view())
-                        next_ui_refresh = now + 0.2
-                    await asyncio.sleep(CONTROL_PERIOD_SECONDS)
+                workers.extend(
+                    [
+                        tasks.create_task(
+                            run_app_task(self.receive_commands, "Gamepad commands", task_failed)
+                        ),
+                        tasks.create_task(
+                            run_app_task(self.receive_arm_status, "Gamepad arm status", task_failed)
+                        ),
+                        tasks.create_task(
+                            run_app_task(
+                                self.receive_arm_telemetry, "Gamepad telemetry", task_failed
+                            )
+                        ),
+                        tasks.create_task(
+                            run_app_task(
+                                lambda: publish_heartbeats(
+                                    self.heartbeat_writer,
+                                    Device.Heartbeat(device=Device.DeviceType.ARM_CONTROLLER),
+                                    heartbeat_stop,
+                                ),
+                                "Gamepad heartbeat",
+                                task_failed,
+                            ),
+                        ),
+                    ]
+                )
+                try:
+                    while self.running:
+                        now = time.monotonic()
+                        self.process_events()
+                        self.rates, self.active_inputs = self.read_controls()
+                        if self.status == Device.DeviceStatuses.ON:
+                            self.publish_rates(self.rates)
+                        if now >= next_ui_refresh:
+                            self.ui.update(**self.view())
+                            next_ui_refresh = now + 0.2
+                        await asyncio.sleep(CONTROL_PERIOD_SECONDS)
+                except Exception as error:
+                    self.failed = True
+                    log_failure("Gamepad input", error)
+                finally:
+                    heartbeat_stop.set()
+                    for task in workers:
+                        task.cancel()
+        except Exception as error:
+            self.failed = True
+            log_failure("Gamepad", error)
         finally:
-            self.stop_motion()
-            self.status = "OFF"
-            self.dds.set_status("OFF")
-            if self.gamepad is not None:
-                self.gamepad.quit()
-            pygame.quit()
-            self.dds.close()
+            heartbeat_stop.set()
+            try:
+                if enabled:
+                    self.stop_motion()
+                    self.status = Device.DeviceStatuses.OFF
+                    self.write_status(self.status)
+            except Exception as error:
+                self.failed = True
+                log_failure("Gamepad final DDS write", error)
+            finally:
+                try:
+                    if self.gamepad is not None:
+                        self.gamepad.quit()
+                except Exception as error:
+                    self.failed = True
+                    log_failure("Gamepad device close", error)
+                finally:
+                    try:
+                        pygame.quit()
+                    except Exception as error:
+                        self.failed = True
+                        log_failure("Gamepad SDL shutdown", error)
+                    finally:
+                        try:
+                            self.participant.close()
+                        except Exception as error:
+                            self.failed = True
+                            log_failure("Gamepad participant close", error)
+            if self.failed:
+                try:
+                    await app.stop()
+                except Exception as error:
+                    log_failure("Gamepad UI shutdown", error)
             print("Xbox Arm Controller stopped", flush=True)
 
 
-async def run_application(app) -> None:
-    ui = DemoUiState(
+def configure_ui(app):
+    return DemoUiState(
         app,
         kind="gamepad-controller",
         title="Xbox Arm Controller",
         description="Controller input is translated into RTI Connext DDS teleoperation.",
     )
-    application = GamepadApplication(ui)
-    await application.run(app)
 
 
-def main() -> None:
-    run_demo_ui(create_demo_ui("Xbox Arm Controller"), run_application)
+def main() -> int:
+    application = None
+    result = 1
+    try:
+        app = create_demo_ui("Xbox Arm Controller")
+        ui = configure_ui(app)
+        application = ArmControllerGamepadApp(ui)
+        run_demo_ui(app, application.run)
+        result = int(application.failed)
+    except Exception as error:
+        log_failure("Gamepad setup or UI", error)
+    finally:
+        if application is not None:
+            try:
+                if not application.participant.closed:
+                    application.participant.close()
+            except Exception as error:
+                log_failure("Gamepad participant close", error)
+                result = 1
+    return result
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -29,6 +29,8 @@ module04_test_support = importlib.import_module("module04_test_support")
 MODULE_01_DIR = module04_test_support.MODULE_01_DIR
 MODULE_DIR = module04_test_support.MODULE_DIR
 SYSTEM_DIR = module04_test_support.SYSTEM_DIR
+sys.path.insert(0, str(SYSTEM_DIR / "src"))
+sys.path.insert(0, str(SYSTEM_DIR.parent / "resource" / "demo_ui"))
 
 
 def _or_security_artifacts_exist() -> bool:

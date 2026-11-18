@@ -37,7 +37,7 @@
 # Run specific tests:
 #   docker run --rm \
 #     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
-#     medtech-test pytest modules/01-operating-room/tests/test_types.py -v
+#     medtech-test system/tests -v
 # ==========================================================================
 
 # Shared build args (global defaults).
@@ -76,12 +76,19 @@ RUN curl -sSL -o /usr/share/keyrings/rti-official-archive.gpg \
     && apt-get update
 
 # Install Connext DDS (accept license non-interactively)
-RUN echo "rti-connext-dds-${CONNEXT_VERSION}-common rti-connext-dds-${CONNEXT_VERSION}/license/accepted select true" \
+COPY pyproject.toml /tmp/medtech-pyproject.toml
+RUN version="$(sed -n 's/^[[:space:]]*"rti\.connext==\([0-9.]*\)",[[:space:]]*$/\1/p' /tmp/medtech-pyproject.toml)" \
+    && case "$version" in \
+        "${CONNEXT_VERSION}") patch="${version}.0" ;; \
+        "${CONNEXT_VERSION}".*) patch="$version" ;; \
+        *) echo "Connext release does not match the Python pin: $version" >&2; exit 1 ;; \
+    esac \
+    && echo "rti-connext-dds-${CONNEXT_VERSION}-common rti-connext-dds-${CONNEXT_VERSION}/license/accepted select true" \
         | debconf-set-selections \
     && apt-get install -y --no-install-recommends \
-    rti-connext-dds-${CONNEXT_VERSION}-lib-dev \
-    rti-connext-dds-${CONNEXT_VERSION}-rtiddsgen \
-    rti-connext-dds-${CONNEXT_VERSION}-services-all \
+    "rti-connext-dds-${CONNEXT_VERSION}-lib-dev=${patch}-*" \
+    "rti-connext-dds-${CONNEXT_VERSION}-rtiddsgen=${patch}-*" \
+    "rti-connext-dds-${CONNEXT_VERSION}-services-all=${patch}-*" \
     && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------------
@@ -97,11 +104,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         cmake g++ make pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Python packages (enable deadsnakes for broader PYTHON_VERSION support)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        software-properties-common \
-    && add-apt-repository -y ppa:deadsnakes/ppa \
-    && apt-get update && apt-get install -y --no-install-recommends \
+# Ubuntu 24.04 provides Python 3.12; add deadsnakes only for other versions.
+RUN apt-get update \
+    && if [ "${PYTHON_VERSION}" != "3.12" ]; then \
+        apt-get install -y --no-install-recommends software-properties-common \
+        && add-apt-repository -y ppa:deadsnakes/ppa; \
+    fi \
+    && apt-get install -y --no-install-recommends \
         python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -126,11 +135,12 @@ FROM build-base AS build
 WORKDIR /workspace
 COPY . .
 
-# Check the locked Python API against this image's SDK before configuring CMake.
-RUN python${PYTHON_VERSION} resource/python/scripts/check_connext_install.py
-
-# Build project with CMake
-RUN eval $(rtienv) && python${PYTHON_VERSION} build.py -DRTICONNEXTDDS_VERSION=${CONNEXT_VERSION} -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+# Check the locked Python API against this image's SDK, then build with CMake.
+RUN /bin/bash -ec 'set -- "$NDDSHOME"/resource/scripts/rtisetenv_*.bash; \
+    if [[ $# != 1 || ! -f $1 ]]; then echo "Expected one Connext environment script" >&2; exit 1; fi; \
+    source "$1"; \
+    python resource/python/scripts/check_connext_install.py; \
+    python build.py -DRTICONNEXTDDS_VERSION="$CONNEXT_VERSION" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON'
 
 # Generate security artifacts (certificates, signed governance/permissions)
 RUN python${PYTHON_VERSION} system/security/setup_security.py --force

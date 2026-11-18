@@ -12,9 +12,11 @@
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
-#include <exception>
 #include <filesystem>
+#include <iostream>
+#include <mutex>
 #include <optional>
+#include <queue>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -26,6 +28,30 @@
 #endif
 
 namespace medtech::ui {
+
+template <typename Command>
+class CommandQueue {
+public:
+    void push(Command command)
+    {
+        std::lock_guard<std::mutex> guard(mutex_);
+        commands_.push(std::move(command));
+    }
+
+    std::optional<Command> try_pop()
+    {
+        std::lock_guard<std::mutex> guard(mutex_);
+        if (commands_.empty())
+            return std::nullopt;
+        Command command = std::move(commands_.front());
+        commands_.pop();
+        return command;
+    }
+
+private:
+    std::mutex mutex_;
+    std::queue<Command> commands_;
+};
 
 inline volatile std::sig_atomic_t stop_signal = 0;
 
@@ -59,7 +85,7 @@ inline std::filesystem::path native_icon_path()
 #endif
 }
 
-inline void run(rti::demo::ui::DemoUiApp &app,
+inline bool run(rti::demo::ui::DemoUiApp &app,
                 [[maybe_unused]] int native_width = 1280,
                 [[maybe_unused]] int native_height = 800,
                 [[maybe_unused]] std::filesystem::path native_icon = { })
@@ -71,7 +97,7 @@ inline void run(rti::demo::ui::DemoUiApp &app,
         options.height = native_height;
         options.icon = std::move(native_icon);
         rti::demo::ui::native::run(app, std::move(options));
-        return;
+        return true;
 #else
         throw std::runtime_error(
                 "Native UI mode is not enabled in this build; configure CMake "
@@ -83,12 +109,18 @@ inline void run(rti::demo::ui::DemoUiApp &app,
     const auto previous_term = std::signal(SIGTERM, request_stop);
     stop_signal = 0;
     std::atomic<bool> finished = false;
-    std::exception_ptr server_error;
+    bool server_failed = false;
     std::thread server([&]() {
         try {
             app.run();
+        } catch (const std::exception &error) {
+            std::cerr << "RTI Demo UI server failed: " << error.what()
+                      << std::endl;
+            server_failed = true;
         } catch (...) {
-            server_error = std::current_exception();
+            std::cerr << "RTI Demo UI server failed with an unknown exception"
+                      << std::endl;
+            server_failed = true;
         }
         finished.store(true);
     });
@@ -109,9 +141,9 @@ inline void run(rti::demo::ui::DemoUiApp &app,
         server.join();
         std::signal(SIGINT, previous_int);
         std::signal(SIGTERM, previous_term);
-        if (server_error)
-            std::rethrow_exception(server_error);
-        throw std::runtime_error("RTI Demo UI server did not become ready");
+        if (!server_failed)
+            std::cerr << "RTI Demo UI server did not become ready" << std::endl;
+        return false;
     }
 
     std::thread signal_monitor([&]() {
@@ -128,8 +160,7 @@ inline void run(rti::demo::ui::DemoUiApp &app,
     signal_monitor.join();
     std::signal(SIGINT, previous_int);
     std::signal(SIGTERM, previous_term);
-    if (server_error)
-        std::rethrow_exception(server_error);
+    return !server_failed;
 }
 
 }  // namespace medtech::ui

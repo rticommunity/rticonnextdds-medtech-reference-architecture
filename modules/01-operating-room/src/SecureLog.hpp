@@ -14,7 +14,11 @@
 #define SECURE_LOG_UTILS_H
 
 
+#include <functional>
+#include <iostream>
+#include <stdexcept>
 #include <string>
+#include <utility>
 #include <dds/domain/DomainParticipant.hpp>
 #include <rti/core/policy/CorePolicy.hpp>
 #include <dds/sub/DataReader.hpp>
@@ -26,8 +30,7 @@ using namespace DdsEntities::Constants;
 #include "builtin_logging_type.hpp"
 
 
-// Define the SecureLogUtils namespace
-namespace SecureLogUtils {
+namespace SecureLog {
 
 using SecureLogType = DDSSecurity::BuiltinLoggingTypeV2;
 using SecureLogHandler = std::function<void(const SecureLogType &)>;
@@ -48,12 +51,7 @@ SecureLogReader setup_secure_log_reader(
         SecureLogHandler log_handler,
         dds::core::QosProvider qos_provider = dds::core::QosProvider::Default())
 {
-    try {
-        rti::domain::register_type<SecureLogType>();
-    } catch (const std::exception &e) {
-        std::cerr << "Failed to register internal secure logging type: "
-                  << e.what() << std::endl;
-    }
+    rti::domain::register_type<SecureLogType>();
 
     // Initialize Participant
     dds::domain::DomainParticipant securelog_participant =
@@ -79,14 +77,24 @@ SecureLogReader setup_secure_log_reader(
     securelog_processor.attach_reader(
             securelog_reader,
             [log_handler](const rti::sub::LoanedSample<SecureLogType> &sample) {
-                if (sample.info().valid()) {
-                    log_handler(sample.data());
+                try {
+                    if (sample.info().valid()) {
+                        log_handler(sample.data());
+                    }
+                } catch (const std::exception &error) {
+                    std::cerr << "Secure log handler failed: " << error.what()
+                              << std::endl;
+                } catch (...) {
+                    std::cerr << "Secure log handler failed with an unknown "
+                                 "exception"
+                              << std::endl;
                 }
             });
+    securelog_participant.enable();
 
     return { securelog_reader, securelog_processor };
 }
 
-}  // namespace SecureLogUtils
+}  // namespace SecureLog
 
 #endif  // SECURE_LOG_UTILS_H

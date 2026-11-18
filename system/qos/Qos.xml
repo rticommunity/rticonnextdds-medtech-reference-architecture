@@ -72,6 +72,35 @@ inability to use the software. -->
         </qos_profile>
     </qos_library>
 
+    <qos_library name="DataFlowSnippetLibrary">
+      <qos_profile name="QosPolicy.Deadline.50ms">
+        <?rti-qos_snippet?>
+        <datawriter_qos>
+          <deadline><period><sec>0</sec><nanosec>50000000</nanosec></period></deadline>
+        </datawriter_qos>
+        <datareader_qos>
+          <deadline><period><sec>0</sec><nanosec>50000000</nanosec></period></deadline>
+        </datareader_qos>
+      </qos_profile>
+
+      <qos_profile name="QosPolicy.Deadline.200ms">
+        <?rti-qos_snippet?>
+        <datawriter_qos>
+          <deadline><period><sec>0</sec><nanosec>200000000</nanosec></period></deadline>
+        </datawriter_qos>
+        <datareader_qos>
+          <deadline><period><sec>0</sec><nanosec>200000000</nanosec></period></deadline>
+        </datareader_qos>
+      </qos_profile>
+
+      <qos_profile name="QosPolicy.Lifespan.250ms">
+        <?rti-qos_snippet?>
+        <datawriter_qos>
+          <lifespan><duration><sec>0</sec><nanosec>250000000</nanosec></duration></lifespan>
+        </datawriter_qos>
+      </qos_profile>
+    </qos_library>
+
     <qos_library name="DataFlowLibrary">
     <!-- For topics that are published at a high rate -->
       <qos_profile name="Streaming" base_name="BuiltinQosLib::Generic.Common">
@@ -82,24 +111,16 @@ inability to use the software. -->
       </qos_profile>
 
       <qos_profile name="Control" base_name="Streaming">
-        <datawriter_qos>
-          <durability><kind>VOLATILE_DURABILITY_QOS</kind></durability>
-          <deadline><period><sec>0</sec><nanosec>50000000</nanosec></period></deadline>
-          <lifespan><duration><sec>0</sec><nanosec>250000000</nanosec></duration></lifespan>
-        </datawriter_qos>
-        <datareader_qos>
-          <durability><kind>VOLATILE_DURABILITY_QOS</kind></durability>
-          <deadline><period><sec>0</sec><nanosec>50000000</nanosec></period></deadline>
-        </datareader_qos>
+        <base_name>
+          <element>DataFlowSnippetLibrary::QosPolicy.Deadline.50ms</element>
+          <element>DataFlowSnippetLibrary::QosPolicy.Lifespan.250ms</element>
+        </base_name>
       </qos_profile>
 
       <qos_profile name="Telemetry" base_name="Streaming">
-        <datawriter_qos>
-          <deadline><period><sec>0</sec><nanosec>200000000</nanosec></period></deadline>
-        </datawriter_qos>
-        <datareader_qos>
-          <deadline><period><sec>0</sec><nanosec>200000000</nanosec></period></deadline>
-        </datareader_qos>
+        <base_name>
+          <element>DataFlowSnippetLibrary::QosPolicy.Deadline.200ms</element>
+        </base_name>
       </qos_profile>
 
     <!-- For topics that are published once and on change -->
@@ -116,26 +137,11 @@ inability to use the software. -->
         </base_name>
       </qos_profile>
 
-    <!-- For the t/device/heartbeat topic, which is sent at 20 Hz -->
+      <!-- Heartbeats are published three times per offered deadline period. -->
       <qos_profile name="Heartbeat" base_name="Streaming">
-        <datawriter_qos>
-        <!-- Since the HB topic is sent at 20 Hz (50 ms), we'll use a deadline of 200 ms -->
-          <deadline>
-            <period>
-              <sec>0</sec>
-              <nanosec>200000000</nanosec>
-            </period>
-          </deadline>
-        </datawriter_qos>
-        <datareader_qos>
-        <!-- Since the HB topic is sent at 20 Hz (50 ms), we'll use a deadline of 200 ms -->
-          <deadline>
-            <period>
-              <sec>0</sec>
-              <nanosec>200000000</nanosec>
-            </period>
-          </deadline>
-        </datareader_qos>
+        <base_name>
+          <element>DataFlowSnippetLibrary::QosPolicy.Deadline.200ms</element>
+        </base_name>
       </qos_profile>
 
       <!-- For the Secure Log topic -->

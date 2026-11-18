@@ -17,6 +17,8 @@ described in the module README.
 """
 
 import math
+import signal
+import subprocess
 import time
 
 import pytest
@@ -64,12 +66,17 @@ class TestPatientSensorReadOnly:
             assert 40 <= v.nibp_d <= 130, f"Diastolic BP out of range: {v.nibp_d}"
 
     def test_heartbeat_rate(self, nonsecure_utility_app):
+        from MedTech import Device
+
         heartbeat_reader = nonsecure_utility_app.device_heartbeat.reader
-
-        # Wait for discovery
         assert wait_for_reader_match(heartbeat_reader), "Heartbeat reader never matched a writer"
-
-        # The Heartbeat profile has a deadline QoS; verify it is not being missed
+        samples = wait_for_samples(
+            heartbeat_reader,
+            n=3,
+            timeout_sec=3,
+            filter_fn=lambda sample: sample.device == Device.DeviceType.PATIENT_SENSOR,
+        )
+        assert len(samples) >= 3, "PatientSensor did not publish repeated heartbeats"
         assert check_no_deadline_missed(heartbeat_reader), "Deadline missed on Heartbeat reader"
 
     def test_status_on(self, nonsecure_utility_app):
@@ -88,46 +95,74 @@ class TestPatientSensorReadOnly:
         )
 
 
+@pytest.mark.parametrize(
+    ("application", "device"),
+    [
+        ("ArmController", "ARM_CONTROLLER"),
+        ("Arm", "ARM"),
+        ("PatientMonitor", "PATIENT_MONITOR"),
+    ],
+)
+def test_device_repeatedly_asserts_heartbeat(
+    proc_manager, nonsecure_utility_app, application, device
+):
+    from MedTech import Device
+
+    heartbeat_reader = nonsecure_utility_app.device_heartbeat.reader
+    proc_manager.start_app_ready(application)
+    assert wait_for_reader_match(heartbeat_reader)
+    expected = getattr(Device.DeviceType, device)
+    samples = wait_for_samples(
+        heartbeat_reader,
+        n=3,
+        timeout_sec=5,
+        filter_fn=lambda sample: sample.device == expected,
+    )
+    assert len(samples) >= 3, f"{application} did not publish repeated heartbeats"
+    assert check_no_deadline_missed(heartbeat_reader), f"{application} missed its deadline"
+
+
 class TestPatientSensorCommands:
     """PatientSensor should respond to DeviceCommand messages."""
 
-    def test_responds_to_pause(self, proc_manager, nonsecure_utility_app):
+    def test_sigterm_stops_heartbeat_and_exits_cleanly(self, proc_manager, nonsecure_utility_app):
         from MedTech import Device
 
-        proc_manager.start_app("PatientSensor")
-
         status_reader = nonsecure_utility_app.device_status.reader
-        cmd_writer = nonsecure_utility_app.device_command.writer
-
-        # Wait for device status
+        proc = proc_manager.start_app("PatientSensor")
         seen = wait_for_device_status(
             status_reader,
             expected_devices={Device.DeviceType.PATIENT_SENSOR},
             device_statuses=[Device.DeviceStatuses.ON],
             timeout_sec=10,
         )
-        assert Device.DeviceType.PATIENT_SENSOR in seen, (
-            "PatientSensor did not report DeviceStatus ON within the timeout"
-        )
+        assert Device.DeviceType.PATIENT_SENSOR in seen
 
-        # Send PAUSE command
-        assert wait_for_writer_match(cmd_writer), "Command writer never matched a reader"
-        cmd = Device.Command(
-            device=Device.DeviceType.PATIENT_SENSOR,
-            command=Device.DeviceCommands.PAUSE,
-        )
-        cmd_writer.write(cmd)
-
-        # Wait for status to change to PAUSED
+        proc.send_signal(signal.SIGTERM)
+        proc.wait(timeout=5)
+        assert proc.returncode == 0
         seen = wait_for_device_status(
             status_reader,
             expected_devices={Device.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Device.DeviceStatuses.PAUSED],
+            device_statuses=[Device.DeviceStatuses.OFF],
             timeout_sec=2,
         )
-        assert Device.DeviceType.PATIENT_SENSOR in seen, (
-            "PatientSensor did not transition to PAUSED"
+        assert Device.DeviceType.PATIENT_SENSOR in seen
+
+    def test_startup_error_exits_with_failure_status(self, proc_manager, tmp_path):
+        proc = proc_manager.start_app(
+            "PatientSensor",
+            extra_env={"NDDS_QOS_PROFILES": str(tmp_path / "missing-qos.xml")},
         )
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            pytest.fail("PatientSensor did not exit after its QoS configuration failed")
+
+        assert proc.returncode != 0
+        assert proc.stderr is not None
+        assert b"Patient Sensor failed" in proc.stderr.read()
 
     def test_responds_to_shutdown(self, proc_manager, nonsecure_utility_app):
         from MedTech import Device
@@ -159,8 +194,9 @@ class TestPatientSensorCommands:
         # PatientSensor should exit within 5s
         try:
             proc.wait(timeout=5)
-        except Exception:
+        except subprocess.TimeoutExpired:
             pytest.fail("PatientSensor did not exit after SHUTDOWN command")
+        assert proc.returncode == 0
 
 
 # ---------------------------------------------------------------------------
@@ -255,49 +291,6 @@ class TestArmTeleopControl:
 
 
 # ---------------------------------------------------------------------------
-# All apps — status reporting
-# ---------------------------------------------------------------------------
-
-
-class TestAllAppsStatus:
-    """All five apps should report DeviceStatus ON when running."""
-
-    def test_all_apps_report_status_on(self, proc_manager, nonsecure_utility_app):
-        from MedTech import Device
-
-        proc_manager.start_app("PatientSensor")
-        proc_manager.start_app("Orchestrator")
-        proc_manager.start_app("ArmController")
-        proc_manager.start_app("PatientMonitor")
-        proc_manager.start_app("Arm")
-
-        status_reader = nonsecure_utility_app.device_status.reader
-
-        # Wait for discovery
-        assert wait_for_reader_match(status_reader, timeout_sec=8, count=4), (
-            "Status reader never matched writers"
-        )
-
-        # Wait for device status
-        expected_devices = {
-            Device.DeviceType.PATIENT_SENSOR,
-            Device.DeviceType.ARM_CONTROLLER,
-            Device.DeviceType.ARM,
-            Device.DeviceType.PATIENT_MONITOR,
-        }
-        seen = wait_for_device_status(
-            status_reader,
-            expected_devices=expected_devices,
-            device_statuses=[Device.DeviceStatuses.ON],
-            timeout_sec=10,
-        )
-        for device in expected_devices:
-            assert device in seen, (
-                f"{device.name} did not report DeviceStatus ON within the timeout"
-            )
-
-
-# ---------------------------------------------------------------------------
 # Content filter verification
 # ---------------------------------------------------------------------------
 
@@ -305,61 +298,8 @@ class TestAllAppsStatus:
 class TestContentFilter:
     """DeviceCommand content filters should route commands only to the targeted device."""
 
-    def test_patient_sensor_receives_own_command(self, proc_manager, nonsecure_utility_app):
-        """PatientSensor should receive a command addressed to PATIENT_SENSOR."""
-        from MedTech import Device
-
-        proc_manager.start_app("PatientSensor")
-
-        status_reader = nonsecure_utility_app.device_status.reader
-        cmd_writer = nonsecure_utility_app.device_command.writer
-
-        # Wait for device status
-        seen = wait_for_device_status(
-            status_reader,
-            expected_devices={Device.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Device.DeviceStatuses.ON],
-            timeout_sec=10,
-        )
-        assert Device.DeviceType.PATIENT_SENSOR in seen, (
-            "PatientSensor did not report DeviceStatus ON within the timeout"
-        )
-
-        # Send PAUSE addressed to PATIENT_SENSOR
-        cmd = Device.Command(
-            device=Device.DeviceType.PATIENT_SENSOR,
-            command=Device.DeviceCommands.PAUSE,
-        )
-        cmd_writer.write(cmd)
-
-        # Verify PatientSensor transitioned to PAUSED
-        seen = wait_for_device_status(
-            status_reader,
-            expected_devices={Device.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Device.DeviceStatuses.PAUSED],
-            timeout_sec=2,
-        )
-        assert Device.DeviceType.PATIENT_SENSOR in seen, (
-            "PatientSensor did not receive its own PAUSE command"
-        )
-
-        # Send START command
-        cmd = Device.Command(
-            device=Device.DeviceType.PATIENT_SENSOR,
-            command=Device.DeviceCommands.START,
-        )
-        cmd_writer.write(cmd)
-
-        seen = wait_for_device_status(
-            status_reader,
-            expected_devices={Device.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Device.DeviceStatuses.ON],
-            timeout_sec=2,
-        )
-        assert Device.DeviceType.PATIENT_SENSOR in seen, "PatientSensor did not publish ON status"
-
-    def test_patient_sensor_ignores_arm_command(self, proc_manager, nonsecure_utility_app):
-        """PatientSensor should NOT react to a command addressed to ARM."""
+    def test_patient_sensor_filters_commands_by_device(self, proc_manager, nonsecure_utility_app):
+        """PatientSensor ignores ARM commands and accepts its own commands."""
         from MedTech import Device
 
         proc_manager.start_app("PatientSensor")
@@ -382,6 +322,7 @@ class TestContentFilter:
         assert wait_for_reader_match(vitals_reader), "Vitals reader never matched a writer"
         samples = wait_for_samples(vitals_reader, timeout_sec=4)
         assert len(samples) >= 1, "No vitals received from PatientSensor"
+        assert wait_for_writer_match(cmd_writer), "Command writer never matched a reader"
 
         # Send PAUSE addressed to ARM — PatientSensor should ignore it
         cmd = Device.Command(
@@ -409,3 +350,17 @@ class TestContentFilter:
             "PatientSensor stopped publishing vitals after a command addressed to ARM"
             " — content filter may be broken"
         )
+
+        cmd_writer.write(
+            Device.Command(
+                device=Device.DeviceType.PATIENT_SENSOR,
+                command=Device.DeviceCommands.PAUSE,
+            )
+        )
+        seen = wait_for_device_status(
+            status_reader,
+            expected_devices={Device.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Device.DeviceStatuses.PAUSED],
+            timeout_sec=2,
+        )
+        assert Device.DeviceType.PATIENT_SENSOR in seen, "PatientSensor did not accept PAUSE"

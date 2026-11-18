@@ -92,7 +92,7 @@
 
             <session name="Local_to_WAN_session">
                 <auto_topic_route name="Local_to_WAN_Status_route">
-                    <publish_with_original_info>true</publish_with_original_info>
+                    <publish_with_original_info>false</publish_with_original_info>
                     <input participant="Local_domain">
                         <allow_topic_name_filter>t/device/status,t/robot/arm/status</allow_topic_name_filter>
                         <creation_mode>ON_DOMAIN_MATCH</creation_mode>
@@ -106,7 +106,7 @@
                 </auto_topic_route>
 
                 <auto_topic_route name="Local_to_WAN_Heartbeat_route">
-                    <publish_with_original_info>true</publish_with_original_info>
+                    <publish_with_original_info>false</publish_with_original_info>
                     <input participant="Local_domain">
                         <allow_topic_name_filter>t/device/heartbeat</allow_topic_name_filter>
                         <creation_mode>ON_DOMAIN_MATCH</creation_mode>
@@ -178,7 +178,7 @@
 
             <session name="WAN_to_Local_session">
                 <auto_topic_route name="WAN_to_Local_Status_route">
-                    <publish_with_original_info>true</publish_with_original_info>
+                    <publish_with_original_info>false</publish_with_original_info>
                     <input participant="WAN_domain">
                         <allow_topic_name_filter>t/device/status,t/robot/arm/status</allow_topic_name_filter>
                         <creation_mode>ON_ROUTE_MATCH</creation_mode>
@@ -192,7 +192,7 @@
                 </auto_topic_route>
 
                 <auto_topic_route name="WAN_to_Local_Heartbeat_route">
-                    <publish_with_original_info>true</publish_with_original_info>
+                    <publish_with_original_info>false</publish_with_original_info>
                     <input participant="WAN_domain">
                         <allow_topic_name_filter>t/device/heartbeat</allow_topic_name_filter>
                         <creation_mode>ON_ROUTE_MATCH</creation_mode>

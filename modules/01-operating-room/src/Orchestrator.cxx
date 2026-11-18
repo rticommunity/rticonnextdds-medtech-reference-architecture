@@ -11,6 +11,7 @@
 #include <dds/pub/find.hpp>
 #include <dds/sub/DataReader.hpp>
 #include <dds/sub/find.hpp>
+#include <dds/sub/cond/ReadCondition.hpp>
 
 #include <array>
 #include <atomic>
@@ -21,18 +22,23 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <memory>
+#include <mutex>
+#include <optional>
 #include <sstream>
 #include <thread>
 #include <tuple>
 
+#include <rti/core/cond/AsyncWaitSet.hpp>
+
 #include <rti_demo_ui/rti_demo_ui.hpp>
 
-#include "DemoUiCommandQueue.hpp"
-#include "DemoUiRuntime.hpp"
+#include "DemoUiSupport.hpp"
+#include "HeartbeatPresence.hpp"
 #include "MedTech.hpp"
 
 #ifdef RTI_SECURITY_AVAILABLE
-    #include "SecureLogUtils.hpp"
+    #include "SecureLog.hpp"
 #endif
 
 using namespace DdsEntities::Constants;
@@ -110,8 +116,7 @@ std::string status_name(Device::DeviceStatuses status)
 
 Json orchestrator_view(
         const std::map<Device::DeviceType, std::string> &statuses,
-        const std::map<Device::DeviceType,
-                       std::chrono::steady_clock::time_point> &heartbeats,
+        const std::map<Device::DeviceType, bool> &presence,
         Device::DeviceType selected_device,
         bool secure,
         bool security_threat,
@@ -126,12 +131,9 @@ Json orchestrator_view(
     Json device_rows = Json::array();
     for (const auto device : devices) {
         const auto status = statuses.at(device);
-        const auto heartbeat = heartbeats.find(device);
-        const bool recent = heartbeat != heartbeats.end()
-                && std::chrono::steady_clock::now() - heartbeat->second < 200ms;
         device_rows.push_back({
                 { "name", device_name(device) },
-                { "status", recent ? status : "OFF" },
+                { "status", presence.at(device) ? status : "OFF" },
                 { "selected", device == selected_device },
         });
     }
@@ -182,151 +184,188 @@ Json orchestrator_view(
     };
 }
 
-void run_control(rti::demo::ui::DemoUiApp &app,
-                 medtech::ui::CommandQueue<UiEvent> &events,
-                 std::atomic<bool> &stopping)
-{
-    rti::domain::register_type<Device::Command>();
-    rti::domain::register_type<Device::Status>();
-    rti::domain::register_type<Device::Heartbeat>();
+class OrchestratorApp {
+public:
+    OrchestratorApp(rti::demo::ui::DemoUiApp &app,
+                    medtech::ui::CommandQueue<UiEvent> &events,
+                    std::atomic<bool> &stopping)
+            : app_(app), events_(events), stopping_(stopping)
+    {
+        rti::domain::register_type<Device::Command>();
+        rti::domain::register_type<Device::Status>();
+        rti::domain::register_type<Device::Heartbeat>();
 
-    auto provider = dds::core::QosProvider::Default();
-    auto participant = provider.extensions().create_participant_from_config(
-            std::string(ORCHESTRATOR_DP));
-    auto command_writer = rti::pub::find_datawriter_by_name<
-            dds::pub::DataWriter<Device::Command>>(
-            participant,
-            std::string(DEVICE_COMMAND_DW));
-    auto status_reader = rti::sub::find_datareader_by_name<
-            dds::sub::DataReader<Device::Status>>(participant,
-                                                  std::string(STATUS_DR));
-    auto heartbeat_reader = rti::sub::find_datareader_by_name<
-            dds::sub::DataReader<Device::Heartbeat>>(participant,
-                                                     std::string(HB_DR));
-
-    std::map<Device::DeviceType, std::string> statuses;
-    std::map<Device::DeviceType, std::chrono::steady_clock::time_point>
-            heartbeats;
-    for (const auto device : {
-                 Device::DeviceType::ARM,
-                 Device::DeviceType::ARM_CONTROLLER,
-                 Device::DeviceType::PATIENT_SENSOR,
-                 Device::DeviceType::PATIENT_MONITOR,
-         }) {
-        statuses[device] = "OFF";
+        provider_ = dds::core::QosProvider::Default();
+        participant_ = provider_.extensions().create_participant_from_config(
+                std::string(ORCHESTRATOR_DP));
+        if (participant_ == dds::core::null)
+            throw std::runtime_error("Missing DDS participant: "
+                                     + std::string(ORCHESTRATOR_DP));
+        command_writer_ = rti::pub::find_datawriter_by_name<
+                dds::pub::DataWriter<Device::Command>>(
+                participant_,
+                std::string(DEVICE_COMMAND_DW));
+        status_reader_ = rti::sub::find_datareader_by_name<
+                dds::sub::DataReader<Device::Status>>(participant_,
+                                                      std::string(STATUS_DR));
+        heartbeat_reader_ = rti::sub::find_datareader_by_name<
+                dds::sub::DataReader<Device::Heartbeat>>(participant_,
+                                                         std::string(HB_DR));
+        auto require_endpoint = [](const auto &endpoint, const auto &name) {
+            if (endpoint == dds::core::null)
+                throw std::runtime_error("Missing DDS endpoint: "
+                                         + std::string(name));
+        };
+        require_endpoint(command_writer_, DEVICE_COMMAND_DW);
+        require_endpoint(status_reader_, STATUS_DR);
+        require_endpoint(heartbeat_reader_, HB_DR);
+        heartbeat_monitor_ = std::make_unique<
+                medtech::operating_room::HeartbeatPresenceMonitor>(
+                heartbeat_reader_,
+                [&events](Device::DeviceType device, bool is_present) {
+                    events.push({
+                            is_present ? "heartbeat-present" : "heartbeat-lost",
+                            device_name(device),
+                            { },
+                            { },
+                    });
+                });
     }
-    auto selected_device = Device::DeviceType::ARM;
-    Json logs = Json::array();
-    auto secure = false;
-    auto security_threat_until = std::chrono::steady_clock::time_point { };
-    auto append_log = [&](std::string message,
-                          const std::string &level = "info") {
-        logs.push_back({
-                { "time", current_time() },
-                { "message", std::move(message) },
-                { "level", level },
-        });
-        if (logs.size() > 80)
-            logs.erase(logs.begin());
-    };
+
+    void run()
+    {
+        std::map<Device::DeviceType, std::string> statuses;
+        std::map<Device::DeviceType, bool> presence;
+        for (const auto device : {
+                     Device::DeviceType::ARM,
+                     Device::DeviceType::ARM_CONTROLLER,
+                     Device::DeviceType::PATIENT_SENSOR,
+                     Device::DeviceType::PATIENT_MONITOR,
+             }) {
+            statuses[device] = "OFF";
+            presence[device] = false;
+        }
+
+        auto selected_device = Device::DeviceType::ARM;
+        Json logs = Json::array();
+        auto secure = false;
+        auto security_threat_until = std::chrono::steady_clock::time_point { };
+        auto append_log = [&](std::string message,
+                              const std::string &level = "info") {
+            logs.push_back({
+                    { "time", current_time() },
+                    { "message", std::move(message) },
+                    { "level", level },
+            });
+            if (logs.size() > 80)
+                logs.erase(logs.begin());
+        };
 
 #ifdef RTI_SECURITY_AVAILABLE
-    secure = SecureLogUtils::is_secure(participant);
-    SecureLogUtils::SecureLogReader securelog_reader = { dds::core::null,
-                                                         dds::core::null };
-    if (secure) {
-        securelog_reader = SecureLogUtils::setup_secure_log_reader(
-                [&events](const SecureLogUtils::SecureLogType &sample) {
-                    const auto severity = static_cast<int32_t>(sample.severity);
-                    if (severity <= static_cast<int32_t>(
-                                DDSSecurity::LoggingLevel::WARNING_LEVEL)) {
-                        events.push({
-                                "security",
-                                { },
-                                { },
-                                "SECURITY THREAT [" + sample.appname + "] "
-                                        + sample.message,
-                        });
-                    }
-                },
-                provider);
-    }
+        secure = SecureLog::is_secure(participant_);
+        SecureLog::SecureLogReader securelog_reader = { dds::core::null,
+                                                        dds::core::null };
+        if (secure) {
+            securelog_reader = SecureLog::setup_secure_log_reader(
+                    [this](const SecureLog::SecureLogType &sample) {
+                        const auto severity =
+                                static_cast<int32_t>(sample.severity);
+                        if (severity <= static_cast<int32_t>(
+                                    DDSSecurity::LoggingLevel::WARNING_LEVEL)) {
+                            events_.push({
+                                    "security",
+                                    { },
+                                    { },
+                                    "SECURITY THREAT [" + sample.appname + "] "
+                                            + sample.message,
+                            });
+                        }
+                    },
+                    provider_);
+        }
 #endif
 
-    auto publish_view = [&]() {
-        const bool security_threat =
-                std::chrono::steady_clock::now() < security_threat_until;
-        app.set_data(orchestrator_view(statuses,
-                                       heartbeats,
-                                       selected_device,
-                                       secure,
-                                       security_threat,
-                                       logs));
-    };
-    append_log("Started Orchestrator");
-    publish_view();
+        auto publish_view = [&]() {
+            const bool security_threat =
+                    std::chrono::steady_clock::now() < security_threat_until;
+            app_.set_data(orchestrator_view(statuses,
+                                            presence,
+                                            selected_device,
+                                            secure,
+                                            security_threat,
+                                            logs));
+        };
+        append_log("Started Orchestrator");
+        publish_view();
 
-    while (!stopping.load()) {
-        while (auto event = events.try_pop()) {
-            if (event->kind == "command") {
-                const auto command = parse_command(event->command);
-                command_writer.write(Device::Command(selected_device, command));
-                append_log("Writing " + event->command + " to "
-                           + device_name(selected_device));
-            } else if (event->kind == "select-device") {
-                selected_device = parse_device(event->device);
-                append_log("Selected " + device_name(selected_device));
-            } else if (event->kind == "security") {
-                append_log(event->message, "blocked");
-                security_threat_until = std::chrono::steady_clock::now() + 8s;
-            }
-        }
-
-        for (const auto &sample : status_reader.take()) {
-            if (!sample.info().valid())
-                continue;
-            const auto device = sample.data().device;
-            const auto status = status_name(sample.data().status);
-            statuses[device] = status;
-            append_log("Received " + status + " status from "
-                       + device_name(device));
-        }
-        for (const auto &sample : heartbeat_reader.take()) {
-            if (!sample.info().valid())
-                continue;
-            heartbeats[sample.data().device] = std::chrono::steady_clock::now();
-        }
-
-        for (auto &[device, last_seen] : heartbeats) {
-            if (std::chrono::steady_clock::now() - last_seen >= 200ms
-                && statuses[device] != "OFF") {
-                statuses[device] = "OFF";
-                append_log(
+        heartbeat_monitor_->start();
+        participant_.enable();
+        while (!stopping_.load()) {
+            while (auto event = events_.try_pop()) {
+                if (event->kind == "command") {
+                    const auto command = parse_command(event->command);
+                    command_writer_.write(
+                            Device::Command(selected_device, command));
+                    append_log("Writing " + event->command + " to "
+                               + device_name(selected_device));
+                } else if (event->kind == "select-device") {
+                    selected_device = parse_device(event->device);
+                    append_log("Selected " + device_name(selected_device));
+                } else if (event->kind == "security") {
+                    append_log(event->message, "blocked");
+                    security_threat_until =
+                            std::chrono::steady_clock::now() + 8s;
+                } else if (event->kind == "heartbeat-present") {
+                    const auto device = parse_device(event->device);
+                    presence[device] = true;
+                    append_log(device_name(device)
+                               + " resumed sending heartbeats");
+                } else if (event->kind == "heartbeat-lost") {
+                    const auto device = parse_device(event->device);
+                    presence[device] = false;
+                    append_log(
                         device_name(device)
                                 + " stopped sending heartbeats; marking it OFF",
                         "warn");
+                }
             }
+
+            for (const auto &sample : status_reader_.take()) {
+                if (!sample.info().valid())
+                    continue;
+                const auto device = sample.data().device;
+                const auto status = status_name(sample.data().status);
+                statuses[device] = status;
+                append_log("Received " + status + " status from "
+                           + device_name(device));
+            }
+
+            publish_view();
+            std::this_thread::sleep_for(50ms);
         }
+        heartbeat_monitor_->stop();
+
+        append_log("Orchestrator is shutting down");
         publish_view();
-        std::this_thread::sleep_for(50ms);
     }
-    append_log("Orchestrator is shutting down");
-    publish_view();
-}
 
-}  // namespace
+private:
+    rti::demo::ui::DemoUiApp &app_;
+    medtech::ui::CommandQueue<UiEvent> &events_;
+    std::atomic<bool> &stopping_;
+    dds::core::QosProvider provider_ = dds::core::null;
+    dds::domain::DomainParticipant participant_ = dds::core::null;
+    dds::pub::DataWriter<Device::Command> command_writer_ = dds::core::null;
+    dds::sub::DataReader<Device::Status> status_reader_ = dds::core::null;
+    dds::sub::DataReader<Device::Heartbeat> heartbeat_reader_ = dds::core::null;
+    std::unique_ptr<medtech::operating_room::HeartbeatPresenceMonitor>
+            heartbeat_monitor_;
+};
 
-int main()
+void configure_ui(rti::demo::ui::DemoUiApp &app,
+                  medtech::ui::CommandQueue<UiEvent> &events)
 {
     using namespace rti::demo::ui;
-    DemoUiApp app("System Orchestrator",
-                  0,
-                  "127.0.0.1",
-                  std::filesystem::path(RTI_DEMO_UI_WEB_ROOT),
-                  Theme::dark,
-                  Layout::automatic,
-                  std::string("System Orchestrator listening on"));
-    medtech::ui::CommandQueue<UiEvent> events;
     app.register_command(
             "select-device",
             CommandSchema(Json {
@@ -372,34 +411,82 @@ int main()
                 });
                 return Json { { "message", "Device command queued" } };
             });
+}
 
-    std::atomic<bool> stopping = false;
-    std::exception_ptr worker_error;
-    std::thread dds_worker([&]() {
-        try {
-            run_control(app, events, stopping);
-        } catch (const std::runtime_error &error) {
-            if (medtech::ui::is_model_stopped_error(error)) {
-                stopping.store(true);
-            } else {
-                worker_error = std::current_exception();
-                app.stop();
-            }
-        } catch (...) {
-            worker_error = std::current_exception();
-            app.stop();
-        }
-    });
+}  // namespace
+
+int main()
+{
+    using namespace rti::demo::ui;
     try {
-        medtech::ui::run(app, 1600, 950, medtech::ui::native_icon_path());
-    } catch (...) {
+        DemoUiApp app("System Orchestrator",
+                      0,
+                      "127.0.0.1",
+                      std::filesystem::path(RTI_DEMO_UI_WEB_ROOT),
+                      Theme::dark,
+                      Layout::automatic,
+                      std::string("System Orchestrator listening on"));
+        medtech::ui::CommandQueue<UiEvent> events;
+        configure_ui(app, events);
+        std::atomic<bool> stopping = false;
+        OrchestratorApp application(app, events, stopping);
+        bool worker_failed = false;
+        std::thread dds_worker([&]() {
+            try {
+                application.run();
+            } catch (const std::runtime_error &error) {
+                if (medtech::ui::is_model_stopped_error(error)) {
+                    stopping.store(true);
+                } else {
+                    std::cerr << "Orchestrator DDS worker failed: "
+                              << error.what() << std::endl;
+                    worker_failed = true;
+                }
+            } catch (const std::exception &error) {
+                std::cerr << "Orchestrator DDS worker failed: " << error.what()
+                          << std::endl;
+                worker_failed = true;
+            } catch (...) {
+                std::cerr << "Orchestrator DDS worker failed with an unknown "
+                             "exception"
+                          << std::endl;
+                worker_failed = true;
+            }
+            if (worker_failed) {
+                stopping.store(true);
+                try {
+                    app.stop();
+                } catch (const std::exception &error) {
+                    std::cerr << "Orchestrator UI shutdown failed: "
+                              << error.what() << std::endl;
+                } catch (...) {
+                    std::cerr << "Orchestrator UI shutdown failed with an "
+                                 "unknown exception"
+                              << std::endl;
+                }
+            }
+        });
+        bool ui_succeeded = false;
+        try {
+            ui_succeeded = medtech::ui::run(app,
+                                            1600,
+                                            950,
+                                            medtech::ui::native_icon_path());
+        } catch (const std::exception &error) {
+            std::cerr << "Orchestrator UI failed: " << error.what()
+                      << std::endl;
+        } catch (...) {
+            std::cerr << "Orchestrator UI failed with an unknown exception"
+                      << std::endl;
+        }
         stopping.store(true);
         dds_worker.join();
-        throw;
+        return worker_failed || !ui_succeeded ? 1 : 0;
+    } catch (const std::exception &error) {
+        std::cerr << "Orchestrator setup failed: " << error.what() << std::endl;
+    } catch (...) {
+        std::cerr << "Orchestrator setup failed with an unknown exception"
+                  << std::endl;
     }
-    stopping.store(true);
-    dds_worker.join();
-    if (worker_error)
-        std::rethrow_exception(worker_error);
-    return 0;
+    return 1;
 }

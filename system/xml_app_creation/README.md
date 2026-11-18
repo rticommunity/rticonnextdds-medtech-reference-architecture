@@ -49,7 +49,7 @@ Applications can be implemented via any supported Connext Professional API langu
    - [ParticipantLibrary.xml](./ParticipantLibrary.xml)
 
      ```bash
-     export NDDS_QOS_PROFILES="system/qos/Qos.xml;system/qos/NonSecureAppsQos.xml;system/xml_app_creation/DomainLibrary.xml;system/xml_app_creation/ParticipantLibrary.xml"
+     export NDDS_QOS_PROFILES="system/qos/Qos.xml;system/qos/NonSecureAppsQos.xml;system/qos/ApplicationFactoryQos.xml;system/xml_app_creation/DomainLibrary.xml;system/xml_app_creation/ParticipantLibrary.xml"
      ```
 
      Documentation:

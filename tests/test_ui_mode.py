@@ -13,6 +13,7 @@ import asyncio
 import base64
 import importlib
 import json
+import os
 import re
 import select
 import shutil
@@ -26,7 +27,7 @@ from aiohttp import ClientSession
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 WEB_ROOT = PROJECT_ROOT / "resource" / "ui_web"
-sys.path.insert(0, str(PROJECT_ROOT / "modules" / "01-operating-room" / "src"))
+sys.path.insert(0, str(PROJECT_ROOT / "resource" / "demo_ui"))
 sys.path.insert(0, str(PROJECT_ROOT / "resource" / "python"))
 
 import launch  # noqa: E402
@@ -36,12 +37,21 @@ def _demo_ui_support():
     return importlib.import_module("DemoUiSupport")
 
 
-def test_launcher_defaults_to_browser_mode():
+@pytest.fixture
+def launcher_environment(monkeypatch, tmp_path):
+    from scripts import module_runner
+
+    monkeypatch.setattr(module_runner.platform_setup, "get_nddshome", lambda: tmp_path)
+    monkeypatch.setattr(module_runner.platform_setup, "setup_library_env", lambda *_: None)
+    monkeypatch.setattr(module_runner.platform_setup, "generated_system_path", lambda: tmp_path)
+
+
+def test_launcher_defaults_to_browser_mode(launcher_environment):
     _, _, env = launch._resolve_module("04-security-threat", ["ThreatInjector"], False)
     assert env["RTI_DEMO_UI_MODE"] == "browser"
 
 
-def test_launcher_propagates_native_mode():
+def test_launcher_propagates_native_mode(launcher_environment):
     _, _, env = launch._resolve_module(
         "04-security-threat",
         ["ThreatInjector"],
@@ -80,11 +90,75 @@ def test_native_mode_delegates_to_sdk_runner(monkeypatch):
     app = demo_ui_app("Native UI preflight", host="127.0.0.1", static_root=WEB_ROOT)
     demo_ui_support.run_demo_ui(app, no_work)
 
-    assert launched == {
-        "app": app,
-        "async_main": no_work,
-        "icon": WEB_ROOT / "rti_logo.png",
-    }
+    assert launched["app"] is app
+    assert callable(launched["async_main"])
+    assert launched["icon"] == WEB_ROOT / "rti_logo.png"
+
+
+def test_browser_server_failure_is_logged_in_server_task(capsys):
+    class FailedServer:
+        async def run(self):
+            raise RuntimeError("server failed")
+
+        async def wait_until_ready(self):
+            await asyncio.Event().wait()
+
+        async def stop(self):
+            pass
+
+    async def work(_app):
+        pass
+
+    assert not asyncio.run(
+        asyncio.wait_for(_demo_ui_support()._run_browser(FailedServer(), work), 1)
+    )
+    assert "UI server failed: server failed" in capsys.readouterr().err
+
+
+def test_browser_work_failure_is_logged_in_work_task(capsys):
+    class Server:
+        def __init__(self):
+            self.stopped = asyncio.Event()
+
+        async def run(self):
+            await self.stopped.wait()
+
+        async def wait_until_ready(self):
+            pass
+
+        async def stop(self):
+            self.stopped.set()
+
+    async def work(_app):
+        raise RuntimeError("work failed")
+
+    assert not asyncio.run(asyncio.wait_for(_demo_ui_support()._run_browser(Server(), work), 1))
+    assert "Application task failed: work failed" in capsys.readouterr().err
+
+
+def test_browser_work_cleanup_failure_is_not_reported_as_success(capsys):
+    class Server:
+        def __init__(self):
+            self.stopped = asyncio.Event()
+
+        async def run(self):
+            await self.stopped.wait()
+
+        async def wait_until_ready(self):
+            pass
+
+        async def stop(self):
+            self.stopped.set()
+
+    async def work(app):
+        try:
+            app.stopped.set()
+            await asyncio.Event().wait()
+        finally:
+            raise RuntimeError("cleanup failed")
+
+    assert not asyncio.run(asyncio.wait_for(_demo_ui_support()._run_browser(Server(), work), 1))
+    assert "Application task failed: cleanup failed" in capsys.readouterr().err
 
 
 def test_sdk_serves_the_custom_medtech_frontend_and_app_state(capsys):
@@ -125,6 +199,7 @@ def test_sdk_serves_the_custom_medtech_frontend_and_app_state(capsys):
     asyncio.run(check_server())
 
 
+@pytest.mark.browser
 @pytest.mark.parametrize(
     ("module", "app"),
     (
@@ -136,10 +211,23 @@ def test_sdk_serves_the_custom_medtech_frontend_and_app_state(capsys):
     ),
 )
 def test_gui_controls_remain_within_resized_windows(module, app):
-    playwright = pytest.importorskip("playwright.sync_api")
-    chrome = shutil.which("google-chrome") or shutil.which("chromium")
+    if os.environ.get("MEDTECH_REQUIRE_BROWSER_TESTS") == "1":
+        import playwright.sync_api as playwright
+    else:
+        playwright = pytest.importorskip("playwright.sync_api")
+
+    with playwright.sync_playwright() as pw:
+        bundled_chromium = Path(pw.chromium.executable_path)
+    chrome = (
+        str(bundled_chromium)
+        if bundled_chromium.is_file()
+        else shutil.which("google-chrome") or shutil.which("chromium")
+    )
     if chrome is None:
-        pytest.skip("Responsive layout checks require Chrome or Chromium")
+        message = "Browser tests require Playwright Chromium or system Chrome/Chromium"
+        if os.environ.get("MEDTECH_REQUIRE_BROWSER_TESTS") == "1":
+            pytest.fail(message)
+        pytest.skip(message)
 
     from scripts.module_runner import MODULES_DIR, load_module_config
     from scripts.test_utils import ProcessManager

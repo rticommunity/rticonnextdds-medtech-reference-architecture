@@ -43,6 +43,8 @@ WAN communication can be deployed in 3 different scenarios:
 2. [Scenario 2](Scenario2.md): Direct Peer-to-Peer Communication Using [RTI Cloud Discovery Service](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/addon_products/cloud_discovery_service/index.html).
 3. [Scenario 3](Scenario3.md): Relayed Communication Using [RTI Routing Service](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/services/routing_service/index.html).
 
+The heartbeat and status routes forward the device key and payload under the Routing Service writer's own identity (`publish_with_original_info=false`). The applications track devices by key, not by the originating writer GUID, so these routes do not need Security proxy permissions.
+
 ### RTI Real-Time WAN Transport
 
 The RTI Real-Time WAN Transport extends Connext's UDP-based communication to support Network Address Translation (NAT) traversal scenarios - a foundational piece to the scalability and security of the Wide Area Network.

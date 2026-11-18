@@ -1,7 +1,7 @@
 {
     "description": "Digital Operating Room",
     "env": {
-        "NDDS_QOS_PROFILES": "system/qos/Qos.xml;${args:security};system/xml_app_creation/DomainLibrary.xml;system/xml_app_creation/ParticipantLibrary.xml"
+        "NDDS_QOS_PROFILES": "system/qos/Qos.xml;${args:security};system/qos/ApplicationFactoryQos.xml;system/xml_app_creation/DomainLibrary.xml;system/xml_app_creation/ParticipantLibrary.xml"
     },
     "args": {
         "security": {

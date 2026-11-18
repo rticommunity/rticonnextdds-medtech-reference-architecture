@@ -39,7 +39,7 @@ python -m pytest
 python -m pytest -v
 
 # Run specific module or test
-pytest modules/01-operating-room/tests/test_types.py -v
+pytest system/tests -v
 
 # Run tests matching a pattern
 pytest -k "test_types" -v
@@ -107,7 +107,7 @@ docker compose -f tests/docker/docker-compose.yml run --rm --build test
 
 # Run specific tests
 docker compose -f tests/docker/docker-compose.yml run --rm --build test \
-    -v modules/01-operating-room/tests/test_types.py
+    -v system/tests
 
 # Run tests matching a pattern
 docker compose -f tests/docker/docker-compose.yml run --rm --build test \

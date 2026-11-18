@@ -10,20 +10,13 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 import time
-from pathlib import Path
 
 import rti.asyncio  # noqa: F401 - installs Connext's asyncio integration
 import rti.connextdds as dds
-
-sys.path.insert(
-    0,
-    str(Path(__file__).resolve().parents[3] / "modules" / "01-operating-room" / "src"),
-)
-from DdsUtils import register_type, vitals_from_sample
 from DemoUiSupport import DemoUiState, create_demo_ui, run_demo_ui
 from MedTech import DdsEntities, Patient
+from MedTechTypes import register_type
 from ThreatTypes import ThreatEntities
 
 _MODES = ("UNSECURE", "ROGUE CA", "FORGED PERMS", "EXPIRED CERT")
@@ -69,6 +62,7 @@ class ThreatExfiltratorDdsAdapter:
         self.reader = dds.DataReader(
             self.participant.find_datareader(DdsEntities.Constants.VITALS_DR)
         )
+        self.participant.enable()
 
     def close(self) -> None:
         if self.participant is not None:
@@ -195,7 +189,15 @@ class ThreatExfiltratorApplication:
 
     async def _receive_vitals(self, reader) -> None:
         async for sample in reader.take_data_async():
-            vitals = self.logic.receive(vitals_from_sample(sample))
+            vitals = self.logic.receive(
+                {
+                    "heart_rate": float(sample.hr),
+                    "spo2": float(sample.spo2),
+                    "etco2": float(sample.etco2),
+                    "nibp_s": float(sample.nibp_s),
+                    "nibp_d": float(sample.nibp_d),
+                }
+            )
             self.ui.log(
                 "Received patient vitals — "
                 f"HR {vitals['heart_rate']:.0f}, SpO₂ {vitals['spo2']:.1f}%, "

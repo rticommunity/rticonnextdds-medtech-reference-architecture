@@ -16,8 +16,13 @@
 set -e
 
 # Source RTI & Python environments
-eval $(rtienv)
-source $VIRTUAL_ENV/bin/activate
+sdk_scripts=("$NDDSHOME"/resource/scripts/rtisetenv_*.bash)
+if [[ ${#sdk_scripts[@]} != 1 || ! -f ${sdk_scripts[0]} ]]; then
+    echo "Expected one Connext environment script" >&2
+    exit 1
+fi
+source "${sdk_scripts[0]}"
+source "$VIRTUAL_ENV/bin/activate"
 
 # Run pytest from repo root with any passed arguments
 # Default to running all tests if no args provided

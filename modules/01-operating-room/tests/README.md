@@ -48,7 +48,6 @@ pytest tests/ -v -m "not secure"
 
 | File | What it tests | Markers |
 | --- | --- | --- |
-| `test_types.py` | Generated Python type import smoke test | — |
 | `test_launch.py` | Each app starts without crashing | browser mode, no display server |
 | `test_arm_kinematics.py` | Engine-derived FK, constrained base-frame motion, collision approaches/recovery, singularity recovery, actuator braking, numerical faults, signed jaw travel | — |
 | `test_dds_communication.py` | Actual data paths, including arm/jaw motion, hold after stream loss, and fresh-command recovery | `gui` for Arm tests |

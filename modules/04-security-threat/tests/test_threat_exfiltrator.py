@@ -97,6 +97,7 @@ def _run_exfiltrator_probe(
         participant = provider.create_participant_from_config(dp_name)
         if participant is not None:
             result["created"] = True
+            participant.enable()
 
             reader = dds.DataReader(participant.find_datareader("s/subscriber::dr/Vitals"))
             result["matched"] = wait_for_reader_match(reader, timeout_sec=timeout_sec)

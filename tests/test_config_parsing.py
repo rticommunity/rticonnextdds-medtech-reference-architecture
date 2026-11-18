@@ -33,6 +33,11 @@ module_runner = importlib.import_module("scripts.module_runner")
 ARGS_REF_RE = re.compile(r"\$\{args:([^}]+)\}")
 
 
+@pytest.fixture(autouse=True)
+def _generated_system_path(monkeypatch, tmp_path):
+    monkeypatch.setattr(module_runner.platform_setup, "generated_system_path", lambda: tmp_path)
+
+
 def _collect_args_refs(raw: object) -> set[str]:
     """Collect all ${args:<name>} placeholders from nested JSON-like data."""
     refs: set[str] = set()

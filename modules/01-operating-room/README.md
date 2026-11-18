@@ -64,6 +64,12 @@ All graphical apps serve the same local web frontend. Browser mode is the
 default; `--ui-mode native` opens that frontend in the RTI Demo UI embedded
 webview rather than changing its renderer to native widgets.
 
+Each application constructs its DDS entities in its `App` constructor and
+explicitly enables its participant in `run()`; the XML participant-factory QoS
+controls whether entities are already enabled. GUI entry points configure the
+UI before running application work on C++ threads or Python asyncio tasks.
+The headless Patient Sensor runs directly from `main()`.
+
 ## Setup and Installation
 
 Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. That covers prerequisites, environment setup, the project-level build, and security artifact generation.
@@ -321,34 +327,52 @@ Here are a few hands-on exercises to demonstrate use cases of Connext features i
 
 ### 1. Application Presence Detection
 
-The module uses a 200 ms ***Deadline QoS*** period for DataWriters and DataReaders on the *t/device/heartbeat* Topic to detect when applications are no longer active. Specifically, the DataWriters and DataReaders use a 200 ms Deadline period. This means if the *Orchestrator* application does not receive a *t/device/heartbeat* within 200 ms, it will log an entry, such as the following, to the "Alerts" panel:
+The *t/device/heartbeat* writers and readers use a 200 ms ***Deadline QoS***
+period. Each application derives its heartbeat interval from the writer's
+offered deadline, publishing every third of the period (about 67 ms with the
+current profile). This leaves margin for occasional best-effort sample loss.
+When the reader reports a missed deadline, the Orchestrator reconciles each
+known device's most recent reception timestamp against the deadline before
+logging a presence transition:
 
 ```text
-DeviceType::PATIENT_MONITOR  is no longer sending heartbeats. Updating Status to OFF.
+PATIENT_MONITOR stopped sending heartbeats; marking it OFF
 ```
+
+The Orchestrator monitors heartbeat presence asynchronously with an AsyncWaitSet:
+a requested-deadline-missed StatusCondition detects loss, and a new-data
+ReadCondition restores presence when a heartbeat arrives.
+The Python publishers run as separate asyncio tasks, not separate threads:
+blocking work on the event loop can delay their heartbeats.
 
 Let's try testing how modifying QoS Profiles can adjust system behavior without modifying any application logic.
 
 1. Kill all active operating room applications.
 
-2. Increase the `<datareader_qos>` Deadline period in QoS Profile *DataFlow::Heartbeat* in [Qos.xml](../../system/qos/Qos.xml) to **5 seconds**.
+2. Add a reader-only Deadline override to the *DataFlowLibrary::Heartbeat*
+   profile in [Qos.xml](../../system/qos/Qos.xml):
 
    *Note, you should undo this configuration change after completing this demonstration.*
 
     ```xml
-    <deadline>
-      <period>
-        <sec>5</sec>
-        <nanosec>0</nanosec>
-      </period>
-    </deadline>
+    <datareader_qos>
+      <deadline>
+        <period>
+          <sec>5</sec>
+          <nanosec>0</nanosec>
+        </period>
+      </deadline>
+    </datareader_qos>
     ```
 
 3. Relaunch the operating room applications.
 
-4. While monitoring the *Orchestrator* "Alerts" panel, ungracefully terminate the *Patient Monitor* application by closing the respective application window.
+4. While monitoring the *Orchestrator* "Alerts" panel, ungracefully terminate
+   the *Patient Monitor* process (for example, `kill -9 <pid>` on Linux or
+   macOS). Closing its browser tab does not stop the process.
 
-   >**Observe:** You should see the alert mentioned above logged, 5 seconds after the *Patient Monitor* application has been closed.
+   >**Observe:** You should see the alert mentioned above logged approximately
+   >5 seconds after the last Patient Monitor heartbeat.
 
 5. Undo the QoS change to revert to the recommended configuration.
 

@@ -329,7 +329,12 @@ def load_module_config(
 
     generated_python = platform_setup.generated_system_path() / "python"
     env["PYTHONPATH"] = os.pathsep.join(
-        [str(generated_python), *filter(None, [env.get("PYTHONPATH", "")])]
+        [
+            str(generated_python),
+            str(SYSTEM_DIR / "src"),
+            str(PROJECT_ROOT / "resource" / "demo_ui"),
+            *filter(None, [env.get("PYTHONPATH", "")]),
+        ]
     )
 
     desc = raw.get("description", module_dir.name)

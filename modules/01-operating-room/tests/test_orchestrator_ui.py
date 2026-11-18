@@ -15,6 +15,7 @@ import select
 import time
 from urllib.request import Request, urlopen
 
+import pytest
 from scripts.test_utils import wait_for_device_status, wait_for_writer_match
 
 
@@ -102,8 +103,9 @@ def test_orchestrator_selected_device_receives_browser_command(
     raise AssertionError("Orchestrator did not record the command sent from its UI")
 
 
-def test_orchestrator_displays_live_device_error_then_off_on_heartbeat_loss(
-    proc_manager, nonsecure_utility_app
+@pytest.mark.parametrize("staggered_loss", [True, False], ids=["staggered", "simultaneous"])
+def test_orchestrator_tracks_keyed_heartbeat_loss_and_recovery(
+    proc_manager, nonsecure_utility_app, staggered_loss
 ):
     from MedTech import Device
 
@@ -113,28 +115,62 @@ def test_orchestrator_displays_live_device_error_then_off_on_heartbeat_loss(
     heartbeat = nonsecure_utility_app.device_heartbeat.writer
     assert wait_for_writer_match(status)
     assert wait_for_writer_match(heartbeat)
-    status.write(Device.Status(device=Device.DeviceType.ARM, status=Device.DeviceStatuses.ERROR))
+    devices = (Device.DeviceType.ARM, Device.DeviceType.ARM_CONTROLLER)
+    for device in devices:
+        status.write(
+            Device.Status(
+                device=device,
+                status=Device.DeviceStatuses.ERROR,
+            )
+        )
 
-    def arm_status():
+    def device_status(device):
         with urlopen(f"{url}/api/state", timeout=2) as response:
             return next(
                 row["status"]
                 for row in json.load(response)["data"]["devices"]
-                if row["name"] == "ARM"
+                if row["name"] == device.name
             )
 
     deadline = time.monotonic() + 5
     while time.monotonic() < deadline:
-        heartbeat.write(Device.Heartbeat(device=Device.DeviceType.ARM))
-        if arm_status() == "ERROR":
+        for device in devices:
+            heartbeat.write(Device.Heartbeat(device=device))
+        if all(device_status(device) == "ERROR" for device in devices):
             break
         time.sleep(0.05)
     else:
-        raise AssertionError("Live device ERROR was not preserved")
+        raise AssertionError("Live device ERROR statuses were not preserved")
+
+    if staggered_loss:
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            heartbeat.write(Device.Heartbeat(device=Device.DeviceType.ARM_CONTROLLER))
+            if (
+                device_status(Device.DeviceType.ARM) == "OFF"
+                and device_status(Device.DeviceType.ARM_CONTROLLER) == "ERROR"
+            ):
+                break
+            time.sleep(0.05)
+        else:
+            raise AssertionError("A silent key did not become OFF while the other stayed present")
 
     deadline = time.monotonic() + 5
     while time.monotonic() < deadline:
-        if arm_status() == "OFF":
+        if all(device_status(device) == "OFF" for device in devices):
+            break
+        time.sleep(0.05)
+    else:
+        raise AssertionError("Heartbeat loss did not mark all keyed devices OFF")
+
+    heartbeat.write(Device.Heartbeat(device=Device.DeviceType.ARM))
+
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        if (
+            device_status(Device.DeviceType.ARM) == "ERROR"
+            and device_status(Device.DeviceType.ARM_CONTROLLER) == "OFF"
+        ):
             return
         time.sleep(0.05)
-    raise AssertionError("Heartbeat loss no longer marks the device OFF")
+    raise AssertionError("Presence recovery was not isolated to the reasserting key")

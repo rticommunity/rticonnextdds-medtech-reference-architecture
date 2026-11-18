@@ -7,6 +7,10 @@ This directory contains the DDS Security PKI infrastructure, governance, permiss
 - Python 3.10+
 - OpenSSL (available on PATH)
 - [RTI Security Plugins](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/installation_guide/security_plugins/installation_guide/SecurityPluginsInstallationTitle.htm) installed
+- The Security plugin and the Connext runtime loaded by each application,
+  including the Python package's native libraries, must use the same release
+  and patch version. Ensure the library search path selects the matching
+  plugin.
 
 ## Generating Security Artifacts
 

@@ -115,10 +115,12 @@ python resource/python/scripts/check_connext_install.py
 the base dependencies only. The lock pins the Python distribution
 `rti.connext==7.7.0`, imported in code as `rti.connextdds`; do not install a
 second API distribution manually. The exact locked sync installs and keeps
-that API. The compatibility preflight checks the Python
-distribution, SDK, and code-generator versions. The lock does not pin the
-Connext SDK installation, system libraries, compiler, or all build-tool
-dependencies.
+that API. The compatibility preflight checks the Python distribution,
+code generator, and installed Core and Security inventory and library build
+IDs against the same patch (currently 7.7.0.0). It checks the selected
+installation, not which libraries the runtime loader actually selects; ensure
+the library search paths also point to that installation. The lock does not
+install the Connext SDK, system libraries, compiler, or all build tools.
 
 Obtain a valid `rti_license.dat` from the [RTI Evaluation site](https://evaluation.rti.com/)
 or, for licensed customers, the [RTI Customer Portal](https://support.rti.com/).

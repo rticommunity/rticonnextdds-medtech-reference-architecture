@@ -142,12 +142,22 @@ jobs:
           fi
           echo "available=true" >> "$GITHUB_OUTPUT"
 
+      - name: Select Connext patch
+        run: |
+          version=$(python3 -c 'from resource.python.scripts.check_connext_install import project_python_api_version; print(project_python_api_version())')
+          case "$version" in
+            "${CONNEXT_VERSION}") patch="${version}.0" ;;
+            "${CONNEXT_VERSION}".*) patch="$version" ;;
+            *) echo "::error::CONNEXT_VERSION does not match pyproject.toml"; exit 1 ;;
+          esac
+          echo "CONNEXT_PATCH_VERSION=$patch" >> "$GITHUB_ENV"
+
       - name: Cache Connext installation
         id: cache-connext
         uses: actions/cache@v5
         with:
           path: /opt/rti.com
-          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
+          key: connext-${{ env.CONNEXT_PATCH_VERSION }}-${{ runner.arch }}-apt-v4
 
       - name: Add RTI apt repository
         if: steps.cache-connext.outputs.cache-hit != 'true'
@@ -169,9 +179,9 @@ jobs:
             sudo debconf-set-selections
           sudo DEBIAN_FRONTEND=noninteractive \
             apt-get install -y --no-install-recommends \
-              rti-connext-dds-${{ env.CONNEXT_VERSION }}-lib-dev \
-              rti-connext-dds-${{ env.CONNEXT_VERSION }}-rtiddsgen \
-              rti-connext-dds-${{ env.CONNEXT_VERSION }}-services-all
+              "rti-connext-dds-${CONNEXT_VERSION}-lib-dev=${CONNEXT_PATCH_VERSION}-*" \
+              "rti-connext-dds-${CONNEXT_VERSION}-rtiddsgen=${CONNEXT_PATCH_VERSION}-*" \
+              "rti-connext-dds-${CONNEXT_VERSION}-services-all=${CONNEXT_PATCH_VERSION}-*"
 
       - name: Configure Connext build environment
         run: |

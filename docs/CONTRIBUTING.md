@@ -248,7 +248,7 @@ docker compose -f tests/docker/docker-compose.yml run --rm --build test
 
 # Run a specific test file
 docker compose -f tests/docker/docker-compose.yml run --rm --build test \
-    modules/01-operating-room/tests/test_types.py -v
+    system/tests -v
 ```
 
 > **Note:** With no arguments, the Docker test entrypoint runs `pytest` over the

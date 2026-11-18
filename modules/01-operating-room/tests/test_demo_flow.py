@@ -28,6 +28,7 @@ import time
 from pathlib import Path
 
 import pytest
+import rti.connextdds as dds
 
 TESTS_DIR = Path(__file__).resolve().parent
 
@@ -40,6 +41,8 @@ SRC_DIR = module01_test_support.SRC_DIR
 
 from scripts.test_utils import (  # noqa: E402
     PROCESS_WAIT_TIMEOUT,
+    UtilityApp,
+    disable_monitoring,
     wait_for_device_status,
     wait_for_process_ready,
     wait_for_reader_match,
@@ -47,20 +50,18 @@ from scripts.test_utils import (  # noqa: E402
 )
 
 # ---------------------------------------------------------------------------
-# Crash detection (README exercise: kill an app, Orchestrator detects it)
+# Heartbeat cessation after a crash
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.slow
 class TestCrashDetection:
-    """Killing an app should cause Orchestrator to detect the loss via heartbeat deadline."""
+    """Observe heartbeat cessation after a sensor crashes."""
 
-    def test_orchestrator_detects_patient_sensor_crash(self, proc_manager, nonsecure_utility_app):
+    def test_patient_sensor_heartbeats_stop_after_crash(self, proc_manager, nonsecure_utility_app):
         from MedTech import Device
 
         patient_sensor = proc_manager.start_app_ready("PatientSensor")
-        proc_manager.start_app("Orchestrator")
-
         hb_reader = nonsecure_utility_app.device_heartbeat.reader
 
         # Wait for PatientSensor heartbeats to start flowing
@@ -80,9 +81,7 @@ class TestCrashDetection:
         patient_sensor.kill()
         patient_sensor.wait(timeout=3)
 
-        # After kill, heartbeats should stop arriving.
-        # The Orchestrator detects this via the 200ms deadline QoS.
-        # We verify the same thing: no new heartbeats arrive.
+        # Observe cessation independently; this does not test the Orchestrator UI.
         hb_reader.take()  # drain anything buffered
         time.sleep(1)  # wait longer than the 200ms deadline
         post_kill = hb_reader.take()
@@ -147,12 +146,13 @@ class TestPauseAndResume:
             "PatientSensor did not transition to PAUSED"
         )
 
-        # Drain any remaining vitals and then check no new ones arrive
+        # Allow in-flight samples to settle, then observe several publish periods.
+        time.sleep(0.5)
         vitals_reader.take()  # drain
         time.sleep(1)
         stale = vitals_reader.take()
         valid_stale = [s for s in stale if s.info.valid]
-        assert len(valid_stale) <= 1, (
+        assert len(valid_stale) == 0, (
             f"Vitals still flowing while PAUSED ({len(valid_stale)} samples)"
         )
 
@@ -256,14 +256,39 @@ class TestSecurePatientSensor:
 
 @pytest.mark.secure
 class TestSecureAllApps:
-    """All C++ apps should launch successfully in secure mode."""
+    """The core operating-room apps should launch successfully in secure mode."""
 
-    def test_secure_launch(self, proc_manager_secure, dds_env_secure):
-        """All C++ apps start and keep running with DDS Security enabled."""
-        proc_manager_secure.start_apps_ready(
-            [
-                "PatientSensor",
-                "Orchestrator",
-                "ArmController",
-            ]
-        )
+    def test_secure_launch(self, proc_manager_secure, dds_env_secure, monkeypatch):
+        """C++ and Python devices publish status with DDS Security enabled."""
+        from MedTech import Device
+
+        env, _ = dds_env_secure
+        monkeypatch.setenv("RTI_SECURITY_ARTIFACTS_DIR", env["RTI_SECURITY_ARTIFACTS_DIR"])
+        factory_qos = dds.DomainParticipant.participant_factory_qos
+        try:
+            disable_monitoring()
+            with UtilityApp.make_secure() as observer:
+                proc_manager_secure.start_apps_ready(
+                    [
+                        "PatientSensor",
+                        "Orchestrator",
+                        "ArmController",
+                        "Arm",
+                        "PatientMonitor",
+                    ]
+                )
+                expected = {
+                    Device.DeviceType.ARM,
+                    Device.DeviceType.ARM_CONTROLLER,
+                    Device.DeviceType.PATIENT_SENSOR,
+                    Device.DeviceType.PATIENT_MONITOR,
+                }
+                seen = wait_for_device_status(
+                    observer.device_status.reader,
+                    expected_devices=expected,
+                    device_statuses=[Device.DeviceStatuses.ON],
+                    timeout_sec=15,
+                )
+        finally:
+            dds.DomainParticipant.participant_factory_qos = factory_qos
+        assert expected.issubset(seen), f"Secure device statuses not received: {expected - seen}"

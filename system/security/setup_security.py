@@ -112,13 +112,13 @@ OPERATIONAL_DOMAIN = DomainScope(
                 topic_expression="t/robot/arm/telemetry",
                 metadata_protection_kind="ENCRYPT",
             ),
-            TopicRule(topic_expression="*"),
             TopicRule(
                 topic_expression="DDS:Security:LogTopicV2",
                 enable_write_access_control=False,
                 metadata_protection_kind="SIGN",
                 data_protection_kind="ENCRYPT",
             ),
+            TopicRule(topic_expression="*"),
         ],
     ),
     psk_seeds=[

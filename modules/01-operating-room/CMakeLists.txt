@@ -55,6 +55,7 @@ foreach(application ${GRAPHICAL_APPLICATIONS})
         PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/src"
         "${CMAKE_CURRENT_BINARY_DIR}/src"
+        "${PROJECT_SOURCE_DIR}/resource/demo_ui"
     )
     set_property(TARGET ${application} PROPERTY CXX_STANDARD 17)
 

@@ -27,6 +27,9 @@ sys.path.insert(0, str(RESOURCE_PYTHON_DIR))
 module01_test_support = importlib.import_module("module01_test_support")
 MODULE_DIR = module01_test_support.MODULE_DIR
 SECURITY_DIR = module01_test_support.SECURITY_DIR
+sys.path.insert(0, str(MODULE_DIR / "src"))
+sys.path.insert(0, str(module01_test_support.REPO_ROOT / "resource" / "demo_ui"))
+sys.path.insert(0, str(module01_test_support.REPO_ROOT / "system" / "src"))
 
 
 def _security_artifacts_exist() -> bool:

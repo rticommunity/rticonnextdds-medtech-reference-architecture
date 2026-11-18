@@ -72,8 +72,9 @@ This reference architecture defines the following QoS Libraries in [Qos.xml](./Q
 
 | Qos Library | Intended Use
 | ----------- | ------------
-| [*SystemLibrary*](#systemlibrary) | Characterize the *system* (e.g. transport, network interfaces, discovery, thread priorities, etc.). Profiles in this library configure the DomainParticipant QoS. **It is typical to define 1-2 profiles of this kind for any system.**
+| [*SystemLibrary*](#systemlibrary) | Characterize the *system* (e.g. transport, network interfaces, discovery, thread priorities, and entity creation). **It is typical to define 1-2 profiles of this kind for any system.**
 | [*DataFlowLibrary*](#dataflowlibrary) | Characterize the *dataflows* or *data patterns* (e.g. reliability history, durability, deadline, etc.). Profiles in this library configure DataWriter and DataReader (endpoint) QoS. **It is typical to define 3-5 profiles of this kind for any system.**
+| *DataFlowSnippetLibrary* | Reusable deadline and writer-lifespan policy snippets composed into dataflow profiles.
 
 ### ***SystemLibrary***
 
@@ -81,8 +82,13 @@ This reference architecture defines the following QoS Libraries in [Qos.xml](./Q
 
 | QoS Profile | Intended Use
 | ----------- | ------------
-| [*DefaultParticipant*](#systemlibrarydefaultparticipant-profile) | Configuration common to all DomainParticipants.
+| [*DefaultParticipant*](#systemlibrarydefaultparticipant-profile) | Common DomainParticipant configuration.
 | [*WanConfig*](#systemlibrarywanconfig-profile) | WAN transport configuration, used by Module 03: Remote Teleoperation.
+
+[ApplicationFactoryQos.xml](./ApplicationFactoryQos.xml) selects manual
+participant enablement for application processes, inheriting the selected
+secure or non-secure factory settings. RTI Services do not load this file and
+retain automatic participant enablement for their internally managed entities.
 
 #### ***SystemLibrary::DefaultParticipant* profile**
 
@@ -102,6 +108,11 @@ It is used by Module 03: Remote Teleoperation. See the [Module 03 README](../../
 ### ***DataFlowLibrary***
 
 *DataFlowLibrary* contains the following QoS profiles (`<qos_profile>`):
+
+Control, Telemetry, and Heartbeat compose narrowly scoped snippets from
+*DataFlowSnippetLibrary*. Deadline snippets apply to writers and readers;
+the lifespan snippet applies only to writers. Telemetry and Heartbeat share
+the 200 ms deadline snippet, so changing it affects both profiles.
 
 | QoS Profile | Reliability | History (kind+depth) | Durability | Deadline period | Intended Use
 | ----------- | ----------- | ------- | ---------- | --------- | -----------
@@ -181,7 +192,7 @@ This QoS profile is used to implement a lightweight mechanism to assert and dete
 
 It inherits from the *Streaming* QoS profile and sets:
 
-- *200 ms* Deadline QoS period. It is assumed that each system component must assert themselves as present in the system at least once every 200 ms seconds. They do so by publishing a message on a common Topic. If a gap in received messages on this Topic were to reach 200 ms, applications subscribing to this Topic will be notified via the corresponding DataReader's [`REQUESTED_DEADLINE_MISSED`](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/users_manual/users_manual/Statuses_for_DataReaders.htm#receiving_2076951295_607264) status.
+- *200 ms* offered/requested Deadline QoS period. Publishers derive their heartbeat interval as one third of the writer's offered deadline (about 67 ms with this profile), leaving margin for best-effort sample loss. A missed reader deadline prompts the Orchestrator to reconcile per-device reception timestamps.
 
 *This QoS profile is designed to be used only for the `t/device/heartbeat` Topic in this reference architecture. This Topic is used to manually signal whether an application is still present in the system or not (e.g. cable disconnected, application crashed, otherwise unreachable, etc.).*
 

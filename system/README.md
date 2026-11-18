@@ -66,6 +66,10 @@ The authoritative types are IDL, collected by [MedTech.idl](./idl/MedTech.idl).
 XML remains authoritative for entities, QoS, services, and security, not for a
 second copy of the type definitions.
 
+Shared Python registration and device-command helpers live in
+[src/MedTechTypes.py](./src/MedTechTypes.py); generated bindings remain in the
+build directory.
+
 | IDL | Module | Responsibility |
 | --- | --- | --- |
 | [Geometry.idl](./idl/common/Geometry.idl) | `Geometry` | Vectors, quaternion `(x,y,z,w)`, and TCP pose |

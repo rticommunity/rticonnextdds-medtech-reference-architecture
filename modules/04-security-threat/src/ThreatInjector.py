@@ -20,13 +20,13 @@ sys.path.insert(
     str(Path(__file__).resolve().parents[3] / "modules" / "01-operating-room" / "src"),
 )
 from ArmKinematics import ArmModel
-from DdsUtils import register_type
 from DemoUiSupport import (
     DemoUiState,
     create_demo_ui,
     run_demo_ui,
 )
 from MedTech import DdsEntities, Device, Geometry, Robot
+from MedTechTypes import register_type
 from ThreatTypes import ThreatEntities
 
 _MODES = ("UNSECURE", "ROGUE CA", "FORGED PERMS", "EXPIRED CERT")
@@ -95,6 +95,7 @@ class ThreatInjectorDdsAdapter:
         self.command_writer = dds.DataWriter(
             self.participant.find_datawriter(entities.DEVICE_COMMAND_DW)
         )
+        self.participant.enable()
 
     def close(self) -> None:
         if self.participant is not None:

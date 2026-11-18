@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Application processes explicitly enable participants after setup. Services
+     use their own default factory policy and do not load this file. -->
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.7.0/rti_dds_profiles.xsd" version="7.7.0">
+  <qos_library name="ApplicationFactoryQosLib">
+    <qos_profile name="ManualEnable" base_name="DPFactoryQosLib::Default"
+        is_default_participant_factory_profile="true">
+      <participant_factory_qos>
+        <entity_factory>
+          <autoenable_created_entities>false</autoenable_created_entities>
+        </entity_factory>
+      </participant_factory_qos>
+    </qos_profile>
+  </qos_library>
+</dds>

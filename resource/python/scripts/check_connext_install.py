@@ -17,6 +17,7 @@ import re
 import subprocess
 import sys
 import tomllib
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -41,10 +42,12 @@ def project_python_api_version(pyproject_path: Path = PROJECT_ROOT / "pyproject.
             "pyproject.toml must declare exactly one direct rti.connext dependency."
         )
 
-    match = re.fullmatch(r"\s*rti\.connext==(\d+\.\d+\.\d+)\s*", requirements[0], re.IGNORECASE)
+    match = re.fullmatch(
+        r"\s*rti\.connext==(\d+\.\d+\.\d+(?:\.\d+)?)\s*", requirements[0], re.IGNORECASE
+    )
     if match is None:
         raise PreflightError(
-            "The direct rti.connext dependency must be an exact X.Y.Z pin in pyproject.toml."
+            "The direct rti.connext dependency must be an exact release pin in pyproject.toml."
         )
     return match.group(1)
 
@@ -84,7 +87,7 @@ def python_api_errors(
             f"Found {len(connext)} rti.connext distributions; remove duplicate installations "
             "and sync the project environment."
         )
-    elif connext[0] != expected_version:
+    elif _patch_version(connext[0]) != _patch_version(expected_version):
         errors.append(
             f"rti.connext=={connext[0]} is installed, but pyproject.toml requires "
             f"rti.connext=={expected_version}; run `uv sync --locked`."
@@ -128,19 +131,20 @@ def sdk_compatibility_errors(
 ) -> list[str]:
     """Return SDK/code-generator mismatches against the locked API release."""
     errors = []
-    if sdk_version != expected_version:
+    release_version = ".".join(expected_version.split(".")[:3])
+    if sdk_version != release_version:
         errors.append(
             f"Connext SDK {sdk_version} (from NDDSHOME) does not match the locked "
             f"Python API release {expected_version}."
         )
 
     for name, version in declared_versions.items():
-        if version and version != expected_version:
+        if version and version != release_version:
             errors.append(
                 f"{name}={version} does not match the locked Python API release {expected_version}."
             )
 
-    expected_generator = RTIDDSGEN_VERSIONS.get(expected_version)
+    expected_generator = RTIDDSGEN_VERSIONS.get(release_version)
     if expected_generator is None:
         errors.append(
             f"No rtiddsgen compatibility mapping is defined for Connext {expected_version}."
@@ -151,6 +155,73 @@ def sdk_compatibility_errors(
             errors.append(
                 f"rtiddsgen {actual_generator} does not match Connext {expected_version}; "
                 f"expected rtiddsgen {expected_generator}."
+            )
+    return errors
+
+
+def _patch_version(version: str) -> tuple[int, int, int, int]:
+    if not re.fullmatch(r"\d+\.\d+\.\d+(?:\.\d+)?", version):
+        raise PreflightError(f"Unrecognized Connext version: {version!r}")
+    parts = tuple(int(part) for part in version.split("."))
+    return (parts[0], parts[1], parts[2], parts[3] if len(parts) == 4 else 0)
+
+
+def native_version_errors(nddshome: Path, architecture: str, expected_version: str) -> list[str]:
+    """Compare installed inventory and binary build IDs, not runtime loader selection."""
+    inventory = nddshome / "rti_versions.xml"
+    try:
+        root = ET.parse(inventory).getroot()
+    except (OSError, ET.ParseError) as exc:
+        raise PreflightError(f"Cannot read Connext inventory {inventory}: {exc}") from exc
+
+    expected = _patch_version(expected_version)
+    library_dir = nddshome / "lib" / architecture
+    components = (
+        ("Core", "api-core-lib", "nddsc", b"NDDSC_BUILD_"),
+        ("Security", "addons-security-lib", "nddssecurity", b"SECURITYPLUGINS_BUILD_"),
+    )
+    errors = []
+    for label, tag, library, marker in components:
+        entries = [
+            entry
+            for entry in root.findall(f"./{tag}/installation")
+            if entry.findtext("architecture") == architecture
+        ]
+        versions = {entry.findtext("version") for entry in entries}
+        if not entries or None in versions or "" in versions:
+            errors.append(f"{label} inventory version missing for {architecture} in {inventory}.")
+            continue
+        normalized = {_patch_version(version) for version in versions if version}
+        if len(normalized) != 1 or normalized != {expected}:
+            errors.append(
+                f"{label} inventory versions {sorted(versions)} do not match "
+                f"the required patch {expected_version} for {architecture}."
+            )
+            continue
+
+        candidates = [
+            library_dir / filename
+            for filename in (f"lib{library}.so", f"lib{library}.dylib", f"{library}.dll")
+            if (library_dir / filename).is_file()
+        ]
+        if len(candidates) != 1:
+            errors.append(
+                f"Cannot identify one {label} release library under {library_dir}; "
+                f"found {len(candidates)}."
+            )
+            continue
+        try:
+            data = candidates[0].read_bytes()
+        except OSError as exc:
+            raise PreflightError(f"Cannot read {label} library {candidates[0]}: {exc}") from exc
+        found = {
+            _patch_version(match.decode("ascii"))
+            for match in re.findall(re.escape(marker) + rb"(\d+\.\d+\.\d+\.\d+)_", data)
+        }
+        if found != {expected}:
+            errors.append(
+                f"{label} build ID in {candidates[0]} does not uniquely match required "
+                f"patch {expected_version}: {sorted(found) or 'not found'}."
             )
     return errors
 
@@ -197,6 +268,9 @@ def main() -> None:
         if not nddshome.is_dir():
             raise PreflightError(f"NDDSHOME does not exist or is not a directory: {nddshome}")
         sdk_version = sdk_version_from_home(nddshome)
+        architecture = os.environ.get("CONNEXTDDS_ARCH")
+        if not architecture:
+            raise PreflightError("CONNEXTDDS_ARCH is not set; source the Connext environment.")
 
         declared_versions = {
             name: os.environ.get(name, "") for name in ("CONNEXT_VERSION", "RTICONNEXTDDS_VERSION")
@@ -218,6 +292,7 @@ def main() -> None:
                 f"`rtiddsgen -version` failed with exit code {result.returncode}:\n{output}"
             )
         errors = sdk_compatibility_errors(expected_version, sdk_version, output, declared_versions)
+        errors.extend(native_version_errors(nddshome, architecture, expected_version))
         if errors:
             raise PreflightError("\n".join(errors))
     except PreflightError as exc:
@@ -225,7 +300,9 @@ def main() -> None:
         raise SystemExit(1) from exc
 
     print(f"Python API: rti.connext=={expected_version} (rti.connextdds available)")
-    print(f"Connext SDK: {sdk_version}; rtiddsgen {RTIDDSGEN_VERSIONS[expected_version]}")
+    print(f"Connext SDK: {sdk_version}; rtiddsgen {RTIDDSGEN_VERSIONS[sdk_version]}")
+    print(f"Core and Security inventory and build IDs match patch {expected_version}.")
+    print("Runtime library selection is not checked; verify library paths if installations differ.")
 
 
 if __name__ == "__main__":

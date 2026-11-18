@@ -19,61 +19,13 @@ from typing import Any
 from rti_demo_ui import DemoUiApp
 
 AsyncWork = Callable[[DemoUiApp], Awaitable[None]]
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 WEB_ROOT = PROJECT_ROOT / "resource" / "ui_web"
-ARM_SCENE_MODEL_URL = "/models/articulated-arm.glb"
-ARM_SCENE_CAMERA = {
-    "mode": "orbit",
-    "position": [0.72, 0.62, 0.82],
-    "target": [0.0, 0.25, 0.0],
-    "min_distance": 0.25,
-    "max_distance": 4.0,
-}
 
 
 def native_icon_path() -> Path:
     filename = "rti_logo.ico" if sys.platform == "win32" else "rti_logo.png"
     return WEB_ROOT / filename
-
-
-def arm_angles_for_view(angles, joints) -> dict[str, float]:
-    return {joints[joint]: round(float(angle), 1) for joint, angle in angles.items()}
-
-
-def add_arm_scene(app: DemoUiApp, model):
-    """Create one persistent SDK Scene3D component for the articulated arm."""
-    scene = app.add_card("Articulated surgical arm").add_scene_3d(
-        ARM_SCENE_MODEL_URL,
-        camera=ARM_SCENE_CAMERA,
-        background="#0a0e17",
-        grid=False,
-    )
-    for node_id, transform in model.node_transforms.items():
-        scene.add_node(
-            node_id,
-            transform["path"],
-            position=transform["position"],
-            rotation=transform["rotation"],
-            status="success" if model.reachable else "warning",
-        )
-    return scene
-
-
-def update_arm_scene(scene, model) -> None:
-    """Batch local joint/TCP updates without replacing the Scene3D component."""
-    status = "success" if model.reachable else "warning"
-    scene.apply_node_batch(
-        [
-            {
-                "op": "update",
-                "id": node_id,
-                "position": transform["position"],
-                "rotation": transform["rotation"],
-                "status": status,
-            }
-            for node_id, transform in model.node_transforms.items()
-        ]
-    )
 
 
 def create_demo_ui(title: str) -> DemoUiApp:
@@ -83,6 +35,21 @@ def create_demo_ui(title: str) -> DemoUiApp:
         static_root=WEB_ROOT,
         listening_message_prefix=f"{title} listening on",
     )
+
+
+def log_failure(context: str, error: Exception) -> None:
+    print(f"{context} failed: {error}", file=sys.stderr, flush=True)
+
+
+async def run_app_task(work: Callable[[], Awaitable[None]], name: str, on_failure) -> None:
+    try:
+        await work()
+    except Exception as error:
+        log_failure(name, error)
+        try:
+            await on_failure()
+        except Exception as stop_error:
+            log_failure(f"{name} shutdown", stop_error)
 
 
 class DemoUiState:
@@ -128,36 +95,81 @@ def run_demo_ui(app: DemoUiApp, work: AsyncWork) -> None:
                 "Native UI mode requires the optional rti-demo-ui-native package; "
                 "sync the native capability and install the platform webview prerequisites"
             ) from exc
-        run_native(app, async_main=work, icon=native_icon_path())
+        failed = False
+
+        async def native_work(ui: DemoUiApp) -> None:
+            nonlocal failed
+            try:
+                await work(ui)
+            except Exception as error:
+                failed = True
+                log_failure("Application task", error)
+                try:
+                    await ui.stop()
+                except Exception as stop_error:
+                    log_failure("UI shutdown", stop_error)
+
+        run_native(app, async_main=native_work, icon=native_icon_path())
+        if failed:
+            raise SystemExit(1)
         return
 
-    asyncio.run(_run_browser(app, work))
+    if not asyncio.run(_run_browser(app, work)):
+        raise SystemExit(1)
 
 
-async def _run_browser(app: DemoUiApp, work: AsyncWork) -> None:
-    server_task = asyncio.create_task(app.run())
-    work_task: asyncio.Task[None] | None = None
+async def _run_browser(app: DemoUiApp, work: AsyncWork) -> bool:
+    async def run_task(work, name: str) -> bool:
+        try:
+            await work()
+            return True
+        except Exception as error:
+            log_failure(name, error)
+            return False
+
+    server_task = asyncio.create_task(run_task(app.run, "UI server"))
+    ready_task = asyncio.create_task(run_task(app.wait_until_ready, "UI startup"))
+    work_task: asyncio.Task[bool] | None = None
+    success = True
     loop = asyncio.get_running_loop()
     if os.name != "nt":
         for signum in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(signum, lambda: asyncio.create_task(app.stop()))
 
     try:
-        await app.wait_until_ready()
-        sys.stdout.flush()
-        work_task = asyncio.create_task(work(app))
         done, _ = await asyncio.wait(
-            (server_task, work_task),
+            (server_task, ready_task),
             return_when=asyncio.FIRST_COMPLETED,
         )
-        for task in done:
-            task.result()
+        if server_task in done or not ready_task.result():
+            if server_task in done and server_task.result():
+                print("UI server stopped before becoming ready", file=sys.stderr, flush=True)
+            success = False
+        else:
+            sys.stdout.flush()
+            work_task = asyncio.create_task(run_task(lambda: work(app), "Application task"))
+            done, _ = await asyncio.wait(
+                (server_task, work_task),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            success = all(task.result() for task in done)
+    except Exception as error:
+        log_failure("UI runtime", error)
+        success = False
     finally:
-        await app.stop()
-        for task in (work_task, server_task):
+        try:
+            await app.stop()
+        except Exception as error:
+            log_failure("UI shutdown", error)
+            success = False
+        for task in (work_task, ready_task, server_task):
             if task is not None and not task.done():
                 task.cancel()
         await asyncio.gather(
-            *(task for task in (work_task, server_task) if task is not None),
+            *(task for task in (work_task, ready_task, server_task) if task is not None),
             return_exceptions=True,
         )
+        for task in (work_task, ready_task, server_task):
+            if task is not None and not task.cancelled() and not task.result():
+                success = False
+    return success

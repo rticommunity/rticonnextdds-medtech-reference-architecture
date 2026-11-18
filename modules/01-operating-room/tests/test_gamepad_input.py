@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 import os
 import sys
+from types import SimpleNamespace
 
 import pytest
 from module01_test_support import SRC_DIR
@@ -372,9 +373,17 @@ def test_z_translation_waits_for_both_right_stick_axes_to_return_to_dead_zone():
     assert rates["linear_velocity"]["z"] == pytest.approx(MAX_LINEAR_SPEED)
 
 
-def test_gamepad_view_explains_controls_and_neutral_interlock(monkeypatch):
-    monkeypatch.setattr(gamepad_module, "GamepadDdsAdapter", lambda: None)
-    app = gamepad_module.GamepadApplication(None)
+def test_gamepad_view_explains_controls_and_neutral_interlock():
+    app = gamepad_module.ArmControllerGamepadApp.__new__(gamepad_module.ArmControllerGamepadApp)
+    app.feedback_view = lambda: {"feedback": {"readiness": "NOT_READY"}}
+    app.has_arm_status = False
+    app.status = SimpleNamespace(name="ON")
+    app.gamepad = None
+    app.gamepad_name = "No gamepad"
+    app.active_inputs = dict.fromkeys(
+        ("LEFT STICK", "RIGHT STICK", "LT / RT", "D-PAD", "LB", "A / B"), False
+    )
+    app.control_state = GamepadControlState()
     inputs = {item["label"]: item["description"] for item in app.view()["inputs"]}
     assert "Up / down: +Z / -Z" in inputs["RIGHT STICK"]
     assert "Hold to rotate" in inputs["LB"]

@@ -500,14 +500,3 @@ def test_out_of_range_physical_jaw_gap_is_a_backend_fault(gap):
         model.step((0, 0, 0), (0, 0, 0), 0, 0.002)
     assert not model.reachable
     assert np.all(model._data.ctrl == 0)
-
-
-def test_device_command_transitions_are_application_logic():
-    from ApplicationLogic import device_status_after_command
-
-    assert device_status_after_command("START") == "ON"
-    assert device_status_after_command("PAUSE") == "PAUSED"
-    assert device_status_after_command("SHUTDOWN") == "OFF"
-
-    with pytest.raises(ValueError, match="Unsupported device command"):
-        device_status_after_command("REBOOT")

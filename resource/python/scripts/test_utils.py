@@ -30,18 +30,18 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import rti.connextdds as dds
-import rti.idl as idl
 
 from . import platform_setup
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-_MODULE_01_SRC = _PROJECT_ROOT / "modules" / "01-operating-room" / "src"
-if str(_MODULE_01_SRC) not in sys.path:
-    sys.path.insert(0, str(_MODULE_01_SRC))
+_SYSTEM_SRC = _PROJECT_ROOT / "system" / "src"
+if str(_SYSTEM_SRC) not in sys.path:
+    sys.path.insert(0, str(_SYSTEM_SRC))
 
 _GENERATED_SYSTEM = platform_setup.generated_system_path()
 sys.path.insert(0, str(_GENERATED_SYSTEM / "python"))
 from MedTech import Device, Patient, Robot  # noqa: E402
+from MedTechTypes import register_type  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Platform helpers
@@ -72,10 +72,11 @@ def disable_monitoring() -> None:
 
 
 def security_plugin_available() -> bool:
-    """Return True when secure participant creation succeeds at runtime.
+    """Return True when the probe does not report a Security plugin load failure.
 
     Runs the check in a subprocess to avoid modifying global DDS state
-    (logger, participant factory QoS) in the test process.
+    (logger, participant factory QoS) in the test process. Participant creation
+    may fail because the probe deliberately does not supply security artifacts.
     Result is cached after the first call.
     """
     if not hasattr(security_plugin_available, "_cached"):
@@ -83,8 +84,16 @@ def security_plugin_available() -> bool:
         result = subprocess.run(
             [sys.executable, str(_check_script)],
             capture_output=True,
+            text=True,
             timeout=2,
         )
+        if result.returncode not in (0, 1):
+            raise RuntimeError(
+                f"Security plugin probe failed with exit code {result.returncode}:\n"
+                f"{result.stderr or result.stdout}"
+            )
+        if result.returncode == 1:
+            print(result.stderr or "Security plugin failed to load.", file=sys.stderr)
         security_plugin_available._cached = result.returncode == 0
     return security_plugin_available._cached
 
@@ -284,27 +293,37 @@ def wait_for_device_status(
 ) -> set:
     """Wait until all *expected_devices* have reported a DeviceStatus.
 
-    Uses a WaitSet on DATA_AVAILABLE instead of polling with sleep.
+    Reads the current cache once, then waits for unread samples.
     Returns the set of DeviceType values seen.
     """
     seen: set = set()
+    if timeout_sec <= 0:
+        return seen
 
-    condition = dds.ReadCondition(reader, dds.DataState.any_data)
-    waitset = dds.WaitSet()
-    waitset += condition
-
-    remaining = timeout_sec
-    while seen != expected_devices and remaining > 0:
-        start = _time.monotonic()
-        try:
-            waitset.wait(dds.Duration.from_seconds(remaining))
-        except dds.TimeoutError:
-            break
-        for data in reader.read_data():
+    def collect(samples):
+        for data in samples:
             if device_statuses is None or data.status in device_statuses:
                 seen.add(data.device)
-        remaining -= _time.monotonic() - start
 
+    collect(reader.read_data())
+    condition = dds.ReadCondition(reader, dds.DataState.new_data)
+    waitset = dds.WaitSet()
+    waitset += condition
+    deadline = _time.monotonic() + timeout_sec
+    try:
+        while not expected_devices.issubset(seen):
+            remaining = deadline - _time.monotonic()
+            if remaining <= 0:
+                break
+            try:
+                active = waitset.wait(dds.Duration.from_seconds(remaining))
+            except dds.TimeoutError:
+                break
+            if not active:
+                break
+            collect(reader.select().condition(condition).read_data())
+    finally:
+        waitset -= condition
     return seen
 
 
@@ -399,39 +418,41 @@ def wait_for_samples(
     """Wait until N samples arrive on a reader, or timeout.
 
     Works with both typed DataReaders and DynamicData DataReaders.
-    Uses a synchronous WaitSet on DATA_AVAILABLE + take_data() for reliable
-    blocking without asyncio event-loop lifecycle issues.
+    Reads or takes the current cache once, then waits for unread samples.
     Returns collected sample data objects (may be fewer than N on timeout).
 
     If *filter_fn* is provided, only samples for which ``filter_fn(sample)``
     returns True are counted toward *n* and included in the result.
     """
     results: list = []
+    if n <= 0 or timeout_sec <= 0:
+        return results
 
-    def handler(_):
-        nonlocal results
-        for data in reader.read_data() if read else reader.take_data():
+    def collect(samples):
+        for data in samples:
             if filter_fn is None or filter_fn(data):
                 results.append(data)
 
-    condition = dds.ReadCondition(
-        reader=reader,
-        status=dds.DataState.any_data,
-        handler=handler,
-    )
-
+    collect(reader.read_data() if read else reader.take_data())
+    condition = dds.ReadCondition(reader, dds.DataState.new_data)
     waitset = dds.WaitSet()
     waitset += condition
-
-    remaining = timeout_sec
-    while len(results) < n and remaining > 0:
-        start = _time.monotonic()
-        try:
-            waitset.dispatch(dds.Duration.from_seconds(remaining))
-        except dds.TimeoutError:
-            break
-        remaining -= _time.monotonic() - start
-
+    deadline = _time.monotonic() + timeout_sec
+    try:
+        while len(results) < n:
+            remaining = deadline - _time.monotonic()
+            if remaining <= 0:
+                break
+            try:
+                active = waitset.wait(dds.Duration.from_seconds(remaining))
+            except dds.TimeoutError:
+                break
+            if not active:
+                break
+            selector = reader.select().condition(condition)
+            collect(selector.read_data() if read else selector.take_data())
+    finally:
+        waitset -= condition
     return results
 
 
@@ -459,65 +480,6 @@ def check_no_deadline_missed(reader, timeout_sec: Optional[float] = None) -> boo
     if status_condition in active_conditions:
         return False  # Deadline missed event detected
     return True  # No deadline missed event detected within the timeout period
-
-
-def write_and_wait_for_ack(
-    writer: dds.DataWriter, sample: object, timeout_sec: float = 2.0
-) -> bool:
-    """Write a sample and block until it is acknowledged by all matched readers.
-
-    Returns True if the sample was acknowledged within the timeout, False otherwise.
-    """
-
-    assert writer.qos.reliability.kind == dds.ReliabilityKind.RELIABLE, (
-        "Writer must have RELIABLE reliability QoS for acknowledgments"
-    )
-
-    writer.write(sample)
-    try:
-        writer.wait_for_acknowledgments(dds.Duration.from_seconds(timeout_sec))
-    except dds.TimeoutError:
-        return False  # Acknowledgment(s) not received within timeout
-    return True  # Acknowledgment(s) received
-
-
-# ---------------------------------------------------------------------------
-# Typed DDS entity helpers
-# ---------------------------------------------------------------------------
-
-
-_registered_types: set[str] = set()
-
-
-def register_type(
-    type_cls: type,
-    name: Optional[str] = None,
-) -> None:
-    """Register an IDL type, skipping if already registered."""
-    type_name = name or idl.get_type_support(type_cls).type_name
-    if type_name in _registered_types:
-        return
-    try:
-        dds.DomainParticipant.register_idl_type(type_cls, type_name)
-    except dds.Error:
-        pass  # already registered at the DDS level
-    _registered_types.add(type_name)
-
-
-def create_reader(participant, topic_name: str, type_cls, qos_profile: str, provider):
-    """Create a DataReader on *participant* for the given topic and type."""
-    register_type(type_cls)
-    topic = dds.Topic(participant, topic_name, type_cls)
-    dr_qos = provider.datareader_qos_from_profile(qos_profile)
-    return dds.DataReader(topic, dr_qos)
-
-
-def create_writer(participant, topic_name: str, type_cls, qos_profile: str, provider):
-    """Create a DataWriter on *participant* for the given topic and type."""
-    register_type(type_cls)
-    topic = dds.Topic(participant, topic_name, type_cls)
-    dw_qos = provider.datawriter_qos_from_profile(qos_profile)
-    return dds.DataWriter(topic, dw_qos)
 
 
 @dataclass
@@ -574,6 +536,7 @@ class UtilityApp:
                 domain_id=0,
                 qos=self.qos_provider.participant_qos_from_profile(self.dp_qos_profile),
             )
+            self.participant.enable()
             if restore_dpf_qos:
                 dds.DomainParticipant.participant_factory_qos = restore_dpf_qos
 

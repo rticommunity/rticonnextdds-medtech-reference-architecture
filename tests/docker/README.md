@@ -35,7 +35,7 @@ docker compose -f tests/docker/docker-compose.yml run --rm --build test
 
 # Run specific test file with custom pytest args
 docker compose -f tests/docker/docker-compose.yml run --rm --build test \
-    modules/01-operating-room/tests/test_types.py -v
+    system/tests -v
 
 # Run tests matching a pattern
 docker compose -f tests/docker/docker-compose.yml run --rm --build test \
@@ -68,7 +68,7 @@ docker run --rm \
 docker run --rm \
     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_license.dat:ro \
     medtech-test \
-    modules/01-operating-room/tests/test_types.py -v
+    system/tests -v
 
 # 4. Run tests matching a pattern
 docker run --rm \

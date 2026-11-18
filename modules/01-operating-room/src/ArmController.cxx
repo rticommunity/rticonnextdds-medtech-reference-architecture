@@ -32,8 +32,8 @@
 
 #include <rti_demo_ui/rti_demo_ui.hpp>
 
-#include "DemoUiCommandQueue.hpp"
-#include "DemoUiRuntime.hpp"
+#include "DemoUiSupport.hpp"
+#include "HeartbeatPresence.hpp"
 #include "MedTech.hpp"
 
 using namespace DdsEntities::Constants;
@@ -393,181 +393,206 @@ void publish_target(
     tool_writer.write(Robot::Tool::ParallelJawControl(ARM_ID, target.jaw));
 }
 
-void run_control(rti::demo::ui::DemoUiApp &app,
-                 medtech::ui::CommandQueue<UiCommand> &commands,
-                 std::atomic<bool> &stopping)
-{
-    rti::domain::register_type<Device::Command>();
-    rti::domain::register_type<Device::Status>();
-    rti::domain::register_type<Device::Heartbeat>();
-    rti::domain::register_type<Robot::Arm::TeleopControl>();
-    rti::domain::register_type<Robot::Tool::ParallelJawControl>();
-    rti::domain::register_type<Robot::Arm::Status>();
-    rti::domain::register_type<Robot::Arm::Telemetry>();
+class ArmControllerApp {
+public:
+    ArmControllerApp(rti::demo::ui::DemoUiApp &app,
+                     medtech::ui::CommandQueue<UiCommand> &commands,
+                     std::atomic<bool> &stopping)
+            : app_(app), commands_(commands), stopping_(stopping)
+    {
+        rti::domain::register_type<Device::Command>();
+        rti::domain::register_type<Device::Status>();
+        rti::domain::register_type<Device::Heartbeat>();
+        rti::domain::register_type<Robot::Arm::TeleopControl>();
+        rti::domain::register_type<Robot::Tool::ParallelJawControl>();
+        rti::domain::register_type<Robot::Arm::Status>();
+        rti::domain::register_type<Robot::Arm::Telemetry>();
 
-    auto provider = dds::core::QosProvider::Default();
-    dds::domain::DomainParticipant participant =
-            provider.extensions().create_participant_from_config(
-                    std::string(ARM_CONTROLLER_DP));
-    auto status_writer = rti::pub::find_datawriter_by_name<
-            dds::pub::DataWriter<Device::Status>>(participant,
-                                                  std::string(STATUS_DW));
-    auto heartbeat_writer = rti::pub::find_datawriter_by_name<
-            dds::pub::DataWriter<Device::Heartbeat>>(participant,
-                                                     std::string(HB_DW));
-    auto teleop_writer = rti::pub::find_datawriter_by_name<
-            dds::pub::DataWriter<Robot::Arm::TeleopControl>>(
-            participant,
-            std::string(TELEOP_CONTROL_DW));
-    auto tool_writer = rti::pub::find_datawriter_by_name<
-            dds::pub::DataWriter<Robot::Tool::ParallelJawControl>>(
-            participant,
-            std::string(TOOL_CONTROL_DW));
-    auto command_reader = rti::sub::find_datareader_by_name<
-            dds::sub::DataReader<Device::Command>>(
-            participant,
-            std::string(DEVICE_COMMAND_DR));
-    auto arm_status_reader = rti::sub::find_datareader_by_name<
-            dds::sub::DataReader<Robot::Arm::Status>>(
-            participant,
-            std::string(ARM_STATUS_DR));
-    auto arm_telemetry_reader = rti::sub::find_datareader_by_name<
-            dds::sub::DataReader<Robot::Arm::Telemetry>>(
-            participant,
-            std::string(ARM_TELEMETRY_DR));
+        auto provider = dds::core::QosProvider::Default();
+        participant_ = provider.extensions().create_participant_from_config(
+                std::string(ARM_CONTROLLER_DP));
+        status_writer_ = rti::pub::find_datawriter_by_name<
+                dds::pub::DataWriter<Device::Status>>(participant_,
+                                                      std::string(STATUS_DW));
+        heartbeat_writer_ = rti::pub::find_datawriter_by_name<
+                dds::pub::DataWriter<Device::Heartbeat>>(participant_,
+                                                         std::string(HB_DW));
+        teleop_writer_ = rti::pub::find_datawriter_by_name<
+                dds::pub::DataWriter<Robot::Arm::TeleopControl>>(
+                participant_,
+                std::string(TELEOP_CONTROL_DW));
+        tool_writer_ = rti::pub::find_datawriter_by_name<
+                dds::pub::DataWriter<Robot::Tool::ParallelJawControl>>(
+                participant_,
+                std::string(TOOL_CONTROL_DW));
+        command_reader_ = rti::sub::find_datareader_by_name<
+                dds::sub::DataReader<Device::Command>>(
+                participant_,
+                std::string(DEVICE_COMMAND_DR));
+        arm_status_reader_ = rti::sub::find_datareader_by_name<
+                dds::sub::DataReader<Robot::Arm::Status>>(
+                participant_,
+                std::string(ARM_STATUS_DR));
+        arm_telemetry_reader_ = rti::sub::find_datareader_by_name<
+                dds::sub::DataReader<Robot::Arm::Telemetry>>(
+                participant_,
+                std::string(ARM_TELEMETRY_DR));
 
-    auto require_endpoint = [](const auto &endpoint, const auto &name) {
-        if (endpoint == dds::core::null) {
-            throw std::runtime_error(
-                    std::string("ArmController DDS configuration is missing "
+        auto require_endpoint = [](const auto &endpoint, const auto &name) {
+            if (endpoint == dds::core::null) {
+                throw std::runtime_error(
+                        std::string(
+                                "ArmController DDS configuration is missing "
                                 "endpoint: ")
-                    + std::string(name));
-        }
-    };
-    require_endpoint(status_writer, STATUS_DW);
-    require_endpoint(heartbeat_writer, HB_DW);
-    require_endpoint(teleop_writer, TELEOP_CONTROL_DW);
-    require_endpoint(tool_writer, TOOL_CONTROL_DW);
-    require_endpoint(command_reader, DEVICE_COMMAND_DR);
-    require_endpoint(arm_status_reader, ARM_STATUS_DR);
-    require_endpoint(arm_telemetry_reader, ARM_TELEMETRY_DR);
-
-    ArmControllerLogic logic;
-    ArmFeedback feedback;
-    Device::Status status(Device::DeviceType::ARM_CONTROLLER, logic.status);
-    status_writer.write(status);
-    Json logs = Json::array();
-    auto update_view = [&]() {
-        app.set_data(arm_controller_view(logic, logs, feedback));
-    };
-    auto log = [&](const std::string &message,
-                   const std::string &level = "info") {
-        logs.push_back({ { "time", current_time() },
-                         { "message", message },
-                         { "level", level } });
-        if (logs.size() > 80)
-            logs.erase(logs.begin());
-        update_view();
-    };
-    update_view();
-    log("Arm Controller is online");
-    auto now = std::chrono::steady_clock::now();
-    auto next_heartbeat = now;
-    auto next_control = now;
-    auto next_ui_refresh = now;
-
-    while (!stopping.load() && logic.status != Device::DeviceStatuses::OFF) {
-        while (auto intent = commands.try_pop()) {
-            if (intent->action == "start-demo") {
-                logic.start_demo();
-                logic.stop_manual();
-                log("Started bounded 3D demo motion", "ok");
-            } else if (intent->action == "stop-demo") {
-                logic.stop_demo();
-                log("Stopped demo motion");
-            } else if (intent->action == "teleop") {
-                const bool changed =
-                        logic.apply_manual(intent->axis, intent->direction);
-                if (!changed)
-                    continue;
-                if (intent->direction == "STOPPED") {
-                    log("Released " + intent->axis + " jog");
-                } else {
-                    log("Started " + intent->direction + " " + intent->axis
-                        + " jog");
-                }
+                        + std::string(name));
             }
-        }
-
-        for (const auto &sample : command_reader.take()) {
-            if (!sample.info().valid())
-                continue;
-            logic.apply_device_command(sample.data().command);
-            status.status = logic.status;
-            status_writer.write(status);
-            update_view();
-            log("Received a device command from Orchestrator");
-        }
-
-        for (const auto &sample : arm_status_reader.take()) {
-            if (!sample.info().valid() || sample.data().arm_id != ARM_ID)
-                continue;
-            feedback.readiness = readiness_name(sample.data().readiness);
-            feedback.has_status = true;
-        }
-        for (const auto &sample : arm_telemetry_reader.take()) {
-            if (!sample.info().valid() || sample.data().arm_id != ARM_ID)
-                continue;
-            const auto &telemetry = sample.data();
-            feedback.telemetry_received = std::chrono::steady_clock::now();
-            feedback.has_telemetry = true;
-            feedback.has_pose = telemetry.tcp_pose.has_value();
-            if (feedback.has_pose)
-                feedback.pose = *telemetry.tcp_pose;
-            feedback.has_jaw_width = telemetry.parallel_jaw.has_value();
-            if (feedback.has_jaw_width)
-                feedback.jaw_width = telemetry.parallel_jaw->opening_width;
-        }
-
-        now = std::chrono::steady_clock::now();
-        for (const auto &axis : logic.expire_manual_inputs(now)) {
-            log("Jog input timed out; stopped " + axis + " axis", "warn");
-        }
-        if (now >= next_heartbeat) {
-            heartbeat_writer.write(
-                    Device::Heartbeat(Device::DeviceType::ARM_CONTROLLER));
-            next_heartbeat = now + 50ms;
-        }
-        if (logic.status == Device::DeviceStatuses::ON && now >= next_control) {
-            publish_target(teleop_writer, tool_writer, logic.rates_for_tick());
-            next_control = now + CONTROL_PERIOD;
-        }
-        if (now >= next_ui_refresh) {
-            update_view();
-            next_ui_refresh = now + 200ms;
-        }
-        std::this_thread::sleep_for(5ms);
+        };
+        require_endpoint(status_writer_, STATUS_DW);
+        require_endpoint(heartbeat_writer_, HB_DW);
+        require_endpoint(teleop_writer_, TELEOP_CONTROL_DW);
+        require_endpoint(tool_writer_, TOOL_CONTROL_DW);
+        require_endpoint(command_reader_, DEVICE_COMMAND_DR);
+        require_endpoint(arm_status_reader_, ARM_STATUS_DR);
+        require_endpoint(arm_telemetry_reader_, ARM_TELEMETRY_DR);
     }
 
-    status.status = Device::DeviceStatuses::OFF;
-    status_writer.write(status);
-    log("Arm Controller is shutting down");
-    app.stop();
-}
+    void run()
+    {
+        auto &app = app_;
+        auto &commands = commands_;
+        auto &stopping = stopping_;
+        participant_.enable();
 
-}  // namespace
+        medtech::operating_room::HeartbeatPublisher heartbeat(
+                heartbeat_writer_,
+                Device::DeviceType::ARM_CONTROLLER);
+        ArmControllerLogic logic;
+        ArmFeedback feedback;
+        Device::Status status(Device::DeviceType::ARM_CONTROLLER, logic.status);
+        status_writer_.write(status);
+        Json logs = Json::array();
+        auto update_view = [&]() {
+            app.set_data(arm_controller_view(logic, logs, feedback));
+        };
+        auto log = [&](const std::string &message,
+                       const std::string &level = "info") {
+            logs.push_back({ { "time", current_time() },
+                             { "message", message },
+                             { "level", level } });
+            if (logs.size() > 80)
+                logs.erase(logs.begin());
+            update_view();
+        };
+        update_view();
+        log("Arm Controller is online");
+        heartbeat.start();
+        auto now = std::chrono::steady_clock::now();
+        auto next_control = now;
+        auto next_ui_refresh = now;
 
-int main()
+        while (!stopping.load() && !heartbeat.failed()
+               && logic.status != Device::DeviceStatuses::OFF) {
+            while (auto intent = commands.try_pop()) {
+                if (intent->action == "start-demo") {
+                    logic.start_demo();
+                    logic.stop_manual();
+                    log("Started bounded 3D demo motion", "ok");
+                } else if (intent->action == "stop-demo") {
+                    logic.stop_demo();
+                    log("Stopped demo motion");
+                } else if (intent->action == "teleop") {
+                    const bool changed =
+                            logic.apply_manual(intent->axis, intent->direction);
+                    if (!changed)
+                        continue;
+                    if (intent->direction == "STOPPED") {
+                        log("Released " + intent->axis + " jog");
+                    } else {
+                        log("Started " + intent->direction + " " + intent->axis
+                            + " jog");
+                    }
+                }
+            }
+
+            for (const auto &sample : command_reader_.take()) {
+                if (!sample.info().valid())
+                    continue;
+                logic.apply_device_command(sample.data().command);
+                status.status = logic.status;
+                status_writer_.write(status);
+                update_view();
+                log("Received a device command from Orchestrator");
+            }
+
+            for (const auto &sample : arm_status_reader_.take()) {
+                if (!sample.info().valid() || sample.data().arm_id != ARM_ID)
+                    continue;
+                feedback.readiness = readiness_name(sample.data().readiness);
+                feedback.has_status = true;
+            }
+            for (const auto &sample : arm_telemetry_reader_.take()) {
+                if (!sample.info().valid() || sample.data().arm_id != ARM_ID)
+                    continue;
+                const auto &telemetry = sample.data();
+                feedback.telemetry_received = std::chrono::steady_clock::now();
+                feedback.has_telemetry = true;
+                feedback.has_pose = telemetry.tcp_pose.has_value();
+                if (feedback.has_pose)
+                    feedback.pose = *telemetry.tcp_pose;
+                feedback.has_jaw_width = telemetry.parallel_jaw.has_value();
+                if (feedback.has_jaw_width)
+                    feedback.jaw_width = telemetry.parallel_jaw->opening_width;
+            }
+
+            now = std::chrono::steady_clock::now();
+            for (const auto &axis : logic.expire_manual_inputs(now)) {
+                log("Jog input timed out; stopped " + axis + " axis", "warn");
+            }
+            if (logic.status == Device::DeviceStatuses::ON
+                && now >= next_control) {
+                publish_target(teleop_writer_,
+                               tool_writer_,
+                               logic.rates_for_tick());
+                next_control = now + CONTROL_PERIOD;
+            }
+            if (now >= next_ui_refresh) {
+                update_view();
+                next_ui_refresh = now + 200ms;
+            }
+            std::this_thread::sleep_for(5ms);
+        }
+
+        heartbeat.stop();
+        if (heartbeat.failed())
+            throw std::runtime_error("Arm Controller heartbeat worker failed");
+        status.status = Device::DeviceStatuses::OFF;
+        status_writer_.write(status);
+        log("Arm Controller is shutting down");
+        app.stop();
+    }
+
+private:
+    rti::demo::ui::DemoUiApp &app_;
+    medtech::ui::CommandQueue<UiCommand> &commands_;
+    std::atomic<bool> &stopping_;
+    dds::domain::DomainParticipant participant_ = dds::core::null;
+    dds::pub::DataWriter<Device::Status> status_writer_ = dds::core::null;
+    dds::pub::DataWriter<Device::Heartbeat> heartbeat_writer_ = dds::core::null;
+    dds::pub::DataWriter<Robot::Arm::TeleopControl> teleop_writer_ =
+            dds::core::null;
+    dds::pub::DataWriter<Robot::Tool::ParallelJawControl> tool_writer_ =
+            dds::core::null;
+    dds::sub::DataReader<Device::Command> command_reader_ = dds::core::null;
+    dds::sub::DataReader<Robot::Arm::Status> arm_status_reader_ =
+            dds::core::null;
+    dds::sub::DataReader<Robot::Arm::Telemetry> arm_telemetry_reader_ =
+            dds::core::null;
+};
+
+void configure_ui(rti::demo::ui::DemoUiApp &app,
+                  medtech::ui::CommandQueue<UiCommand> &commands)
 {
     using namespace rti::demo::ui;
-    DemoUiApp app("Arm Controller",
-                  0,
-                  "127.0.0.1",
-                  std::filesystem::path(RTI_DEMO_UI_WEB_ROOT),
-                  Theme::dark,
-                  Layout::automatic,
-                  std::string("Arm Controller listening on"));
-    medtech::ui::CommandQueue<UiCommand> commands;
     const auto empty_object = Json { { "type", "object" },
                                      { "properties", Json::object() },
                                      { "additionalProperties", false } };
@@ -614,35 +639,84 @@ int main()
                                 payload.at("direction") });
                 return Json { { "message", "Teleoperation intent queued" } };
             });
+}
 
-    std::atomic<bool> stopping = false;
-    std::exception_ptr worker_error;
-    std::thread dds_worker([&]() {
-        try {
-            run_control(app, commands, stopping);
-        } catch (const std::runtime_error &error) {
-            // The UI loop may stop before the DDS worker observes shutdown.
-            if (medtech::ui::is_model_stopped_error(error)) {
-                stopping.store(true);
-            } else {
-                worker_error = std::current_exception();
-                app.stop();
-            }
-        } catch (...) {
-            worker_error = std::current_exception();
-            app.stop();
-        }
-    });
+}  // namespace
+
+int main()
+{
+    using namespace rti::demo::ui;
     try {
-        medtech::ui::run(app, 1400, 900, medtech::ui::native_icon_path());
-    } catch (...) {
+        DemoUiApp app("Arm Controller",
+                      0,
+                      "127.0.0.1",
+                      std::filesystem::path(RTI_DEMO_UI_WEB_ROOT),
+                      Theme::dark,
+                      Layout::automatic,
+                      std::string("Arm Controller listening on"));
+        medtech::ui::CommandQueue<UiCommand> commands;
+        configure_ui(app, commands);
+        std::atomic<bool> stopping = false;
+        ArmControllerApp application(app, commands, stopping);
+        bool worker_failed = false;
+        std::thread dds_worker([&]() {
+            try {
+                application.run();
+            } catch (const std::runtime_error &error) {
+                // The UI loop may stop before the DDS worker observes shutdown.
+                if (medtech::ui::is_model_stopped_error(error)) {
+                    stopping.store(true);
+                } else {
+                    std::cerr << "ArmController DDS worker failed: "
+                              << error.what() << std::endl;
+                    worker_failed = true;
+                }
+            } catch (const std::exception &error) {
+                std::cerr << "ArmController DDS worker failed: " << error.what()
+                          << std::endl;
+                worker_failed = true;
+            } catch (...) {
+                std::cerr << "ArmController DDS worker failed with an unknown "
+                             "exception"
+                          << std::endl;
+                worker_failed = true;
+            }
+            if (worker_failed) {
+                stopping.store(true);
+                try {
+                    app.stop();
+                } catch (const std::exception &error) {
+                    std::cerr << "ArmController UI shutdown failed: "
+                              << error.what() << std::endl;
+                } catch (...) {
+                    std::cerr << "ArmController UI shutdown failed with an "
+                                 "unknown exception"
+                              << std::endl;
+                }
+            }
+        });
+        bool ui_succeeded = false;
+        try {
+            ui_succeeded = medtech::ui::run(app,
+                                            1400,
+                                            900,
+                                            medtech::ui::native_icon_path());
+        } catch (const std::exception &error) {
+            std::cerr << "ArmController UI failed: " << error.what()
+                      << std::endl;
+        } catch (...) {
+            std::cerr << "ArmController UI failed with an unknown exception"
+                      << std::endl;
+        }
         stopping.store(true);
         dds_worker.join();
-        throw;
+        return worker_failed || !ui_succeeded ? 1 : 0;
+    } catch (const std::exception &error) {
+        std::cerr << "ArmController setup failed: " << error.what()
+                  << std::endl;
+    } catch (...) {
+        std::cerr << "ArmController setup failed with an unknown exception"
+                  << std::endl;
     }
-    stopping.store(true);
-    dds_worker.join();
-    if (worker_error)
-        std::rethrow_exception(worker_error);
-    return 0;
+    return 1;
 }

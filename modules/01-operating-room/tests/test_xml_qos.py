@@ -11,12 +11,16 @@
 # inability to use the software.
 """Runtime smoke test for the named DDS participants configured in XML."""
 
+import json
 import sys
+import time
+from urllib.request import urlopen
 
 import pytest
 from module01_test_support import REPO_ROOT, SRC_DIR
 from scripts.platform_setup import generated_system_path
 from scripts.test_utils import make_isolated_qos_provider, register_type
+from test_orchestrator_ui import _local_ui_url
 
 
 def test_operational_participants_load_from_qos_profiles():
@@ -63,4 +67,15 @@ def test_operational_participants_load_from_qos_profiles():
 @pytest.mark.secure
 def test_secure_log_reader_loads_from_named_participant_config(proc_manager_secure):
     proc = proc_manager_secure.start_app_ready("Orchestrator")
-    assert proc.poll() is None
+    url = _local_ui_url(proc, "System Orchestrator listening on")
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        with urlopen(f"{url}/api/state", timeout=2) as response:
+            status = json.load(response).get("data", {}).get("status")
+        if status in {"SECURITY: OK", "THREAT DETECTED"}:
+            assert proc.poll() is None
+            return
+        if proc.poll() is not None:
+            break
+        time.sleep(0.05)
+    pytest.fail("Orchestrator did not initialize its secure DDS reader")

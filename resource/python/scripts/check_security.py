@@ -13,26 +13,22 @@
 """This script checks whether the security plugins can be loaded
 in the current environment.
 
-It attempts to create a secure DomainParticipant and uses a log
-handler to determine if the failure is due to missing security
-plugins or some other issue.
+It attempts to create a secure DomainParticipant without security artifacts
+and checks the log for the explicit plugin-load failure diagnostic.
 
-The script returns 0 if secure participant creation is possible
-(i.e., security plugins can be loaded) and 1 otherwise.
+The script returns 0 if the plugin-load failure was not observed, 1 if it
+was observed, and 2 for an unexpected probe error.
 """
 
 from __future__ import annotations
 
 import sys
-
-import rti.connextdds as dds
+import traceback
 
 
 def _check_security() -> bool:
-    """Try to create a secure participant using the provided environment.
-
-    Returns True if secure participant creation succeeds, False otherwise.
-    """
+    """Return whether the explicit plugin-load failure diagnostic was absent."""
+    import rti.connextdds as dds
 
     can_load_security = True
 
@@ -74,4 +70,11 @@ def _check_security() -> bool:
 
 
 if __name__ == "__main__":
-    sys.exit(0 if _check_security() else 1)
+    try:
+        available = _check_security()
+    except Exception:
+        traceback.print_exc()
+        sys.exit(2)
+    if not available:
+        print("Connext Security plugin failed to load.", file=sys.stderr)
+    sys.exit(0 if available else 1)

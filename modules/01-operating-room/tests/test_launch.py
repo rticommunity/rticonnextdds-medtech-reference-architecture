@@ -20,6 +20,7 @@ import json
 import re
 import select
 import signal
+import subprocess
 import time
 from urllib.request import Request, urlopen
 
@@ -28,6 +29,7 @@ from module01_test_support import MODULE_DIR
 from scripts import module_runner
 from scripts.test_utils import (
     ProcessManager,
+    check_no_deadline_missed,
     wait_for_device_status,
     wait_for_samples,
 )
@@ -76,6 +78,55 @@ class TestOrchestrator:
             errors="replace"
         )
         assert b"terminate called after throwing" not in stdout + stderr
+
+
+@pytest.mark.parametrize("app_name", ("ArmController", "Orchestrator"))
+def test_cpp_app_startup_error_exits_with_failure(proc_manager, tmp_path, app_name):
+    proc = proc_manager.start_app(
+        app_name,
+        extra_env={"NDDS_QOS_PROFILES": str(tmp_path / "missing-qos.xml")},
+    )
+    try:
+        stdout, stderr = proc.communicate(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.communicate()
+        pytest.fail(f"{app_name} did not exit after its DDS setup failed")
+    assert proc.returncode != 0, stdout.decode(errors="replace")
+    assert f"{app_name} setup failed".encode() in stderr
+
+
+@pytest.mark.parametrize("app_name", ("ArmController", "Orchestrator"))
+def test_cpp_ui_startup_error_stops_worker_and_exits(proc_manager, app_name):
+    proc = proc_manager.start_app(app_name, extra_env={"RTI_DEMO_UI_MODE": "invalid"})
+    try:
+        stdout, stderr = proc.communicate(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.communicate()
+        pytest.fail(f"{app_name} did not exit after its UI setup failed")
+    assert proc.returncode != 0, stdout.decode(errors="replace")
+    assert f"{app_name} UI failed".encode() in stderr
+    assert b"terminate called after throwing" not in stderr
+
+
+@pytest.mark.parametrize(
+    ("app_name", "message"),
+    (("Arm", "Arm setup or UI failed"), ("PatientMonitor", "Patient Monitor setup or UI failed")),
+)
+def test_python_app_startup_error_exits_with_failure(proc_manager, tmp_path, app_name, message):
+    proc = proc_manager.start_app(
+        app_name,
+        extra_env={"NDDS_QOS_PROFILES": str(tmp_path / "missing-qos.xml")},
+    )
+    try:
+        stdout, stderr = proc.communicate(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.communicate()
+        pytest.fail(f"{app_name} did not exit after its DDS setup failed")
+    assert proc.returncode != 0, stdout.decode(errors="replace")
+    assert message.encode() in stderr
 
 
 class TestArmController:
@@ -320,9 +371,11 @@ class TestArmControllerGamepad:
             assert proc.poll() is None
             heartbeats = wait_for_samples(
                 nonsecure_utility_app.device_heartbeat.reader,
-                n=1,
-                timeout_sec=2,
+                n=3,
+                timeout_sec=3,
+                filter_fn=lambda sample: sample.device == Device.DeviceType.ARM_CONTROLLER,
             )
-            assert any(sample.device == Device.DeviceType.ARM_CONTROLLER for sample in heartbeats)
+            assert len(heartbeats) >= 3
+            assert check_no_deadline_missed(nonsecure_utility_app.device_heartbeat.reader)
         finally:
             manager.shutdown_all()
