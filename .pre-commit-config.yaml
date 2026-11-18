@@ -67,7 +67,7 @@ repos:
         files: \.(cxx|cpp|hpp|h)$
 
   - repo: https://github.com/rvben/rumdl-pre-commit
-    rev: v0.1.84
+    rev: v0.1.96
     hooks:
       - id: rumdl
       - id: rumdl-fmt
