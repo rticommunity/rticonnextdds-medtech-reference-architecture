@@ -100,8 +100,8 @@ relaunch a stopped process.
 Observe and play around with the interactive operating room applications. The following are some ideas to get started:
 
 - From the *Orchestrator* application, send a "PAUSE" command to the *Patient Sensor* Medical Device. Observe the effect in the *Patient Monitor* GUI application. Resume the *Patient Sensor* by sending a "START" command.
-- From the *Arm Controller* application, send a command to stop all *Arm* motors. Observe the effect in the *Arm* GUI application. Resume just the *Elbow* motor by clicking the respective "PLAY" button in the *Arm Controller* application. While still stopped, increment or decrement the *Wrist* motor angle by clicking the respective "+" or "-" buttons in the *Arm Controller* application. Resume all *Arm* motors by pressing "PLAY ALL".
-- Terminate the *Arm* process using its specific PID (not by closing its browser tab). Observe the effect in the *Orchestrator* application's "Alerts" panel.
+- From the *Arm Controller* application, click "STOP ALL" to send a command and stop all *Arm* motors. Observe the effect in the *Arm* GUI application. Resume just the *Elbow* motor by clicking the respective "AUTO" button in the *Arm Controller* application. While the *Wrist* motor is still stopped, increment or decrement its angle by clicking the respective "+" or "-" buttons in the *Arm Controller* application. Resume all *Arm* motors by clicking "PLAY ALL".
+- Ungracefully terminate the *Arm* application using `kill -9 "$(pgrep -f 'Arm[.]py')"`. Observe the missed-heartbeat message in the *Orchestrator* event log.
 - Initiate a graceful remote shutdown of the *Arm Controller* by sending the appropriate command from the *Orchestrator*. Observe the effect of the *Arm Controller* application.
 
 ### 3. Kill the applications
@@ -114,7 +114,7 @@ Here are a few hands-on exercises to demonstrate use cases of Connext features i
 
 ### 1. Application Presence Detection
 
-The module uses a 200 ms ***Deadline QoS*** period for DataWriters and DataReaders on the *t/DeviceHeartbeat* Topic to detect when applications are no longer active. Specifically, the DataWriters and DataReaders use a 200 ms Deadline period. This means if the *Orchestrator* application does not receive a *t/DeviceHeartbeat* within 200 ms, it will log an entry, such as the following, to the "Alerts" panel:
+The module uses a 200 ms ***Deadline QoS*** period for DataWriters and DataReaders on the *t/DeviceHeartbeat* Topic to detect when applications are no longer active. Specifically, the DataWriters and DataReaders use a 200 ms Deadline period. This means if the *Orchestrator* application does not receive a *t/DeviceHeartbeat* within 200 ms, it will log an entry, such as the following, to its event log:
 
 ```text
 DeviceType::PATIENT_MONITOR  is no longer sending heartbeats. Updating Status to OFF.
@@ -139,9 +139,9 @@ Let's try testing how modifying QoS Profiles can adjust system behavior without 
 
 3. Relaunch the operating room applications.
 
-4. While monitoring the *Orchestrator* "Alerts" panel, terminate the *Patient Monitor* process using its specific PID, leaving its browser tab open.
+4. While monitoring the *Orchestrator* event log, ungracefully terminate the *Patient Monitor* using `kill -9 "$(pgrep -f 'PatientMonitor[.]py')"`.
 
-   >**Observe:** You should see the alert mentioned above logged, 5 seconds after the *Patient Monitor* application has been closed.
+   >**Observe:** You should see the alert mentioned above logged approximately 5 seconds after the last *Patient Monitor* heartbeat.
 
 5. Undo the QoS change to revert to the recommended configuration.
 
