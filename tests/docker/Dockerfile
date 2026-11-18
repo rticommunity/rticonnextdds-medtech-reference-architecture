@@ -155,6 +155,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /workspace
 
+RUN python -m playwright install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY tests/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

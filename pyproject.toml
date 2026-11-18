@@ -41,6 +41,7 @@ native = [
 user = ["rti-medtech-reference-architecture[arm,gamepad]"]
 dev = [
     "rti-medtech-reference-architecture[user]",
+    "playwright>=1.56,<2",
     "pytest>=7.0",
     "pytest-cov>=4.0",
 ]

@@ -11,9 +11,11 @@ Module-specific tests live under each module's own `tests/` directory.
 | Python 3.11+ | With locked `rti.connext==7.7.0`, `rti-demo-ui`, and `pytest` installed (in `.venv` or equivalent) |
 | C++ build complete | Run `python build.py` first |
 
-The responsive-window cases in `test_ui_mode.py` additionally use the optional
-Playwright Python package and a system `google-chrome` or `chromium` executable.
-They skip when these are unavailable; they run headlessly without a display.
+The browser cases in `test_ui_mode.py` are required for a full test run.
+Playwright is included in the locked developer dependencies. Install its matching
+Chromium browser and system dependencies with the command below; missing
+prerequisites fail the tests rather than silently skipping them. The tests run
+headlessly without a display and include arm rendering and camera interactions.
 
 ## Quick Start
 
@@ -23,6 +25,7 @@ From the repository root, after sourcing the RTI environment and activating the 
 # Install locked developer dependencies in the active virtual environment
 python -m pip install uv==0.13.8
 uv sync --active --locked --no-dev --extra dev --no-install-project
+python -m playwright install --with-deps chromium
 python resource/python/scripts/check_connext_install.py
 
 # Configure, generate and build once before test execution
@@ -44,9 +47,17 @@ pytest system/tests -v
 # Run tests matching a pattern
 pytest -k "test_types" -v
 
+# Explicitly run a subset without browser coverage (not full validation)
+pytest -m "not browser"
+
 # Run a specific test class or function
 pytest tests/test_config_parsing.py::TestModuleJsonContract -v
 ```
+
+On Linux, Playwright may request administrator access to install browser system
+libraries. On macOS and Windows the same command installs the matching browser.
+The Docker test image and trusted integration CI job provision these prerequisites
+automatically. Browser coverage does not validate native-webview mode.
 
 ## Environment Setup
 

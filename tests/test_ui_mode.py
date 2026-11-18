@@ -13,10 +13,8 @@ import asyncio
 import base64
 import importlib
 import json
-import os
 import re
 import select
-import shutil
 import sys
 import time
 from pathlib import Path
@@ -211,23 +209,15 @@ def test_sdk_serves_the_custom_medtech_frontend_and_app_state(capsys):
     ),
 )
 def test_gui_controls_remain_within_resized_windows(module, app):
-    if os.environ.get("MEDTECH_REQUIRE_BROWSER_TESTS") == "1":
-        import playwright.sync_api as playwright
-    else:
-        playwright = pytest.importorskip("playwright.sync_api")
+    import playwright.sync_api as playwright
 
     with playwright.sync_playwright() as pw:
         bundled_chromium = Path(pw.chromium.executable_path)
-    chrome = (
-        str(bundled_chromium)
-        if bundled_chromium.is_file()
-        else shutil.which("google-chrome") or shutil.which("chromium")
+    assert bundled_chromium.is_file(), (
+        "Browser tests require Playwright Chromium. "
+        "Run `python -m playwright install --with-deps chromium` after syncing "
+        "the locked developer dependencies."
     )
-    if chrome is None:
-        message = "Browser tests require Playwright Chromium or system Chrome/Chromium"
-        if os.environ.get("MEDTECH_REQUIRE_BROWSER_TESTS") == "1":
-            pytest.fail(message)
-        pytest.skip(message)
 
     from scripts.module_runner import MODULES_DIR, load_module_config
     from scripts.test_utils import ProcessManager
@@ -248,7 +238,7 @@ def test_gui_controls_remain_within_resized_windows(module, app):
 
         with playwright.sync_playwright() as pw:
             browser = pw.chromium.launch(
-                executable_path=chrome,
+                executable_path=str(bundled_chromium),
                 headless=True,
                 args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
             )

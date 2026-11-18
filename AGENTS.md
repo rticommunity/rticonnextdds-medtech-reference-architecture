@@ -30,6 +30,7 @@ From the repository root, with the selected Connext environment sourced:
 ```bash
 python -m pip install uv==0.13.8
 uv sync --active --locked --no-dev --extra dev --no-install-project
+python -m playwright install --with-deps chromium
 python resource/python/scripts/check_connext_install.py
 python build.py
 python -m pytest

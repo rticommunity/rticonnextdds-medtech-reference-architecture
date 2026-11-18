@@ -43,6 +43,7 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 # 2. Bootstrap uv and install the locked maintainer profile
 python -m pip install uv==0.13.8
 uv sync --active --locked --no-dev --extra maint
+python -m playwright install --with-deps chromium
 python resource/python/scripts/check_connext_install.py
 
 # 3. Register git hooks so pre-commit runs automatically on every commit
@@ -62,6 +63,11 @@ root README before running Python DDS applications or licensed tests. After
 changing dependency metadata, run `uv lock` and review `uv.lock`; use
 `uv lock --check` to verify it is current. The package version in metadata is
 provisional and is not a release decision.
+
+Full test runs require Playwright's matching Chromium browser, installed above.
+On Linux the browser dependency installation may request administrator access.
+Use `pytest -m "not browser"` only for an explicitly reduced test run; missing
+browser prerequisites are failures, not automatic skips.
 
 ---
 

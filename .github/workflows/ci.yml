@@ -95,7 +95,7 @@ jobs:
             modules/01-operating-room/tests/test_gamepad_input.py \
             modules/02-record-playback/tests/test_recording.py::test_test_recording_workspace_preserves_existing_operator_recording \
             tests/test_ui_mode.py \
-            -k "not gui_controls_remain_within_resized_windows"
+            -m "not browser"
 
       - name: Report deferred licensed capabilities
         run: |
@@ -275,15 +275,11 @@ jobs:
           test -x "$NDDSHOME/bin/rtireplayservice"
           echo "available=true" >> "$GITHUB_OUTPUT"
 
-      - name: Detect optional browser smoke capability
+      - name: Install required browser prerequisites
         id: browser
         run: |
-          status=not_provisioned
-          if python -c 'import importlib.util; raise SystemExit(0 if importlib.util.find_spec("playwright") else 1)' \
-            && { command -v google-chrome >/dev/null || command -v chromium >/dev/null; }; then
-            status=available
-          fi
-          echo "status=$status" >> "$GITHUB_OUTPUT"
+          python -m playwright install --with-deps chromium
+          echo "status=available" >> "$GITHUB_OUTPUT"
 
       - name: Run full test suite against prepared outputs
         run: python -m pytest -v --junitxml=results.xml
@@ -316,7 +312,7 @@ jobs:
             echo "| RTI license file | ${LICENSE_AVAILABLE:-failed or not reached} |"
             echo "| Python DDS runtime/license smoke | ${PYTHON_RUNTIME_SMOKE:-failed or not reached} |"
             echo "| Recording/Replay Service | ${SERVICES_AVAILABLE:-failed or not reached} |"
-            echo "| Browser visual smoke | ${BROWSER_STATUS:-not reached (optional)} |"
+            echo "| Required Playwright/Chromium prerequisites | ${BROWSER_STATUS:-failed or not reached} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   release:

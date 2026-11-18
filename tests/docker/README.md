@@ -10,7 +10,7 @@ applications as end-user runtime containers.
 | Image | Target | Purpose |
 | --- | --- | --- |
 | `medtech-build` | `build` | Ubuntu 24.04 + Connext SDK 7.7.0 + CMake build of C++ modules + security artifacts |
-| `medtech-test` | `test` | Extends build with locked Python dependencies (`rti.connext==7.7.0`) and pytest |
+| `medtech-test` | `test` | Extends build with Playwright Chromium and its system dependencies for the full pytest suite |
 
 ## Prerequisites
 
@@ -105,8 +105,9 @@ it is neither installed separately nor duplicated during synchronization.
 
 - **`medtech-build`** contains the compiled C++ binaries and all system-level
   dependencies. It can be used standalone if you only need the build artifacts.
-- **`medtech-test`** adds the locked Python test dependencies on top. Keeping
-  them separate means faster rebuilds when only Python deps change.
+- **`medtech-test`** adds Chromium and its system libraries. Keeping
+  browser installation in this final stage avoids adding Chromium to the build
+  image. Browser prerequisites are required; missing dependencies fail the suite.
 
 ## Notes
 
