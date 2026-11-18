@@ -1,3 +1,15 @@
+#
+# (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+#
+# RTI grants Licensee a license to use, modify, compile, and create derivative
+# works of the software solely for use with RTI Connext DDS.  Licensee may
+# redistribute copies of the software provided that all such copies are
+# subject to this license. The software is provided "as is", with no warranty
+# of any type, including any warranty for fitness for any purpose. RTI is
+# under no obligation to maintain or support the software.  RTI shall not be
+# liable for any incidental or consequential damages arising out of the use or
+# inability to use the software.
+
 """Pytest-only hooks and fixtures for Module 04 tests."""
 
 import importlib
@@ -14,23 +26,16 @@ sys.path.insert(0, str(TESTS_DIR))
 sys.path.insert(0, str(RESOURCE_PYTHON_DIR))
 
 module04_test_support = importlib.import_module("module04_test_support")
-module_runner = importlib.import_module("scripts.module_runner")
-
 MODULE_01_DIR = module04_test_support.MODULE_01_DIR
 MODULE_DIR = module04_test_support.MODULE_DIR
-SYSTEM_ARCH_DIR = module04_test_support.SYSTEM_ARCH_DIR
-
-from scripts.test_utils import (  # noqa: E402
-    ProcessManager,
-    disable_monitoring,
-    has_display,
-    security_plugin_available,
-)
+SYSTEM_DIR = module04_test_support.SYSTEM_DIR
+sys.path.insert(0, str(SYSTEM_DIR / "src"))
+sys.path.insert(0, str(SYSTEM_DIR.parent / "resource" / "demo_ui"))
 
 
 def _or_security_artifacts_exist() -> bool:
     """Check that Module 01 security artifacts exist."""
-    domain_scope_dir = SYSTEM_ARCH_DIR / "security" / "domain_scope"
+    domain_scope_dir = SYSTEM_DIR / "security" / "domain_scope"
     return domain_scope_dir.is_dir() and any(domain_scope_dir.rglob("*.p7s"))
 
 
@@ -43,39 +48,40 @@ def _threat_artifacts_exist() -> bool:
 @pytest.fixture(scope="session", autouse=True)
 def _monitoring_off():
     """Disable RTI Monitoring 2.0 so in-process secure participants can be created."""
+    from scripts.test_utils import disable_monitoring
+
     disable_monitoring()
+
+
+@pytest.fixture(autouse=True)
+def _secure_runtime_available(request):
+    if request.node.get_closest_marker("secure"):
+        from scripts.test_utils import security_plugin_available
+
+        if not security_plugin_available():
+            pytest.skip("DDS Security runtime probe failed")
 
 
 def pytest_collection_modifyitems(config, items):
     """Skip tests when prerequisites are missing."""
-    skip_gui = pytest.mark.skip(
-        reason="No graphical display available (need DISPLAY or WAYLAND_DISPLAY)",
-    )
     skip_sec_artifacts = pytest.mark.skip(
         reason="Security artifacts not generated (run setup_security.py)",
     )
-    skip_sec_plugin = pytest.mark.skip(
-        reason="DDS Security runtime probe failed",
-    )
 
-    _has_display = has_display()
-    __has_security_plugin = security_plugin_available()
     _has_security_artifacts = _or_security_artifacts_exist() and _threat_artifacts_exist()
 
     module_items = [i for i in items if Path(i.fspath).is_relative_to(TESTS_DIR)]
 
     for item in module_items:
-        if "gui" in item.keywords and not _has_display:
-            item.add_marker(skip_gui)
         if "secure" in item.keywords and not _has_security_artifacts:
             item.add_marker(skip_sec_artifacts)
-        elif "secure" in item.keywords and not __has_security_plugin:
-            item.add_marker(skip_sec_plugin)
 
 
 @pytest.fixture(scope="session")
 def or_env_nonsecure():
     """Module 01 OR env — non-secure mode."""
+    from scripts import module_runner
+
     env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": False})
     return env, apps
 
@@ -83,20 +89,26 @@ def or_env_nonsecure():
 @pytest.fixture(scope="session")
 def or_env_secure():
     """Module 01 OR env — secure mode."""
+    from scripts import module_runner
+
     env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": True})
     return env, apps
 
 
 @pytest.fixture(scope="session")
 def threat_env():
-    """Module 04 threat app environment with Types.xml prepended."""
+    """Module 04 threat app environment with generated XML types prepended."""
+    from scripts import module_runner
+
     env, apps = module_runner.load_module_config(MODULE_DIR)
-    types_xml = str(SYSTEM_ARCH_DIR / "Types.xml")
+    from scripts.platform_setup import generated_system_path
+
+    types_xml = str(generated_system_path() / "xml" / "MedTech.xml")
     env["NDDS_QOS_PROFILES"] = types_xml + ";" + env["NDDS_QOS_PROFILES"]
     # Propagate security artifact paths into os.environ so that in-process
     # DDS QosProvider calls can resolve $(THREAT_SECURITY_ARTIFACTS_DIR) and
     # $(RTI_SECURITY_ARTIFACTS_DIR) from ThreatQos.xml.  load_module_config
-    # already resolved these to absolute paths via ${MODULE_DIR}/${SYSTEM_ARCH}.
+    # already resolved these to absolute paths via ${MODULE_DIR}/${SYSTEM_DIR}.
     for key in ("THREAT_SECURITY_ARTIFACTS_DIR", "RTI_SECURITY_ARTIFACTS_DIR"):
         if key in env:
             os.environ[key] = env[key]
@@ -105,6 +117,8 @@ def threat_env():
 
 @pytest.fixture()
 def or_pm_nonsecure(or_env_nonsecure):
+    from scripts.test_utils import ProcessManager
+
     env, apps = or_env_nonsecure
     pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
     yield pm
@@ -113,6 +127,8 @@ def or_pm_nonsecure(or_env_nonsecure):
 
 @pytest.fixture()
 def or_pm_secure(or_env_secure):
+    from scripts.test_utils import ProcessManager
+
     env, apps = or_env_secure
     pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
     yield pm
@@ -122,6 +138,8 @@ def or_pm_secure(or_env_secure):
 @pytest.fixture(scope="class")
 def or_pm_secure_class(or_env_secure):
     """Class-scoped secure ProcessManager — reuses PatientSensor across tests."""
+    from scripts.test_utils import ProcessManager
+
     env, apps = or_env_secure
     pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
     yield pm

@@ -1,4 +1,16 @@
 #!/usr/bin/env python3
+#
+# (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+#
+# RTI grants Licensee a license to use, modify, compile, and create derivative
+# works of the software solely for use with RTI Connext DDS.  Licensee may
+# redistribute copies of the software provided that all such copies are
+# subject to this license. The software is provided "as is", with no warranty
+# of any type, including any warranty for fitness for any purpose. RTI is
+# under no obligation to maintain or support the software.  RTI shall not be
+# liable for any incidental or consequential damages arising out of the use or
+# inability to use the software.
+
 """Generate security artifacts for Module 04 — Security Threat.
 
 Usage::
@@ -12,7 +24,7 @@ Usage::
     # (Maintainer-only) Scaffold directory tree from templates
     python3 setup_threat_security.py --scaffold
 
-Prerequisite: ``system_arch/security/setup_security.py`` must have been run
+Prerequisite: ``system/security/setup_security.py`` must have been run
 first so that the trusted CA artifacts exist.
 """
 
@@ -25,7 +37,7 @@ from pathlib import Path
 # Add the main security dir to the import path
 sys.path.insert(
     0,
-    str(Path(__file__).parent.parent.parent.parent.resolve() / "system_arch" / "security"),
+    str(Path(__file__).parent.parent.parent.parent.resolve() / "system" / "security"),
 )
 
 from dds_security import generate_expired_identity
@@ -44,7 +56,7 @@ from security_tree import (
 
 MODULE_DIR = Path(__file__).parent.parent.resolve()
 PROJECT_ROOT = MODULE_DIR.parent.parent.resolve()
-MAIN_SECURITY_DIR = PROJECT_ROOT / "system_arch" / "security"
+MAIN_SECURITY_DIR = PROJECT_ROOT / "system" / "security"
 MODULE_SECURITY_DIR = MODULE_DIR / "security"
 
 # ---------------------------------------------------------------------------
@@ -99,14 +111,14 @@ THREAT_DOMAIN_TRUSTED = DomainScope(
         Permissions(
             name="ThreatInjector",
             issuer=TRUSTED_PERMISSIONS_CA,
-            publish_topics=["t/MotorControl", "t/DeviceCommand"],
-            subscribe_topics=["t/MotorControl", "t/DeviceCommand"],
+            publish_topics=["t/robot/arm/control", "t/device/command"],
+            subscribe_topics=["t/robot/arm/control", "t/device/command"],
         ),
         Permissions(
             name="ThreatExfiltrator",
             issuer=TRUSTED_PERMISSIONS_CA,
             publish_topics=[],
-            subscribe_topics=["t/Vitals"],
+            subscribe_topics=["t/patient/vitals"],
         ),
     ],
 )
@@ -118,14 +130,14 @@ THREAT_DOMAIN_ROGUE = DomainScope(
         Permissions(
             name="ThreatInjector",
             issuer=ROGUE_CA,
-            publish_topics=["t/MotorControl", "t/DeviceCommand"],
-            subscribe_topics=["t/MotorControl", "t/DeviceCommand"],
+            publish_topics=["t/robot/arm/control", "t/device/command"],
+            subscribe_topics=["t/robot/arm/control", "t/device/command"],
         ),
         Permissions(
             name="ThreatExfiltrator",
             issuer=ROGUE_CA,
             publish_topics=[],
-            subscribe_topics=["t/Vitals"],
+            subscribe_topics=["t/patient/vitals"],
         ),
     ],
 )

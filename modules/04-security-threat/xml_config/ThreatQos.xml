@@ -22,7 +22,7 @@ works of the software solely for use with RTI Connext DDS. -->
       -->
       <element>
         <name>RTI_SECURITY_ARTIFACTS_DIR</name>
-        <value>../../system_arch/security</value>
+        <value>../../system/security</value>
       </element>
     </value>
   </configuration_variables>

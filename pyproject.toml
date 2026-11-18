@@ -1,3 +1,61 @@
+#
+# (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+#
+# RTI grants Licensee a license to use, modify, compile, and create derivative
+# works of the software solely for use with RTI Connext DDS.  Licensee may
+# redistribute copies of the software provided that all such copies are
+# subject to this license. The software is provided "as is", with no warranty
+# of any type, including any warranty for fitness for any purpose. RTI is
+# under no obligation to maintain or support the software.  RTI shall not be
+# liable for any incidental or consequential damages arising out of the use or
+# inability to use the software.
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rti-medtech-reference-architecture"
+version = "2.0.0.dev0"
+description = "RTI Connext DDS MedTech Reference Architecture"
+requires-python = ">=3.11,<3.15"
+dependencies = [
+    "argcomplete>=3.1",
+    "Jinja2>=3.1",
+    "pystun3>=2.0",
+    "requests>=2.31",
+    "rti.connext==7.7.0",
+    "rti-demo-ui @ git+https://github.com/wcoleman-rti/rti-demo-ui.git@309cb0ccb377ec4a70c0aaf3be8de5fcb1d4ec5a",
+]
+
+[project.optional-dependencies]
+arm = [
+    "mink==1.4.0",
+    "mujoco==3.10.0",
+    "qpsolvers[daqp]==4.13.0",
+]
+gamepad = ["pygame-ce>=2.5.8,<3"]
+native = [
+    "rti-demo-ui-native @ git+https://github.com/wcoleman-rti/rti-demo-ui.git@309cb0ccb377ec4a70c0aaf3be8de5fcb1d4ec5a#subdirectory=native/python",
+]
+user = ["rti-medtech-reference-architecture[arm,gamepad]"]
+dev = [
+    "rti-medtech-reference-architecture[user]",
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+maint = [
+    "rti-medtech-reference-architecture[dev]",
+    "codespell>=2.4",
+    "pre-commit>=3.0",
+    "ruff>=0.15",
+    "rumdl>=0.1.84",
+    "uv==0.13.8",
+]
+
+[tool.setuptools]
+packages = []
+
 [tool.ruff]
 required-version = ">=0.15"
 line-length = 100
@@ -14,12 +72,14 @@ check-hidden = false
 [tool.pytest.ini_options]
 testpaths = [
     "tests",
+    "system/tests",
     "modules/01-operating-room/tests",
     "modules/02-record-playback/tests",
     "modules/04-security-threat/tests",
 ]
 markers = [
     "build_pipeline: tests that verify project-level configure/build pipeline",
+    "browser: test requires Playwright and a browser",
     "gui: test requires a graphical display (deselect with '-m not gui')",
     "secure: test requires DDS Security artifacts (deselect with '-m not secure')",
     "service: test requires RTI Recording/Replay Service (deselect with '-m not service')",

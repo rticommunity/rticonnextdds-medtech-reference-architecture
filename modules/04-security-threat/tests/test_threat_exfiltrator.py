@@ -86,17 +86,18 @@ def _run_exfiltrator_probe(
       - "created": bool — whether the participant was created successfully
       - "matched": bool — whether subscription_matched_status.current_count > 0
     """
-    from Types import PatientMonitor
+    from MedTech import Patient
 
     xml_files = env["NDDS_QOS_PROFILES"].split(";")
     provider = make_isolated_qos_provider(*xml_files)
 
     result = {"created": False, "matched": False}
     try:
-        register_type(PatientMonitor.Vitals)
+        register_type(Patient.Vitals)
         participant = provider.create_participant_from_config(dp_name)
         if participant is not None:
             result["created"] = True
+            participant.enable()
 
             reader = dds.DataReader(participant.find_datareader("s/subscriber::dr/Vitals"))
             result["matched"] = wait_for_reader_match(reader, timeout_sec=timeout_sec)

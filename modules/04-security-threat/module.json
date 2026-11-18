@@ -1,9 +1,9 @@
 {
     "description": "Security Threat Demonstration",
     "env": {
-        "NDDS_QOS_PROFILES": "system_arch/qos/Qos.xml;system_arch/xml_app_creation/DomainLibrary.xml;xml_config/ThreatQos.xml;xml_config/ThreatParticipants.xml",
+        "NDDS_QOS_PROFILES": "system/qos/Qos.xml;system/xml_app_creation/DomainLibrary.xml;xml_config/ThreatQos.xml;system/qos/ApplicationFactoryQos.xml;xml_config/ThreatParticipants.xml",
         "THREAT_SECURITY_ARTIFACTS_DIR": "${MODULE_DIR}/security",
-        "RTI_SECURITY_ARTIFACTS_DIR": "${SYSTEM_ARCH}/security"
+        "RTI_SECURITY_ARTIFACTS_DIR": "${SYSTEM_DIR}/security"
     },
     "apps": {
         "ThreatInjector":     ["${PYTHON:ThreatInjector}"],

@@ -18,13 +18,11 @@ All run commands in this README are launched from the repository root. The proje
 
 ## Module Description
 
-Two Python GUI applications simulate different real-world attack scenarios against the operating room DDS bus.
+Two Python applications serve RTI Demo UI browser frontends and simulate different real-world attack scenarios against the operating room DDS bus. Use `--ui-mode native` to open the same frontend in an embedded desktop webview.
 
 ### Threat Injector
 
-![Threat Injector Example](../../resource/images/module-04-threat-injector-example.png)
-
-The *Threat Injector* application publishes fabricated commands on Topics `t/MotorControl` and `t/DeviceCommand`, simulating an attacker attempting to disrupt the surgical arm or seize device control. It provides a GUI to select:
+The *Threat Injector* application publishes fabricated teleoperation commands on `t/robot/arm/control` and device commands on `t/device/command`, simulating an attacker attempting to disrupt the surgical arm or seize device control through interfaces used by trusted applications. It provides a GUI to select:
 
 - **Attack Mode**. Each of these modes affects whether the DDS Security handshake succeeds or fails. See [Understanding Why Each Attack Is Blocked](#2-understanding-why-each-attack-is-blocked) to understand why the handshake and the attack can fail:
   - Unsecure
@@ -32,22 +30,25 @@ The *Threat Injector* application publishes fabricated commands on Topics `t/Mot
   - Forged Permissions
   - Expired Certificate
 - **Attack Type**:
-  - Motor Inject. This triggers continuous erratic joint commands at a configurable frequency.
+  - Teleop Inject. This publishes complete base-frame TCP velocity samples at a configurable frequency, using the same finite-lifespan control profile as the demo controller.
   - Command Inject PAUSE (one-shot)
   - Command Inject SHUTDOWN (one-shot)
 - **Frequency Slider**
-  - The slider controls how many times per second the Motor Inject attack writes samples.
-  - This is only enabled when Motor Inject is selected and an attack is not already running.
+  - The slider controls how many times per second the Teleop Inject attack writes samples.
+  - This is only enabled when Teleop Inject is selected and an attack is not already running.
 
 Attack status is derived from `publication_matched_status` — the app checks whether its DataWriters have matched any remote subscribers. If a subscriber matches (unsecured OR is running), the status badge shows **ATTACKING** (green) and log entries appear as `[OK]`. If no subscriber matches (secured OR blocks the handshake), the status badge shows **NO ACCESS** (orange) and log entries appear as `[WARN]`.
 
-An arm visualization panel shows the injected motor commands in real time. The panel renders in color when an attack mode is active and in grey when idle.
+The local model preview is explicitly labeled as a command simulation, **not
+observed arm feedback or proof of actuation**. The activity stream records
+participant, match, and write outcomes. A matching reader only establishes an
+open data path; consult the live Arm's observed telemetry to confirm execution.
+No new tool/status attack capability is added. Low injection rates can leave
+gaps longer than command lifespan, during which the Arm holds its current pose.
 
 ### Threat Exfiltrator
 
-![Threat Exfiltrator Example](../../resource/images/module-04-threat-exfiltrator-example.png)
-
-The *Threat Exfiltrator* application subscribes to the `t/Vitals` topic, displaying patient vital signs as if harvesting them for unauthorised use. Attack status is derived from `subscription_matched_status` — when the exfiltrator's DataReader matches a remote publisher, the status badge shows **ACCESS GRANTED** and live heart rate, SpO₂, EtCO₂, and NiBP values stream in. When no match occurs (secured OR), the vitals panels show `---` and the status badge shows **NO ACCESS**.
+The *Threat Exfiltrator* application subscribes to the `t/patient/vitals` topic, displaying patient vital signs as if harvesting them for unauthorised use. Attack status is derived from `subscription_matched_status` — when the exfiltrator's DataReader matches a remote publisher, the interface shows **ACCESS GRANTED** and live heart rate, SpO₂, EtCO₂, and NiBP values stream in. When no match occurs (secured OR), the visualizations show unavailable values and the status shows **NO ACCESS**. A separate data-state indicator distinguishes waiting for vitals, live data, and a quiet/stale stream. Its activity stream records DDS and security events.
 
 ### Status States
 
@@ -78,7 +79,7 @@ Generate the module-specific threat artifacts from the repository root:
 python3 modules/04-security-threat/security/setup_threat_security.py
 ```
 
-*Note, the **Forged Permissions** and **Expired Certificate** attack modes require the trusted system CA private keys (e.g. `system_arch/security/ca/TrustedIdentityCa/private/TrustedIdentityCa.key`). These keys are generated when you complete the shared security setup in the root README and are used only for laboratory demonstration of how certificate chains can be abused. Keep them secure in any real deployment.*
+*Note, the **Forged Permissions** and **Expired Certificate** attack modes require the trusted system CA private keys (e.g. `system/security/ca/TrustedIdentityCa/private/TrustedIdentityCa.key`). These keys are generated when you complete the shared security setup in the root README and are used only for laboratory demonstration of how certificate chains can be abused. Keep them secure in any real deployment.*
 
 Ensure the RTI Security Plugins are installed on every machine that will run a secured participant.
 
@@ -122,19 +123,20 @@ python3 launch.py 04-security-threat ThreatExfiltrator
 2. Select an **Attack Type** (defaults to Motor Inject).
 3. Click **LAUNCH ATTACK**.
 
-The Activity Log and status badge update in real time.
+The activity stream and security status update in real time. Each graphical app
+prints the local URL to open; the browser is the default presentation mode.
 
 | Scenario | OR mode | Attack mode | Threat app | OR app |
 | --- | --- | --- | --- | --- |
-| Motor inject | Unsecured | Unsecure | Status: **ATTACKING**; `[OK]` log entries; arm viz moves | *Arm* GUI moves erratically |
-| Motor inject | Secured | Rogue CA | Status: **NO ACCESS**; `[WARN]` log entries; arm viz moves locally | *Arm* unaffected |
-| Motor inject | Secured | Forged Perms | Status: **NO ACCESS**; `[WARN]` log entries; arm viz moves locally | *Arm* unaffected |
-| Motor inject | Secured | Expired Cert | Status: **ATTACK FAILED**; participant creation blocked | *Arm* unaffected |
+| Teleop inject | Unsecured | Unsecure | Status: **ATTACKING**; `[OK]` log entries; arm viz moves | *Arm* browser view moves erratically |
+| Teleop inject | Secured | Rogue CA | Status: **NO ACCESS**; `[WARN]` log entries; arm viz moves locally | *Arm* unaffected |
+| Teleop inject | Secured | Forged Perms | Status: **NO ACCESS**; `[WARN]` log entries; arm viz moves locally | *Arm* unaffected |
+| Teleop inject | Secured | Expired Cert | Status: **ATTACK FAILED**; participant creation blocked | *Arm* unaffected |
 | Vitals exfiltrate | Unsecured | Unsecure | Status: **ACCESS GRANTED**; vitals panels populate | *Patient Monitor* continues normally |
 | Vitals exfiltrate | Secured | Rogue CA | Status: **NO ACCESS**; vitals panels show `---` | *Patient Monitor* continues normally |
 | Vitals exfiltrate | Secured | Expired Cert | Status: **ATTACK FAILED**; participant creation blocked | *Patient Monitor* continues normally |
 
-> **Observe:** When the OR is running in unsecured mode and you select **Motor Inject → LAUNCH ATTACK**, the *Arm* GUI in Module 01 begins receiving the fabricated commands and the arm visualization moves erratically — even though no legitimate operator is sending commands. Switch the OR to secured mode (restart with `-s`) and repeat: the arm in Module 01 is completely unaffected, and the injector's status changes to **NO ACCESS**.
+> **Observe:** When the OR is running in unsecured mode and you select **Teleop Inject → LAUNCH ATTACK**, the *Arm* browser view in Module 01 begins receiving the fabricated commands and the arm visualization moves erratically — even though no legitimate operator is sending commands. Switch the OR to secured mode (restart with `-s`) and repeat: the arm in Module 01 is completely unaffected, and the injector's status changes to **NO ACCESS**.
 >
 > **Observe:** When you switch between Rogue CA and Forged Permissions modes, both result in **NO ACCESS** because the DDS Security handshake fails at different stages — but the observable result from the threat app's perspective is the same: no publication match, no data flowing.
 
@@ -174,7 +176,7 @@ Beyond authentication and permissions, the system also enforces **cryptographic 
 
 - **Domain-level protection from outsiders:** `rtps_psk_protection_kind=ENCRYPT` protects pre-authentication traffic, preventing passive eavesdropping before the handshake completes.
 - **Domain-level protection from insiders:** `rtps_protection_kind=ENCRYPT_WITH_ORIGIN_AUTHENTICATION` ensures all RTPS traffic is encrypted with per-writer keys and origin-authenticated — even an authenticated insider cannot forge another participant's messages.
-- **Topic-level protetion from insiders:** `t/Vitals` and `t/MotorControl` use `metadata_protection_kind=ENCRYPT`, meaning their submessage metadata is encrypted with keys shared only among authorized endpoints — a compromised participant without topic-level permissions cannot decrypt these topics.
+- **Topic-level protection from insiders:** `t/patient/vitals` and `t/robot/arm/control` use `metadata_protection_kind=ENCRYPT`, meaning their submessage metadata is encrypted with keys shared only among authorized endpoints — a compromised participant without topic-level permissions cannot decrypt these topics.
 
 For a deeper dive into the DDS Security handshake, refer to the [RTI Security Plugins User's Manual](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p2_core/authentication.html#handshake).
 

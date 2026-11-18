@@ -1,11 +1,23 @@
+#
+# (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+#
+# RTI grants Licensee a license to use, modify, compile, and create derivative
+# works of the software solely for use with RTI Connext DDS.  Licensee may
+# redistribute copies of the software provided that all such copies are
+# subject to this license. The software is provided "as is", with no warranty
+# of any type, including any warranty for fitness for any purpose. RTI is
+# under no obligation to maintain or support the software.  RTI shall not be
+# liable for any incidental or consequential damages arising out of the use or
+# inability to use the software.
+
 """Shared build and launch infrastructure for all modules.
 
 Each module provides a ``module.json`` at its root describing:
 
 - ``env``: environment variables to set, with values that may contain
-  ``${args:<name>}``, ``${MODULE_DIR}``, or ``${SYSTEM_ARCH}``
+  ``${args:<name>}``, ``${MODULE_DIR}``, or ``${SYSTEM_DIR}``
   placeholders.  Semicolon-delimited path entries in env values starting
-  with ``system_arch/`` resolve relative to the project root; all others
+  with ``system/`` resolve relative to the project root; all others
   resolve relative to the module directory.
 - ``args``: conditional variable definitions.  Each key is a variable
   name referenced as ``${args:<name>}`` in ``env`` or ``apps``.  The
@@ -15,9 +27,12 @@ Each module provides a ``module.json`` at its root describing:
   directories to the dynamic-library search path (default ``true``).
 - ``apps``: ``{name: [cmd_args...]}`` with placeholder tokens:
   ``${PYTHON:<name>}``, ``${CPP:<name>}``, ``${RTISERVICE:<name>}``,
-  ``${args:<name>}``, ``${MODULE_DIR}``, ``${SYSTEM_ARCH}``.
+  ``${args:<name>}``, ``${MODULE_DIR}``, ``${SYSTEM_DIR}``.
   ``${PYTHON:<name>}`` expands to two args (interpreter + ``src/<name>.py``).
   ``${CPP:<name>}`` locates a compiled executable in the build tree.
+- ``app_variants``: logical app roles mapped to a default choice and concrete
+  app names from ``apps``. Non-selected implementations are omitted from the
+  resolved app list.
 
 The runner loads this config, resolves all placeholders, builds the
 process environment, and manages application lifecycles.
@@ -42,7 +57,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 MODULES_DIR = PROJECT_ROOT / "modules"
 
-SYSTEM_ARCH = PROJECT_ROOT / "system_arch"
+SYSTEM_DIR = PROJECT_ROOT / "system"
 
 
 def discover_modules() -> dict[str, Path]:
@@ -80,6 +95,122 @@ def _resolve_args(args_section: dict, flags: dict[str, bool]) -> dict[str, str]:
     return resolved
 
 
+def _normalize_app_variants(
+    app_variants: object,
+    app_names: set[str],
+) -> dict[str, tuple[str, dict[str, str]]]:
+    """Validate app-variant metadata and return normalized role definitions."""
+    if not isinstance(app_variants, dict):
+        raise ValueError("module.json app_variants must be an object")
+
+    normalized: dict[str, tuple[str, dict[str, str]]] = {}
+    implementation_roles: dict[str, str] = {}
+
+    for role, spec in app_variants.items():
+        if not isinstance(role, str) or not role:
+            raise ValueError("module.json app_variants keys must be non-empty strings")
+        if not isinstance(spec, dict):
+            raise ValueError(f"module.json app_variants.{role} must be an object")
+
+        default = spec.get("default")
+        choices = spec.get("choices")
+        if not isinstance(default, str) or not default:
+            raise ValueError(f"module.json app_variants.{role}.default must be a non-empty string")
+        if not isinstance(choices, dict) or not choices:
+            raise ValueError(f"module.json app_variants.{role}.choices must be a non-empty object")
+        if default not in choices:
+            raise ValueError(
+                f"module.json app_variants.{role}.default '{default}' must name one of its choices"
+            )
+
+        normalized_choices: dict[str, str] = {}
+        for choice, app_name in choices.items():
+            if not isinstance(choice, str) or not choice:
+                raise ValueError(
+                    f"module.json app_variants.{role}.choices keys must be non-empty strings"
+                )
+            if not isinstance(app_name, str) or not app_name:
+                raise ValueError(
+                    f"module.json app_variants.{role}.choices.{choice} must name an app from 'apps'"
+                )
+            if app_name not in app_names:
+                raise ValueError(
+                    f"module.json app_variants.{role}.choices.{choice} "
+                    f"references unknown app '{app_name}'"
+                )
+            if app_name in implementation_roles:
+                raise ValueError(
+                    f"App '{app_name}' is assigned to multiple variant roles: "
+                    f"'{implementation_roles[app_name]}' and '{role}'"
+                )
+            implementation_roles[app_name] = role
+            normalized_choices[choice] = app_name
+
+        if role in app_names and role not in normalized_choices.values():
+            raise ValueError(
+                f"App variant role '{role}' conflicts with an app that is not one of its choices"
+            )
+
+        normalized[role] = (default, normalized_choices)
+
+    return normalized
+
+
+def get_app_variant_names(module_dir: Path) -> set[str]:
+    """Return the logical app roles declared by a module."""
+    config_path = module_dir / "module.json"
+    with open(config_path, encoding="utf-8") as f:
+        raw = json.load(f)
+
+    apps = raw.get("apps", {})
+    if not isinstance(apps, dict):
+        raise ValueError(f"module.json apps must be an object: {config_path}")
+
+    variants = _normalize_app_variants(raw.get("app_variants", {}), set(apps))
+    return set(variants)
+
+
+def _select_app_definitions(
+    app_definitions: object,
+    app_variants: object,
+    selected_variants: dict[str, str],
+) -> dict[str, list[str]]:
+    """Select raw app command templates without expanding unused variants."""
+    if not isinstance(app_definitions, dict):
+        raise ValueError("module.json apps must be an object")
+
+    normalized = _normalize_app_variants(app_variants, set(app_definitions))
+    unknown_roles = sorted(set(selected_variants) - set(normalized))
+    if unknown_roles:
+        raise ValueError(
+            f"Unknown app variant role(s): {', '.join(unknown_roles)}. "
+            f"Available: {', '.join(sorted(normalized)) or '(none)'}"
+        )
+
+    implementation_roles = {
+        app_name: role for role, (_, choices) in normalized.items() for app_name in choices.values()
+    }
+    selected: dict[str, list[str]] = {}
+
+    for app_name, command in app_definitions.items():
+        role = implementation_roles.get(app_name)
+        if role is None:
+            selected[app_name] = command
+            continue
+        if role in selected:
+            continue
+
+        default, choices = normalized[role]
+        choice = selected_variants.get(role, default)
+        if choice not in choices:
+            raise ValueError(
+                f"Invalid variant '{choice}' for app role '{role}'. Available: {', '.join(choices)}"
+            )
+        selected[role] = app_definitions[choices[choice]]
+
+    return selected
+
+
 def _expand_string(
     value: str,
     *,
@@ -98,8 +229,8 @@ def _expand_string(
             return resolved_args[arg]
         if kind == "MODULE_DIR":
             return str(module_dir)
-        if kind == "SYSTEM_ARCH":
-            return str(SYSTEM_ARCH)
+        if kind == "SYSTEM_DIR":
+            return str(SYSTEM_DIR)
         if kind == "PYTHON":
             return sys.executable
         if kind == "CPP":
@@ -132,10 +263,10 @@ def _expand_app_token(
 def _resolve_env_path(raw: str, module_dir: Path) -> str:
     """Resolve a single path segment from an env value.
 
-    Paths starting with ``system_arch/`` resolve from the project root.
+    Paths starting with ``system/`` resolve from the project root.
     All other paths resolve from the module directory.
     """
-    if raw.startswith("system_arch/") or raw.startswith("system_arch\\"):
+    if raw.startswith("system/") or raw.startswith("system\\"):
         return str(PROJECT_ROOT / raw)
     return str(module_dir / raw)
 
@@ -149,6 +280,7 @@ def _resolve_env_value(value: str, module_dir: Path) -> str:
 def load_module_config(
     module_dir: Path,
     flags: dict[str, bool] | None = None,
+    variants: dict[str, str] | None = None,
 ) -> tuple[dict[str, str], dict[str, list[str]]]:
     """Load ``module.json`` and return ``(env, apps)``.
 
@@ -157,7 +289,8 @@ def load_module_config(
     a ``ValueError`` is raised otherwise.
 
     *env* is a ready-to-use environment dict.
-    *apps* is ``{name: [resolved_cmd_args]}``.
+    *apps* is ``{logical_app_name: [resolved_cmd_args]}``; each declared
+    variant group resolves to its selected or default implementation.
     """
     config_path = module_dir / "module.json"
     with open(config_path, encoding="utf-8") as f:
@@ -194,6 +327,16 @@ def load_module_config(
     if raw.get("setup_library_paths", True):
         platform_setup.setup_library_env(env, nddshome)
 
+    generated_python = platform_setup.generated_system_path() / "python"
+    env["PYTHONPATH"] = os.pathsep.join(
+        [
+            str(generated_python),
+            str(SYSTEM_DIR / "src"),
+            str(PROJECT_ROOT / "resource" / "demo_ui"),
+            *filter(None, [env.get("PYTHONPATH", "")]),
+        ]
+    )
+
     desc = raw.get("description", module_dir.name)
     active_flags = [k for k, v in flags.items() if v]
     if active_flags:
@@ -203,7 +346,12 @@ def load_module_config(
 
     # --- Apps ---
     apps: dict[str, list[str]] = {}
-    for name, cmd_template in raw.get("apps", {}).items():
+    selected_app_definitions = _select_app_definitions(
+        raw.get("apps", {}),
+        raw.get("app_variants", {}),
+        variants or {},
+    )
+    for name, cmd_template in selected_app_definitions.items():
         cmd: list[str] = []
         for tok in cmd_template:
             cmd.extend(

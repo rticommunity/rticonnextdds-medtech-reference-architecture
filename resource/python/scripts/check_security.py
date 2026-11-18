@@ -1,26 +1,34 @@
+#
+# (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+#
+# RTI grants Licensee a license to use, modify, compile, and create derivative
+# works of the software solely for use with RTI Connext DDS.  Licensee may
+# redistribute copies of the software provided that all such copies are
+# subject to this license. The software is provided "as is", with no warranty
+# of any type, including any warranty for fitness for any purpose. RTI is
+# under no obligation to maintain or support the software.  RTI shall not be
+# liable for any incidental or consequential damages arising out of the use or
+# inability to use the software.
+
 """This script checks whether the security plugins can be loaded
 in the current environment.
 
-It attempts to create a secure DomainParticipant and uses a log
-handler to determine if the failure is due to missing security
-plugins or some other issue.
+It attempts to create a secure DomainParticipant without security artifacts
+and checks the log for the explicit plugin-load failure diagnostic.
 
-The script returns 0 if secure participant creation is possible
-(i.e., security plugins can be loaded) and 1 otherwise.
+The script returns 0 if the plugin-load failure was not observed, 1 if it
+was observed, and 2 for an unexpected probe error.
 """
 
 from __future__ import annotations
 
 import sys
-
-import rti.connextdds as dds
+import traceback
 
 
 def _check_security() -> bool:
-    """Try to create a secure participant using the provided environment.
-
-    Returns True if secure participant creation succeeds, False otherwise.
-    """
+    """Return whether the explicit plugin-load failure diagnostic was absent."""
+    import rti.connextdds as dds
 
     can_load_security = True
 
@@ -62,4 +70,11 @@ def _check_security() -> bool:
 
 
 if __name__ == "__main__":
-    sys.exit(0 if _check_security() else 1)
+    try:
+        available = _check_security()
+    except Exception:
+        traceback.print_exc()
+        sys.exit(2)
+    if not available:
+        print("Connext Security plugin failed to load.", file=sys.stderr)
+    sys.exit(0 if available else 1)

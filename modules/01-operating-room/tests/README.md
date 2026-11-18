@@ -9,21 +9,23 @@ behave as described in the module README.
 | Requirement | Notes |
 | --- | --- |
 | RTI Connext DDS 7.7.x | `NDDSHOME` must be set |
-| Python 3.10+ | With the Connext Python API (`rti.connextdds`) |
+| Python 3.11+ | With the Connext Python API (`rti.connextdds`) |
 | pytest | `pip install pytest` |
-| C++ build complete | Run `python scripts/build.py` first |
-| PySide6, pyqtgraph, numpy | For GUI app tests |
-| Security artifacts (optional) | Run `system_arch/security/setup_security.py` for `@secure` tests |
+| Central build complete | Run `python build.py` from the repository root, including generated C++/Python/XML |
+| `rti-demo-ui` | For browser UI process and API tests |
+| Pygame CE | Installed through the root `user` extra; used by the gamepad app |
+| MuJoCo, Mink, DAQP | Installed through the root `user` extra; headless arm simulation needs no ROS/GPU |
+| Security artifacts (optional) | Run `system/security/setup_security.py` for `@secure` tests |
 
 ## Running Tests
 
 From the `modules/01-operating-room/` directory:
 
 ```bash
-# All tests (requires display for GUI tests)
+# All tests (browser UI tests need no display server)
 pytest tests/ -v
 
-# Skip GUI tests (headless / CI)
+# Skip browser UI process tests (optional)
 pytest tests/ -v -m "not gui"
 
 # Skip slow end-to-end tests
@@ -46,26 +48,29 @@ pytest tests/ -v -m "not secure"
 
 | File | What it tests | Markers |
 | --- | --- | --- |
-| `test_types.py` | Python type imports, field/enum validation | — |
-| `test_launch.py` | Each app starts without crashing | `gui` for GTK/Qt apps |
-| `test_dds_communication.py` | DDS topics carry correct data (vitals, heartbeats, statuses, commands) | `gui` for Arm tests |
+| `test_launch.py` | Each app starts without crashing | browser mode, no display server |
+| `test_arm_kinematics.py` | Engine-derived FK, constrained base-frame motion, collision approaches/recovery, singularity recovery, actuator braking, numerical faults, signed jaw travel | — |
+| `test_dds_communication.py` | Actual data paths, including arm/jaw motion, hold after stream loss, and fresh-command recovery | `gui` for Arm tests |
 | `test_demo_flow.py` | End-to-end README scenarios (crash detection, pause/resume, shutdown) | `gui`, `slow`, `secure` |
+| `test_xml_qos.py` | Loads system QoS XML and creates the five operational named participants; secure Orchestrator startup creates SecureLogReader | `gui`, `secure` for SecureLogReader |
 
 ## How It Works
 
 Tests create their own DDS participant on domain 0 and use it to:
 
-- **Subscribe** to topics (`t/Vitals`, `t/DeviceStatus`, `t/DeviceHeartbeat`) to
+- **Subscribe** to topics (`t/patient/vitals`, `t/device/status`, `t/device/heartbeat`) to
   verify apps are publishing the expected data.
-- **Publish** commands (`t/DeviceCommand`, `t/MotorControl`) to verify apps
-  respond correctly (pause, shutdown, motor control).
+- **Publish** commands (`t/device/command`, `t/robot/arm/control`) to verify apps
+  respond correctly (pause, shutdown, and teleoperation).
 
-This tests the real DDS communication paths without interacting with GUIs.
+This tests the real DDS communication paths independently of the browser frontend.
+The bootstrap imports the central generated model, not module-local bindings.
+Command-loss tests observe pose/width/readiness with explicit timing tolerance;
+they do not independently test Connext internals or compare design alternatives.
 
 ## Markers
 
-- `@pytest.mark.gui` — Requires a graphical display. Auto-skipped on headless systems.
-  Python Qt apps use `QT_QPA_PLATFORM=offscreen`; C++ GTK apps need a real display.
+- `@pytest.mark.gui` — Browser UI process tests; no graphical display is required.
 - `@pytest.mark.slow` — Long-running tests (>10s). Safe to skip for quick validation.
 - `@pytest.mark.secure` — Requires DDS Security artifacts. Auto-skipped if
   `setup_security.py` hasn't been run.

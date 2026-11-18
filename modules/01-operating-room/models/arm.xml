@@ -1,0 +1,97 @@
+<!--
+(c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+
+RTI grants Licensee a license to use, modify, compile, and create derivative
+works of the software solely for use with RTI Connext DDS. The software is
+provided "as is", with no warranty of any type.
+-->
+<mujoco model="medtech_demo_arm">
+  <compiler angle="radian" autolimits="true" />
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast" />
+  <default>
+    <joint damping="0.1" armature="0.01" />
+    <geom density="600" contype="0" conaffinity="0" />
+    <velocity kv="50" forcerange="-250 250" />
+  </default>
+  <custom>
+    <numeric name="max_linear_speed" data="0.05" />
+    <numeric name="max_angular_speed" data="0.5" />
+    <numeric name="max_opening_rate" data="0.02" />
+    <numeric name="max_joint_speed" data="2" />
+  </custom>
+  <worldbody>
+    <!-- Masks select base/forearm-wrist-tool and upper-arm/tool contact pairs. -->
+    <geom name="base" type="cylinder" pos="0 0 0.07" size="0.09 0.07"
+          contype="1" conaffinity="2" />
+    <body name="base_yaw" pos="0 0 0.14" gravcomp="1">
+      <joint name="base_yaw" axis="0 0 1" range="-3.141592653589793 3.141592653589793" />
+      <geom type="cylinder" size="0.072 0.0175" />
+      <body name="shoulder" gravcomp="1">
+        <joint name="shoulder" axis="0 -1 0" range="-2.35 2.35" />
+        <geom name="upper_arm" type="capsule" size="0.042" fromto="0.03 0 0 0.21 0 0"
+              contype="4" conaffinity="8" />
+        <body name="elbow" pos="0.24 0 0" gravcomp="1">
+          <joint name="elbow" axis="0 -1 0" range="-2.75 2.75" />
+          <geom name="forearm" type="capsule" size="0.036" fromto="0.025 0 0 0.175 0 0"
+                contype="2" conaffinity="1" />
+          <body name="wrist_x" pos="0.20 0 0" gravcomp="1">
+            <joint name="wrist_x" axis="1 0 0" range="-3.141592653589793 3.141592653589793" />
+            <geom name="wrist_housing" type="cylinder" size="0.037 0.0325"
+                  contype="2" conaffinity="1" />
+            <body name="wrist_y" gravcomp="1">
+              <joint name="wrist_y" axis="0 1 0" range="-2.15 2.15" />
+              <inertial pos="0 0 0" mass="0.08" diaginertia="0.0001 0.0001 0.0001" />
+              <body name="wrist_z" gravcomp="1">
+                <joint name="wrist_z" axis="0 0 1" range="-3.141592653589793 3.141592653589793" />
+                <inertial pos="0 0 0" mass="0.08" diaginertia="0.0001 0.0001 0.0001" />
+                <body name="tool" pos="0 0 0.105" gravcomp="1">
+                  <site name="tcp" size="0.003" />
+                  <geom name="shaft" type="cylinder" pos="0 0 -0.0905" size="0.014 0.0145"
+                        contype="10" conaffinity="5" />
+                  <geom name="palm" type="box" pos="0 0 -0.076" size="0.047 0.018 0.010"
+                        contype="10" conaffinity="5" />
+                  <body name="left_finger" gravcomp="1">
+                    <joint name="left_finger" type="slide" axis="1 0 0" limited="false" />
+                    <geom name="left_finger_body" type="box" pos="0.006 0 -0.036" size="0.0045 0.007 0.036"
+                          contype="10" conaffinity="5" />
+                    <geom name="left_finger_pad" type="box" pos="0.006 0 0" size="0.006 0.0095 0.006"
+                          contype="10" conaffinity="5" />
+                  </body>
+                  <body name="right_finger" gravcomp="1">
+                    <joint name="right_finger" type="slide" axis="-1 0 0" limited="false" />
+                    <geom name="right_finger_body" type="box" pos="-0.006 0 -0.036" size="0.0045 0.007 0.036"
+                          contype="10" conaffinity="5" />
+                    <geom name="right_finger_pad" type="box" pos="-0.006 0 0" size="0.006 0.0095 0.006"
+                          contype="10" conaffinity="5" />
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <tendon>
+    <fixed name="jaw_gap" limited="true" range="0 0.06">
+      <joint joint="left_finger" coef="1" />
+      <joint joint="right_finger" coef="1" />
+    </fixed>
+  </tendon>
+  <equality>
+    <joint name="jaw_coupling" joint1="left_finger" joint2="right_finger"
+           polycoef="0 1 0 0 0" solref="0.004 1" solimp="0.99 0.99 0.0001" />
+  </equality>
+  <actuator>
+    <velocity name="base_yaw_motor" joint="base_yaw" />
+    <velocity name="shoulder_motor" joint="shoulder" />
+    <velocity name="elbow_motor" joint="elbow" />
+    <velocity name="wrist_x_motor" joint="wrist_x" />
+    <velocity name="wrist_y_motor" joint="wrist_y" />
+    <velocity name="wrist_z_motor" joint="wrist_z" />
+    <velocity name="jaw_motor" tendon="jaw_gap" kv="20" forcerange="-10 10" />
+  </actuator>
+  <keyframe>
+    <key name="home" qpos="0 1.2 -2.0 0 1.1207963267948966 0 0.018 0.018" />
+  </keyframe>
+</mujoco>

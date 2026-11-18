@@ -1,7 +1,19 @@
+#
+# (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+#
+# RTI grants Licensee a license to use, modify, compile, and create derivative
+# works of the software solely for use with RTI Connext DDS.  Licensee may
+# redistribute copies of the software provided that all such copies are
+# subject to this license. The software is provided "as is", with no warranty
+# of any type, including any warranty for fitness for any purpose. RTI is
+# under no obligation to maintain or support the software.  RTI shall not be
+# liable for any incidental or consequential damages arising out of the use or
+# inability to use the software.
+
 """Pytest-only hooks and fixtures for Module 02 tests."""
 
 import importlib
-import shutil
+import os
 import sys
 from pathlib import Path
 
@@ -14,47 +26,59 @@ sys.path.insert(0, str(TESTS_DIR))
 sys.path.insert(0, str(RESOURCE_PYTHON_DIR))
 
 module02_test_support = importlib.import_module("module02_test_support")
-module_runner = importlib.import_module("scripts.module_runner")
-
 MODULE_01_DIR = module02_test_support.MODULE_01_DIR
 MODULE_DIR = module02_test_support.MODULE_DIR
-RECORDING_DIR = module02_test_support.RECORDING_DIR
+prepare_test_recording_workspace = module02_test_support.prepare_test_recording_workspace
 
-from scripts.test_utils import ProcessManager  # noqa: E402
 
-# Probe whether RTI services are available without loading full config.
-_services_available = True
-try:
-    module_runner.load_module_config(MODULE_DIR, flags={"security": False})
-except FileNotFoundError:
-    _services_available = False
+def _services_available() -> bool:
+    nddshome = os.environ.get("NDDSHOME")
+    if not nddshome:
+        return False
+
+    service_bin_dir = Path(nddshome) / "bin"
+    suffixes = ("", ".bat", ".exe")
+    return all(
+        any((service_bin_dir / f"{service}{suffix}").is_file() for suffix in suffixes)
+        for service in ("rtirecordingservice", "rtireplayservice")
+    )
 
 
 def pytest_collection_modifyitems(config, items):
     """Auto-skip @service-marked tests if Recording/Replay Service is not available."""
-    if _services_available:
+    service_items = [
+        item
+        for item in items
+        if Path(item.fspath).is_relative_to(TESTS_DIR) and "service" in item.keywords
+    ]
+    if not service_items or _services_available():
         return
     skip = pytest.mark.skip(reason="RTI Recording/Replay Service not found in NDDSHOME/bin/")
-    for item in items:
-        if Path(item.fspath).is_relative_to(TESTS_DIR) and "service" in item.keywords:
-            item.add_marker(skip)
+    for item in service_items:
+        item.add_marker(skip)
 
 
 @pytest.fixture(scope="session")
 def module01_env():
     """Non-secure DDS environment from Module 01 (operating-room apps)."""
+    from scripts import module_runner
+
     return module_runner.load_module_config(MODULE_01_DIR, flags={"security": False})
 
 
 @pytest.fixture(scope="session")
 def module02_env():
     """Non-secure DDS environment from Module 02 (recording/replay services)."""
+    from scripts import module_runner
+
     return module_runner.load_module_config(MODULE_DIR, flags={"security": False})
 
 
 @pytest.fixture()
 def or_proc_manager(module01_env):
     """ProcessManager for Module 01 operating-room apps (PatientSensor, etc.)."""
+    from scripts.test_utils import ProcessManager
+
     env, apps = module01_env
     pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
     yield pm
@@ -62,19 +86,23 @@ def or_proc_manager(module01_env):
 
 
 @pytest.fixture()
-def svc_proc_manager(module02_env):
+def recording_workspace(tmp_path):
+    """Copy operator service configs into this test's temporary working directory."""
+    return prepare_test_recording_workspace(tmp_path)
+
+
+@pytest.fixture()
+def svc_proc_manager(module02_env, recording_workspace):
     """ProcessManager for Module 02 recording/replay services."""
+    from scripts.test_utils import ProcessManager
+
     env, apps = module02_env
-    pm = ProcessManager(env, apps, cwd=MODULE_DIR)
+    pm = ProcessManager(env, apps, cwd=recording_workspace)
     yield pm
     pm.shutdown_all()
 
 
 @pytest.fixture()
-def clean_recording_dir():
-    """Ensure recording directory is clean before and after tests."""
-    if RECORDING_DIR.is_dir():
-        shutil.rmtree(RECORDING_DIR)
-    yield RECORDING_DIR
-    if RECORDING_DIR.is_dir():
-        shutil.rmtree(RECORDING_DIR)
+def clean_recording_dir(recording_workspace):
+    """Return recording output in pytest-managed temporary storage."""
+    return recording_workspace / "or_recording"

@@ -7,30 +7,39 @@ Module-specific tests live under each module's own `tests/` directory.
 
 | Requirement | Notes |
 | --- | --- |
-| RTI Connext DDS 7.7.x | `NDDSHOME` and `CONNEXTDDS_ARCH` must be set (via rtisetenv script) |
-| Python 3.10+ | With `rti.connextdds` and `pytest` installed (in `.venv` or equivalent) |
+| RTI Connext DDS SDK 7.7.0 | `NDDSHOME` and `CONNEXTDDS_ARCH` must be set (via rtisetenv script) |
+| Python 3.11+ | With locked `rti.connext==7.7.0`, `rti-demo-ui`, and `pytest` installed (in `.venv` or equivalent) |
 | C++ build complete | Run `python build.py` first |
+
+The responsive-window cases in `test_ui_mode.py` additionally use the optional
+Playwright Python package and a system `google-chrome` or `chromium` executable.
+They skip when these are unavailable; they run headlessly without a display.
 
 ## Quick Start
 
 From the repository root, after sourcing the RTI environment and activating the Python venv:
 
 ```bash
-# Install dev dependencies
-pip install -r requirements-dev.txt
+# Install locked developer dependencies in the active virtual environment
+python -m pip install uv==0.13.8
+uv sync --active --locked --no-dev --extra dev --no-install-project
+python resource/python/scripts/check_connext_install.py
+
+# Configure, generate and build once before test execution
+python build.py
 
 # If you want to run the security tests
-python3 system_arch/security/setup_security.py
+python3 system/security/setup_security.py
 python modules/04-security-threat/security/setup_threat_security.py
 
-# Run all 110+ tests (repo-level + all modules)
-pytest
+# Run all tests against the prepared outputs
+python -m pytest
 
 # Run with verbose output
-pytest -v
+python -m pytest -v
 
 # Run specific module or test
-pytest modules/01-operating-room/tests/test_types.py -v
+pytest system/tests -v
 
 # Run tests matching a pattern
 pytest -k "test_types" -v
@@ -59,17 +68,18 @@ source .venv/bin/activate
 
 ### Direct pytest (Recommended for Day-to-Day)
 
-Use root-level `pytest` directly for fast iteration and clear output:
+Use root-level pytest for fast iteration and clear output. The project build is
+an explicit prerequisite and is not started by test collection or execution:
 
 ```bash
-# All tests
-pytest
+# Pure collection/configuration checks (no generated bindings or DDS runtime)
+python -m pytest --collect-only -q tests/test_config_parsing.py
 
-# With markers to skip slow/gui/secure tests
-pytest -m "not slow and not gui and not secure"
+# All tests, after `python build.py`
+python -m pytest
 
 # Fast feedback on a single file
-pytest tests/test_config_parsing.py -v
+python -m pytest tests/test_config_parsing.py -v
 ```
 
 **When to use:**
@@ -78,9 +88,15 @@ pytest tests/test_config_parsing.py -v
 - Tight edit-test cycles where speed matters
 - Focused debugging of one area
 
+The separate licensed Python participant smoke is run only when a valid RTI
+license is configured. The license-free CI lane does not run it and does not
+claim that runtime licensing passed.
+
 ### Docker Container Testing
 
-Use Docker for reproducible, isolated test environments:
+Use Docker for reproducible, isolated test environments. Building the test
+image configures/codegens/builds once; the container entrypoint only runs pytest
+against those prepared outputs:
 
 ```bash
 # Set up license file
@@ -91,7 +107,7 @@ docker compose -f tests/docker/docker-compose.yml run --rm --build test
 
 # Run specific tests
 docker compose -f tests/docker/docker-compose.yml run --rm --build test \
-    -v modules/01-operating-room/tests/test_types.py
+    -v system/tests
 
 # Run tests matching a pattern
 docker compose -f tests/docker/docker-compose.yml run --rm --build test \
@@ -103,7 +119,7 @@ docker compose -f tests/docker/docker-compose.yml run --rm --build test \
 - Reproducing CI failures in a clean environment
 - Verifying behavior when host dependencies vary
 - Final pre-merge validation
-- Testing GUI components on headless systems (Xvfb included)
+- Testing browser UI processes and their local SDK endpoints (no display server required)
 
 ### Markdown and Other Checks
 
@@ -120,7 +136,7 @@ pre-commit run --all-files
 Tests can be filtered using pytest markers. Common markers:
 
 - `@pytest.mark.slow` — Long-running tests (e.g., full application demos)
-- `@pytest.mark.gui` — GUI tests requiring a display
+- `@pytest.mark.gui` — graphical-app process/UI tests; browser mode needs no display server
 - `@pytest.mark.secure` — Security tests requiring artifacts and plugins
 
 Run fast tests only (skip slow/GUI/secure):
@@ -129,7 +145,7 @@ Run fast tests only (skip slow/GUI/secure):
 pytest -m "not slow and not gui and not secure"
 ```
 
-Run only GUI tests:
+Run only graphical-app tests:
 
 ```bash
 pytest -m "gui"
@@ -139,6 +155,6 @@ pytest -m "gui"
 
 | File | What it tests |
 | --- | --- |
-| `test_project_build_pipeline.py` | CMake configure & build; Module 01 C++ binaries & shared libraries exist |
+| `test_project_build_pipeline.py` | Prepared CMake/codegen outputs and Module 01 executables exist |
 | `test_config_parsing.py` | Module JSON schemas and configuration parsing for all modules |
 | `test_security_status.py` | Security artifacts generation and availability for secure tests |

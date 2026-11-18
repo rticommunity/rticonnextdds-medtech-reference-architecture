@@ -15,10 +15,10 @@ works of the software solely for use with RTI Connext DDS. -->
 
       <publisher name="p/publisher">
         <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
-        <data_writer name="dw/MotorControl" topic_ref="t/MotorControl">
-          <datawriter_qos base_name="DataFlowLibrary::Command"/>
+        <data_writer name="dw/TeleopControl" topic_ref="t/robot/arm/control">
+          <datawriter_qos base_name="DataFlowLibrary::Control"/>
         </data_writer>
-        <data_writer name="dw/DeviceCommand" topic_ref="t/DeviceCommand">
+        <data_writer name="dw/DeviceCommand" topic_ref="t/device/command">
           <datawriter_qos base_name="DataFlowLibrary::Command"/>
         </data_writer>
       </publisher>
@@ -31,10 +31,10 @@ works of the software solely for use with RTI Connext DDS. -->
 
       <publisher name="p/publisher">
         <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
-        <data_writer name="dw/MotorControl" topic_ref="t/MotorControl">
-          <datawriter_qos base_name="DataFlowLibrary::Command"/>
+        <data_writer name="dw/TeleopControl" topic_ref="t/robot/arm/control">
+          <datawriter_qos base_name="DataFlowLibrary::Control"/>
         </data_writer>
-        <data_writer name="dw/DeviceCommand" topic_ref="t/DeviceCommand">
+        <data_writer name="dw/DeviceCommand" topic_ref="t/device/command">
           <datawriter_qos base_name="DataFlowLibrary::Command"/>
         </data_writer>
       </publisher>
@@ -47,10 +47,10 @@ works of the software solely for use with RTI Connext DDS. -->
 
       <publisher name="p/publisher">
         <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
-        <data_writer name="dw/MotorControl" topic_ref="t/MotorControl">
-          <datawriter_qos base_name="DataFlowLibrary::Command"/>
+        <data_writer name="dw/TeleopControl" topic_ref="t/robot/arm/control">
+          <datawriter_qos base_name="DataFlowLibrary::Control"/>
         </data_writer>
-        <data_writer name="dw/DeviceCommand" topic_ref="t/DeviceCommand">
+        <data_writer name="dw/DeviceCommand" topic_ref="t/device/command">
           <datawriter_qos base_name="DataFlowLibrary::Command"/>
         </data_writer>
       </publisher>
@@ -63,10 +63,10 @@ works of the software solely for use with RTI Connext DDS. -->
 
       <publisher name="p/publisher">
         <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
-        <data_writer name="dw/MotorControl" topic_ref="t/MotorControl">
-          <datawriter_qos base_name="DataFlowLibrary::Command"/>
+        <data_writer name="dw/TeleopControl" topic_ref="t/robot/arm/control">
+          <datawriter_qos base_name="DataFlowLibrary::Control"/>
         </data_writer>
-        <data_writer name="dw/DeviceCommand" topic_ref="t/DeviceCommand">
+        <data_writer name="dw/DeviceCommand" topic_ref="t/device/command">
           <datawriter_qos base_name="DataFlowLibrary::Command"/>
         </data_writer>
       </publisher>
@@ -79,7 +79,7 @@ works of the software solely for use with RTI Connext DDS. -->
 
       <subscriber name="s/subscriber">
         <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
-        <data_reader name="dr/Vitals" topic_ref="t/Vitals">
+        <data_reader name="dr/Vitals" topic_ref="t/patient/vitals">
           <datareader_qos base_name="DataFlowLibrary::Streaming"/>
         </data_reader>
       </subscriber>
@@ -92,7 +92,7 @@ works of the software solely for use with RTI Connext DDS. -->
 
       <subscriber name="s/subscriber">
         <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
-        <data_reader name="dr/Vitals" topic_ref="t/Vitals">
+        <data_reader name="dr/Vitals" topic_ref="t/patient/vitals">
           <datareader_qos base_name="DataFlowLibrary::Streaming"/>
         </data_reader>
       </subscriber>
@@ -105,7 +105,7 @@ works of the software solely for use with RTI Connext DDS. -->
 
       <subscriber name="s/subscriber">
         <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
-        <data_reader name="dr/Vitals" topic_ref="t/Vitals">
+        <data_reader name="dr/Vitals" topic_ref="t/patient/vitals">
           <datareader_qos base_name="DataFlowLibrary::Streaming"/>
         </data_reader>
       </subscriber>
@@ -118,7 +118,7 @@ works of the software solely for use with RTI Connext DDS. -->
 
       <subscriber name="s/subscriber">
         <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
-        <data_reader name="dr/Vitals" topic_ref="t/Vitals">
+        <data_reader name="dr/Vitals" topic_ref="t/patient/vitals">
           <datareader_qos base_name="DataFlowLibrary::Streaming"/>
         </data_reader>
       </subscriber>

@@ -11,122 +11,123 @@
 // inability to use the software.
 
 #include <dds/core/QosProvider.hpp>
+#include <dds/core/cond/WaitSet.hpp>
 #include <dds/sub/DataReader.hpp>
 #include <dds/sub/find.hpp>
+#include <dds/sub/cond/ReadCondition.hpp>
 #include <dds/pub/DataWriter.hpp>
 #include <dds/pub/find.hpp>
 #include <dds/core/ddscore.hpp>
 
-#include <thread>
 #include <chrono>
-#include <unistd.h>
 #include <cstring>
 #include <csignal>
-#include <atomic>
+#include <stdexcept>
 
-#include "Types.hpp"
+#include "HeartbeatPresence.hpp"
+#include "MedTech.hpp"
 
 using namespace DdsEntities::Constants;
 
-static std::atomic<bool> g_shutdown { false };
+static volatile std::sig_atomic_t g_shutdown = 0;
 
 static void handle_signal(int)
 {
-    g_shutdown = true;
+    g_shutdown = 1;
 }
 
-class PatientSensor {
+class PatientSensorApp {
 public:
-    void run()
+    PatientSensorApp()
     {
-        // We need to register the types before we start creating DDS entities
-        rti::domain::register_type<Orchestrator::DeviceCommand>();
-        rti::domain::register_type<Common::DeviceStatus>();
-        rti::domain::register_type<Common::DeviceHeartbeat>();
-        rti::domain::register_type<PatientMonitor::Vitals>();
+        rti::domain::register_type<Device::Command>();
+        rti::domain::register_type<Device::Status>();
+        rti::domain::register_type<Device::Heartbeat>();
+        rti::domain::register_type<Patient::Vitals>();
 
-        // Connext will load XML files through the default provider from the
-        // NDDS_QOS_PROFILES environment variable
         auto default_provider = dds::core::QosProvider::Default();
-
-        dds::domain::DomainParticipant participant =
+        participant_ =
                 default_provider.extensions().create_participant_from_config(
                         std::string(PATIENT_SENSOR_DP));
+        if (participant_ == dds::core::null)
+            throw std::runtime_error("Missing DDS participant: "
+                                     + std::string(PATIENT_SENSOR_DP));
+        vitals_writer_ = rti::pub::find_datawriter_by_name<
+                dds::pub::DataWriter<Patient::Vitals>>(participant_,
+                                                       std::string(VITALS_DW));
+        status_writer_ = rti::pub::find_datawriter_by_name<
+                dds::pub::DataWriter<Device::Status>>(participant_,
+                                                      std::string(STATUS_DW));
+        heartbeat_writer_ = rti::pub::find_datawriter_by_name<
+                dds::pub::DataWriter<Device::Heartbeat>>(participant_,
+                                                         std::string(HB_DW));
+        command_reader_ = rti::sub::find_datareader_by_name<
+                dds::sub::DataReader<Device::Command>>(
+                participant_,
+                std::string(DEVICE_COMMAND_DR));
 
-        // Initialize DataWriters
-        dds::pub::DataWriter<PatientMonitor::Vitals> vitals_writer =
-                rti::pub::find_datawriter_by_name<
-                        dds::pub::DataWriter<PatientMonitor::Vitals>>(
-                        participant,
-                        std::string(VITALS_DW));
+        auto require_endpoint = [](const auto &endpoint, const auto &name) {
+            if (endpoint == dds::core::null)
+                throw std::runtime_error("Missing DDS endpoint: "
+                                         + std::string(name));
+        };
+        require_endpoint(vitals_writer_, VITALS_DW);
+        require_endpoint(status_writer_, STATUS_DW);
+        require_endpoint(heartbeat_writer_, HB_DW);
+        require_endpoint(command_reader_, DEVICE_COMMAND_DR);
 
-        dds::pub::DataWriter<Common::DeviceStatus> status_writer =
-                rti::pub::find_datawriter_by_name<
-                        dds::pub::DataWriter<Common::DeviceStatus>>(
-                        participant,
-                        std::string(STATUS_DW));
+        current_status_.device = Device::DeviceType::PATIENT_SENSOR;
+        status_ = Device::DeviceStatuses::ON;
 
-        dds::pub::DataWriter<Common::DeviceHeartbeat> hb_writer =
-                rti::pub::find_datawriter_by_name<
-                        dds::pub::DataWriter<Common::DeviceHeartbeat>>(
-                        participant,
-                        std::string(HB_DW));
-
-        // Initialize DataReader
-        dds::sub::DataReader<Orchestrator::DeviceCommand> cmd_reader =
-                rti::sub::find_datareader_by_name<
-                        dds::sub::DataReader<Orchestrator::DeviceCommand>>(
-                        participant,
-                        std::string(DEVICE_COMMAND_DR));
-
-        current_status.device = Common::DeviceType::PATIENT_SENSOR;
-        current_status.status = Common::DeviceStatuses::ON;
-
-        // Read condition to process commands
-        dds::sub::cond::ReadCondition command_read_condition(
-                cmd_reader,
+        command_read_condition_ = dds::sub::cond::ReadCondition(
+                command_reader_,
                 dds::sub::status::DataState::any(),
-                [this, &cmd_reader, &status_writer]() {
-                    process_command(cmd_reader, status_writer);
-                });
+                [this]() { process_command(); });
+        command_waitset_ += command_read_condition_;
+    }
 
-        dds::core::cond::WaitSet waitset_command;
-        waitset_command += command_read_condition;
-
+    void run()
+    {
+        participant_.enable();
         std::cout << "Launching Patient Sensor" << std::endl;
 
-        // Start heartbeat thread
-        std::thread hb_thread(&PatientSensor::write_hb, this, hb_writer);
-        write_status(status_writer);
+        medtech::operating_room::HeartbeatPublisher heartbeat(
+                heartbeat_writer_,
+                Device::DeviceType::PATIENT_SENSOR);
+        write_status();
 
-        // Main loop
-        while (!g_shutdown
-               && current_status.status != Common::DeviceStatuses::OFF) {
-            try {
-                waitset_command.dispatch(dds::core::Duration(1));
-            } catch (const dds::core::Error &) {
-                break;
-            }
-            write_vitals(vitals_writer);
+        heartbeat.start();
+        while (!g_shutdown && !heartbeat.failed()
+               && status_ != Device::DeviceStatuses::OFF) {
+            command_waitset_.dispatch(dds::core::Duration(1));
+            write_vitals();
         }
+
+        heartbeat.stop();
+        if (heartbeat.failed())
+            throw std::runtime_error("Patient Sensor heartbeat worker failed");
 
         if (g_shutdown) {
             std::cout << "Shutting Down Patient Sensor (signal)" << std::endl;
-            current_status.status = Common::DeviceStatuses::OFF;
-            write_status(status_writer);
+            status_ = Device::DeviceStatuses::OFF;
+            write_status();
         }
-
-        hb_thread.join();
     }
 
 private:
-    Common::DeviceStatus current_status;
+    dds::domain::DomainParticipant participant_ = dds::core::null;
+    dds::pub::DataWriter<Patient::Vitals> vitals_writer_ = dds::core::null;
+    dds::pub::DataWriter<Device::Status> status_writer_ = dds::core::null;
+    dds::pub::DataWriter<Device::Heartbeat> heartbeat_writer_ = dds::core::null;
+    dds::sub::DataReader<Device::Command> command_reader_ = dds::core::null;
+    dds::sub::cond::ReadCondition command_read_condition_ = dds::core::null;
+    dds::core::cond::WaitSet command_waitset_;
+    Device::Status current_status_;
+    Device::DeviceStatuses status_ { Device::DeviceStatuses::OFF };
 
-    // Function to publish vitals
-    void write_vitals(
-            dds::pub::DataWriter<PatientMonitor::Vitals> vitals_writer)
+    void write_vitals()
     {
-        PatientMonitor::Vitals sample;
+        Patient::Vitals sample;
         sample.patient_id = "ab1234";
         sample.hr = 55 + rand() % 11;
         sample.spo2 = 90 + rand() % 11;
@@ -134,60 +135,53 @@ private:
         sample.nibp_s = 115 + rand() % 11;
         sample.nibp_d = 75 + rand() % 11;
 
-        if (current_status.status == Common::DeviceStatuses::ON)
-            vitals_writer.write(sample);
+        if (status_ == Device::DeviceStatuses::ON)
+            vitals_writer_.write(sample);
     }
 
-    // Function to publish heartbeats every 50ms
-    void write_hb(dds::pub::DataWriter<Common::DeviceHeartbeat> hb_writer)
+    void write_status()
     {
-        while (current_status.status != Common::DeviceStatuses::OFF) {
-            Common::DeviceHeartbeat hb(Common::DeviceType::PATIENT_SENSOR);
-            hb_writer.write(hb);
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        }
+        current_status_.status = status_;
+        status_writer_.write(current_status_);
     }
 
-    // Function to publish device status
-    void write_status(dds::pub::DataWriter<Common::DeviceStatus> status_writer)
+    void process_command()
     {
-        status_writer.write(current_status);
-    }
-
-    // Function to process commands sent from the Orchestrator
-    void process_command(
-            dds::sub::DataReader<Orchestrator::DeviceCommand> cmd_reader,
-            dds::pub::DataWriter<Common::DeviceStatus> status_writer)
-    {
-        dds::sub::LoanedSamples<Orchestrator::DeviceCommand> samples =
-                cmd_reader.take();
+        dds::sub::LoanedSamples<Device::Command> samples =
+                command_reader_.take();
 
         for (const auto &sample : samples) {
             if (sample.info().valid()) {
-                if (sample.data().command
-                    == Orchestrator::DeviceCommands::PAUSE) {
+                if (sample.data().command == Device::DeviceCommands::PAUSE) {
                     std::cout << "Pausing Patient Sensor" << std::endl;
-                    current_status.status = Common::DeviceStatuses::PAUSED;
+                    status_ = Device::DeviceStatuses::PAUSED;
                 } else if (sample.data().command
-                           == Orchestrator::DeviceCommands::START) {
+                           == Device::DeviceCommands::START) {
                     std::cout << "Starting Patient Sensor" << std::endl;
-                    current_status.status = Common::DeviceStatuses::ON;
+                    status_ = Device::DeviceStatuses::ON;
                 } else {  // shutdown
                     std::cout << "Shutting Down Patient Sensor" << std::endl;
-                    current_status.status = Common::DeviceStatuses::OFF;
+                    status_ = Device::DeviceStatuses::OFF;
                 }
-                write_status(status_writer);
+                write_status();
             }
         }
     }
 };
 
-// Main function creates an instance of PatientMonitor and runs it
 int main(int argc, char const *argv[])
 {
     std::signal(SIGINT, handle_signal);
     std::signal(SIGTERM, handle_signal);
-    PatientSensor patient_sensor;
-    patient_sensor.run();
-    return 0;
+    try {
+        PatientSensorApp patient_sensor;
+        patient_sensor.run();
+        return 0;
+    } catch (const std::exception &error) {
+        std::cerr << "Patient Sensor failed: " << error.what() << std::endl;
+    } catch (...) {
+        std::cerr << "Patient Sensor failed with an unknown exception"
+                  << std::endl;
+    }
+    return 1;
 }

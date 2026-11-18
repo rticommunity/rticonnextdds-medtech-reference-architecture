@@ -1,3 +1,15 @@
+#
+# (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+#
+# RTI grants Licensee a license to use, modify, compile, and create derivative
+# works of the software solely for use with RTI Connext DDS.  Licensee may
+# redistribute copies of the software provided that all such copies are
+# subject to this license. The software is provided "as is", with no warranty
+# of any type, including any warranty for fitness for any purpose. RTI is
+# under no obligation to maintain or support the software.  RTI shall not be
+# liable for any incidental or consequential damages arising out of the use or
+# inability to use the software.
+
 # CI pipeline for RTI MedTech Reference Architecture
 #
 # Uses GitHub-hosted Ubuntu runners with RTI Connext installed via apt.
@@ -10,18 +22,22 @@ name: CI
 
 on:
   push:
+    branches: [main, develop, integration/v2]
+    tags: ["v*"]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, integration/v2]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
   CONNEXT_VERSION: "7.7.0"
-  PYTHON_VERSION: "3.10"
-  QT_QPA_PLATFORM: offscreen
-  DISPLAY: ":99"
+  PYTHON_VERSION: "3.11"
 
 jobs:
   # ── Lint ────────────────────────────────────────────────────────────────
@@ -41,21 +57,107 @@ jobs:
         with:
           extra_args: --all-files --show-diff-on-failure
 
-  # ── Build + Test (root-level pytest) ─────────────────────────────────────
+  # ── License-free pull-request checks ─────────────────────────────────────
   test:
-    name: Build & Test (root pytest)
+    name: Test (license-free)
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     needs: lint
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: uv.lock
+
+      - name: Set up active Python environment
+        run: |
+          python -m venv .venv
+          echo "VIRTUAL_ENV=$GITHUB_WORKSPACE/.venv" >> "$GITHUB_ENV"
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install uv==0.13.8
+          uv sync --active --locked --no-dev --extra dev --no-install-project
+
+      - name: Run pure and project-owned tests
+        run: |
+          python -m pytest -v --junitxml=results.xml \
+            tests/test_config_parsing.py \
+            tests/test_connext_install.py \
+            modules/01-operating-room/tests/test_arm_kinematics.py \
+            modules/01-operating-room/tests/test_gamepad_input.py \
+            modules/02-record-playback/tests/test_recording.py::test_test_recording_workspace_preserves_existing_operator_recording \
+            tests/test_ui_mode.py \
+            -k "not gui_controls_remain_within_resized_windows"
+
+      - name: Report deferred licensed capabilities
+        run: |
+          {
+            echo "## Capability results"
+            echo ""
+            echo "| Capability | Result |"
+            echo "| --- | --- |"
+            echo "| Pure logic/configuration | executed |"
+            echo "| Licensed DDS/service integration | not run on pull-request code; runs after a trusted push to an integration branch |"
+            echo "| Python DDS runtime/license smoke | not run in this license-free lane; runtime licensing is not claimed |"
+            echo "| Browser visual smoke | not required in the license-free lane |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: pull-request-test-results
+          path: results.xml
+
+  # This job receives the RTI license only on pushes to the selected branches
+  # or release tags. Protect these refs before treating its result as a gate.
+  # Never run fork/PR code with the secret.
+  integration:
+    name: Build & DDS Integration (trusted push)
+    if: github.event_name == 'push'
+    needs: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Verify licensed integration is authorized
+        id: license_preflight
+        env:
+          RTI_LICENSE_FILE_B64: ${{ secrets.RTI_LICENSE_FILE }}
+        run: |
+          if [[ -z "$RTI_LICENSE_FILE_B64" ]]; then
+            echo "::error::RTI_LICENSE_FILE is required for trusted DDS integration."
+            exit 1
+          fi
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Select Connext patch
+        run: |
+          version=$(python3 -c 'from resource.python.scripts.check_connext_install import project_python_api_version; print(project_python_api_version())')
+          case "$version" in
+            "${CONNEXT_VERSION}") patch="${version}.0" ;;
+            "${CONNEXT_VERSION}".*) patch="$version" ;;
+            *) echo "::error::CONNEXT_VERSION does not match pyproject.toml"; exit 1 ;;
+          esac
+          echo "CONNEXT_PATCH_VERSION=$patch" >> "$GITHUB_ENV"
 
       - name: Cache Connext installation
         id: cache-connext
         uses: actions/cache@v5
         with:
           path: /opt/rti.com
-          key: connext-${{ env.CONNEXT_VERSION }}-${{ runner.arch }}-apt-v3
+          key: connext-${{ env.CONNEXT_PATCH_VERSION }}-${{ runner.arch }}-apt-v4
 
       - name: Add RTI apt repository
         if: steps.cache-connext.outputs.cache-hit != 'true'
@@ -77,9 +179,9 @@ jobs:
             sudo debconf-set-selections
           sudo DEBIAN_FRONTEND=noninteractive \
             apt-get install -y --no-install-recommends \
-              rti-connext-dds-${{ env.CONNEXT_VERSION }}-lib-dev \
-              rti-connext-dds-${{ env.CONNEXT_VERSION }}-rtiddsgen \
-              rti-connext-dds-${{ env.CONNEXT_VERSION }}-services-all
+              "rti-connext-dds-${CONNEXT_VERSION}-lib-dev=${CONNEXT_PATCH_VERSION}-*" \
+              "rti-connext-dds-${CONNEXT_VERSION}-rtiddsgen=${CONNEXT_PATCH_VERSION}-*" \
+              "rti-connext-dds-${CONNEXT_VERSION}-services-all=${CONNEXT_PATCH_VERSION}-*"
 
       - name: Configure Connext build environment
         run: |
@@ -89,47 +191,53 @@ jobs:
           echo "CONNEXTDDS_ARCH=$CONNEXTDDS_ARCH" >> "$GITHUB_ENV"
 
       - name: Verify installation
+        id: sdk
         run: |
-          test -d $NDDSHOME
-          test -f $NDDSHOME/lib/$CONNEXTDDS_ARCH/libnddssecurity.so
-          ls $NDDSHOME/third_party/openssl-*/$CONNEXTDDS_ARCH/release/lib/libssl.so* | head -1
+          test -d "$NDDSHOME"
+          test -f "$NDDSHOME/lib/$CONNEXTDDS_ARCH/libnddssecurity.so"
+          ls "$NDDSHOME"/third_party/openssl-*/"$CONNEXTDDS_ARCH"/release/lib/libssl.so* | head -1
+          echo "available=true" >> "$GITHUB_OUTPUT"
 
       - name: Install system dependencies
         run: |
           sudo rm -f /etc/apt/sources.list.d/{microsoft-prod,azure-cli}.*
           sudo apt-get update
           sudo apt-get install -y \
-            cmake \
-            libgtkmm-3.0-dev \
-            xvfb \
-            libegl1 \
-            libxkbcommon0 \
-            libgl1 \
-            libglib2.0-0
+            cmake
 
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          cache-dependency-path: uv.lock
+
+      - name: Set up active Python environment
+        run: |
+          python -m venv .venv
+          echo "VIRTUAL_ENV=$GITHUB_WORKSPACE/.venv" >> "$GITHUB_ENV"
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Install Python dependencies
         run: |
-          pip install --upgrade pip
-          pip install rti.connext~=${{ env.CONNEXT_VERSION }}.0 \
-            -r requirements-dev.txt
+          python -m pip install --upgrade pip
+          python -m pip install uv==0.13.8
+          uv sync --active --locked --no-dev --extra dev --no-install-project
+
+      - name: Verify Python API and SDK compatibility
+        run: python resource/python/scripts/check_connext_install.py
 
       - name: Build project binaries
-        run: python build.py -DRTICONNEXTDDS_VERSION=${{ env.CONNEXT_VERSION }} -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+        run: |
+          python build.py \
+            -DRTICONNEXTDDS_VERSION=${{ env.CONNEXT_VERSION }} \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON \
+            -- --parallel 2
 
       - name: Generate security artifacts
         run: |
-          python system_arch/security/setup_security.py --force
+          python system/security/setup_security.py --force
           python modules/04-security-threat/security/setup_threat_security.py --force
-
-      - name: Start Xvfb
-        run: |
-          Xvfb :99 -screen 0 1024x768x24 &
-          sleep 1
 
       - name: Configure Connext runtime environment
         run: |
@@ -139,37 +247,80 @@ jobs:
           echo "$NDDSHOME/bin" >> "$GITHUB_PATH"
 
       - name: Write license file
+        id: license
+        env:
+          RTI_LICENSE_FILE_B64: ${{ secrets.RTI_LICENSE_FILE }}
         run: |
           RTI_LICENSE_FILE="$RUNNER_TEMP/rti_license.dat"
-          echo "${{ secrets.RTI_LICENSE_FILE }}" | base64 -d > "$RTI_LICENSE_FILE"
+          printf '%s' "$RTI_LICENSE_FILE_B64" | base64 --decode > "$RTI_LICENSE_FILE"
           echo "RTI_LICENSE_FILE=$RTI_LICENSE_FILE" >> "$GITHUB_ENV"
-          echo "License file check:"
-          if [ ! -f "$RTI_LICENSE_FILE" ]; then
-            echo "  ERROR: License file was not created"
+          if [ ! -s "$RTI_LICENSE_FILE" ]; then
+            echo "::error::RTI license decode produced an empty file."
             exit 1
-          elif [ ! -s "$RTI_LICENSE_FILE" ]; then
-            echo "  ERROR: License file is empty (secret RTI_LICENSE_FILE may not be set)"
-            exit 1
-          else
-            echo "  Path: $RTI_LICENSE_FILE"
-            echo "  Size: $(wc -c < $RTI_LICENSE_FILE) bytes"
-            echo "  Contains 'Security': $(grep -ci 'security' $RTI_LICENSE_FILE || echo 0) matches"
           fi
+          echo "available=true" >> "$GITHUB_OUTPUT"
 
-      - name: Run full test suite from project root
-        run: python -m pytest -v -m "not build_pipeline" --junitxml=results.xml
+      - name: Smoke-test licensed Python DDS runtime
+        id: python-runtime
+        run: |
+          python resource/python/scripts/smoke_connext_runtime.py
+          echo "passed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify required services
+        id: services
+        run: |
+          test -x "$NDDSHOME/bin/rtirecordingservice"
+          test -x "$NDDSHOME/bin/rtireplayservice"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Detect optional browser smoke capability
+        id: browser
+        run: |
+          status=not_provisioned
+          if python -c 'import importlib.util; raise SystemExit(0 if importlib.util.find_spec("playwright") else 1)' \
+            && { command -v google-chrome >/dev/null || command -v chromium >/dev/null; }; then
+            status=available
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Run full test suite against prepared outputs
+        run: python -m pytest -v --junitxml=results.xml
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: test-results
+          name: integration-test-results
           path: results.xml
+
+      - name: Report integration capabilities
+        if: always()
+        env:
+          LICENSE_AUTHORIZED: ${{ steps.license_preflight.outputs.available }}
+          LICENSE_AVAILABLE: ${{ steps.license.outputs.available }}
+          SDK_AVAILABLE: ${{ steps.sdk.outputs.available }}
+          SERVICES_AVAILABLE: ${{ steps.services.outputs.available }}
+          PYTHON_RUNTIME_SMOKE: ${{ steps.python-runtime.outputs.passed }}
+          BROWSER_STATUS: ${{ steps.browser.outputs.status }}
+        run: |
+          {
+            echo "## Capability results"
+            echo ""
+            echo "| Capability | Result |"
+            echo "| --- | --- |"
+            echo "| Trusted push context | yes |"
+            echo "| RTI license secret preflight | ${LICENSE_AUTHORIZED:-failed or not reached} |"
+            echo "| Connext SDK | ${SDK_AVAILABLE:-failed or not reached} |"
+            echo "| RTI license file | ${LICENSE_AVAILABLE:-failed or not reached} |"
+            echo "| Python DDS runtime/license smoke | ${PYTHON_RUNTIME_SMOKE:-failed or not reached} |"
+            echo "| Recording/Replay Service | ${SERVICES_AVAILABLE:-failed or not reached} |"
+            echo "| Browser visual smoke | ${BROWSER_STATUS:-not reached (optional)} |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   release:
     name: Publish GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: test
+    needs: integration
     runs-on: ubuntu-24.04
     permissions:
       contents: write

@@ -4,10 +4,20 @@ Module 02 demonstrates recording and playback of Digital Operating Room data fro
 
 RTI Recording Service is used to record realtime DDS data on the following Topics:
 
-- *t/MotorControl*
-- *t/Vitals*
+- *t/robot/arm/control*
+- *t/robot/tool/control*
+- *t/patient/vitals*
 
 RTI Replay Service is used to play back the recorded data to the Arm and Patient Monitor GUI applications, simulating live data.
+
+Arm and tool commands are periodic velocity/rate streams using
+`DataFlowLibrary::Control`, not reliable one-shot commands. Replay output writers
+have the same 250 ms lifespan as live controllers. The Arm publishes its own
+observed readiness/telemetry; these are deliberately not replayed as competing
+truth. Playback timing matters: changing rate or introducing gaps can change the
+path, jaw travel, and expiry behavior. This is not trajectory-invariant playback.
+Recreate recordings after this breaking IDL/topic migration; old recordings are
+not converted.
 
 This module reuses the operating room applications from [Module 01](../01-operating-room/). Those applications have been tested to work in Debian-based environments with a GUI, including those in [WSL2 with GUI support](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps#install-support-for-linux-gui-apps).
 
@@ -31,11 +41,15 @@ This module uses RTI Recording Service to record data from the operating room ap
 
 ### RTI Recording Service
 
-RTI Recording Service is used in this module to record the `t/MotorControl` and `t/Vitals` Topics from [Module 01: Digital Operating Room](../01-operating-room/).
+RTI Recording Service records `t/robot/arm/control`, `t/robot/tool/control`, and
+`t/patient/vitals` from [Module 01](../01-operating-room/).
 
 ### RTI Replay Service
 
-RTI Replay Service is used in this module to replay recorded data from the `t/MotorControl` and `t/Vitals` Topics from [Module 01: Digital Operating Room](../01-operating-room/).
+RTI Replay Service republishes the same three recorded streams to the live
+Arm and Patient Monitor. With the command streams quiet, the Arm holds its
+current pose/gap when cached rates expire, rather than automatically opening
+the tool. See [command validity](../../system/README.md#rate-command-validity).
 
 ## Setup and Installation
 
@@ -117,13 +131,13 @@ Here are a few hands-on exercises to demonstrate use cases of Connext features i
 
 ### 1. Recording All Topics
 
-The module is configured to record and replay just `t/MotorControl` and `t/Vitals` Topics only on Domain 0. Both RTI Recording Service and RTI Replay Service can be configured to record and replay explicit Topics, or discovered Topics/Data Types that match a pattern.
+The module is configured to record and replay `t/robot/arm/control` and `t/patient/vitals` Topics only on Domain 0. Both RTI Recording Service and RTI Replay Service can be configured to record and replay explicit Topics, or discovered Topics/Data Types that match a pattern.
 
-Let's try replaying just `t/Vitals`, while still recording both Topics.
+Let's try replaying just `t/patient/vitals`, while still recording both Topics.
 
 1. Kill all active operating room applications and RTI Recording/Replay Services.
 
-2. Comment out the `<topic>` tag and contained content within it, for `t/MotorControl` in [RecordingServiceConfiguration.xml](./RecordingServiceConfiguration.xml).
+2. Comment out the `<topic>` tag and contained content for `t/robot/arm/control` in [RecordingServiceConfiguration.xml](./RecordingServiceConfiguration.xml).
 
    *Note, you should undo this configuration change after completing this demonstration.*
 
@@ -135,7 +149,7 @@ Let's try replaying just `t/Vitals`, while still recording both Topics.
 
 6. While monitoring the *Arm* and *Patient Monitor* application GUIs, start RTI Replay Service.
 
-   >**Observe:** You should see the *Patient Monitor* receiving data, but *Arm* should appear as if there is no motor movement. This is because while RTI Replay Service is configured to replay data on both `t/MotorControl` and `t/Vitals` Topics, only data for `t/Vitals` was recorded.
+   >**Observe:** You should see the *Patient Monitor* receiving data, but *Arm* should appear as if there is no motor movement. This is because replay still has both arm command topics configured, but only `t/patient/vitals` data was recorded.
 
 7. Undo the QoS change to revert to the recommended configuration.
 

@@ -28,6 +28,7 @@ import time
 from pathlib import Path
 
 import pytest
+import rti.connextdds as dds
 
 TESTS_DIR = Path(__file__).resolve().parent
 
@@ -39,9 +40,9 @@ module01_test_support = importlib.import_module("module01_test_support")
 SRC_DIR = module01_test_support.SRC_DIR
 
 from scripts.test_utils import (  # noqa: E402
-    GTK_ENV,
-    NONGUI_PROCESS_WAIT_TIMEOUT,
-    QT_ENV,
+    PROCESS_WAIT_TIMEOUT,
+    UtilityApp,
+    disable_monitoring,
     wait_for_device_status,
     wait_for_process_ready,
     wait_for_reader_match,
@@ -49,27 +50,24 @@ from scripts.test_utils import (  # noqa: E402
 )
 
 # ---------------------------------------------------------------------------
-# Crash detection (README exercise: kill an app, Orchestrator detects it)
+# Heartbeat cessation after a crash
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.gui
 @pytest.mark.slow
 class TestCrashDetection:
-    """Killing an app should cause Orchestrator to detect the loss via heartbeat deadline."""
+    """Observe heartbeat cessation after a sensor crashes."""
 
-    def test_orchestrator_detects_patient_sensor_crash(self, proc_manager, nonsecure_utility_app):
-        from Types import Common
+    def test_patient_sensor_heartbeats_stop_after_crash(self, proc_manager, nonsecure_utility_app):
+        from MedTech import Device
 
         patient_sensor = proc_manager.start_app_ready("PatientSensor")
-        proc_manager.start_app("Orchestrator", extra_env=GTK_ENV)
-
         hb_reader = nonsecure_utility_app.device_heartbeat.reader
 
         # Wait for PatientSensor heartbeats to start flowing
         assert wait_for_reader_match(hb_reader), "Reader never matched a writer"
         samples = wait_for_samples(hb_reader, timeout_sec=5)
-        assert any(s.device == Common.DeviceType.PATIENT_SENSOR for s in samples), (
+        assert any(s.device == Device.DeviceType.PATIENT_SENSOR for s in samples), (
             "PatientSensor heartbeats never arrived"
         )
 
@@ -83,9 +81,7 @@ class TestCrashDetection:
         patient_sensor.kill()
         patient_sensor.wait(timeout=3)
 
-        # After kill, heartbeats should stop arriving.
-        # The Orchestrator detects this via the 200ms deadline QoS.
-        # We verify the same thing: no new heartbeats arrive.
+        # Observe cessation independently; this does not test the Orchestrator UI.
         hb_reader.take()  # drain anything buffered
         time.sleep(1)  # wait longer than the 200ms deadline
         post_kill = hb_reader.take()
@@ -105,9 +101,8 @@ class TestPauseAndResume:
     """Pausing PatientSensor should stop vitals; resuming should restart them."""
 
     def test_pause_stops_vitals_then_resume_restarts(self, proc_manager, nonsecure_utility_app):
-        from Types import (
-            Common,
-            Orchestrator,
+        from MedTech import (
+            Device,
         )
 
         proc_manager.start_app_ready("PatientSensor")
@@ -119,11 +114,11 @@ class TestPauseAndResume:
         # Wait for device status
         seen = wait_for_device_status(
             status_reader,
-            expected_devices={Common.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Common.DeviceStatuses.ON],
+            expected_devices={Device.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Device.DeviceStatuses.ON],
             timeout_sec=10,
         )
-        assert Common.DeviceType.PATIENT_SENSOR in seen, (
+        assert Device.DeviceType.PATIENT_SENSOR in seen, (
             "PatientSensor did not report DeviceStatus ON within the timeout"
         )
 
@@ -134,37 +129,38 @@ class TestPauseAndResume:
 
         # Send PAUSE
         cmd_writer.write(
-            Orchestrator.DeviceCommand(
-                device=Common.DeviceType.PATIENT_SENSOR,
-                command=Orchestrator.DeviceCommands.PAUSE,
+            Device.Command(
+                device=Device.DeviceType.PATIENT_SENSOR,
+                command=Device.DeviceCommands.PAUSE,
             )
         )
 
         # Wait for PAUSED status
         seen = wait_for_device_status(
             status_reader,
-            expected_devices={Common.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Common.DeviceStatuses.PAUSED],
+            expected_devices={Device.DeviceType.PATIENT_SENSOR},
+            device_statuses=[Device.DeviceStatuses.PAUSED],
             timeout_sec=5,
         )
-        assert Common.DeviceType.PATIENT_SENSOR in seen, (
+        assert Device.DeviceType.PATIENT_SENSOR in seen, (
             "PatientSensor did not transition to PAUSED"
         )
 
-        # Drain any remaining vitals and then check no new ones arrive
+        # Allow in-flight samples to settle, then observe several publish periods.
+        time.sleep(0.5)
         vitals_reader.take()  # drain
         time.sleep(1)
         stale = vitals_reader.take()
         valid_stale = [s for s in stale if s.info.valid]
-        assert len(valid_stale) <= 1, (
+        assert len(valid_stale) == 0, (
             f"Vitals still flowing while PAUSED ({len(valid_stale)} samples)"
         )
 
         # Send START
         cmd_writer.write(
-            Orchestrator.DeviceCommand(
-                device=Common.DeviceType.PATIENT_SENSOR,
-                command=Orchestrator.DeviceCommands.START,
+            Device.Command(
+                device=Device.DeviceType.PATIENT_SENSOR,
+                command=Device.DeviceCommands.START,
             )
         )
 
@@ -178,26 +174,20 @@ class TestPauseAndResume:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.gui
 @pytest.mark.slow
 class TestGracefulShutdown:
     """Sending SHUTDOWN to each device should cause all processes to exit."""
 
     def test_shutdown_all_devices(self, proc_manager, nonsecure_utility_app):
-        from Types import (
-            Common,
-            Orchestrator,
+        from MedTech import (
+            Device,
         )
 
         procs = {
-            Common.DeviceType.PATIENT_SENSOR: proc_manager.start_app("PatientSensor"),
-            Common.DeviceType.ARM_CONTROLLER: proc_manager.start_app(
-                "ArmController", extra_env=GTK_ENV
-            ),
-            Common.DeviceType.ARM: proc_manager.start_app("Arm", extra_env=QT_ENV),
-            Common.DeviceType.PATIENT_MONITOR: proc_manager.start_app(
-                "PatientMonitor", extra_env=QT_ENV
-            ),
+            Device.DeviceType.PATIENT_SENSOR: proc_manager.start_app("PatientSensor"),
+            Device.DeviceType.ARM_CONTROLLER: proc_manager.start_app("ArmController"),
+            Device.DeviceType.ARM: proc_manager.start_app("Arm"),
+            Device.DeviceType.PATIENT_MONITOR: proc_manager.start_app("PatientMonitor"),
         }
 
         status_reader = nonsecure_utility_app.device_status.reader
@@ -208,7 +198,7 @@ class TestGracefulShutdown:
         seen = wait_for_device_status(
             status_reader,
             expected,
-            device_statuses=[Common.DeviceStatuses.ON],
+            device_statuses=[Device.DeviceStatuses.ON],
             timeout_sec=30,
         )
         assert seen == expected, (
@@ -218,9 +208,9 @@ class TestGracefulShutdown:
         # Send SHUTDOWN to each device
         for device_type in procs:
             cmd_writer.write(
-                Orchestrator.DeviceCommand(
+                Device.Command(
                     device=device_type,
-                    command=Orchestrator.DeviceCommands.SHUTDOWN,
+                    command=Device.DeviceCommands.SHUTDOWN,
                 )
             )
 
@@ -253,7 +243,7 @@ class TestSecurePatientSensor:
         ps = proc_manager_secure.start_app("PatientSensor")
 
         # Wait for security handshake and DDS initialization
-        wait_for_process_ready(ps, timeout_sec=NONGUI_PROCESS_WAIT_TIMEOUT)
+        wait_for_process_ready(ps, timeout_sec=PROCESS_WAIT_TIMEOUT)
 
         if ps.poll() is not None:
             stdout = ps.stdout.read().decode(errors="replace") if ps.stdout else ""
@@ -265,16 +255,40 @@ class TestSecurePatientSensor:
 
 
 @pytest.mark.secure
-@pytest.mark.gui
 class TestSecureAllApps:
-    """All C++ apps should launch successfully in secure mode."""
+    """The core operating-room apps should launch successfully in secure mode."""
 
-    def test_secure_launch(self, proc_manager_secure, dds_env_secure):
-        """All C++ apps start and keep running with DDS Security enabled."""
-        proc_manager_secure.start_apps_ready(
-            [
-                "PatientSensor",
-                ("Orchestrator", GTK_ENV),
-                ("ArmController", GTK_ENV),
-            ]
-        )
+    def test_secure_launch(self, proc_manager_secure, dds_env_secure, monkeypatch):
+        """C++ and Python devices publish status with DDS Security enabled."""
+        from MedTech import Device
+
+        env, _ = dds_env_secure
+        monkeypatch.setenv("RTI_SECURITY_ARTIFACTS_DIR", env["RTI_SECURITY_ARTIFACTS_DIR"])
+        factory_qos = dds.DomainParticipant.participant_factory_qos
+        try:
+            disable_monitoring()
+            with UtilityApp.make_secure() as observer:
+                proc_manager_secure.start_apps_ready(
+                    [
+                        "PatientSensor",
+                        "Orchestrator",
+                        "ArmController",
+                        "Arm",
+                        "PatientMonitor",
+                    ]
+                )
+                expected = {
+                    Device.DeviceType.ARM,
+                    Device.DeviceType.ARM_CONTROLLER,
+                    Device.DeviceType.PATIENT_SENSOR,
+                    Device.DeviceType.PATIENT_MONITOR,
+                }
+                seen = wait_for_device_status(
+                    observer.device_status.reader,
+                    expected_devices=expected,
+                    device_statuses=[Device.DeviceStatuses.ON],
+                    timeout_sec=15,
+                )
+        finally:
+            dds.DomainParticipant.participant_factory_qos = factory_qos
+        assert expected.issubset(seen), f"Secure device statuses not received: {expected - seen}"

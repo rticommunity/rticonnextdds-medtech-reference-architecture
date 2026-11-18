@@ -29,7 +29,7 @@
                      environment variable.
                 -->
                 <name>RTI_SECURITY_ARTIFACTS_DIR</name>
-                <value>../../system_arch/security</value>
+                <value>../../system/security</value>
             </element>
             <!-- PUBLIC_ADDRESS must be set as an environment variable to the publicly
                  accessible IP address of this cloud instance.

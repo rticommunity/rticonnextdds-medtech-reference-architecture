@@ -4,7 +4,9 @@ This scenario demonstrates WAN communication when one DomainParticipant is reach
 
 The *Passive* RTI Routing Service listens for incoming communications. The *Active* RTI Routing Service uses the known public address and port of the *Passive* side to initiate discovery.
 
-In this scenario, only Domain 1 is secured. Operating room applications from Module 01 run in non-secured mode locally on Domain 0, while WAN communication uses authentication and encryption on Domain 1. In a production deployment, you may choose to secure the local traffic as well or just the remote traffic as demonstrated here.
+Security is optional. When enabled, both Routing Service participants are secured: Domain 0 uses `OperationalDomain` and Domain 1 uses `TeleopWanDomain`. Both profiles require authentication and protect RTPS traffic; their topic-level protection differs. See the [security documentation](../../system/security/README.md) for details.
+
+For secure mode, append `-s` to each Module 01 and Routing Service launch below. Otherwise, run all participants without `-s`.
 
 Make sure the shared setup in the root [Quick Start](../../README.md#quick-start) section is complete and that Module 01 is already working before you try this scenario.
 
@@ -89,7 +91,7 @@ In a new terminal on the *Passive* side:
 
 ```bash
 # From the repository root
-python3 launch.py 03-remote-teleoperation RsPassive [-s]
+python3 launch.py 03-remote-teleoperation RsPassive
 ```
 
 ### 4. Launch Active Routing Service
@@ -98,7 +100,7 @@ In a new terminal on the *Active* side:
 
 ```bash
 # From the repository root
-python3 launch.py 03-remote-teleoperation RsActive [-s]
+python3 launch.py 03-remote-teleoperation RsActive
 ```
 
 ### 5. Observe Communication

@@ -25,7 +25,7 @@ inability to use the software. -->
                 </domains>
                 <subscribe>
                     <topics>
-                        <topic>t/Vitals</topic>
+                        <topic>t/patient/vitals</topic>
                     </topics>
                 </subscribe>
             </allow_rule>

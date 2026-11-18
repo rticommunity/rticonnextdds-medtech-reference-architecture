@@ -1,0 +1,57 @@
+#
+# (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+#
+# RTI grants Licensee a license to use, modify, compile, and create derivative
+# works of the software solely for use with RTI Connext DDS.  Licensee may
+# redistribute copies of the software provided that all such copies are
+# subject to this license. The software is provided "as is", with no warranty
+# of any type, including any warranty for fitness for any purpose. RTI is
+# under no obligation to maintain or support the software.  RTI shall not be
+# liable for any incidental or consequential damages arising out of the use or
+# inability to use the software.
+
+#
+# OpenSSL Certificate Authority configuration file.
+
+####################################################################
+[ ca ]
+default_ca = CA_default
+
+####################################################################
+[ CA_default ]
+dir                 = .
+certificate         = $dir/certs/{{ ca_name }}/{{ ca_name }}.crt
+private_key         = $dir/private/{{ ca_name }}.key
+new_certs_dir       = $dir/newcerts
+database            = $dir/index.txt
+serial              = $dir/serial
+unique_subject      = no
+default_days        = 7300
+default_crl_days    = 3650
+default_md          = sha256
+policy              = policy_match
+
+[ policy_match ]
+countryName         = match
+stateOrProvinceName = match
+organizationName    = match
+emailAddress        = optional
+commonName          = optional
+
+[ req ]
+prompt              = no
+distinguished_name  = req_distinguished_name
+
+[ req_distinguished_name ]
+countryName         = {{ country }}
+stateOrProvinceName = {{ state }}
+organizationName    = {{ org_name }}
+commonName          = {{ common_name }}
+emailAddress        = {{ email }}
+
+[ v3_ca ]
+# CA certificate extensions used by `openssl ca`
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints       = critical, CA:true
+keyUsage               = critical, digitalSignature, cRLSign, keyCertSign

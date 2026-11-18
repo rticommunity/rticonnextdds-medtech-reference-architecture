@@ -17,6 +17,7 @@ in this directory can ``from scripts.test_utils import …`` directly.
 
 from __future__ import annotations
 
+import shutil
 import sys
 from pathlib import Path
 
@@ -32,6 +33,22 @@ sys.path.insert(
 MODULE_DIR = Path(__file__).resolve().parent.parent  # modules/02-record-playback
 REPO_ROOT = MODULE_DIR.parent.parent  # repo root
 MODULE_01_DIR = MODULE_DIR.parent / "01-operating-room"
-SYSTEM_ARCH_DIR = REPO_ROOT / "system_arch"
+SYSTEM_DIR = REPO_ROOT / "system"
 
-RECORDING_DIR = MODULE_DIR / "or_recording"
+OPERATOR_RECORDING_DIR = MODULE_DIR / "or_recording"
+
+
+def prepare_test_recording_workspace(workspace: Path) -> Path:
+    """Copy the service configurations into an isolated per-test workspace."""
+    operator_recording_dir = OPERATOR_RECORDING_DIR.resolve()
+    test_recording_dir = (workspace / "or_recording").resolve()
+    if (
+        test_recording_dir == operator_recording_dir
+        or operator_recording_dir in test_recording_dir.parents
+    ):
+        raise ValueError("Test recording workspace must not use the operator recording directory")
+
+    workspace.mkdir(parents=True, exist_ok=True)
+    for config_name in ("RecordingServiceConfiguration.xml", "ReplayServiceConfiguration.xml"):
+        shutil.copy2(MODULE_DIR / config_name, workspace / config_name)
+    return workspace

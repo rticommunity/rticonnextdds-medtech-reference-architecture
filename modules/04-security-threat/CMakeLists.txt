@@ -53,4 +53,4 @@ target_link_libraries(threatTypes
 )
 
 # Build Applications
-add_custom_target(module-04 DEPENDS)
+add_custom_target(module-04 DEPENDS threatTypesPy refArchTypesPy refArchTypesXml)

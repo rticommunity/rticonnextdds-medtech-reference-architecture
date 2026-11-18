@@ -1,3 +1,15 @@
+#
+# (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+#
+# RTI grants Licensee a license to use, modify, compile, and create derivative
+# works of the software solely for use with RTI Connext DDS.  Licensee may
+# redistribute copies of the software provided that all such copies are
+# subject to this license. The software is provided "as is", with no warranty
+# of any type, including any warranty for fitness for any purpose. RTI is
+# under no obligation to maintain or support the software.  RTI shall not be
+# liable for any incidental or consequential damages arising out of the use or
+# inability to use the software.
+
 # ==========================================================================
 # RTI MedTech Reference Architecture — Multi-stage Dockerfile
 #
@@ -5,12 +17,12 @@
 #   connext-base  — Ubuntu 24.04 + Connext DDS via apt
 #   build-base    — Python + C++ dependencies
 #   build         — CMake configure + build + security artifacts
-#   test          — Pytest, Xvfb for headless testing
+#   test          — Pytest for headless browser-mode testing
 #
 # RTI license file is NOT baked into the image.
 # Mount it at runtime via -v:
 #   docker run --rm \
-#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
+#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_license.dat:ro \
 #     medtech-test
 #
 # Build targets (from repo root):
@@ -19,18 +31,18 @@
 #
 # Run all tests:
 #   docker run --rm \
-#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
+#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_license.dat:ro \
 #     medtech-test
 #
 # Run specific tests:
 #   docker run --rm \
 #     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
-#     medtech-test pytest modules/01-operating-room/tests/test_types.py -v
+#     medtech-test system/tests -v
 # ==========================================================================
 
 # Shared build args (global defaults).
 ARG CONNEXT_VERSION=7.7.0
-ARG PYTHON_VERSION=3.10
+ARG PYTHON_VERSION=3.11
 
 # ------------------------------------------------------------------
 # Stage 1: Connext base
@@ -49,7 +61,6 @@ ENV RTI_LICENSE_FILE=/opt/rti.com/rti_license.dat
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl gnupg \
         cmake g++ make pkg-config \
-        libgtkmm-3.0-dev \
         git \
     && rm -rf /var/lib/apt/lists/*
 
@@ -65,12 +76,19 @@ RUN curl -sSL -o /usr/share/keyrings/rti-official-archive.gpg \
     && apt-get update
 
 # Install Connext DDS (accept license non-interactively)
-RUN echo "rti-connext-dds-${CONNEXT_VERSION}-common rti-connext-dds-${CONNEXT_VERSION}/license/accepted select true" \
+COPY pyproject.toml /tmp/medtech-pyproject.toml
+RUN version="$(sed -n 's/^[[:space:]]*"rti\.connext==\([0-9.]*\)",[[:space:]]*$/\1/p' /tmp/medtech-pyproject.toml)" \
+    && case "$version" in \
+        "${CONNEXT_VERSION}") patch="${version}.0" ;; \
+        "${CONNEXT_VERSION}".*) patch="$version" ;; \
+        *) echo "Connext release does not match the Python pin: $version" >&2; exit 1 ;; \
+    esac \
+    && echo "rti-connext-dds-${CONNEXT_VERSION}-common rti-connext-dds-${CONNEXT_VERSION}/license/accepted select true" \
         | debconf-set-selections \
     && apt-get install -y --no-install-recommends \
-    rti-connext-dds-${CONNEXT_VERSION}-lib-dev \
-    rti-connext-dds-${CONNEXT_VERSION}-rtiddsgen \
-    rti-connext-dds-${CONNEXT_VERSION}-services-all \
+    "rti-connext-dds-${CONNEXT_VERSION}-lib-dev=${patch}-*" \
+    "rti-connext-dds-${CONNEXT_VERSION}-rtiddsgen=${patch}-*" \
+    "rti-connext-dds-${CONNEXT_VERSION}-services-all=${patch}-*" \
     && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------------
@@ -84,14 +102,15 @@ ARG PYTHON_VERSION
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl gnupg \
         cmake g++ make pkg-config \
-        libgtkmm-3.0-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Python packages (enable deadsnakes for broader PYTHON_VERSION support)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        software-properties-common \
-    && add-apt-repository -y ppa:deadsnakes/ppa \
-    && apt-get update && apt-get install -y --no-install-recommends \
+# Ubuntu 24.04 provides Python 3.12; add deadsnakes only for other versions.
+RUN apt-get update \
+    && if [ "${PYTHON_VERSION}" != "3.12" ]; then \
+        apt-get install -y --no-install-recommends software-properties-common \
+        && add-apt-repository -y ppa:deadsnakes/ppa; \
+    fi \
+    && apt-get install -y --no-install-recommends \
         python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -101,12 +120,12 @@ RUN python${PYTHON_VERSION} -m venv ${VIRTUAL_ENV}
 ENV PATH=${VIRTUAL_ENV}/bin:${PATH}
 
 WORKDIR /workspace
-COPY requirements*.txt ./
+# Keep the dependency layer keyed only by project metadata and the committed lock.
+COPY pyproject.toml uv.lock ./
 
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir \
-        rti.connext~=${CONNEXT_VERSION}.0 \
-        -r requirements-dev.txt
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir uv==0.13.8 \
+    && uv sync --active --locked --no-dev --extra dev --no-install-project
 
 # ------------------------------------------------------------------
 # Stage 3: Build C++ modules + security artifacts
@@ -116,11 +135,15 @@ FROM build-base AS build
 WORKDIR /workspace
 COPY . .
 
-# Build project with CMake
-RUN eval $(rtienv) && python${PYTHON_VERSION} build.py -DRTICONNEXTDDS_VERSION=${CONNEXT_VERSION} -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+# Check the locked Python API against this image's SDK, then build with CMake.
+RUN /bin/bash -ec 'set -- "$NDDSHOME"/resource/scripts/rtisetenv_*.bash; \
+    if [[ $# != 1 || ! -f $1 ]]; then echo "Expected one Connext environment script" >&2; exit 1; fi; \
+    source "$1"; \
+    python resource/python/scripts/check_connext_install.py; \
+    python build.py -DRTICONNEXTDDS_VERSION="$CONNEXT_VERSION" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON'
 
 # Generate security artifacts (certificates, signed governance/permissions)
-RUN python${PYTHON_VERSION} system_arch/security/setup_security.py --force
+RUN python${PYTHON_VERSION} system/security/setup_security.py --force
 RUN python${PYTHON_VERSION} modules/04-security-threat/security/setup_threat_security.py --force
 
 # ------------------------------------------------------------------
@@ -129,16 +152,6 @@ RUN python${PYTHON_VERSION} modules/04-security-threat/security/setup_threat_sec
 FROM build AS test
 
 ARG DEBIAN_FRONTEND=noninteractive
-
-# Install only test runtime dependencies; Python is already installed in build.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        xvfb \
-        libegl1 libxkbcommon0 libgl1 libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Qt needs a display; Xvfb provides a virtual one
-ENV QT_QPA_PLATFORM=offscreen
-ENV DISPLAY=:99
 
 WORKDIR /workspace
 

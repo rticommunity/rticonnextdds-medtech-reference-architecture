@@ -68,16 +68,20 @@ inability to use the software. -->
             <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
 
             <!-- <topic> = DataWriter -->
-            <topic name="t/MotorControl" participant_ref="reps/dp/OperationalData">
-                <topic_name>t/MotorControl</topic_name>
-                <registered_type_name>SurgicalRobot::MotorControl</registered_type_name>
-                <!-- Using the same QoS profile we use in our applications -->
-                <datawriter_qos base_name="DataFlowLibrary::Command"/>
+            <topic name="t/robot/arm/control" participant_ref="reps/dp/OperationalData">
+                <topic_name>t/robot/arm/control</topic_name>
+                <registered_type_name>Robot::Arm::TeleopControl</registered_type_name>
+                <datawriter_qos base_name="DataFlowLibrary::Control"/>
+            </topic>
+            <topic name="t/robot/tool/control" participant_ref="reps/dp/OperationalData">
+                <topic_name>t/robot/tool/control</topic_name>
+                <registered_type_name>Robot::Tool::ParallelJawControl</registered_type_name>
+                <datawriter_qos base_name="DataFlowLibrary::Control"/>
             </topic>
 
-            <topic name="t/Vitals" participant_ref="reps/dp/OperationalData">
-                <topic_name>t/Vitals</topic_name>
-                <registered_type_name>PatientMonitor::Vitals</registered_type_name>
+            <topic name="t/patient/vitals" participant_ref="reps/dp/OperationalData">
+                <topic_name>t/patient/vitals</topic_name>
+                <registered_type_name>Patient::Vitals</registered_type_name>
                 <!-- Using the same QoS profile we use in our applications -->
                 <datawriter_qos base_name="DataFlowLibrary::Streaming"/>
             </topic>

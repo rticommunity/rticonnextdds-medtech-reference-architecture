@@ -1,462 +1,722 @@
 //
-// (c) 2024 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+// (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
 //
 // RTI grants Licensee a license to use, modify, compile, and create derivative
-// works of the software solely for use with RTI Connext DDS.  Licensee may
-// redistribute copies of the software provided that all such copies are
-// subject to this license. The software is provided "as is", with no warranty
-// of any type, including any warranty for fitness for any purpose. RTI is
-// under no obligation to maintain or support the software.  RTI shall not be
-// liable for any incidental or consequential damages arising out of the use or
-// inability to use the software.
+// works of the software solely for use with RTI Connext DDS. The software is
+// provided "as is", with no warranty of any type.
 
 #include <dds/core/QosProvider.hpp>
-#include <dds/sub/DataReader.hpp>
-#include <dds/sub/find.hpp>
+#include <dds/core/ddscore.hpp>
 #include <dds/pub/DataWriter.hpp>
 #include <dds/pub/find.hpp>
-#include <dds/core/ddscore.hpp>
-#include <rti/core/cond/AsyncWaitSet.hpp>
+#include <dds/sub/DataReader.hpp>
+#include <dds/sub/find.hpp>
 
-#include <thread>
+#include <algorithm>
+#include <array>
+#include <atomic>
 #include <chrono>
-#include <cstring>
-#include <gtkmm.h>
-#include <gdkmm/screen.h>
+#include <cmath>
+#include <ctime>
+#include <exception>
+#include <filesystem>
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <tuple>
+#include <vector>
 
-#include "Types.hpp"
+#include <rti_demo_ui/rti_demo_ui.hpp>
 
-#ifdef __APPLE__
-    #include "MacOsDockIcon.h"
-#endif
-
-#ifndef _WIN32
-    #include <glib-unix.h>
-#endif
+#include "DemoUiSupport.hpp"
+#include "HeartbeatPresence.hpp"
+#include "MedTech.hpp"
 
 using namespace DdsEntities::Constants;
+using namespace std::chrono_literals;
+using rti::demo::ui::Json;
 
-class SurgicalArmController {
+namespace {
+
+constexpr const char *ARM_ID = "arm-1";
+constexpr double MAX_LINEAR_SPEED = 0.05;
+constexpr double MAX_ANGULAR_SPEED = 0.5;
+constexpr double MAX_OPENING_RATE = 0.02;
+constexpr auto INPUT_TIMEOUT = 1500ms;
+constexpr auto CONTROL_PERIOD = 20ms;
+constexpr auto FEEDBACK_STALE = 500ms;
+
+struct UiCommand {
+    std::string action;
+    std::string axis;
+    std::string direction;
+};
+
+struct VelocityTarget {
+    double x = 0.0;
+    double y = 0.0;
+    double z = 0.0;
+    double angular_x = 0.0;
+    double angular_y = 0.0;
+    double angular_z = 0.0;
+    double jaw = 0.0;
+};
+
+std::string current_time()
+{
+    const auto now = std::time(nullptr);
+    std::tm local_time { };
+#ifdef _WIN32
+    localtime_s(&local_time, &now);
+#else
+    localtime_r(&now, &local_time);
+#endif
+    std::ostringstream result;
+    result << std::put_time(&local_time, "%H:%M:%S");
+    return result.str();
+}
+
+class ArmControllerLogic {
 public:
-    SurgicalArmController()
-            : current_status(Common::DeviceType::ARM_CONTROLLER,
-                             Common::DeviceStatuses::ON)
+    Device::DeviceStatuses status = Device::DeviceStatuses::ON;
+
+    void start_demo()
     {
-        // Initialize Connext entities
-        initialize_connext();
+        if (status != Device::DeviceStatuses::ON)
+            return;
+        demo_motion_enabled_ = true;
+        demo_phase_ = 0;
+        demo_phase_tick_ = 0;
     }
 
-    void run(int argc, char const *argv[])
+    void stop_demo()
     {
-        // Start threads
-        std::thread hb_thread(&SurgicalArmController::write_hb, this);
-        std::thread play_thread(&SurgicalArmController::playing, this);
-        waitset_command.start();
-        write_status();
+        demo_motion_enabled_ = false;
+    }
 
-        // Run GTK UI
-        app = Gtk::Application::create("armcontroller.armcontroller");
-        app->signal_activate().connect(
-                sigc::mem_fun(*this, &SurgicalArmController::ui_setup));
+    void stop_manual()
+    {
+        held_axes_.clear();
+    }
 
-#ifndef _WIN32
-        // Route SIGINT/SIGTERM through the GLib main loop so GTK functions
-        // can be called safely from the callback.
-        g_unix_signal_add(
-                SIGINT,
-                [](gpointer data) -> gboolean {
-                    static_cast<SurgicalArmController *>(data)
-                            ->window_close_from_signal();
-                    return G_SOURCE_REMOVE;
-                },
-                this);
-        g_unix_signal_add(
-                SIGTERM,
-                [](gpointer data) -> gboolean {
-                    static_cast<SurgicalArmController *>(data)
-                            ->window_close_from_signal();
-                    return G_SOURCE_REMOVE;
-                },
-                this);
-#endif
+    void apply_device_command(Device::DeviceCommands command)
+    {
+        if (command == Device::DeviceCommands::START) {
+            status = Device::DeviceStatuses::ON;
+        } else if (command == Device::DeviceCommands::PAUSE) {
+            status = Device::DeviceStatuses::PAUSED;
+            stop_demo();
+            stop_manual();
+        } else {
+            status = Device::DeviceStatuses::OFF;
+            stop_demo();
+            stop_manual();
+        }
+    }
 
-        app->run(argc, const_cast<char **>(argv));
+    bool apply_manual(const std::string &axis, const std::string &direction)
+    {
+        stop_demo();
+        if (direction == "STOPPED") {
+            return held_axes_.erase(axis) > 0;
+        }
+        const double signed_direction = direction == "POSITIVE" ? 1.0 : -1.0;
+        const auto now = std::chrono::steady_clock::now();
+        const auto found = held_axes_.find(axis);
+        const bool changed = found == held_axes_.end()
+                || found->second.direction != signed_direction;
+        held_axes_[axis] = { signed_direction, now };
+        return changed;
+    }
 
-        // Join threads before exiting
-        hb_thread.join();
-        play_thread.join();
+    std::vector<std::string> expire_manual_inputs(
+            std::chrono::steady_clock::time_point now)
+    {
+        std::vector<std::string> expired;
+        for (auto held = held_axes_.begin(); held != held_axes_.end();) {
+            if (now - held->second.last_refresh > INPUT_TIMEOUT) {
+                expired.push_back(held->first);
+                held = held_axes_.erase(held);
+            } else {
+                ++held;
+            }
+        }
+        return expired;
+    }
+
+    VelocityTarget rates_for_tick()
+    {
+        if (status != Device::DeviceStatuses::ON)
+            return { };
+        if (demo_motion_enabled_)
+            return next_demo_rates();
+
+        VelocityTarget target;
+        for (const auto &[axis, held] : held_axes_) {
+            if (axis == "X")
+                target.x += held.direction * MAX_LINEAR_SPEED;
+            else if (axis == "Y")
+                target.y += held.direction * MAX_LINEAR_SPEED;
+            else if (axis == "Z")
+                target.z += held.direction * MAX_LINEAR_SPEED;
+            else if (axis == "ANGULAR_X")
+                target.angular_x += held.direction * MAX_ANGULAR_SPEED;
+            else if (axis == "ANGULAR_Y")
+                target.angular_y += held.direction * MAX_ANGULAR_SPEED;
+            else if (axis == "ANGULAR_Z")
+                target.angular_z += held.direction * MAX_ANGULAR_SPEED;
+            else if (axis == "JAW")
+                target.jaw += held.direction * MAX_OPENING_RATE;
+        }
+        normalize_group(target.x, target.y, target.z, MAX_LINEAR_SPEED);
+        normalize_group(target.angular_x,
+                        target.angular_y,
+                        target.angular_z,
+                        MAX_ANGULAR_SPEED);
+        target.jaw =
+                std::clamp(target.jaw, -MAX_OPENING_RATE, MAX_OPENING_RATE);
+        return target;
+    }
+
+    bool demo_enabled() const
+    {
+        return demo_motion_enabled_;
     }
 
 private:
-    // Connext entities
-    dds::pub::DataWriter<Common::DeviceStatus> status_writer = dds::core::null;
-    dds::pub::DataWriter<Common::DeviceHeartbeat> hb_writer = dds::core::null;
-    dds::pub::DataWriter<SurgicalRobot::MotorControl> arm_writer =
-            dds::core::null;
-    dds::sub::DataReader<Orchestrator::DeviceCommand> cmd_reader =
-            dds::core::null;
-    rti::core::cond::AsyncWaitSet waitset_command;
+    struct HeldAxis {
+        double direction;
+        std::chrono::steady_clock::time_point last_refresh;
+    };
 
-    Common::DeviceStatus current_status;
+    static constexpr std::array<VelocityTarget, 12> DEMO_PHASES = { {
+            { 0.018, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+            { 0.0, 0.018, 0.0, 0.0, 0.0, 0.0, 0.0 },
+            { 0.0, 0.0, 0.018, 0.0, 0.0, 0.0, 0.0 },
+            { -0.018, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+            { 0.0, 0.0, 0.0, 0.12, 0.0, 0.0, 0.0 },
+            { 0.0, 0.0, 0.0, 0.0, 0.12, 0.0, 0.0 },
+            { 0.0, 0.0, 0.0, 0.0, 0.0, 0.12, 0.0 },
+            { 0.0, 0.0, 0.0, -0.12, 0.0, 0.0, 0.0 },
+            { 0.0, 0.0, 0.0, 0.0, -0.12, 0.0, 0.0 },
+            { 0.0, 0.0, 0.0, 0.0, 0.0, -0.12, 0.0 },
+            { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01 },
+            { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.01 },
+    } };
+    static constexpr unsigned int DEMO_PHASE_TICKS = 25;
 
-    // GTK UI entities
-    Gtk::Window *window = nullptr;
-    Glib::RefPtr<Gtk::Application> app;
-    std::map<SurgicalRobot::Motors, Gtk::ToggleButton *> motor_play_btns;
-    std::map<SurgicalRobot::Motors, Gtk::Label *> motor_dir_labels;
-    std::map<std::string, sigc::connection> inc_dec_timers;
-    Gtk::TextView *console = nullptr;
+    bool demo_motion_enabled_ = false;
+    std::size_t demo_phase_ = 0;
+    unsigned int demo_phase_tick_ = 0;
+    std::map<std::string, HeldAxis> held_axes_;
 
-    // Initialize Connext participants, readers, and writers
-    void initialize_connext()
+    static void normalize_group(double &x, double &y, double &z, double limit)
     {
-        // We need to register the types before we start creating DDS entities
-        rti::domain::register_type<Orchestrator::DeviceCommand>();
-        rti::domain::register_type<Common::DeviceStatus>();
-        rti::domain::register_type<SurgicalRobot::MotorControl>();
-        rti::domain::register_type<Common::DeviceHeartbeat>();
-
-        // Connext will load XML files through the default provider from the
-        // NDDS_QOS_PROFILES environment variable
-        auto default_provider = dds::core::QosProvider::Default();
-
-        dds::domain::DomainParticipant participant =
-                default_provider.extensions().create_participant_from_config(
-                        std::string(ARM_CONTROLLER_DP));
-
-        // Initialize DataWriters
-        status_writer = rti::pub::find_datawriter_by_name<
-                dds::pub::DataWriter<Common::DeviceStatus>>(
-                participant,
-                std::string(STATUS_DW));
-        hb_writer = rti::pub::find_datawriter_by_name<
-                dds::pub::DataWriter<Common::DeviceHeartbeat>>(
-                participant,
-                std::string(HB_DW));
-        arm_writer = rti::pub::find_datawriter_by_name<
-                dds::pub::DataWriter<SurgicalRobot::MotorControl>>(
-                participant,
-                std::string(MOTOR_CONTROL_DW));
-
-        // Initialize DataReader
-        cmd_reader = rti::sub::find_datareader_by_name<
-                dds::sub::DataReader<Orchestrator::DeviceCommand>>(
-                participant,
-                std::string(DEVICE_COMMAND_DR));
-
-        // Setup command handling with a WaitSet
-        dds::sub::cond::ReadCondition command_read_condition(
-                cmd_reader,
-                dds::sub::status::DataState::any(),
-                [this]() { process_command(); });
-
-        waitset_command += command_read_condition;
-    }
-
-    // Publish heartbeat every 50ms
-    void write_hb()
-    {
-        while (current_status.status != Common::DeviceStatuses::OFF) {
-            Common::DeviceHeartbeat hb(Common::DeviceType::ARM_CONTROLLER);
-            hb_writer.write(hb);
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        const double magnitude = std::sqrt(x * x + y * y + z * z);
+        if (magnitude > limit) {
+            const double scale = limit / magnitude;
+            x *= scale;
+            y *= scale;
+            z *= scale;
         }
     }
 
-    // Publish status
-    void write_status()
+    VelocityTarget next_demo_rates()
     {
-        status_writer.write(current_status);
-    }
-
-    // Write motor command
-    void write_command(SurgicalRobot::Motors motor,
-                       SurgicalRobot::MotorDirections dir)
-    {
-        if (current_status.status == Common::DeviceStatuses::ON) {
-            SurgicalRobot::MotorControl sample(motor, dir);
-            arm_writer.write(sample);
+        const auto target = DEMO_PHASES[demo_phase_];
+        if (++demo_phase_tick_ >= DEMO_PHASE_TICKS) {
+            demo_phase_tick_ = 0;
+            if (++demo_phase_ >= DEMO_PHASES.size())
+                demo_phase_ = 0;
         }
-    }
-
-    // Publish random motor controls for the motors that have been marked as
-    // playing
-    void playing()
-    {
-        while (current_status.status != Common::DeviceStatuses::OFF) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            for (const auto &btn : motor_play_btns) {
-                if (btn.second->get_active()) {
-                    write_command(btn.first,
-                                  static_cast<SurgicalRobot::MotorDirections>(
-                                          rand() % 3));
-                }
-            }
-        }
-    }
-
-    // Process received device commands from Orchestrator
-    void process_command()
-    {
-        dds::sub::LoanedSamples<Orchestrator::DeviceCommand> samples =
-                cmd_reader.take();
-
-        for (const auto &sample : samples) {
-            if (sample.info().valid()) {
-                if (sample.data().command
-                    == Orchestrator::DeviceCommands::PAUSE) {
-                    log_alert("Received PAUSE Command from Orchestrator");
-                    current_status.status = Common::DeviceStatuses::PAUSED;
-                } else if (sample.data().command
-                           == Orchestrator::DeviceCommands::START) {
-                    log_alert("Received START Command from Orchestrator");
-                    current_status.status = Common::DeviceStatuses::ON;
-                } else {  // shutdown
-                    log_alert("Received SHUTDOWN Command from Orchestrator");
-                    std::cout << "Arm Controller shutting down" << std::endl;
-                    current_status.status = Common::DeviceStatuses::OFF;
-                    app->quit();
-                }
-            }
-        }
-
-        write_status();
-    }
-
-    // Logic for play all and stop all
-    void set_all(bool play_all)
-    {
-        if (play_all)
-            log_alert("Playing All");
-        else
-            log_alert("Stopping All");
-
-        for (auto &btn : motor_play_btns) {
-            btn.second->set_active(play_all);
-        }
-    }
-
-    // Setup UI
-    void ui_setup()
-    {
-        // Load CSS stylesheet
-        auto css_provider = Gtk::CssProvider::create();
-        try {
-            css_provider->load_from_path("ui/armcontroller.css");
-        } catch (const Glib::Error &e) {
-            std::cerr << "Warning: could not load armcontroller.css: "
-                      << e.what() << std::endl;
-        }
-        Gtk::StyleContext::add_provider_for_screen(
-                Gdk::Screen::get_default(),
-                css_provider,
-                GTK_STYLE_PROVIDER_PRIORITY_USER);
-
-        auto builder = Gtk::Builder::create_from_file("ui/armcontroller.glade");
-        builder->get_widget<Gtk::Window>("window", window);
-
-        // Load RTI logo into header and set as dock/taskbar icon
-        {
-            Gtk::Box *hdr = nullptr;
-            builder->get_widget<Gtk::Box>("header_bar", hdr);
-            try {
-                auto pb = Gdk::Pixbuf::create_from_file(
-                        "../../resource/images/rti_logo.png");
-                window->set_icon(pb);
-#ifdef __APPLE__
-                set_macos_dock_icon(pb);
-#endif
-                if (hdr) {
-                    auto scaled =
-                            pb->scale_simple(56, 56, Gdk::INTERP_BILINEAR);
-                    auto *logo = Gtk::manage(new Gtk::Image(scaled));
-                    logo->set_visible(true);
-                    logo->set_margin_end(8);
-                    hdr->pack_start(*logo, false, false, 0);
-                    hdr->reorder_child(*logo, 0);
-                }
-            } catch (...) {
-            }
-        }
-
-        window->signal_delete_event().connect(
-                sigc::mem_fun(*this, &SurgicalArmController::on_window_close));
-
-        builder->get_widget<Gtk::ToggleButton>(
-                "base_play",
-                motor_play_btns[SurgicalRobot::Motors::BASE]);
-        builder->get_widget<Gtk::ToggleButton>(
-                "shoulder_play",
-                motor_play_btns[SurgicalRobot::Motors::SHOULDER]);
-        builder->get_widget<Gtk::ToggleButton>(
-                "elbow_play",
-                motor_play_btns[SurgicalRobot::Motors::ELBOW]);
-        builder->get_widget<Gtk::ToggleButton>(
-                "wrist_play",
-                motor_play_btns[SurgicalRobot::Motors::WRIST]);
-        builder->get_widget<Gtk::ToggleButton>(
-                "hand_play",
-                motor_play_btns[SurgicalRobot::Motors::HAND]);
-
-        builder->get_widget<Gtk::TextView>("console", console);
-
-        // Force dark background on the text view (CSS alone is unreliable
-        // for GtkTextView internals in GTK3)
-        {
-            Gdk::RGBA bg, fg;
-            bg.set("#060F0A");
-            fg.set("#00CC66");
-            console->override_background_color(bg);
-            console->override_color(fg);
-            console->override_font(
-                    Pango::FontDescription("Courier New Bold 20"));
-        }
-
-        connect_buttons(builder);
-
-        app->add_window(*window);
-        window->set_visible(true);
-
-        log_alert("Started Arm Controller");
-    }
-
-    // Handle window close event
-    bool on_window_close(GdkEventAny *event)
-    {
-        std::cout << "Arm Controller UI closed, shutting down" << std::endl;
-        current_status.status = Common::DeviceStatuses::OFF;
-        return false;
-    }
-
-    // Close the window from within the GLib main loop (e.g. on SIGINT).
-    void window_close_from_signal()
-    {
-        if (window)
-            window->close();
-        else if (app)
-            app->quit();
-    }
-
-    // Connect buttons to their respective signal handlers.
-    // INC/DEC buttons:
-    //   - On press: deactivate AUTO for that joint, send one command
-    //   immediately,
-    //     then repeat at 20 Hz (every 50 ms) while held.
-    //   - On release: stop repeating.
-    //   - AUTO / PLAY ALL can re-enable automatic mode.
-    void connect_buttons(const Glib::RefPtr<Gtk::Builder> &builder)
-    {
-        auto connect_inc_dec = [this, &builder](const std::string &btn_name,
-                                                SurgicalRobot::Motors motor,
-                                                SurgicalRobot::MotorDirections
-                                                        direction) {
-            Gtk::Button *button = nullptr;
-            builder->get_widget<Gtk::Button>(btn_name, button);
-            if (!button)
-                return;
-
-            button->signal_button_press_event().connect(
-                    [this, motor, direction, btn_name](
-                            GdkEventButton *ev) -> bool {
-                        if (ev->button == 1) {
-                            // Deactivate AUTO for this joint
-                            motor_play_btns[motor]->set_active(false);
-                            // Send one command right away
-                            write_command(motor, direction);
-                            // Start 20 Hz repeat timer
-                            inc_dec_timers[btn_name] =
-                                    Glib::signal_timeout().connect(
-                                            [this, motor, direction]() -> bool {
-                                                write_command(motor, direction);
-                                                return true;
-                                            },
-                                            50);
-                        }
-                        return false;
-                    },
-                    false);
-
-            button->signal_button_release_event().connect(
-                    [this, btn_name](GdkEventButton *ev) -> bool {
-                        if (ev->button == 1) {
-                            auto it = inc_dec_timers.find(btn_name);
-                            if (it != inc_dec_timers.end()) {
-                                it->second.disconnect();
-                                inc_dec_timers.erase(it);
-                            }
-                        }
-                        return false;
-                    },
-                    false);
-        };
-
-        connect_inc_dec("base_inc",
-                        SurgicalRobot::Motors::BASE,
-                        SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec("base_dec",
-                        SurgicalRobot::Motors::BASE,
-                        SurgicalRobot::MotorDirections::DECREMENT);
-        connect_inc_dec("shoulder_inc",
-                        SurgicalRobot::Motors::SHOULDER,
-                        SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec("shoulder_dec",
-                        SurgicalRobot::Motors::SHOULDER,
-                        SurgicalRobot::MotorDirections::DECREMENT);
-        connect_inc_dec("elbow_inc",
-                        SurgicalRobot::Motors::ELBOW,
-                        SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec("elbow_dec",
-                        SurgicalRobot::Motors::ELBOW,
-                        SurgicalRobot::MotorDirections::DECREMENT);
-        connect_inc_dec("wrist_inc",
-                        SurgicalRobot::Motors::WRIST,
-                        SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec("wrist_dec",
-                        SurgicalRobot::Motors::WRIST,
-                        SurgicalRobot::MotorDirections::DECREMENT);
-        connect_inc_dec("hand_inc",
-                        SurgicalRobot::Motors::HAND,
-                        SurgicalRobot::MotorDirections::INCREMENT);
-        connect_inc_dec("hand_dec",
-                        SurgicalRobot::Motors::HAND,
-                        SurgicalRobot::MotorDirections::DECREMENT);
-
-        Gtk::Button *playall = nullptr;
-        builder->get_widget<Gtk::Button>("playall", playall);
-        if (playall) {
-            playall->signal_clicked().connect([this]() { set_all(true); });
-        }
-
-        Gtk::Button *stopall = nullptr;
-        builder->get_widget<Gtk::Button>("stopall", stopall);
-        if (stopall) {
-            stopall->signal_clicked().connect([this]() { set_all(false); });
-        }
-    }
-
-    // Print message to the alerts console in the UI
-    void log_alert(const std::string &msg)
-    {
-        Glib::RefPtr<Gtk::TextBuffer> buffer = console->get_buffer();
-        Gtk::TextBuffer::iterator iter = buffer->end();
-
-        std::time_t now = std::time(nullptr);
-        std::tm *local_time = std::localtime(&now);
-        char time_str[100];
-        std::strftime(time_str,
-                      sizeof(time_str),
-                      "%Y-%m-%d %H:%M:%S",
-                      local_time);
-
-        std::stringstream ss;
-        ss << "\n" << time_str << " - " << msg;
-        buffer->insert(iter, ss.str());
+        return target;
     }
 };
 
-int main(int argc, char const *argv[])
+struct ArmFeedback {
+    std::string readiness = "NOT_READY";
+    std::chrono::steady_clock::time_point telemetry_received;
+    bool has_status = false;
+    bool has_telemetry = false;
+    bool has_pose = false;
+    bool has_jaw_width = false;
+    Geometry::Pose pose;
+    double jaw_width = 0.0;
+
+    Json view() const
+    {
+        const auto now = std::chrono::steady_clock::now();
+        const bool telemetry_fresh =
+                has_telemetry && now - telemetry_received <= FEEDBACK_STALE;
+        Json pose_json = nullptr;
+        if (has_pose) {
+            pose_json = {
+                { "position",
+                  { { "x", pose.position.x },
+                    { "y", pose.position.y },
+                    { "z", pose.position.z } } },
+                { "orientation",
+                  { { "x", pose.orientation.x },
+                    { "y", pose.orientation.y },
+                    { "z", pose.orientation.z },
+                    { "w", pose.orientation.w } } },
+            };
+        }
+        return {
+            { "readiness", readiness },
+            { "status_known", has_status },
+            { "position", has_pose ? pose_json.at("position") : Json(nullptr) },
+            { "orientation",
+              has_pose ? pose_json.at("orientation") : Json(nullptr) },
+            { "opening_width",
+              has_jaw_width ? Json(jaw_width) : Json(nullptr) },
+            { "freshness", { { "telemetry", telemetry_fresh } } },
+        };
+    }
+};
+
+Json arm_controller_view(const ArmControllerLogic &logic,
+                         const Json &logs,
+                         const ArmFeedback &feedback)
 {
-    SurgicalArmController arm_controller;
-    arm_controller.run(argc, argv);
-    return 0;
+    const std::string status = logic.status == Device::DeviceStatuses::ON ? "ON"
+            : logic.status == Device::DeviceStatuses::PAUSED ? "PAUSED"
+                                                             : "OFF";
+    const bool enabled = logic.status == Device::DeviceStatuses::ON;
+    const std::string readiness_badge = feedback.has_status
+            ? feedback.readiness + " · LAST KNOWN"
+            : "UNKNOWN";
+    Json jog_controls = Json::array();
+    const std::array<std::tuple<std::string, std::string, std::string>, 14>
+            controls = { {
+                    { "X", "X −", "NEGATIVE" },
+                    { "X", "X +", "POSITIVE" },
+                    { "Y", "Y −", "NEGATIVE" },
+                    { "Y", "Y +", "POSITIVE" },
+                    { "Z", "Z −", "NEGATIVE" },
+                    { "Z", "Z +", "POSITIVE" },
+                    { "ANGULAR_X", "ROTATE X −", "NEGATIVE" },
+                    { "ANGULAR_X", "ROTATE X +", "POSITIVE" },
+                    { "ANGULAR_Y", "ROTATE Y −", "NEGATIVE" },
+                    { "ANGULAR_Y", "ROTATE Y +", "POSITIVE" },
+                    { "ANGULAR_Z", "ROTATE Z −", "NEGATIVE" },
+                    { "ANGULAR_Z", "ROTATE Z +", "POSITIVE" },
+                    { "JAW", "CLOSE JAWS", "NEGATIVE" },
+                    { "JAW", "OPEN JAWS", "POSITIVE" },
+            } };
+    for (const auto &[axis, label, direction] : controls) {
+        jog_controls.push_back({ { "type", "hold" },
+                                 { "label", label },
+                                 { "className", "tool-control" },
+                                 { "command", "teleop" },
+                                 { "axis", axis },
+                                 { "direction", direction },
+                                 { "disabled", !enabled } });
+    }
+    Json demo_controls = Json::array({ { { "type", "button" },
+                                         { "label", "RUN DEMO" },
+                                         { "command", "start-demo" },
+                                         { "payload", Json::object() },
+                                         { "style", "primary" },
+                                         { "disabled", !enabled } },
+                                       { { "type", "button" },
+                                         { "label", "STOP MOTION" },
+                                         { "command", "stop-demo" },
+                                         { "payload", Json::object() },
+                                         { "style", "danger" } } });
+    Json control_groups = Json::array();
+    control_groups.push_back(
+            { { "title", "BASE X / Y MOTION" },
+              { "layout", "planar-pad" },
+              { "controls",
+                Json::array({ Json { { "type", "dpad" },
+                                     { "command", "teleop" },
+                                     { "disabled", !enabled } } }) } });
+    control_groups.push_back({ { "title", "BASE TRANSLATION / ROTATION" },
+                               { "layout", "tool-controls" },
+                               { "controls", jog_controls } });
+    control_groups.push_back({ { "title", "DEMO MOTION" },
+                               { "layout", "demo-controls" },
+                               { "controls", demo_controls } });
+    return {
+        { "kind", "arm-controller" },
+        { "title", "Arm Controller" },
+        { "header_badges",
+          Json::array({ { { "label", "Command QoS" }, { "value", "ACTIVE" } },
+                        { { "label", "Control frame" },
+                          { "value", "BASE (+Z UP)" } },
+                        { { "label", "Arm readiness" },
+                          { "value", readiness_badge },
+                          { "tone",
+                            feedback.readiness == "READY" && feedback.has_status
+                                    ? "good"
+                                    : "warn" } } }) },
+        { "control_intro",
+          "Hold a direction for base-frame motion (+Z up). Release to command "
+          "zero." },
+        { "control_note",
+          "Linear rates use m/s; angular rates use rad/s. Jaw buttons command "
+          "signed gap rate in m/s." },
+        { "status", status },
+        { "feedback", feedback.view() },
+        { "control_groups", control_groups },
+        { "activity_title", "ALERTS" },
+        { "footer", false },
+        { "logs", logs },
+    };
+}
+
+std::string readiness_name(Robot::Arm::Readiness readiness)
+{
+    if (readiness == Robot::Arm::Readiness::READY)
+        return "READY";
+    if (readiness == Robot::Arm::Readiness::FAULT)
+        return "FAULT";
+    return "NOT_READY";
+}
+
+void publish_target(
+        dds::pub::DataWriter<Robot::Arm::TeleopControl> &teleop_writer,
+        dds::pub::DataWriter<Robot::Tool::ParallelJawControl> &tool_writer,
+        const VelocityTarget &target)
+{
+    teleop_writer.write(Robot::Arm::TeleopControl(
+            ARM_ID,
+            Geometry::Vector3(target.x, target.y, target.z),
+            Geometry::Vector3(target.angular_x,
+                              target.angular_y,
+                              target.angular_z)));
+    tool_writer.write(Robot::Tool::ParallelJawControl(ARM_ID, target.jaw));
+}
+
+class ArmControllerApp {
+public:
+    ArmControllerApp(rti::demo::ui::DemoUiApp &app,
+                     medtech::ui::CommandQueue<UiCommand> &commands,
+                     std::atomic<bool> &stopping)
+            : app_(app), commands_(commands), stopping_(stopping)
+    {
+        rti::domain::register_type<Device::Command>();
+        rti::domain::register_type<Device::Status>();
+        rti::domain::register_type<Device::Heartbeat>();
+        rti::domain::register_type<Robot::Arm::TeleopControl>();
+        rti::domain::register_type<Robot::Tool::ParallelJawControl>();
+        rti::domain::register_type<Robot::Arm::Status>();
+        rti::domain::register_type<Robot::Arm::Telemetry>();
+
+        auto provider = dds::core::QosProvider::Default();
+        participant_ = provider.extensions().create_participant_from_config(
+                std::string(ARM_CONTROLLER_DP));
+        status_writer_ = rti::pub::find_datawriter_by_name<
+                dds::pub::DataWriter<Device::Status>>(participant_,
+                                                      std::string(STATUS_DW));
+        heartbeat_writer_ = rti::pub::find_datawriter_by_name<
+                dds::pub::DataWriter<Device::Heartbeat>>(participant_,
+                                                         std::string(HB_DW));
+        teleop_writer_ = rti::pub::find_datawriter_by_name<
+                dds::pub::DataWriter<Robot::Arm::TeleopControl>>(
+                participant_,
+                std::string(TELEOP_CONTROL_DW));
+        tool_writer_ = rti::pub::find_datawriter_by_name<
+                dds::pub::DataWriter<Robot::Tool::ParallelJawControl>>(
+                participant_,
+                std::string(TOOL_CONTROL_DW));
+        command_reader_ = rti::sub::find_datareader_by_name<
+                dds::sub::DataReader<Device::Command>>(
+                participant_,
+                std::string(DEVICE_COMMAND_DR));
+        arm_status_reader_ = rti::sub::find_datareader_by_name<
+                dds::sub::DataReader<Robot::Arm::Status>>(
+                participant_,
+                std::string(ARM_STATUS_DR));
+        arm_telemetry_reader_ = rti::sub::find_datareader_by_name<
+                dds::sub::DataReader<Robot::Arm::Telemetry>>(
+                participant_,
+                std::string(ARM_TELEMETRY_DR));
+
+        auto require_endpoint = [](const auto &endpoint, const auto &name) {
+            if (endpoint == dds::core::null) {
+                throw std::runtime_error(
+                        std::string(
+                                "ArmController DDS configuration is missing "
+                                "endpoint: ")
+                        + std::string(name));
+            }
+        };
+        require_endpoint(status_writer_, STATUS_DW);
+        require_endpoint(heartbeat_writer_, HB_DW);
+        require_endpoint(teleop_writer_, TELEOP_CONTROL_DW);
+        require_endpoint(tool_writer_, TOOL_CONTROL_DW);
+        require_endpoint(command_reader_, DEVICE_COMMAND_DR);
+        require_endpoint(arm_status_reader_, ARM_STATUS_DR);
+        require_endpoint(arm_telemetry_reader_, ARM_TELEMETRY_DR);
+    }
+
+    void run()
+    {
+        auto &app = app_;
+        auto &commands = commands_;
+        auto &stopping = stopping_;
+        participant_.enable();
+
+        medtech::operating_room::HeartbeatPublisher heartbeat(
+                heartbeat_writer_,
+                Device::DeviceType::ARM_CONTROLLER);
+        ArmControllerLogic logic;
+        ArmFeedback feedback;
+        Device::Status status(Device::DeviceType::ARM_CONTROLLER, logic.status);
+        status_writer_.write(status);
+        Json logs = Json::array();
+        auto update_view = [&]() {
+            app.set_data(arm_controller_view(logic, logs, feedback));
+        };
+        auto log = [&](const std::string &message,
+                       const std::string &level = "info") {
+            logs.push_back({ { "time", current_time() },
+                             { "message", message },
+                             { "level", level } });
+            if (logs.size() > 80)
+                logs.erase(logs.begin());
+            update_view();
+        };
+        update_view();
+        log("Arm Controller is online");
+        heartbeat.start();
+        auto now = std::chrono::steady_clock::now();
+        auto next_control = now;
+        auto next_ui_refresh = now;
+
+        while (!stopping.load() && !heartbeat.failed()
+               && logic.status != Device::DeviceStatuses::OFF) {
+            while (auto intent = commands.try_pop()) {
+                if (intent->action == "start-demo") {
+                    logic.start_demo();
+                    logic.stop_manual();
+                    log("Started bounded 3D demo motion", "ok");
+                } else if (intent->action == "stop-demo") {
+                    logic.stop_demo();
+                    log("Stopped demo motion");
+                } else if (intent->action == "teleop") {
+                    const bool changed =
+                            logic.apply_manual(intent->axis, intent->direction);
+                    if (!changed)
+                        continue;
+                    if (intent->direction == "STOPPED") {
+                        log("Released " + intent->axis + " jog");
+                    } else {
+                        log("Started " + intent->direction + " " + intent->axis
+                            + " jog");
+                    }
+                }
+            }
+
+            for (const auto &sample : command_reader_.take()) {
+                if (!sample.info().valid())
+                    continue;
+                logic.apply_device_command(sample.data().command);
+                status.status = logic.status;
+                status_writer_.write(status);
+                update_view();
+                log("Received a device command from Orchestrator");
+            }
+
+            for (const auto &sample : arm_status_reader_.take()) {
+                if (!sample.info().valid() || sample.data().arm_id != ARM_ID)
+                    continue;
+                feedback.readiness = readiness_name(sample.data().readiness);
+                feedback.has_status = true;
+            }
+            for (const auto &sample : arm_telemetry_reader_.take()) {
+                if (!sample.info().valid() || sample.data().arm_id != ARM_ID)
+                    continue;
+                const auto &telemetry = sample.data();
+                feedback.telemetry_received = std::chrono::steady_clock::now();
+                feedback.has_telemetry = true;
+                feedback.has_pose = telemetry.tcp_pose.has_value();
+                if (feedback.has_pose)
+                    feedback.pose = *telemetry.tcp_pose;
+                feedback.has_jaw_width = telemetry.parallel_jaw.has_value();
+                if (feedback.has_jaw_width)
+                    feedback.jaw_width = telemetry.parallel_jaw->opening_width;
+            }
+
+            now = std::chrono::steady_clock::now();
+            for (const auto &axis : logic.expire_manual_inputs(now)) {
+                log("Jog input timed out; stopped " + axis + " axis", "warn");
+            }
+            if (logic.status == Device::DeviceStatuses::ON
+                && now >= next_control) {
+                publish_target(teleop_writer_,
+                               tool_writer_,
+                               logic.rates_for_tick());
+                next_control = now + CONTROL_PERIOD;
+            }
+            if (now >= next_ui_refresh) {
+                update_view();
+                next_ui_refresh = now + 200ms;
+            }
+            std::this_thread::sleep_for(5ms);
+        }
+
+        heartbeat.stop();
+        if (heartbeat.failed())
+            throw std::runtime_error("Arm Controller heartbeat worker failed");
+        status.status = Device::DeviceStatuses::OFF;
+        status_writer_.write(status);
+        log("Arm Controller is shutting down");
+        app.stop();
+    }
+
+private:
+    rti::demo::ui::DemoUiApp &app_;
+    medtech::ui::CommandQueue<UiCommand> &commands_;
+    std::atomic<bool> &stopping_;
+    dds::domain::DomainParticipant participant_ = dds::core::null;
+    dds::pub::DataWriter<Device::Status> status_writer_ = dds::core::null;
+    dds::pub::DataWriter<Device::Heartbeat> heartbeat_writer_ = dds::core::null;
+    dds::pub::DataWriter<Robot::Arm::TeleopControl> teleop_writer_ =
+            dds::core::null;
+    dds::pub::DataWriter<Robot::Tool::ParallelJawControl> tool_writer_ =
+            dds::core::null;
+    dds::sub::DataReader<Device::Command> command_reader_ = dds::core::null;
+    dds::sub::DataReader<Robot::Arm::Status> arm_status_reader_ =
+            dds::core::null;
+    dds::sub::DataReader<Robot::Arm::Telemetry> arm_telemetry_reader_ =
+            dds::core::null;
+};
+
+void configure_ui(rti::demo::ui::DemoUiApp &app,
+                  medtech::ui::CommandQueue<UiCommand> &commands)
+{
+    using namespace rti::demo::ui;
+    const auto empty_object = Json { { "type", "object" },
+                                     { "properties", Json::object() },
+                                     { "additionalProperties", false } };
+    app.register_command(
+            "start-demo",
+            CommandSchema(empty_object),
+            [&commands](const Json &) {
+                commands.push({ "start-demo", { }, { } });
+                return Json { { "message", "Demo trajectory started" } };
+            });
+    app.register_command(
+            "stop-demo",
+            CommandSchema(empty_object),
+            [&commands](const Json &) {
+                commands.push({ "stop-demo", { }, { } });
+                return Json { { "message", "Demo motion stopped" } };
+            });
+    app.register_command(
+            "teleop",
+            CommandSchema(
+                    { { "type", "object" },
+                      { "properties",
+                        { { "axis",
+                            { { "type", "string" },
+                              { "enum",
+                                Json::array({ "X",
+                                              "Y",
+                                              "Z",
+                                              "ANGULAR_X",
+                                              "ANGULAR_Y",
+                                              "ANGULAR_Z",
+                                              "JAW" }) } } },
+                          { "direction",
+                            { { "type", "string" },
+                              { "enum",
+                                Json::array({ "POSITIVE",
+                                              "NEGATIVE",
+                                              "STOPPED" }) } } } } },
+                      { "required", Json::array({ "axis", "direction" }) },
+                      { "additionalProperties", false } }),
+            [&commands](const Json &payload) {
+                commands.push({ "teleop",
+                                payload.at("axis"),
+                                payload.at("direction") });
+                return Json { { "message", "Teleoperation intent queued" } };
+            });
+}
+
+}  // namespace
+
+int main()
+{
+    using namespace rti::demo::ui;
+    try {
+        DemoUiApp app("Arm Controller",
+                      0,
+                      "127.0.0.1",
+                      std::filesystem::path(RTI_DEMO_UI_WEB_ROOT),
+                      Theme::dark,
+                      Layout::automatic,
+                      std::string("Arm Controller listening on"));
+        medtech::ui::CommandQueue<UiCommand> commands;
+        configure_ui(app, commands);
+        std::atomic<bool> stopping = false;
+        ArmControllerApp application(app, commands, stopping);
+        bool worker_failed = false;
+        std::thread dds_worker([&]() {
+            try {
+                application.run();
+            } catch (const std::runtime_error &error) {
+                // The UI loop may stop before the DDS worker observes shutdown.
+                if (medtech::ui::is_model_stopped_error(error)) {
+                    stopping.store(true);
+                } else {
+                    std::cerr << "ArmController DDS worker failed: "
+                              << error.what() << std::endl;
+                    worker_failed = true;
+                }
+            } catch (const std::exception &error) {
+                std::cerr << "ArmController DDS worker failed: " << error.what()
+                          << std::endl;
+                worker_failed = true;
+            } catch (...) {
+                std::cerr << "ArmController DDS worker failed with an unknown "
+                             "exception"
+                          << std::endl;
+                worker_failed = true;
+            }
+            if (worker_failed) {
+                stopping.store(true);
+                try {
+                    app.stop();
+                } catch (const std::exception &error) {
+                    std::cerr << "ArmController UI shutdown failed: "
+                              << error.what() << std::endl;
+                } catch (...) {
+                    std::cerr << "ArmController UI shutdown failed with an "
+                                 "unknown exception"
+                              << std::endl;
+                }
+            }
+        });
+        bool ui_succeeded = false;
+        try {
+            ui_succeeded = medtech::ui::run(app,
+                                            1400,
+                                            900,
+                                            medtech::ui::native_icon_path());
+        } catch (const std::exception &error) {
+            std::cerr << "ArmController UI failed: " << error.what()
+                      << std::endl;
+        } catch (...) {
+            std::cerr << "ArmController UI failed with an unknown exception"
+                      << std::endl;
+        }
+        stopping.store(true);
+        dds_worker.join();
+        return worker_failed || !ui_succeeded ? 1 : 0;
+    } catch (const std::exception &error) {
+        std::cerr << "ArmController setup failed: " << error.what()
+                  << std::endl;
+    } catch (...) {
+        std::cerr << "ArmController setup failed with an unknown exception"
+                  << std::endl;
+    }
+    return 1;
 }

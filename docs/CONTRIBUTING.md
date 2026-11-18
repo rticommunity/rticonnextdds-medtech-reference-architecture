@@ -24,9 +24,9 @@ contributors working from a fork.
 
 | Tool | Minimum Version | Notes |
 | --- | --- | --- |
-| Python | 3.10 | Use `python3.10` explicitly if multiple versions are installed |
-| RTI Connext DDS | 7.7.x | See [README.md](../README.md) for install instructions |
-| CMake | 3.17 | Required for C++ module builds |
+| Python | 3.11 | Use `python3.11` explicitly if multiple versions are installed |
+| RTI Connext DDS SDK | 7.7.0 | See [README.md](../README.md) for install and license instructions |
+| CMake | 3.18 | Required for C++ module builds and pinned SDK FetchContent integration |
 | Docker | Any recent | Optional; required only for containerised test runs |
 
 ---
@@ -40,8 +40,10 @@ Run these once after cloning the repository.
 python3 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
-# 2. Install all development dependencies
-pip install -r requirements-dev.txt
+# 2. Bootstrap uv and install the locked maintainer profile
+python -m pip install uv==0.13.8
+uv sync --active --locked --no-dev --extra maint
+python resource/python/scripts/check_connext_install.py
 
 # 3. Register git hooks so pre-commit runs automatically on every commit
 pre-commit install
@@ -50,9 +52,36 @@ pre-commit install
 After step 3, quality checks run automatically on every `git commit` — you do
 not need to invoke them manually.
 
+The `user`, `dev`, and `maint` extras compose runtime capabilities, tests, and
+maintainer tools respectively. The locked `rti.connext==7.7.0` Python API is
+installed by `uv sync`; do not install a second API from the SDK. Contributors
+can bootstrap uv through `python -m pip install '.[maint]'` as well; that
+initial pip install is not locked, so follow it with the locked sync above.
+Configure a valid runtime license using `RTI_LICENSE_FILE` as described in the
+root README before running Python DDS applications or licensed tests. After
+changing dependency metadata, run `uv lock` and review `uv.lock`; use
+`uv lock --check` to verify it is current. The package version in metadata is
+provisional and is not a release decision.
+
 ---
 
 ## Day-to-Day Workflow
+
+### Shared system contract
+
+Edit domain IDL under [system/idl](../system/idl/), included by `MedTech.idl`.
+Keep topic constants beside payloads and XML entity/service/security bindings
+consistent with the contract. Run `python build.py` to generate central C++,
+joined Python, and XML under
+`build/<CONNEXTDDS_ARCH>/system/generated/`; never edit generated files.
+The launcher and shared test bootstrap expose the generated Python path.
+
+Permanent tests protect intended behavior and workflows, not arguments for a
+design alternative. Prefer focused cases in existing tests for changed motion,
+command-loss hold/recovery, actual feedback, lifecycle, services, and security.
+Use browser verification for Scene3D motion/camera/fallback; native WebGL requires
+the optional companion and a supported platform. A fallback is not a passed
+3D rendering check.
 
 ### Manual checks (run anytime)
 
@@ -141,13 +170,35 @@ The pipeline has two CI jobs; `test` runs only after `lint` passes. A conditiona
 | Job | What it does |
 | --- | --- |
 | `lint` (Lint & Format) | Runs **all** pre-commit hooks across the repo (`pre-commit/action` with `--all-files`) — the same ruff, ruff-format, codespell, clang-format, rumdl, and hygiene hooks you run locally. |
-| `test` (Build & Test) | Installs Connext (apt) and Python deps, builds all C++ modules with `python build.py`, generates the system and Module 04 security artifacts, starts Xvfb, then runs the full suite from the repo root with `python -m pytest -v -m "not build_pipeline"` and uploads `results.xml`. |
+| `test` (Build & Test) | Installs Connext (apt) and Python deps, builds all C++ modules with `python build.py`, generates the system and Module 04 security artifacts, then runs the full suite from the repo root with `python -m pytest -v -m "not build_pipeline"` and uploads `results.xml`. |
 | `release` (Publish GitHub Release) | Validates the SemVer tag and publishes generated release notes. Pre-release tags are marked accordingly. |
 
 Because the `lint` job runs `pre-commit` itself, CI and your local hooks execute
 the **exact same** hook versions (pinned in `.pre-commit-config.yaml`). A clean
 local commit will therefore not produce lint failures in CI. See
 [Upgrading Ruff](#upgrading-ruff) for how the Ruff pin is managed.
+
+## Graphical-app architecture
+
+Graphical applications use RTI Demo UI for browser presentation, with an
+optional embedded-webview mode. Keep each demo's source flow recognizable:
+
+- Connext adapters own participant/entity setup, generated DDS types, topics,
+  security configuration, and translation of DDS samples and commands.
+- Small application models own use-case state and rules without depending on
+  the frontend.
+- Presentation maps application state to the shared web frontend and maps
+  validated UI commands back to application intents.
+
+This is a teaching-oriented separation, not a production framework. Keep
+Connext operations visible and avoid abstractions that obscure how DDS
+interacts with the medical-demo behavior.
+
+Python apps use asyncio as the RTI Demo UI owner loop; schedule cross-thread
+DDS updates onto that loop before mutating UI state. C++ apps should make
+thread ownership explicit: HTTP command handlers enqueue intents, a defined
+application/control thread performs DDS work, and the SDK's thread-safe model
+API carries state to the frontend.
 
 ## Testing CI Locally with act (Optional)
 
@@ -197,7 +248,7 @@ docker compose -f tests/docker/docker-compose.yml run --rm --build test
 
 # Run a specific test file
 docker compose -f tests/docker/docker-compose.yml run --rm --build test \
-    modules/01-operating-room/tests/test_types.py -v
+    system/tests -v
 ```
 
 > **Note:** With no arguments, the Docker test entrypoint runs `pytest` over the
@@ -245,10 +296,9 @@ governs both local hooks and CI: the `astral-sh/ruff-pre-commit` revision in
 | File | Setting to change | When |
 | --- | --- | --- |
 | `.pre-commit-config.yaml` | `rev: v<new-version>` under `astral-sh/ruff-pre-commit` | Every Ruff bump (this is the authoritative pin used by CI). |
-| `pyproject.toml` | `required-version = ">=<major.minor>"` | Only when raising the minimum supported version. |
-| `requirements-dev.txt` | `ruff>=<major.minor>` | Only when raising the minimum supported version. |
+| `pyproject.toml` | `required-version = ">=<major.minor>"` and maint dependency `ruff>=<major.minor>` | Only when raising the minimum supported version. |
 
-The `pyproject.toml` and `requirements-dev.txt` bounds are lower bounds for
+The `pyproject.toml` bounds are lower bounds for
 developers who run Ruff outside pre-commit; they do **not** need to change on
 every Ruff bump unless the new version introduces a breaking change to the
 configuration format.
@@ -266,9 +316,10 @@ pre-commit run --all-files
 
 # 4. Update the minimum version bounds only if appropriate
 #    pyproject.toml:      required-version = ">=<new-major.minor>"
-#    requirements-dev.txt: ruff>=<new-major.minor>
+#    pyproject.toml:      maint dependency ruff>=<new-major.minor>
+#    uv lock
 
 # 5. Commit everything together
-git add .pre-commit-config.yaml pyproject.toml requirements-dev.txt
+git add .pre-commit-config.yaml pyproject.toml uv.lock
 git commit -m "chore: bump Ruff to <new-version>"
 ```

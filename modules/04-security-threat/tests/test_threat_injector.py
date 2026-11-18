@@ -43,19 +43,22 @@ def _run_injector_probe(
       - "created": bool — whether the participant was created successfully
       - "matched": bool — whether publication_matched_status.current_count > 0
     """
-    from Types import Orchestrator
+    from MedTech import Device, Robot
 
     xml_files = env["NDDS_QOS_PROFILES"].split(";")
     provider = make_isolated_qos_provider(*xml_files)
 
     result = {"created": False, "matched": False}
     try:
-        register_type(Orchestrator.DeviceCommand)
+        register_type(Device.Status)
+        register_type(Device.Command)
+        register_type(Robot.Arm.TeleopControl)
         participant = provider.create_participant_from_config(dp_name)
         if participant is not None:
             result["created"] = True
+            participant.enable()
 
-            writer = dds.DataWriter(participant.find_datawriter("p/publisher::dw/DeviceCommand"))
+            writer = dds.DataWriter(participant.find_datawriter("p/publisher::dw/TeleopControl"))
             result["matched"] = wait_for_writer_match(writer, timeout_sec=timeout_sec)
     except dds.Error as exc:
         result["error"] = str(exc)
@@ -78,7 +81,7 @@ class TestInjectorUnsecure:
 
     def test_unsecure_injection_succeeds(self, or_pm_nonsecure, or_env_nonsecure, threat_env):
         """Unsecured injector should match unsecured OR apps."""
-        or_pm_nonsecure.start_app_ready("PatientSensor")
+        or_pm_nonsecure.start_app_ready("Arm")
 
         result = _run_injector_probe(
             threat_env[0],
@@ -100,9 +103,9 @@ class TestInjectorSecure:
 
     @pytest.fixture(autouse=True, scope="class")
     @classmethod
-    def _start_patient_sensor(cls, or_pm_secure_class):
-        """Launch PatientSensor once for all tests in this class."""
-        or_pm_secure_class.start_app_ready("PatientSensor")
+    def _start_arm(cls, or_pm_secure_class):
+        """Launch the TeleopControl subscriber once for all tests in this class."""
+        or_pm_secure_class.start_app_ready("Arm")
 
     def test_rogue_ca_injection_blocked(self, or_pm_secure_class, or_env_secure, threat_env):
         """Injector with rogue CA identity should not match secured OR apps."""

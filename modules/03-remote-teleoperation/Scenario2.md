@@ -4,7 +4,9 @@ This scenario demonstrates WAN communication when both DomainParticipants are be
 
 The *Active* Routing Services initiate discovery towards the public *Cloud* instance. Cloud Discovery Service facilitates discovery between both NAT-protected *Active* Routing Services, which in turn establishes peer-to-peer communication.
 
-In this scenario, only Domain 1 is secured. Operating room applications from Module 01 run in non-secured mode locally on Domain 0, while WAN communication uses authentication and encryption on Domain 1. In a production deployment, you may choose to secure the local traffic as well or just the remote traffic as demonstrated here.
+Security is optional. When enabled, both Routing Service participants are secured: Domain 0 uses `OperationalDomain` and Domain 1 uses `TeleopWanDomain`. Both profiles require authentication and protect RTPS traffic; their topic-level protection differs. See the [security documentation](../../system/security/README.md) for details.
+
+For secure mode, append `-s` to each Module 01, Routing Service, and Cloud Discovery Service launch below. Otherwise, run all participants without `-s`.
 
 Make sure the shared setup in the root [Quick Start](../../README.md#quick-start) section is complete and that Module 01 is already working before you try this scenario.
 
@@ -96,7 +98,7 @@ In a terminal on your cloud instance, run Cloud Discovery Service:
 
 ```bash
 # From the repository root
-python3 launch.py 03-remote-teleoperation CdsCloud [-s]
+python3 launch.py 03-remote-teleoperation CdsCloud
 ```
 
 ### 4. Launch Active Routing Services
@@ -105,7 +107,7 @@ Open a new terminal on both *Active* sides and run the following in each:
 
 ```bash
 # From the repository root
-python3 launch.py 03-remote-teleoperation RsActive [-s]
+python3 launch.py 03-remote-teleoperation RsActive
 ```
 
 ### 5. Observe Communication

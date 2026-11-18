@@ -31,6 +31,6 @@ sys.path.insert(
 MODULE_DIR = Path(__file__).resolve().parent.parent  # modules/04-security-threat
 REPO_ROOT = MODULE_DIR.parent.parent
 MODULE_01_DIR = MODULE_DIR.parent / "01-operating-room"
-SYSTEM_ARCH_DIR = REPO_ROOT / "system_arch"
+SYSTEM_DIR = REPO_ROOT / "system"
 THREAT_SRC_DIR = MODULE_DIR / "src"
 OR_SRC_DIR = MODULE_01_DIR / "src"

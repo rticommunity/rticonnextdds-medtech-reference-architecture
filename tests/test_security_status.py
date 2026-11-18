@@ -20,7 +20,15 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SCRIPT = PROJECT_ROOT / "system_arch" / "security" / "setup_security.py"
+SCRIPT = PROJECT_ROOT / "system" / "security" / "setup_security.py"
+
+
+def test_operational_domain_secure_log_rule_precedes_wildcard(monkeypatch) -> None:
+    monkeypatch.syspath_prepend(str(SCRIPT.parent))
+    from setup_security import OPERATIONAL_DOMAIN
+
+    expressions = [rule.topic_expression for rule in OPERATIONAL_DOMAIN.governance.topic_rules]
+    assert expressions.index("DDS:Security:LogTopicV2") < expressions.index("*")
 
 
 @pytest.mark.secure
