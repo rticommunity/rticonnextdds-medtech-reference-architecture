@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import rti.connextdds as dds
 
@@ -19,7 +20,6 @@ sys.path.insert(
     0,
     str(Path(__file__).resolve().parents[3] / "modules" / "01-operating-room" / "src"),
 )
-from ArmKinematics import ArmModel
 from DemoUiSupport import (
     DemoUiState,
     create_demo_ui,
@@ -28,6 +28,9 @@ from DemoUiSupport import (
 from MedTech import DdsEntities, Device, Geometry, Robot
 from MedTechTypes import register_type
 from ThreatTypes import ThreatEntities
+
+if TYPE_CHECKING:
+    from ArmKinematics import ArmModel
 
 _MODES = ("UNSECURE", "ROGUE CA", "FORGED PERMS", "EXPIRED CERT")
 _ATTACKS = ("TELEOP INJECT", "CMD INJECT (PAUSE)", "CMD INJECT (SHUTDOWN)")
@@ -38,6 +41,7 @@ _MODE_TO_PARTICIPANT = {
     "EXPIRED CERT": ThreatEntities.Constants.INJECTOR_EXPIRED_CERT_DP,
 }
 _AXES = ("X", "Y", "ANGULAR_Z")
+_PREVIEW_ERRORS = (ImportError, OSError, ArithmeticError, ValueError, RuntimeError)
 
 
 def _rates(axis: str, direction: str):
@@ -58,15 +62,12 @@ class ThreatInjectionLogic:
         self.attacking = False
         self.frequency_hz = 5
         self.tick = 0
-        self.model = ArmModel()
         self.failure_state: str | None = None
 
     def next_teleop(self) -> tuple[str, str]:
         axis = _AXES[(self.tick // 10) % len(_AXES)]
         direction = "POSITIVE" if (self.tick // (10 * len(_AXES))) % 2 == 0 else "NEGATIVE"
         self.tick += 1
-        linear, angular = _rates(axis, direction)
-        self.model.step(linear, angular, 0.0, 0.02)
         return axis, direction
 
     def command_attack(self) -> str:
@@ -136,6 +137,29 @@ class ThreatInjectorApplication:
         self.dds = ThreatInjectorDdsAdapter()
         self._attack_task: asyncio.Task | None = None
         self._matched: bool | None = None
+        self._preview: ArmModel | None = None
+        self._preview_error: str | None = None
+        try:
+            from ArmKinematics import ArmModel
+
+            self._preview = ArmModel()
+        except _PREVIEW_ERRORS as exc:
+            self._disable_preview(exc)
+
+    def _disable_preview(self, error: Exception) -> None:
+        self._preview = None
+        self._preview_error = str(error)
+        self.ui.log(
+            f"Command preview unavailable: {error}. DDS injection remains available", "warn"
+        )
+
+    def _preview_view(self) -> dict:
+        if self._preview is not None:
+            try:
+                return {**self._preview.view(), "active": True, "preview": True}
+            except _PREVIEW_ERRORS as exc:
+                self._disable_preview(exc)
+        return {"active": False, "preview": True, "error": self._preview_error}
 
     def view(self) -> dict:
         ready = self.dds.participant is not None
@@ -247,11 +271,7 @@ class ThreatInjectorApplication:
             ],
             "activity_title": "SECURITY ACTIVITY",
             "show_activity_toggle": True,
-            "arm": {
-                **self.logic.model.view(),
-                "active": self._matched is True,
-                "preview": True,
-            },
+            "arm": self._preview_view(),
             "preview_label": "COMMAND PREVIEW - not observed arm feedback",
             "control_groups": controls,
             "footer": True,
@@ -326,6 +346,12 @@ class ThreatInjectorApplication:
             if self.logic.attack == _ATTACKS[0]:
                 axis, direction = self.logic.next_teleop()
                 self.dds.write_teleop(axis, direction)
+                if self._preview is not None:
+                    try:
+                        linear, angular = _rates(axis, direction)
+                        self._preview.step(linear, angular, 0.0, 0.02)
+                    except _PREVIEW_ERRORS as exc:
+                        self._disable_preview(exc)
                 self.ui.log(
                     f"Writing TeleopControl — axis: {axis}, direction: {direction}",
                     "ok" if self._matched else "warn",

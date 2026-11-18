@@ -54,6 +54,23 @@ jaw controls, and run/stop demonstration motion. The Xbox adapter maps sticks,
 triggers, bumpers, and buttons to the same hardware-independent data model.
 Neither controller predicts actual arm execution from its own command state.
 
+**RUN DEMO** captures the observed TCP position and jaw gap, then repeats a
+small translation/jaw loop with a brief hold at its starting point. Each
+waypoint uses achieved telemetry; the return targets are within 0.7 mm position
+and 0.4 mm gap of the captured start, rather than accumulated command estimates.
+The showcase leaves angular rates at zero; all six manual axes remain available.
+It requires complete pose/jaw telemetry no more than 500 ms old and stops with a
+warning if feedback becomes unavailable, the arm reports a fault, or a waypoint
+cannot be reached within four seconds. This is demo motion, not a safety system.
+
+A manual jog takes over from the showcase. A release-only event does not cancel
+it. **STOP MOTION** clears both the showcase and held jogs. PAUSE/SHUTDOWN clear
+motion and send zero before ending the command stream; START resumes idle zeros,
+not the old showcase or cached browser inputs. A new RUN DEMO captures a new
+starting point. Browser control schemas and presentation are in
+[ArmControllerUi.hpp](src/ArmControllerUi.hpp); ordinary Connext entity lookup,
+reads, and writes remain in [ArmController.cxx](src/ArmController.cxx).
+
 ### Orchestrator
 
 The *Orchestrator* application primarily acts as a system application state observer and controller. It detects the presence and current status of other system applications on Topics `t/device/heartbeat` and `t/device/status`, respectively. It can also command device-level actions, such as "Start" or "Shut Down" on Topic `t/device/command`.
@@ -179,6 +196,14 @@ gap symmetrically along tool X; tool +Z points along the shaft.
 The demo limits are 0.05 m/s linear norm, 0.5 rad/s angular norm, 0.02 m/s
 gap rate, and a 0-0.06 m gap. These are hypothetical demo values, not hardware
 guarantees.
+
+The supported deployment is one operating room, one instance of each app role,
+and one intended arm command source: either controller variant **or** replay.
+Do not run both controller variants or a live controller alongside replay
+against the same arm. Keys identify data instances; they do not provide
+multi-device discovery, command-source arbitration, or operator ownership.
+The security threat demonstration deliberately adds a competing writer to show
+the unsecured/secured contrast; that is not a supported multi-controller mode.
 
 At startup, the simulator uses a raised shoulder and bent elbow, with the tool
 pointing forward and 20 degrees downward. This keeps the initial posture away

@@ -334,6 +334,11 @@ function renderArmPreview(arm, previewLabel) {
       "This local simulation preview is not observed arm feedback and does not prove DDS actuation.",
     ),
   );
+  if (arm?.error) {
+    panel.append(
+      element("p", "", `Preview unavailable: ${arm.error}. DDS injection remains available.`),
+    );
+  }
   const row = element("div", "command-preview-rates");
   const rates = arm?.rates || arm?.command || arm || {};
   for (const [label, value, unit] of [

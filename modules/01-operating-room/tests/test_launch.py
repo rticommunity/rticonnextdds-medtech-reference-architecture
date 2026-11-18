@@ -17,6 +17,7 @@ GUI applications are marked so they can be skipped on headless systems.
 
 import importlib
 import json
+import math
 import re
 import select
 import signal
@@ -25,13 +26,14 @@ import time
 from urllib.request import Request, urlopen
 
 import pytest
-from module01_test_support import MODULE_DIR
+from module01_test_support import MODULE_DIR, invoke, local_ui_url, ui_data, wait_for_ui_data
 from scripts import module_runner
 from scripts.test_utils import (
     ProcessManager,
     check_no_deadline_missed,
     wait_for_device_status,
     wait_for_samples,
+    wait_for_writer_match,
 )
 
 
@@ -134,6 +136,182 @@ class TestArmController:
 
     def test_starts_and_stays_alive(self, proc_manager):
         proc_manager.start_app_ready("ArmController")
+
+    def test_showcase_is_bounded_and_manual_takeover_can_be_stopped(
+        self, proc_manager, nonsecure_utility_app
+    ):
+        reader = nonsecure_utility_app.teleop_control.reader
+        tool_reader = nonsecure_utility_app.tool_control.reader
+        proc_manager.start_app_ready("Arm")
+        controller = proc_manager.start_app_ready("ArmController")
+        url = local_ui_url(controller, "Arm Controller listening on")
+        initial = wait_for_ui_data(
+            url,
+            lambda data: (
+                data.get("feedback", {}).get("freshness", {}).get("telemetry")
+                and data["feedback"]["position"] is not None
+                and data["feedback"]["opening_width"] is not None
+            ),
+        )["feedback"]
+        origin = tuple(initial["position"][axis] for axis in "xyz")
+        orientation = tuple(initial["orientation"][axis] for axis in "xyzw")
+        gap = initial["opening_width"]
+        assert invoke(url, "start-demo", {})["ok"]
+        wait_for_ui_data(url, lambda data: data["demo"]["running"])
+        assert invoke(url, "teleop", {"axis": "X", "direction": "STOPPED"})["ok"]
+
+        cycles = 0
+        largest_excursion = 0.0
+        largest_gap_change = 0.0
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline and cycles < 3:
+            state = ui_data(url)
+            feedback = state["feedback"]
+            position = tuple(feedback["position"][axis] for axis in "xyz")
+            distance = math.dist(position, origin)
+            gap_change = abs(feedback["opening_width"] - gap)
+            actual_orientation = tuple(feedback["orientation"][axis] for axis in "xyzw")
+            assert abs(sum(a * b for a, b in zip(orientation, actual_orientation))) >= math.cos(
+                0.01 / 2
+            ), "Translation/jaw showcase accumulated orientation drift"
+            largest_excursion = max(largest_excursion, distance)
+            largest_gap_change = max(largest_gap_change, gap_change)
+            assert distance < 0.025, state
+            assert gap_change < 0.010, state
+            if state["demo"]["cycles"] > cycles:
+                cycles = state["demo"]["cycles"]
+                assert distance <= 0.0012, state
+                assert gap_change <= 0.0006, state
+            assert state["demo"]["running"], state["logs"]
+            time.sleep(0.05)
+        assert cycles >= 3, state
+        assert largest_excursion > 0.012, "Showcase did not actually translate"
+        assert largest_gap_change > 0.006, "Showcase did not actually move the jaws"
+
+        assert invoke(url, "teleop", {"axis": "Y", "direction": "POSITIVE"})["ok"]
+        wait_for_ui_data(url, lambda data: not data["demo"]["running"])
+        assert wait_for_samples(
+            reader, n=1, timeout_sec=2, filter_fn=lambda sample: sample.linear_velocity.y > 0.04
+        ), "Manual jog did not take over from demo"
+        reader.take()
+        tool_reader.take()
+        assert invoke(url, "stop-demo", {})["ok"]
+        assert wait_for_samples(
+            reader,
+            n=1,
+            timeout_sec=0.8,
+            filter_fn=lambda sample: all(
+                getattr(sample.linear_velocity, axis) == 0
+                and getattr(sample.angular_velocity, axis) == 0
+                for axis in "xyz"
+            ),
+        ), "STOP MOTION did not publish zero before the input timeout"
+        assert wait_for_samples(
+            tool_reader, n=1, timeout_sec=0.5, filter_fn=lambda sample: sample.opening_rate == 0
+        )
+        time.sleep(0.2)
+        stopped = ui_data(url)["feedback"]["position"]
+        time.sleep(0.35)
+        held = ui_data(url)["feedback"]["position"]
+        assert math.dist(tuple(stopped.values()), tuple(held.values())) < 0.0005
+
+        from MedTech import Device
+
+        writer = nonsecure_utility_app.device_command.writer
+        assert wait_for_writer_match(writer)
+        assert invoke(url, "start-demo", {})["ok"]
+        wait_for_ui_data(url, lambda data: data["demo"]["running"])
+        assert wait_for_samples(
+            reader, n=1, timeout_sec=2, filter_fn=lambda sample: sample.linear_velocity.x < 0
+        )
+        reader.take()
+        writer.write(
+            Device.Command(
+                device=Device.DeviceType.ARM_CONTROLLER, command=Device.DeviceCommands.PAUSE
+            )
+        )
+        assert wait_for_samples(
+            reader,
+            n=1,
+            timeout_sec=0.8,
+            filter_fn=lambda sample: all(
+                getattr(sample.linear_velocity, axis) == 0 for axis in "xyz"
+            ),
+        ), "PAUSE ceased publication without an explicit zero command"
+        paused = wait_for_ui_data(url, lambda data: data["status"] == "PAUSED")
+        assert not paused["demo"]["running"]
+        assert invoke(url, "teleop", {"axis": "X", "direction": "POSITIVE"})["ok"]
+        wait_for_ui_data(
+            url,
+            lambda data: any("Ignored jog" in entry["message"] for entry in data["logs"]),
+        )
+        writer.write(
+            Device.Command(
+                device=Device.DeviceType.ARM_CONTROLLER, command=Device.DeviceCommands.START
+            )
+        )
+        resumed = wait_for_ui_data(url, lambda data: data["status"] == "ON")
+        assert not resumed["demo"]["running"]
+        reader.take()
+        samples = wait_for_samples(reader, n=5, timeout_sec=1)
+        assert len(samples) >= 5
+        assert all(
+            getattr(sample.linear_velocity, axis) == 0
+            and getattr(sample.angular_velocity, axis) == 0
+            for sample in samples
+            for axis in "xyz"
+        ), "START resumed a cancelled demo or a jog submitted while paused"
+
+    @pytest.mark.parametrize("feedback_loss", ("stale", "incomplete", "unreachable"))
+    def test_demo_cancels_when_feedback_cannot_support_motion(
+        self, proc_manager, nonsecure_utility_app, feedback_loss
+    ):
+        from MedTech import Geometry, Robot
+
+        writer = nonsecure_utility_app.arm_telemetry.writer
+        reader = nonsecure_utility_app.teleop_control.reader
+        controller = proc_manager.start_app_ready("ArmController")
+        url = local_ui_url(controller, "Arm Controller listening on")
+        assert wait_for_writer_match(writer)
+        telemetry = Robot.Arm.Telemetry(
+            arm_id="arm-1",
+            tcp_pose=Geometry.Pose(position=Geometry.Vector3(0.3, 0.0, 0.3)),
+            parallel_jaw=Robot.Tool.ParallelJawState(opening_width=0.02),
+        )
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            writer.write(telemetry)
+            state = ui_data(url)
+            if state.get("feedback", {}).get("freshness", {}).get("telemetry"):
+                break
+            time.sleep(0.05)
+        assert state["feedback"]["freshness"]["telemetry"], state
+        assert invoke(url, "start-demo", {})["ok"]
+        assert wait_for_samples(
+            reader, n=1, timeout_sec=2, filter_fn=lambda sample: sample.linear_velocity.x < 0
+        )
+        if feedback_loss == "incomplete":
+            telemetry.parallel_jaw = None
+        reader.take()
+        deadline = time.monotonic() + 6
+        while time.monotonic() < deadline:
+            if feedback_loss != "stale":
+                writer.write(telemetry)
+            state = ui_data(url)
+            if not state["demo"]["running"]:
+                break
+            time.sleep(0.05)
+        assert not state["demo"]["running"], state
+        message = "timed out" if feedback_loss == "unreachable" else "feedback unavailable"
+        assert any(message in entry["message"] for entry in state["logs"])
+        assert wait_for_samples(
+            reader,
+            n=1,
+            timeout_sec=0.5,
+            filter_fn=lambda sample: all(
+                getattr(sample.linear_velocity, axis) == 0 for axis in "xyz"
+            ),
+        ), "Demo cancellation did not command zero"
 
     @pytest.mark.parametrize("variant", ("simulated", "xbox"))
     def test_readiness_remains_known_when_unchanged_and_telemetry_can_go_stale(self, variant):

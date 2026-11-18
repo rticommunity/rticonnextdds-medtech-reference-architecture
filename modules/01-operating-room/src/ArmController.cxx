@@ -27,17 +27,20 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
-#include <tuple>
 #include <vector>
 
 #include <rti_demo_ui/rti_demo_ui.hpp>
 
+#include "ArmControllerUi.hpp"
 #include "DemoUiSupport.hpp"
 #include "HeartbeatPresence.hpp"
 #include "MedTech.hpp"
 
 using namespace DdsEntities::Constants;
 using namespace std::chrono_literals;
+using medtech::operating_room::arm_controller_view;
+using medtech::operating_room::ArmControllerUiCommand;
+using medtech::operating_room::configure_arm_controller_ui;
 using rti::demo::ui::Json;
 
 namespace {
@@ -49,12 +52,6 @@ constexpr double MAX_OPENING_RATE = 0.02;
 constexpr auto INPUT_TIMEOUT = 1500ms;
 constexpr auto CONTROL_PERIOD = 20ms;
 constexpr auto FEEDBACK_STALE = 500ms;
-
-struct UiCommand {
-    std::string action;
-    std::string axis;
-    std::string direction;
-};
 
 struct VelocityTarget {
     double x = 0.0;
@@ -84,13 +81,20 @@ class ArmControllerLogic {
 public:
     Device::DeviceStatuses status = Device::DeviceStatuses::ON;
 
-    void start_demo()
+    bool start_demo(const Geometry::Pose &pose, double jaw_width)
     {
         if (status != Device::DeviceStatuses::ON)
-            return;
+            return false;
+        stop_manual();
+        demo_origin_ = pose.position;
+        demo_jaw_origin_ = jaw_width;
+        demo_jaw_excursion_ = jaw_width <= 0.03 ? 0.008 : -0.008;
         demo_motion_enabled_ = true;
         demo_phase_ = 0;
-        demo_phase_tick_ = 0;
+        demo_cycles_ = 0;
+        demo_phase_started_ = std::chrono::steady_clock::now();
+        demo_return_hold_until_ = demo_phase_started_;
+        return true;
     }
 
     void stop_demo()
@@ -120,10 +124,10 @@ public:
 
     bool apply_manual(const std::string &axis, const std::string &direction)
     {
-        stop_demo();
         if (direction == "STOPPED") {
             return held_axes_.erase(axis) > 0;
         }
+        stop_demo();
         const double signed_direction = direction == "POSITIVE" ? 1.0 : -1.0;
         const auto now = std::chrono::steady_clock::now();
         const auto found = held_axes_.find(axis);
@@ -148,12 +152,12 @@ public:
         return expired;
     }
 
-    VelocityTarget rates_for_tick()
+    VelocityTarget rates_for_tick(const Geometry::Pose &pose, double jaw_width)
     {
         if (status != Device::DeviceStatuses::ON)
             return { };
         if (demo_motion_enabled_)
-            return next_demo_rates();
+            return next_demo_rates(pose, jaw_width);
 
         VelocityTarget target;
         for (const auto &[axis, held] : held_axes_) {
@@ -187,31 +191,45 @@ public:
         return demo_motion_enabled_;
     }
 
+    unsigned int demo_cycles() const
+    {
+        return demo_cycles_;
+    }
+
+    bool demo_timed_out(std::chrono::steady_clock::time_point now) const
+    {
+        return demo_motion_enabled_ && now - demo_phase_started_ > 4s;
+    }
+
 private:
     struct HeldAxis {
         double direction;
         std::chrono::steady_clock::time_point last_refresh;
     };
 
-    static constexpr std::array<VelocityTarget, 12> DEMO_PHASES = { {
-            { 0.018, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
-            { 0.0, 0.018, 0.0, 0.0, 0.0, 0.0, 0.0 },
-            { 0.0, 0.0, 0.018, 0.0, 0.0, 0.0, 0.0 },
-            { -0.018, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
-            { 0.0, 0.0, 0.0, 0.12, 0.0, 0.0, 0.0 },
-            { 0.0, 0.0, 0.0, 0.0, 0.12, 0.0, 0.0 },
-            { 0.0, 0.0, 0.0, 0.0, 0.0, 0.12, 0.0 },
-            { 0.0, 0.0, 0.0, -0.12, 0.0, 0.0, 0.0 },
-            { 0.0, 0.0, 0.0, 0.0, -0.12, 0.0, 0.0 },
-            { 0.0, 0.0, 0.0, 0.0, 0.0, -0.12, 0.0 },
-            { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01 },
-            { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.01 },
+    struct DemoWaypoint {
+        double x;
+        double y;
+        double z;
+        double jaw_fraction;
+    };
+
+    // Offsets from achieved pose at RUN DEMO, not integrated command estimates.
+    static constexpr std::array<DemoWaypoint, 4> DEMO_WAYPOINTS = { {
+            { -0.012, 0.010, 0.008, 1.0 },
+            { -0.012, -0.010, 0.008, 0.0 },
+            { 0.0, -0.010, 0.0, 1.0 },
+            { },
     } };
-    static constexpr unsigned int DEMO_PHASE_TICKS = 25;
 
     bool demo_motion_enabled_ = false;
     std::size_t demo_phase_ = 0;
-    unsigned int demo_phase_tick_ = 0;
+    unsigned int demo_cycles_ = 0;
+    std::chrono::steady_clock::time_point demo_phase_started_;
+    std::chrono::steady_clock::time_point demo_return_hold_until_;
+    Geometry::Vector3 demo_origin_;
+    double demo_jaw_origin_ = 0.0;
+    double demo_jaw_excursion_ = 0.0;
     std::map<std::string, HeldAxis> held_axes_;
 
     static void normalize_group(double &x, double &y, double &z, double limit)
@@ -225,14 +243,35 @@ private:
         }
     }
 
-    VelocityTarget next_demo_rates()
+    VelocityTarget next_demo_rates(const Geometry::Pose &pose, double jaw_width)
     {
-        const auto target = DEMO_PHASES[demo_phase_];
-        if (++demo_phase_tick_ >= DEMO_PHASE_TICKS) {
-            demo_phase_tick_ = 0;
-            if (++demo_phase_ >= DEMO_PHASES.size())
+        const auto now = std::chrono::steady_clock::now();
+        if (now < demo_return_hold_until_)
+            return { };
+        const auto &waypoint = DEMO_WAYPOINTS[demo_phase_];
+        VelocityTarget error;
+        error.x = demo_origin_.x + waypoint.x - pose.position.x;
+        error.y = demo_origin_.y + waypoint.y - pose.position.y;
+        error.z = demo_origin_.z + waypoint.z - pose.position.z;
+        error.jaw = demo_jaw_origin_
+                + waypoint.jaw_fraction * demo_jaw_excursion_ - jaw_width;
+        const double distance = std::sqrt(error.x * error.x + error.y * error.y
+                                          + error.z * error.z);
+        if (distance <= 0.0007 && std::abs(error.jaw) <= 0.0004) {
+            if (++demo_phase_ >= DEMO_WAYPOINTS.size()) {
                 demo_phase_ = 0;
+                ++demo_cycles_;
+                demo_return_hold_until_ = now + 400ms;
+            }
+            demo_phase_started_ = now;
+            return { };
         }
+        VelocityTarget target;
+        target.x = error.x * 4.0;
+        target.y = error.y * 4.0;
+        target.z = error.z * 4.0;
+        normalize_group(target.x, target.y, target.z, 0.018);
+        target.jaw = std::clamp(error.jaw * 4.0, -0.01, 0.01);
         return target;
     }
 };
@@ -246,6 +285,18 @@ struct ArmFeedback {
     bool has_jaw_width = false;
     Geometry::Pose pose;
     double jaw_width = 0.0;
+
+    bool demo_ready() const
+    {
+        return has_telemetry && has_pose && has_jaw_width
+                && readiness != "FAULT"
+                && std::chrono::steady_clock::now() - telemetry_received
+                <= FEEDBACK_STALE
+                && std::isfinite(pose.position.x)
+                && std::isfinite(pose.position.y)
+                && std::isfinite(pose.position.z) && std::isfinite(jaw_width)
+                && jaw_width >= 0.0 && jaw_width <= 0.06;
+    }
 
     Json view() const
     {
@@ -279,97 +330,6 @@ struct ArmFeedback {
     }
 };
 
-Json arm_controller_view(const ArmControllerLogic &logic,
-                         const Json &logs,
-                         const ArmFeedback &feedback)
-{
-    const std::string status = logic.status == Device::DeviceStatuses::ON ? "ON"
-            : logic.status == Device::DeviceStatuses::PAUSED ? "PAUSED"
-                                                             : "OFF";
-    const bool enabled = logic.status == Device::DeviceStatuses::ON;
-    const std::string readiness_badge = feedback.has_status
-            ? feedback.readiness + " · LAST KNOWN"
-            : "UNKNOWN";
-    Json jog_controls = Json::array();
-    const std::array<std::tuple<std::string, std::string, std::string>, 14>
-            controls = { {
-                    { "X", "X −", "NEGATIVE" },
-                    { "X", "X +", "POSITIVE" },
-                    { "Y", "Y −", "NEGATIVE" },
-                    { "Y", "Y +", "POSITIVE" },
-                    { "Z", "Z −", "NEGATIVE" },
-                    { "Z", "Z +", "POSITIVE" },
-                    { "ANGULAR_X", "ROTATE X −", "NEGATIVE" },
-                    { "ANGULAR_X", "ROTATE X +", "POSITIVE" },
-                    { "ANGULAR_Y", "ROTATE Y −", "NEGATIVE" },
-                    { "ANGULAR_Y", "ROTATE Y +", "POSITIVE" },
-                    { "ANGULAR_Z", "ROTATE Z −", "NEGATIVE" },
-                    { "ANGULAR_Z", "ROTATE Z +", "POSITIVE" },
-                    { "JAW", "CLOSE JAWS", "NEGATIVE" },
-                    { "JAW", "OPEN JAWS", "POSITIVE" },
-            } };
-    for (const auto &[axis, label, direction] : controls) {
-        jog_controls.push_back({ { "type", "hold" },
-                                 { "label", label },
-                                 { "className", "tool-control" },
-                                 { "command", "teleop" },
-                                 { "axis", axis },
-                                 { "direction", direction },
-                                 { "disabled", !enabled } });
-    }
-    Json demo_controls = Json::array({ { { "type", "button" },
-                                         { "label", "RUN DEMO" },
-                                         { "command", "start-demo" },
-                                         { "payload", Json::object() },
-                                         { "style", "primary" },
-                                         { "disabled", !enabled } },
-                                       { { "type", "button" },
-                                         { "label", "STOP MOTION" },
-                                         { "command", "stop-demo" },
-                                         { "payload", Json::object() },
-                                         { "style", "danger" } } });
-    Json control_groups = Json::array();
-    control_groups.push_back(
-            { { "title", "BASE X / Y MOTION" },
-              { "layout", "planar-pad" },
-              { "controls",
-                Json::array({ Json { { "type", "dpad" },
-                                     { "command", "teleop" },
-                                     { "disabled", !enabled } } }) } });
-    control_groups.push_back({ { "title", "BASE TRANSLATION / ROTATION" },
-                               { "layout", "tool-controls" },
-                               { "controls", jog_controls } });
-    control_groups.push_back({ { "title", "DEMO MOTION" },
-                               { "layout", "demo-controls" },
-                               { "controls", demo_controls } });
-    return {
-        { "kind", "arm-controller" },
-        { "title", "Arm Controller" },
-        { "header_badges",
-          Json::array({ { { "label", "Command QoS" }, { "value", "ACTIVE" } },
-                        { { "label", "Control frame" },
-                          { "value", "BASE (+Z UP)" } },
-                        { { "label", "Arm readiness" },
-                          { "value", readiness_badge },
-                          { "tone",
-                            feedback.readiness == "READY" && feedback.has_status
-                                    ? "good"
-                                    : "warn" } } }) },
-        { "control_intro",
-          "Hold a direction for base-frame motion (+Z up). Release to command "
-          "zero." },
-        { "control_note",
-          "Linear rates use m/s; angular rates use rad/s. Jaw buttons command "
-          "signed gap rate in m/s." },
-        { "status", status },
-        { "feedback", feedback.view() },
-        { "control_groups", control_groups },
-        { "activity_title", "ALERTS" },
-        { "footer", false },
-        { "logs", logs },
-    };
-}
-
 std::string readiness_name(Robot::Arm::Readiness readiness)
 {
     if (readiness == Robot::Arm::Readiness::READY)
@@ -395,9 +355,10 @@ void publish_target(
 
 class ArmControllerApp {
 public:
-    ArmControllerApp(rti::demo::ui::DemoUiApp &app,
-                     medtech::ui::CommandQueue<UiCommand> &commands,
-                     std::atomic<bool> &stopping)
+    ArmControllerApp(
+            rti::demo::ui::DemoUiApp &app,
+            medtech::ui::CommandQueue<ArmControllerUiCommand> &commands,
+            std::atomic<bool> &stopping)
             : app_(app), commands_(commands), stopping_(stopping)
     {
         rti::domain::register_type<Device::Command>();
@@ -472,7 +433,13 @@ public:
         status_writer_.write(status);
         Json logs = Json::array();
         auto update_view = [&]() {
-            app.set_data(arm_controller_view(logic, logs, feedback));
+            app.set_data(
+                    arm_controller_view(logic.status,
+                                        { { "running", logic.demo_enabled() },
+                                          { "cycles", logic.demo_cycles() } },
+                                        feedback.demo_ready(),
+                                        logs,
+                                        feedback.view()));
         };
         auto log = [&](const std::string &message,
                        const std::string &level = "info") {
@@ -494,13 +461,24 @@ public:
                && logic.status != Device::DeviceStatuses::OFF) {
             while (auto intent = commands.try_pop()) {
                 if (intent->action == "start-demo") {
-                    logic.start_demo();
-                    logic.stop_manual();
-                    log("Started bounded 3D demo motion", "ok");
+                    if (feedback.demo_ready()
+                        && logic.start_demo(feedback.pose,
+                                            feedback.jaw_width)) {
+                        log("Started feedback-anchored demo motion", "ok");
+                    } else {
+                        log("Cannot start demo: controller must be ON with "
+                            "fresh, complete arm feedback and no arm fault",
+                            "warn");
+                    }
                 } else if (intent->action == "stop-demo") {
                     logic.stop_demo();
-                    log("Stopped demo motion");
+                    logic.stop_manual();
+                    log("Stopped all motion");
                 } else if (intent->action == "teleop") {
+                    if (logic.status != Device::DeviceStatuses::ON) {
+                        log("Ignored jog while controller is not ON", "warn");
+                        continue;
+                    }
                     const bool changed =
                             logic.apply_manual(intent->axis, intent->direction);
                     if (!changed)
@@ -518,6 +496,8 @@ public:
                 if (!sample.info().valid())
                     continue;
                 logic.apply_device_command(sample.data().command);
+                if (logic.status != Device::DeviceStatuses::ON)
+                    publish_target(teleop_writer_, tool_writer_, { });
                 status.status = logic.status;
                 status_writer_.write(status);
                 update_view();
@@ -545,6 +525,15 @@ public:
             }
 
             now = std::chrono::steady_clock::now();
+            if (logic.demo_enabled()
+                && (!feedback.demo_ready() || logic.demo_timed_out(now))) {
+                logic.stop_demo();
+                log(feedback.demo_ready()
+                            ? "Demo waypoint timed out; stopped motion"
+                            : "Demo feedback unavailable or arm fault; stopped "
+                              "motion",
+                    "warn");
+            }
             for (const auto &axis : logic.expire_manual_inputs(now)) {
                 log("Jog input timed out; stopped " + axis + " axis", "warn");
             }
@@ -552,7 +541,8 @@ public:
                 && now >= next_control) {
                 publish_target(teleop_writer_,
                                tool_writer_,
-                               logic.rates_for_tick());
+                               logic.rates_for_tick(feedback.pose,
+                                                    feedback.jaw_width));
                 next_control = now + CONTROL_PERIOD;
             }
             if (now >= next_ui_refresh) {
@@ -562,6 +552,7 @@ public:
             std::this_thread::sleep_for(5ms);
         }
 
+        publish_target(teleop_writer_, tool_writer_, { });
         heartbeat.stop();
         if (heartbeat.failed())
             throw std::runtime_error("Arm Controller heartbeat worker failed");
@@ -573,7 +564,7 @@ public:
 
 private:
     rti::demo::ui::DemoUiApp &app_;
-    medtech::ui::CommandQueue<UiCommand> &commands_;
+    medtech::ui::CommandQueue<ArmControllerUiCommand> &commands_;
     std::atomic<bool> &stopping_;
     dds::domain::DomainParticipant participant_ = dds::core::null;
     dds::pub::DataWriter<Device::Status> status_writer_ = dds::core::null;
@@ -589,58 +580,6 @@ private:
             dds::core::null;
 };
 
-void configure_ui(rti::demo::ui::DemoUiApp &app,
-                  medtech::ui::CommandQueue<UiCommand> &commands)
-{
-    using namespace rti::demo::ui;
-    const auto empty_object = Json { { "type", "object" },
-                                     { "properties", Json::object() },
-                                     { "additionalProperties", false } };
-    app.register_command(
-            "start-demo",
-            CommandSchema(empty_object),
-            [&commands](const Json &) {
-                commands.push({ "start-demo", { }, { } });
-                return Json { { "message", "Demo trajectory started" } };
-            });
-    app.register_command(
-            "stop-demo",
-            CommandSchema(empty_object),
-            [&commands](const Json &) {
-                commands.push({ "stop-demo", { }, { } });
-                return Json { { "message", "Demo motion stopped" } };
-            });
-    app.register_command(
-            "teleop",
-            CommandSchema(
-                    { { "type", "object" },
-                      { "properties",
-                        { { "axis",
-                            { { "type", "string" },
-                              { "enum",
-                                Json::array({ "X",
-                                              "Y",
-                                              "Z",
-                                              "ANGULAR_X",
-                                              "ANGULAR_Y",
-                                              "ANGULAR_Z",
-                                              "JAW" }) } } },
-                          { "direction",
-                            { { "type", "string" },
-                              { "enum",
-                                Json::array({ "POSITIVE",
-                                              "NEGATIVE",
-                                              "STOPPED" }) } } } } },
-                      { "required", Json::array({ "axis", "direction" }) },
-                      { "additionalProperties", false } }),
-            [&commands](const Json &payload) {
-                commands.push({ "teleop",
-                                payload.at("axis"),
-                                payload.at("direction") });
-                return Json { { "message", "Teleoperation intent queued" } };
-            });
-}
-
 }  // namespace
 
 int main()
@@ -654,8 +593,8 @@ int main()
                       Theme::dark,
                       Layout::automatic,
                       std::string("Arm Controller listening on"));
-        medtech::ui::CommandQueue<UiCommand> commands;
-        configure_ui(app, commands);
+        medtech::ui::CommandQueue<ArmControllerUiCommand> commands;
+        configure_arm_controller_ui(app, commands);
         std::atomic<bool> stopping = false;
         ArmControllerApp application(app, commands, stopping);
         bool worker_failed = false;

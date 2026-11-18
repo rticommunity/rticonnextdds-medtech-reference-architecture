@@ -45,6 +45,15 @@ participant, match, and write outcomes. A matching reader only establishes an
 open data path; consult the live Arm's observed telemetry to confirm execution.
 No new tool/status attack capability is added. Low injection rates can leave
 gaps longer than command lifespan, during which the Arm holds its current pose.
+Preview initialization, simulation, and rendering-state failures disable only
+the optional preview, with an explicit warning. DDS intent generation and
+publication continue independently; unavailable preview values are not
+substituted with simulated success or observed feedback.
+
+This scenario intentionally introduces a competing command writer. Outside
+this threat demonstration, use one OR, one instance per application role, and
+one intended live-controller **or** replay source. DDS matching does not
+arbitrate command ownership.
 
 ### Threat Exfiltrator
 

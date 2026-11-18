@@ -10,45 +10,13 @@
 from __future__ import annotations
 
 import json
-import re
-import select
 import time
-from urllib.request import Request, urlopen
+from urllib.request import urlopen
 
 import pytest
+from module01_test_support import invoke as _invoke
+from module01_test_support import local_ui_url as _local_ui_url
 from scripts.test_utils import wait_for_device_status, wait_for_writer_match
-
-
-def _local_ui_url(process, expected_prefix: str) -> str:
-    assert process.stdout is not None
-    deadline = time.monotonic() + 5
-    while time.monotonic() < deadline:
-        readable, _, _ = select.select([process.stdout], [], [], 0.25)
-        if not readable:
-            continue
-        line = process.stdout.readline().decode(errors="replace").strip()
-        match = re.search(r"https?://127\.0\.0\.1:\d+", line)
-        if match:
-            assert line.startswith(expected_prefix), f"unexpected URL announcement: {line}"
-            return match.group(0)
-    raise AssertionError("Orchestrator did not print its local UI URL")
-
-
-def _invoke(url: str, name: str, payload: dict) -> dict:
-    with urlopen(f"{url}/api/command-capability", timeout=2) as response:
-        capability = json.load(response)["capability"]
-    request = Request(
-        f"{url}/api/commands/{name}",
-        data=json.dumps(payload).encode(),
-        headers={
-            "Content-Type": "application/json",
-            "Origin": url,
-            "X-RTI-Demo-Command-Capability": capability,
-        },
-        method="POST",
-    )
-    with urlopen(request, timeout=2) as response:
-        return json.load(response)
 
 
 def test_orchestrator_selected_device_receives_browser_command(

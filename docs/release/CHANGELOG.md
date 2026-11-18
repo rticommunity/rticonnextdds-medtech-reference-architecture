@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Made browser showcase motion return to observed starting position/jaw gap,
+  with explicit stop/manual-takeover and feedback-loss cancellation behavior.
+  Separated its presentation from the Connext application code.
+- Made threat publication independent of optional preview failures, reporting
+  preview unavailability without disabling DDS injection.
 - Updated the pinned Python/C++ UI SDK, restored original arm-material colors,
   and added persistent base-relative side/top camera views without changing the
   control frame or arm position. The SDK pin includes consumer-provided native
