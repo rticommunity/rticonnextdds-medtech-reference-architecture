@@ -143,8 +143,10 @@ jobs:
           echo "available=true" >> "$GITHUB_OUTPUT"
 
       - name: Select Connext patch
+        env:
+          PYTHONPATH: resource/python
         run: |
-          version=$(python3 -c 'from resource.python.scripts.check_connext_install import project_python_api_version; print(project_python_api_version())')
+          version=$(python3 -c 'from scripts.check_connext_install import project_python_api_version; print(project_python_api_version())')
           case "$version" in
             "${CONNEXT_VERSION}") patch="${version}.0" ;;
             "${CONNEXT_VERSION}".*) patch="$version" ;;
