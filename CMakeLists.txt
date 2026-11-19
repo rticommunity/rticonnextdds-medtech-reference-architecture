@@ -45,7 +45,7 @@ option(RTI_DEMO_BUILD_NATIVE_WEBVIEW
 FetchContent_Declare(
     rti_demo_ui
     GIT_REPOSITORY https://github.com/wcoleman-rti/rti-demo-ui.git
-    GIT_TAG        309cb0ccb377ec4a70c0aaf3be8de5fcb1d4ec5a
+    GIT_TAG        e31e8981d625f9d6bbc00797d7e38caf8a165659 # v0.5.1
 )
 
 # The SDK marks itself as a top-level build when consumed through FetchContent.

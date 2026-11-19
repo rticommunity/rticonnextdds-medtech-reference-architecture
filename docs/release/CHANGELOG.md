@@ -74,6 +74,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   configuration files, using per-file Git history to set the year or year
   range.
 
+### Fixed
+
+- Preserved Orchestrator device-selection and command buttons during live
+  status updates so pointer clicks and keyboard activation are not lost.
+- Preserved the log toggle's text hit target during live updates so clicks on
+  its label work as reliably as clicks on its padding in native WebKit windows.
+- Updated security controls and gamepad readouts in place during live updates.
+  Frequency edits and keyboard focus survive refreshes; held arm jogs continue
+  through unrelated demo-button changes and stop when their controls are disabled.
+- Kept activity rows and scroll position stable while reading earlier events,
+  following new events automatically only when already at the bottom.
+- Preserved Scene3D fallback node-list text targets so native WebKit selection
+  works on labels as well as row padding.
+
 ### Removed
 
 - Removed the maintained System Designer project and its recommended-use workflow.

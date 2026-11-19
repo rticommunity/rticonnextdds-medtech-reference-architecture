@@ -25,7 +25,7 @@ dependencies = [
     "pystun3>=2.0",
     "requests>=2.31",
     "rti.connext==7.7.0",
-    "rti-demo-ui @ git+https://github.com/wcoleman-rti/rti-demo-ui.git@309cb0ccb377ec4a70c0aaf3be8de5fcb1d4ec5a",
+    "rti-demo-ui @ git+https://github.com/wcoleman-rti/rti-demo-ui.git@e31e8981d625f9d6bbc00797d7e38caf8a165659",
 ]
 
 [project.optional-dependencies]
@@ -36,7 +36,7 @@ arm = [
 ]
 gamepad = ["pygame-ce>=2.5.8,<3"]
 native = [
-    "rti-demo-ui-native @ git+https://github.com/wcoleman-rti/rti-demo-ui.git@309cb0ccb377ec4a70c0aaf3be8de5fcb1d4ec5a#subdirectory=native/python",
+    "rti-demo-ui-native @ git+https://github.com/wcoleman-rti/rti-demo-ui.git@e31e8981d625f9d6bbc00797d7e38caf8a165659#subdirectory=native/python",
 ]
 user = ["rti-medtech-reference-architecture[arm,gamepad]"]
 dev = [

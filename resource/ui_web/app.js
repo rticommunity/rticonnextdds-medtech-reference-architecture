@@ -9,6 +9,8 @@ const appFooter = $("#app-footer");
 let pendingCommand = Promise.resolve();
 let nextHoldId = 0;
 const activeHolds = new Map();
+const controlNodes = new Map();
+const activityEntries = new WeakMap();
 let currentVitals = null;
 let waveformFrame = 0;
 let activityVisible = true;
@@ -92,6 +94,17 @@ function element(tag, className, text) {
   return node;
 }
 
+function updateText(node, value) {
+  const text = String(value);
+  if (node.textContent === text) return;
+  // Keep text hit targets intact during native WebKit pointer gestures.
+  if (node.firstChild?.nodeType === Node.TEXT_NODE) {
+    node.firstChild.nodeValue = text;
+  } else {
+    node.textContent = text;
+  }
+}
+
 function sendCommand(command, payload) {
   const request = pendingCommand.then(() =>
     client.invokeCommand(command, payload || {}),
@@ -138,7 +151,7 @@ function bindHold(button, control) {
     if (event.pointerId !== undefined) {
       button.setPointerCapture?.(event.pointerId);
     }
-    activeHolds.set(holdId, { command, payload, stopPayload, stop });
+    activeHolds.set(holdId, { button, command, payload, stopPayload, stop });
     publishHeldPayload(command, payload);
     refreshTimer = window.setInterval(() => {
       if (pressed) publishHeldPayload(command, payload);
@@ -231,10 +244,49 @@ function renderDpad(command, disabled) {
   return pad;
 }
 
+function controlKey(control) {
+  const { disabled, value, label, className, style, ...definition } = control;
+  return JSON.stringify(definition);
+}
+
+function controlClassName(control) {
+  return control.className
+    || { primary: "run-demo", danger: "stop-motion" }[control.style] || "";
+}
+
+function updateControls(groups) {
+  for (const control of groups.flatMap((group) => group.controls || [])) {
+    const node = controlNodes.get(controlKey(control));
+    if (control.disabled) {
+      for (const hold of [...activeHolds.values()]) {
+        if (node.contains(hold.button)) hold.stop();
+      }
+    }
+    if (control.type === "dpad") {
+      for (const button of node.querySelectorAll("button")) {
+        button.disabled = Boolean(control.disabled);
+      }
+    } else if (control.type === "range") {
+      const input = node.querySelector("input");
+      input.disabled = Boolean(control.disabled);
+      updateText(node.querySelector(".range-label > span"), control.label);
+      if (document.activeElement !== input && !input.matches(":active")) {
+        input.value = control.value;
+        updateText(node.querySelector(".range-value"), `${control.value}${control.unit || ""}`);
+      }
+    } else {
+      node.disabled = Boolean(control.disabled);
+      node.className = controlClassName(control);
+      updateText(node, control.label);
+    }
+  }
+}
+
 function renderControl(control) {
   if (control.type === "dpad") {
     const row = element("div", "dpad-row");
     row.append(renderDpad(control.command, Boolean(control.disabled)));
+    controlNodes.set(controlKey(control), row);
     return row;
   }
 
@@ -252,7 +304,7 @@ function renderControl(control) {
     input.value = control.value;
     input.disabled = Boolean(control.disabled);
     input.addEventListener("input", () => {
-      value.textContent = `${input.value}${control.unit || ""}`;
+      updateText(value, `${input.value}${control.unit || ""}`);
     });
     input.addEventListener("change", () => {
       sendCommand(control.command, {
@@ -260,13 +312,13 @@ function renderControl(control) {
       });
     });
     group.append(label, input);
+    controlNodes.set(controlKey(control), group);
     return group;
   }
 
-  const styleClass = { primary: "run-demo", danger: "stop-motion" }[control.style];
   const button = element(
     "button",
-    control.className || styleClass || "",
+    controlClassName(control),
     control.label,
   );
   button.type = "button";
@@ -278,6 +330,7 @@ function renderControl(control) {
       sendCommand(control.command, control.payload),
     );
   }
+  controlNodes.set(controlKey(control), button);
   return button;
 }
 
@@ -305,7 +358,32 @@ function renderActivity(logs = [], title = "ALERTS") {
   panel.hidden = !activityVisible;
   panel.append(element("h2", "", title));
   const body = element("div", "activity-log");
-  for (const entry of logs.slice(-120)) {
+  panel.append(body);
+  updateActivity(logs, title, panel);
+  requestAnimationFrame(() => { body.scrollTop = body.scrollHeight; });
+  return panel;
+}
+
+function updateActivity(logs = [], title = "ALERTS", panel = $("#activity-panel")) {
+  if (!panel) return;
+  updateText(panel.querySelector("h2"), title);
+  const body = panel.querySelector(".activity-log");
+  const entries = logs.slice(-120);
+  const keys = entries.map((entry) => JSON.stringify(entry));
+  const previous = activityEntries.get(body) || [];
+  if (JSON.stringify(keys) === JSON.stringify(previous)) return;
+  const followTail = body.scrollHeight - body.scrollTop - body.clientHeight <= 4;
+  const scrollTop = body.scrollTop;
+  const oldHeight = body.scrollHeight;
+  let overlap = Math.min(previous.length, keys.length);
+  while (overlap && !previous.slice(-overlap).every((key, index) => key === keys[index])) {
+    overlap--;
+  }
+  for (let index = 0; index < previous.length - overlap; index++) {
+    body.firstElementChild.remove();
+  }
+  const removedHeight = oldHeight - body.scrollHeight;
+  for (const entry of entries.slice(overlap)) {
     const row = element("div", "activity-entry");
     row.append(element("time", "", entry.time || ""));
     row.append(
@@ -317,11 +395,8 @@ function renderActivity(logs = [], title = "ALERTS") {
     );
     body.append(row);
   }
-  panel.append(body);
-  requestAnimationFrame(() => {
-    body.scrollTop = body.scrollHeight;
-  });
-  return panel;
+  activityEntries.set(body, keys);
+  body.scrollTop = followTail ? body.scrollHeight : Math.max(0, scrollTop - removedHeight);
 }
 
 function renderArmPreview(arm, previewLabel) {
@@ -334,47 +409,46 @@ function renderArmPreview(arm, previewLabel) {
       "This local simulation preview is not observed arm feedback and does not prove DDS actuation.",
     ),
   );
-  if (arm?.error) {
-    panel.append(
-      element("p", "", `Preview unavailable: ${arm.error}. DDS injection remains available.`),
-    );
-  }
+  panel.append(element("p", "preview-error"));
   const row = element("div", "command-preview-rates");
+  for (let index = 0; index < 3; index++) row.append(element("span"));
+  const state = element("div", "command-preview-state");
+  for (let index = 0; index < 3; index++) state.append(element("span"));
+  panel.append(row, state);
+  updateArmPreview(arm, previewLabel, panel);
+  return panel;
+}
+
+function updateArmPreview(arm, previewLabel, panel = $(".arm-command-preview")) {
+  updateText(panel.querySelector("h2"), previewLabel || "COMMAND PREVIEW · NOT OBSERVED ARM FEEDBACK");
+  const error = panel.querySelector(".preview-error");
+  error.hidden = !arm?.error;
+  updateText(error, arm?.error ? `Preview unavailable: ${arm.error}. DDS injection remains available.` : "");
   const rates = arm?.rates || arm?.command || arm || {};
-  for (const [label, value, unit] of [
+  const rateLabels = [
     ["Linear", rates.linear_velocity, "m/s"],
     ["Angular", rates.angular_velocity, "rad/s"],
     ["Jaw opening", rates.opening_rate, "m/s"],
-  ]) {
+  ].map(([label, value, unit]) => {
     const formatted = label === "Linear"
       ? formatVector(value, ["x", "y", "z"], 3)
       : label === "Angular"
         ? formatVector(value, ["x", "y", "z"], 3)
         : Number.isFinite(Number(value)) ? Number(value).toFixed(3) : "---";
-    row.append(element("span", "", `${label}: ${formatted} ${unit}`));
-  }
-  panel.append(row);
+    return `${label}: ${formatted} ${unit}`;
+  });
+  panel.querySelectorAll(".command-preview-rates > span").forEach((node, index) => {
+    updateText(node, rateLabels[index]);
+  });
   const pose = arm?.pose || {};
-  const state = element("div", "command-preview-state");
-  state.append(
-    element(
-      "span",
-      "",
-      `Simulated TCP position · m: ${formatVector(pose.position || arm?.position, ["x", "y", "z"], 3)}`,
-    ),
-    element(
-      "span",
-      "",
-      `Simulated TCP orientation · x y z w: ${formatVector(pose.orientation || arm?.orientation, ["x", "y", "z", "w"], 3)}`,
-    ),
-    element(
-      "span",
-      "",
-      `Simulated jaw gap · m: ${arm?.opening_width != null && Number.isFinite(Number(arm.opening_width)) ? Number(arm.opening_width).toFixed(3) : "---"}`,
-    ),
-  );
-  panel.append(state);
-  return panel;
+  const stateLabels = [
+    `Simulated TCP position · m: ${formatVector(pose.position || arm?.position, ["x", "y", "z"], 3)}`,
+    `Simulated TCP orientation · x y z w: ${formatVector(pose.orientation || arm?.orientation, ["x", "y", "z", "w"], 3)}`,
+    `Simulated jaw gap · m: ${arm?.opening_width != null && Number.isFinite(Number(arm.opening_width)) ? Number(arm.opening_width).toFixed(3) : "---"}`,
+  ];
+  panel.querySelectorAll(".command-preview-state > span").forEach((node, index) => {
+    updateText(node, stateLabels[index]);
+  });
 }
 
 function drawWaveforms(timestamp) {
@@ -532,8 +606,8 @@ function renderVitals(vitals) {
 }
 
 function renderBadges(data) {
-  headerBadges.replaceChildren();
-  for (const badge of data.header_badges || []) {
+  const badges = data.header_badges || [];
+  for (const [index, badge] of badges.entries()) {
     const label = badge.label.toLowerCase();
     const value = String(badge.value);
     const stateTone = label === "status" || label === "device"
@@ -545,18 +619,20 @@ function renderBadges(data) {
         ? "danger"
         : "warn"
       : "";
-    const item = element("span", `header-badge ${badge.tone || stateTone || ""}`.trim());
-    item.dataset.label = label;
-    if (label === "vitals") {
-      item.append(element("strong", "header-badge-value", `● ${value}`));
-    } else {
-      item.append(
-        element("span", "header-badge-label", badge.label),
-        element("strong", "header-badge-value", value),
-      );
+    let item = headerBadges.children[index];
+    if (!item || item.dataset.label !== label) {
+      const previous = item;
+      item = element("span");
+      item.dataset.label = label;
+      if (label !== "vitals") item.append(element("span", "header-badge-label", badge.label));
+      item.append(element("strong", "header-badge-value"));
+      if (previous) previous.replaceWith(item);
+      else headerBadges.append(item);
     }
-    headerBadges.append(item);
+    item.className = `header-badge ${badge.tone || stateTone || ""}`.trim();
+    updateText(item.querySelector(".header-badge-value"), label === "vitals" ? `● ${value}` : value);
   }
+  while (headerBadges.children.length > badges.length) headerBadges.lastElementChild.remove();
 }
 
 function renderArmApp(data) {
@@ -834,24 +910,14 @@ function renderArmController(data) {
     appMain.append(actionBar);
   }
   appMain.append(renderActualFeedback(data.feedback));
-  if (data.logs?.length) {
-    appMain.append(renderActivity(data.logs, data.activity_title || "ALERTS"));
-  }
+  appMain.append(renderActivity(data.logs, data.activity_title || "ALERTS"));
 }
 
 function renderGamepad(data) {
   appMain.className = "app-main gamepad-app";
   const connection = element("section", "gamepad-connection");
   connection.append(element("strong", "", "INPUT DEVICE"));
-  connection.append(
-    element(
-      "span",
-      data.input_connected ? "connected" : "",
-      data.input_connected
-        ? `●  ${data.gamepad_name} CONNECTED`
-        : "●  NO SUPPORTED GAMEPAD CONNECTED; WAITING",
-    ),
-  );
+  connection.append(element("span"));
   const panel = element("section", "gamepad-inputs");
   panel.append(element("h2", "", "TELEOPERATION CONTROLS"));
   for (const input of data.inputs || []) {
@@ -876,6 +942,20 @@ function renderGamepad(data) {
     ),
     renderActualFeedback(data.feedback),
   );
+  updateGamepad(data);
+}
+
+function updateGamepad(data) {
+  const connection = appMain.querySelector(".gamepad-connection > span");
+  connection.classList.toggle("connected", Boolean(data.input_connected));
+  updateText(connection, data.input_connected
+    ? `●  ${data.gamepad_name} CONNECTED`
+    : "●  NO SUPPORTED GAMEPAD CONNECTED; WAITING");
+  appMain.querySelectorAll(".gamepad-input-row").forEach((row, index) => {
+    const input = data.inputs[index];
+    row.querySelector(".gamepad-input-label").classList.toggle("active", Boolean(input.active));
+    updateText(row.querySelector(".gamepad-input-description"), input.description);
+  });
 }
 
 function renderDeviceCards(data) {
@@ -887,6 +967,7 @@ function renderDeviceCards(data) {
       "",
     );
     card.type = "button";
+    card.dataset.device = device.name;
     card.setAttribute("aria-pressed", String(Boolean(device.selected)));
     card.append(
       element("span", "device-name", device.name),
@@ -902,6 +983,21 @@ function renderDeviceCards(data) {
     grid.append(card);
   }
   return grid;
+}
+
+function updateOrchestrator(data) {
+  for (const device of data.devices || []) {
+    const card = appMain.querySelector(`.device-card[data-device="${device.name}"]`);
+    card.classList.toggle("selected", Boolean(device.selected));
+    card.setAttribute("aria-pressed", String(Boolean(device.selected)));
+    const status = card.querySelector(".device-status");
+    const label = device.status || "OFF";
+    status.className = `device-status ${String(label).toLowerCase()}`;
+    updateText(status, label);
+  }
+  const target = appMain.querySelector(".command-panel > p");
+  const label = `to ${data.selected_device || "selected device"}`;
+  updateText(target, label);
 }
 
 function renderOrchestrator(data) {
@@ -963,13 +1059,11 @@ function setActivityToggle(data) {
   panel.hidden = !activityVisible;
   const count = data.logs?.length || 0;
   const eventLabel = count === 1 ? "EVENT" : "EVENTS";
-  activityToggle.textContent =
-    `${activityVisible ? "▾" : "▸"}  LOG · ${count} ${eventLabel}`;
+  const label = `${activityVisible ? "▾" : "▸"}  LOG · ${count} ${eventLabel}`;
+  updateText(activityToggle, label);
   activityToggle.onclick = () => {
     activityVisible = !activityVisible;
-    panel.hidden = !activityVisible;
-    activityToggle.textContent =
-      `${activityVisible ? "▾" : "▸"}  LOG · ${count} ${eventLabel}`;
+    setActivityToggle(data);
   };
 }
 
@@ -992,8 +1086,10 @@ function render(snapshot, connectionState = "connected") {
       })),
     };
   }
-  const controlSignature = JSON.stringify(data.control_groups || []);
-  const oldActivity = $("#activity-panel");
+  const controlSignature = JSON.stringify((data.control_groups || []).map((group) => [
+    group.title, group.layout, (group.controls || []).map(controlKey),
+  ]));
+  const gamepadSignature = JSON.stringify((data.inputs || []).map((input) => input.label));
   if (
     data.kind === "arm" &&
     data.kind === renderedKind &&
@@ -1015,60 +1111,43 @@ function render(snapshot, connectionState = "connected") {
     return;
   }
   if (
-    data.kind === "threat-exfiltrator" &&
-    data.kind === renderedKind &&
-    controlSignature === renderedControlSignature &&
-    appMain.querySelector(".vitals-grid")
-  ) {
-    renderBadges(data);
-    updateVitals(data.vitals);
-    if (oldActivity) {
-      oldActivity.replaceWith(
-        renderActivity(data.logs, data.activity_title || "EXFILTRATION ACTIVITY"),
-      );
-    }
-    setActivityToggle(data);
-    return;
-  }
-  if (
-    data.kind === "arm-controller" &&
+    ["threat-injector", "threat-exfiltrator", "orchestrator", "arm-controller"].includes(data.kind) &&
     data.kind === renderedKind &&
     controlSignature === renderedControlSignature
   ) {
     renderBadges(data);
-    updateActualFeedback(data.feedback);
-    if (oldActivity) {
-      oldActivity.replaceWith(
-        renderActivity(data.logs, data.activity_title || "ALERTS"),
-      );
+    updateControls(data.control_groups || []);
+    if (data.kind === "threat-injector") {
+      updateArmPreview(data.arm_preview || data.arm, data.preview_label);
+    } else if (data.kind === "threat-exfiltrator") {
+      updateVitals(data.vitals);
+    } else if (data.kind === "orchestrator") {
+      updateOrchestrator(data);
+    } else {
+      updateActualFeedback(data.feedback);
     }
+    const activityTitle = data.kind.startsWith("threat-") ? "ACTIVITY" : "ALERTS";
+    updateActivity(data.logs, data.activity_title || activityTitle);
     setActivityToggle(data);
     return;
   }
-  if (data.kind === "gamepad-controller" && data.kind === renderedKind) {
+  if (
+    data.kind === "gamepad-controller" &&
+    data.kind === renderedKind &&
+    gamepadSignature === renderedGamepadSignature
+  ) {
     renderBadges(data);
     updateActualFeedback(data.feedback);
-    const gamepadSignature = JSON.stringify([
-      data.input_connected,
-      data.gamepad_name,
-      data.inputs || [],
-    ]);
-    if (gamepadSignature !== renderedGamepadSignature) {
-      appMain.replaceChildren();
-      renderGamepad(data);
-      renderedGamepadSignature = gamepadSignature;
-    }
+    updateGamepad(data);
     return;
   }
-  if (data.kind === "arm-controller" && data.kind === renderedKind) {
-    stopActiveHolds();
-  }
+  stopActiveHolds();
   if (data.kind !== renderedKind && renderedKind === "arm") disposeArmScene();
   if (data.kind !== renderedKind) resetWaveforms();
   renderedKind = data.kind;
   renderedControlSignature = controlSignature;
   renderedGamepadSignature = data.kind === "gamepad-controller"
-    ? JSON.stringify([data.input_connected, data.gamepad_name, data.inputs || []])
+    ? gamepadSignature
     : null;
   document.body.dataset.appKind = data.kind || "";
   const title = data.title || snapshot?.title || "";
@@ -1076,6 +1155,7 @@ function render(snapshot, connectionState = "connected") {
   document.title = title || "RTI Connext";
   renderBadges(data);
   appMain.replaceChildren();
+  controlNodes.clear();
   appMain.className = `app-main ${data.kind || ""}`;
   if (data.kind === "arm") {
     renderArmApp(data);

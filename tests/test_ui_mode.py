@@ -17,6 +17,7 @@ import re
 import select
 import sys
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
 
@@ -205,6 +206,7 @@ def test_sdk_serves_the_custom_medtech_frontend_and_app_state(capsys):
         ("01-operating-room", "ArmController"),
         ("01-operating-room", "Orchestrator"),
         ("01-operating-room", "PatientMonitor"),
+        ("04-security-threat", "ThreatInjector"),
         ("04-security-threat", "ThreatExfiltrator"),
     ),
 )
@@ -246,6 +248,53 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                 page = browser.new_page()
                 page.goto(endpoint[0])
                 page.wait_for_function("document.body.dataset.appKind")
+                if app in ("Orchestrator", "ThreatInjector", "ThreatExfiltrator"):
+                    redundant_label_updates = page.evaluate("""async () => {
+                        const toggle = document.querySelector('#activity-toggle');
+                        let label = toggle.textContent;
+                        let redundant = 0;
+                        const observer = new MutationObserver(() => {
+                            if (toggle.textContent === label) redundant++;
+                            label = toggle.textContent;
+                        });
+                        observer.observe(toggle, {
+                            childList: true, characterData: true, subtree: true,
+                        });
+                        await new Promise(resolve => setTimeout(resolve, 400));
+                        observer.disconnect();
+                        return redundant;
+                    }""")
+                    assert redundant_label_updates == 0, (
+                        "Live updates must not replace the log toggle's unchanged text hit target"
+                    )
+                if app == "Orchestrator":
+                    sensor_process = manager.start_app_ready("PatientSensor")
+                    sensor = page.locator(".device-card").filter(has_text="PATIENT_SENSOR")
+                    playwright.expect(sensor.locator(".device-status")).to_have_text("ON")
+                    sensor.click(delay=150)
+                    playwright.expect(sensor).to_have_attribute("aria-pressed", "true")
+                    playwright.expect(page.locator(".command-panel > p")).to_have_text(
+                        "to PATIENT_SENSOR"
+                    )
+                    for command, status in (
+                        ("pause", "PAUSED"),
+                        ("start", "ON"),
+                        ("shutdown", "OFF"),
+                    ):
+                        button = page.locator(f".{command}-command")
+                        if command == "start":
+                            button.focus()
+                            page.keyboard.down("Space")
+                            page.wait_for_timeout(150)
+                            page.keyboard.up("Space")
+                        else:
+                            button.click(delay=150)
+                        playwright.expect(sensor.locator(".device-status")).to_have_text(status)
+                    assert (
+                        "Writing SHUTDOWN to PATIENT_SENSOR"
+                        in page.locator("#activity-panel").inner_text()
+                    )
+                    assert sensor_process.wait(timeout=5) == 0
                 if app == "Arm":
                     page.wait_for_function(
                         "document.querySelector('.arm-scene-status')?.textContent.includes('loaded')"
@@ -460,6 +509,20 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                     assert "---" not in panel.locator(".feedback-value").all_inner_texts()
                 for width, height in ((1600, 950), (800, 600), (640, 480), (390, 844), (320, 480)):
                     page.set_viewport_size({"width": width, "height": height})
+                    if app in ("Orchestrator", "ThreatInjector", "ThreatExfiltrator"):
+                        toggle = page.locator("#activity-toggle")
+                        bounds = toggle.bounding_box()
+                        assert bounds
+                        for x, y in (
+                            (4, bounds["height"] / 2),
+                            (bounds["width"] / 2, bounds["height"] / 2),
+                            (bounds["width"] - 4, bounds["height"] / 2),
+                        ):
+                            was_visible = page.locator("#activity-panel").is_visible()
+                            toggle.click(position={"x": x, "y": y}, delay=150)
+                            playwright.expect(page.locator("#activity-panel")).to_be_visible(
+                                visible=not was_visible
+                            )
                     overflow = page.evaluate("""() => {
                         const width = document.documentElement.clientWidth;
                         const panels = [...document.querySelectorAll('.vital-panel')]
@@ -497,6 +560,18 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                     )
                     assert fallback.locator(".sdk-scene3d-list").is_visible()
                     assert "REPORTED TELEMETRY" in fallback.locator(".actual-feedback").inner_text()
+                    option = fallback.locator(".sdk-scene3d-list [role=option]").first
+                    point = option.evaluate("""node => {
+                        window.sceneOptionText = node.firstChild;
+                        const range = document.createRange();
+                        range.selectNodeContents(node);
+                        const text = range.getBoundingClientRect();
+                        const box = node.getBoundingClientRect();
+                        return {x: text.x + text.width / 2 - box.x, y: box.height / 2};
+                    }""")
+                    option.click(position=point, delay=350)
+                    assert fallback.evaluate("sceneOptionText.isConnected")
+                    assert option.get_attribute("aria-selected") == "true"
                     process.terminate()
                     process.wait(timeout=5)
                     page.wait_for_function(
@@ -511,3 +586,248 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                 browser.close()
     finally:
         manager.shutdown_all()
+
+
+@contextmanager
+def _snapshot_page(browser_name="chromium"):
+    """Exercise frontend reconciliation independently of DDS and SDK transport timing."""
+    import playwright.sync_api as playwright
+
+    with playwright.sync_playwright() as pw:
+        browser_type = getattr(pw, browser_name)
+        executable = Path(browser_type.executable_path)
+        assert executable.is_file(), (
+            f"Run `python -m playwright install --with-deps {browser_name}`"
+        )
+        browser = browser_type.launch(executable_path=str(executable), headless=True)
+        page = browser.new_page(viewport={"width": 1600, "height": 950})
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+
+        def serve(route):
+            path = route.request.url.removeprefix("http://frontend.test/")
+            if path == "sdk/client.js":
+                route.fulfill(
+                    content_type="text/javascript",
+                    body="""export function createClient() {
+                        window.commands = [];
+                        return {
+                            subscribe(render) {
+                                window.updateUi = data => {
+                                    window.uiData = data;
+                                    render({data});
+                                };
+                            },
+                            start() {},
+                            async invokeCommand(command, payload) {
+                                window.commands.push({command, payload});
+                            },
+                        };
+                    }""",
+                )
+            elif path in ("", "app.js", "app.css"):
+                route.fulfill(path=WEB_ROOT / (path or "index.html"))
+            else:
+                route.fulfill(status=404, body="")
+
+        page.route("http://frontend.test/**", serve)
+        try:
+            page.goto("http://frontend.test/")
+            page.wait_for_function("typeof window.updateUi === 'function'")
+            yield page
+            assert not errors
+        finally:
+            browser.close()
+
+
+@pytest.fixture
+def snapshot_page():
+    with _snapshot_page() as page:
+        yield page
+
+
+@pytest.mark.browser
+@pytest.mark.parametrize("kind", ("threat-injector", "threat-exfiltrator"))
+def test_threat_controls_keep_pointer_targets_and_current_commands(snapshot_page, kind):
+    page = snapshot_page
+    page.evaluate(
+        """kind => updateUi({
+            kind, control_groups: [{controls: [
+                {type: 'button', label: 'UNSECURE', command: 'select-mode',
+                 payload: {mode: 'UNSECURE'}, className: 'mode-button'},
+                {type: 'button', label: 'STOP ATTACK', command: 'stop-attack', disabled: true},
+            ]}],
+        })""",
+        kind,
+    )
+    button = page.get_by_role("button", name="UNSECURE", exact=True)
+    button.focus()
+    button.evaluate("(node) => { window.modeButton = node; window.modeText = node.firstChild; }")
+    bounds = button.bounding_box()
+    page.mouse.move(bounds["x"] + bounds["width"] / 2, bounds["y"] + bounds["height"] / 2)
+    page.mouse.down()
+    page.evaluate("""() => {
+        const controls = uiData.control_groups[0].controls;
+        controls[0].className = 'mode-button selected';
+        controls[0].label = 'UNSECURE ACTIVE';
+        controls[1].disabled = false;
+        updateUi(uiData);
+    }""")
+    page.wait_for_timeout(150)
+    page.mouse.up()
+    assert page.evaluate("""() => modeButton.isConnected
+        && document.activeElement === modeButton && modeButton.firstChild === modeText""")
+    page.wait_for_function("commands.length === 1")
+    assert page.locator(".mode-button.selected").count() == 1
+    assert page.evaluate("commands[0]") == {
+        "command": "select-mode",
+        "payload": {"mode": "UNSECURE"},
+    }
+    page.evaluate("""() => {
+        uiData.control_groups[0].controls[0].payload = {mode: 'SECURE'};
+        updateUi(uiData);
+    }""")
+    page.get_by_role("button", name="UNSECURE ACTIVE", exact=True).press("Space")
+    page.wait_for_function("commands.length === 2")
+    assert page.evaluate("commands[1].payload") == {"mode": "SECURE"}
+
+
+@pytest.mark.browser
+@pytest.mark.parametrize("control_type", ("hold", "dpad"))
+def test_jog_survives_unrelated_updates_but_stops_when_disabled(snapshot_page, control_type):
+    page = snapshot_page
+    page.evaluate(
+        """type => updateUi({
+            kind: 'arm-controller', control_groups: [
+                {controls: [{type, command: 'jog', label: 'X+', axis: 'X',
+                             direction: 'POSITIVE', disabled: false}]},
+                {layout: 'demo-controls', controls: [
+                    {type: 'button', label: 'RUN DEMO', command: 'run-demo', disabled: true},
+                ]},
+            ],
+        })""",
+        control_type,
+    )
+    jog = page.get_by_role("button", name=re.compile(r"X\+"))
+    jog.focus()
+    jog.evaluate("(node) => { window.jogButton = node; }")
+    page.keyboard.down("Space")
+    page.evaluate("""() => {
+        uiData.control_groups[1].controls[0].disabled = false;
+        updateUi(uiData);
+    }""")
+    page.wait_for_timeout(450)
+    assert page.evaluate("jogButton.isConnected && document.activeElement === jogButton")
+    commands = page.evaluate("commands")
+    assert len(commands) >= 3
+    assert all(command["payload"]["direction"] == "POSITIVE" for command in commands)
+    page.evaluate("""() => {
+        uiData.control_groups[0].controls[0].disabled = true;
+        updateUi(uiData);
+    }""")
+    page.wait_for_function("commands.at(-1)?.payload.direction === 'STOPPED'")
+    assert jog.is_disabled()
+    stopped_count = page.evaluate("commands.length")
+    page.wait_for_timeout(300)
+    page.keyboard.up("Space")
+    assert page.evaluate("commands.length") == stopped_count
+
+
+@pytest.mark.browser
+def test_frequency_edit_survives_snapshots_and_publishes_operator_value(snapshot_page):
+    page = snapshot_page
+    page.evaluate("""() => updateUi({
+        kind: 'threat-injector', control_groups: [{controls: [
+            {type: 'range', label: 'Inject Frequency (Hz)', unit: ' Hz',
+             min: 1, max: 20, value: 5, command: 'set-frequency', parameter: 'frequency_hz'},
+        ]}],
+    })""")
+    slider = page.locator('input[type="range"]')
+    slider.focus()
+    slider.evaluate("(node) => { window.frequencyInput = node; }")
+    slider.press("ArrowRight")
+    page.evaluate("updateUi(uiData)")
+    assert slider.input_value() == "6"
+    assert page.evaluate("frequencyInput.isConnected && document.activeElement === frequencyInput")
+    slider.press("ArrowRight")
+    page.wait_for_function("commands.length === 2")
+    assert page.evaluate("commands.at(-1)") == {
+        "command": "set-frequency",
+        "payload": {"frequency_hz": 7},
+    }
+    slider.blur()
+    page.evaluate("""() => {
+        uiData.control_groups[0].controls[0].value = 7;
+        updateUi(uiData);
+    }""")
+    assert page.locator(".range-value").inner_text() == "7 Hz"
+    bounds = slider.bounding_box()
+    page.mouse.move(bounds["x"] + bounds["width"] / 3, bounds["y"] + bounds["height"] / 2)
+    page.mouse.down()
+    page.mouse.move(bounds["x"] + bounds["width"] * 0.8, bounds["y"] + bounds["height"] / 2)
+    edited_value = slider.input_value()
+    assert int(edited_value) > 7
+    page.evaluate("updateUi(uiData)")
+    assert slider.input_value() == edited_value
+    page.mouse.up()
+    page.wait_for_function(
+        "value => commands.at(-1)?.payload.frequency_hz === value",
+        arg=int(edited_value),
+    )
+
+
+@pytest.mark.browser
+def test_activity_preserves_rows_and_reading_position_while_following_tail(snapshot_page):
+    page = snapshot_page
+    page.evaluate("""() => updateUi({
+        kind: 'orchestrator', logs: Array.from({length: 120}, (_, i) => ({
+            time: '12:00', level: 'info', message: `Event ${i}`,
+        })),
+    })""")
+    page.wait_for_function("""() => {
+        const log = document.querySelector('.activity-log');
+        return log.scrollTop > 0;
+    }""")
+    page.evaluate("""() => {
+        window.logBody = document.querySelector('.activity-log');
+        window.keptRow = logBody.children[60];
+        logBody.scrollTop = keptRow.offsetTop - logBody.firstElementChild.offsetTop;
+        window.rowOffset = keptRow.getBoundingClientRect().top;
+        updateUi(uiData);
+    }""")
+    assert page.evaluate("logBody.isConnected && keptRow.isConnected")
+    page.evaluate("""() => {
+        uiData.logs.push({time: '12:01', level: 'info', message: 'New event'});
+        updateUi(uiData);
+    }""")
+    assert page.evaluate("keptRow.isConnected")
+    assert abs(page.evaluate("keptRow.getBoundingClientRect().top - rowOffset")) <= 1
+    page.evaluate("""() => {
+        logBody.scrollTop = logBody.scrollHeight;
+        uiData.logs.push({time: '12:02', level: 'info', message: 'Latest event'});
+        updateUi(uiData);
+    }""")
+    assert page.evaluate("logBody.scrollHeight - logBody.scrollTop - logBody.clientHeight") <= 1
+    assert page.locator(".activity-entry").count() == 120
+
+
+@pytest.mark.browser
+def test_gamepad_feedback_survives_input_and_connection_updates(snapshot_page):
+    page = snapshot_page
+    page.evaluate("""() => updateUi({
+        kind: 'gamepad-controller', input_connected: false,
+        inputs: [{label: 'RIGHT STICK', description: 'Move Z', active: false}],
+    })""")
+    page.evaluate("""() => {
+        window.feedback = document.querySelector('.actual-feedback');
+        window.inputRow = document.querySelector('.gamepad-input-row');
+        uiData.input_connected = true;
+        uiData.gamepad_name = 'Test gamepad';
+        uiData.inputs[0].active = true;
+        uiData.inputs[0].description = 'Return to neutral';
+        updateUi(uiData);
+    }""")
+    assert page.evaluate("feedback.isConnected && inputRow.isConnected")
+    assert "Test gamepad CONNECTED" in page.locator(".gamepad-connection").inner_text()
+    assert page.locator(".gamepad-input-label.active").count() == 1
+    assert page.locator(".gamepad-input-description").inner_text() == "Return to neutral"

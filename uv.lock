@@ -1751,16 +1751,16 @@ wheels = [
 
 [[package]]
 name = "rti-demo-ui"
-version = "0.5.0"
-source = { git = "https://github.com/wcoleman-rti/rti-demo-ui.git?rev=309cb0ccb377ec4a70c0aaf3be8de5fcb1d4ec5a#309cb0ccb377ec4a70c0aaf3be8de5fcb1d4ec5a" }
+version = "0.5.1"
+source = { git = "https://github.com/wcoleman-rti/rti-demo-ui.git?rev=e31e8981d625f9d6bbc00797d7e38caf8a165659#e31e8981d625f9d6bbc00797d7e38caf8a165659" }
 dependencies = [
     { name = "aiohttp" },
 ]
 
 [[package]]
 name = "rti-demo-ui-native"
-version = "0.5.0"
-source = { git = "https://github.com/wcoleman-rti/rti-demo-ui.git?subdirectory=native%2Fpython&rev=309cb0ccb377ec4a70c0aaf3be8de5fcb1d4ec5a#309cb0ccb377ec4a70c0aaf3be8de5fcb1d4ec5a" }
+version = "0.5.1"
+source = { git = "https://github.com/wcoleman-rti/rti-demo-ui.git?subdirectory=native%2Fpython&rev=e31e8981d625f9d6bbc00797d7e38caf8a165659#e31e8981d625f9d6bbc00797d7e38caf8a165659" }
 dependencies = [
     { name = "pygobject", marker = "python_full_version < '3.13' and sys_platform == 'linux'" },
     { name = "pywebview", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32'" },
@@ -1838,8 +1838,8 @@ requires-dist = [
     { name = "qpsolvers", extras = ["daqp"], marker = "extra == 'arm'", specifier = "==4.13.0" },
     { name = "requests", specifier = ">=2.31" },
     { name = "rti-connext", specifier = "==7.7.0" },
-    { name = "rti-demo-ui", git = "https://github.com/wcoleman-rti/rti-demo-ui.git?rev=309cb0ccb377ec4a70c0aaf3be8de5fcb1d4ec5a" },
-    { name = "rti-demo-ui-native", marker = "extra == 'native'", git = "https://github.com/wcoleman-rti/rti-demo-ui.git?subdirectory=native%2Fpython&rev=309cb0ccb377ec4a70c0aaf3be8de5fcb1d4ec5a" },
+    { name = "rti-demo-ui", git = "https://github.com/wcoleman-rti/rti-demo-ui.git?rev=e31e8981d625f9d6bbc00797d7e38caf8a165659" },
+    { name = "rti-demo-ui-native", marker = "extra == 'native'", git = "https://github.com/wcoleman-rti/rti-demo-ui.git?subdirectory=native%2Fpython&rev=e31e8981d625f9d6bbc00797d7e38caf8a165659" },
     { name = "rti-medtech-reference-architecture", extras = ["arm", "gamepad"], marker = "extra == 'user'" },
     { name = "rti-medtech-reference-architecture", extras = ["dev"], marker = "extra == 'maint'" },
     { name = "rti-medtech-reference-architecture", extras = ["user"], marker = "extra == 'dev'" },
