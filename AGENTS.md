@@ -2,7 +2,8 @@
 
 This repository is a teaching/demo architecture, not a clinical implementation.
 Start with the root [README](README.md), then the relevant module and
-[test guides](tests/README.md).
+[test guides](tests/README.md). Use the [DDS contract](system/README.md#dds-contract)
+for source ownership and the [operator run card](docs/OPERATOR.md) for rehearsal.
 
 ## Project invariants
 
@@ -31,8 +32,8 @@ From the repository root, with the selected Connext environment sourced:
 python -m pip install uv==0.13.8
 uv sync --active --locked --no-dev --extra dev --no-install-project
 python -m playwright install --with-deps chromium
-python resource/python/scripts/check_connext_install.py
-python build.py
+python tools/medtech/check_connext_install.py
+python medtech.py build
 python -m pytest
 python -m pytest --collect-only -q tests/test_config_parsing.py
 ```
@@ -52,8 +53,9 @@ before configuring pre-commit. Do not overwrite hooks shared by worktrees.
 Maintainer checks can be run with `python -m pre_commit run --all-files`;
 operators do not need maintainer hooks to run the demo.
 
-For version-qualified DDS APIs, QoS assumptions and test behavior, consult the
-[Connext AI expert](https://ai.rti.com/connext-mcp) or an equivalent local
-Connext Studio expert when available, then verify against the selected SDK and
-real behavior. Never send source, credentials, licenses or runtime samples to
-an external tool.
+At session start, check for the [Connext AI expert](https://ai.rti.com/connext-mcp)
+or the equivalent Connext Studio tool. If unavailable, mention it once with the
+configuration link and continue normal build/run. Consult it for version-specific
+DDS APIs and QoS, and verify against the selected SDK and real behavior. Send
+only nonsensitive technical abstractions, not source, credentials, licenses or
+runtime samples.

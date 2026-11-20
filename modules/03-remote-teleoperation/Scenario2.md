@@ -10,11 +10,11 @@ For secure mode, append `-s` to each Module 01, Routing Service, and Cloud Disco
 
 Make sure the shared setup in the root [Quick Start](../../README.md#quick-start) section is complete and that Module 01 is already working before you try this scenario.
 
-![Scenario 2 diagram](../../resource/images/module-03-diagram-scenario-02.gif)
+![Scenario 2 diagram](../../docs/assets/module-03-diagram-scenario-02.gif)
 
 ## Setup and Installation
 
-**This scenario requires the *OR's* and the *Arm Controller's* NATs to be cone NATs. You can use the NAT type checker script in [resource/nat_type_checker](../../resource/nat_type_checker) to make sure you have cone NATs.**
+**This scenario requires the *OR's* and the *Arm Controller's* NATs to be cone NATs. You can use the NAT type checker script in [tools/nat_type_checker](../../tools/nat_type_checker) to make sure you have cone NATs.**
 
 Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. This scenario then adds the WAN transport, cloud instance, security, and network configuration below.
 
@@ -37,7 +37,9 @@ On your publicly reachable cloud instance, install the RTI Connext host, the Rea
 
 ### 3. Security (optional)
 
-The shared trusted security artifacts are covered in the root [Quick Start](../../README.md#quick-start). Complete that setup before running this scenario, then distribute the generated artifacts to whichever machines are used to run the demo applications.
+Prepare the [local security bundle](../../system/security/README.md) before
+running this scenario, or follow the [EPS WAN setup](../../docs/EPS.md#module-03-remote-teleoperation)
+for agent-managed credentials.
 
 **You should generate the security artifacts once and then distribute to whichever machines are used to run the demo applications. This ensures the certificates can be correctly verified across machines during DomainParticipant authentication.**
 
@@ -64,11 +66,11 @@ set PUBLIC_PORT=10777
 
 You will need to add a security rule on your cloud instance to allow incoming/outgoing traffic on `PUBLIC_PORT` for the UDP protocol. For example:
 
-![Configuration cloud instance](../../resource/images/module-03-cloud-ports-config.png)
+![Configuration cloud instance](../../docs/assets/module-03-cloud-ports-config.png)
 
 ## Run the Scenario
 
-> Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+> Important: Run the commands below from the repository root. `medtech.py run` lives at the project root and is the single runtime entrypoint for this project.
 
 *Note: This scenario will not work if different certificate sets are used on each side when using Security.*
 
@@ -78,7 +80,7 @@ From one machine, start the teleop Arm Controller:
 
 ```bash
 # From the repository root
-python3 launch.py 01-operating-room ArmController
+python medtech.py run 01-operating-room ArmController
 ```
 
 ### 2. Launch Passive Side Applications
@@ -87,7 +89,7 @@ From the other machine, start the Operating Room applications:
 
 ```bash
 # From the repository root
-python3 launch.py 01-operating-room Orchestrator PatientSensor Arm PatientMonitor
+python medtech.py run 01-operating-room Orchestrator PatientSensor Arm PatientMonitor
 ```
 
 >**Observe:** You should see **no communication** between applications since the Routing Service and Cloud Discovery Service infrastructure has not been started yet.
@@ -98,7 +100,7 @@ In a terminal on your cloud instance, run Cloud Discovery Service:
 
 ```bash
 # From the repository root
-python3 launch.py 03-remote-teleoperation CdsCloud
+python medtech.py run 03-remote-teleoperation CdsCloud
 ```
 
 ### 4. Launch Active Routing Services
@@ -107,7 +109,7 @@ Open a new terminal on both *Active* sides and run the following in each:
 
 ```bash
 # From the repository root
-python3 launch.py 03-remote-teleoperation RsActive
+python medtech.py run 03-remote-teleoperation RsActive
 ```
 
 ### 5. Observe Communication

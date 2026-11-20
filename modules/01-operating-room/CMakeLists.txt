@@ -49,13 +49,13 @@ foreach(application ${GRAPHICAL_APPLICATIONS})
         rti_demo_ui::core
     )
     target_compile_definitions(${application}
-        PRIVATE RTI_DEMO_UI_WEB_ROOT="${PROJECT_SOURCE_DIR}/resource/ui_web"
+        PRIVATE RTI_DEMO_UI_WEB_ROOT="${PROJECT_SOURCE_DIR}/resources/ui/web"
     )
     target_include_directories(${application}
         PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/src"
         "${CMAKE_CURRENT_BINARY_DIR}/src"
-        "${PROJECT_SOURCE_DIR}/resource/demo_ui"
+        "${PROJECT_SOURCE_DIR}/resources/ui/support"
     )
     set_property(TARGET ${application} PROPERTY CXX_STANDARD 17)
 

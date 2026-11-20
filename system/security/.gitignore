@@ -12,6 +12,7 @@
 
 # ---------------------------------------------------------------------------
 # Generated security artifacts
+/artifacts/
 # ---------------------------------------------------------------------------
 # Re-run setup_security.py to regenerate.
 # Committed files: *.cnf, *.xml (unsigned), *.j2 templates, *.py scripts.

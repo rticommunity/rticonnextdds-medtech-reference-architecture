@@ -39,7 +39,7 @@ module01_test_support = importlib.import_module("module01_test_support")
 
 SRC_DIR = module01_test_support.SRC_DIR
 
-from scripts.test_utils import (  # noqa: E402
+from test_utils import (  # noqa: E402
     PROCESS_WAIT_TIMEOUT,
     UtilityApp,
     disable_monitoring,
@@ -252,6 +252,21 @@ class TestSecurePatientSensor:
                 f"PatientSensor exited prematurely (code={ps.returncode})\n"
                 f"stdout:\n{stdout[-2000:]}\nstderr:\n{stderr[-2000:]}"
             )
+
+
+@pytest.mark.secure
+def test_patient_monitor_grant_denies_vitals_writer(dds_env_secure, monkeypatch):
+    env, _ = dds_env_secure
+    monkeypatch.setenv("RTI_SECURITY_ARTIFACTS_DIR", env["RTI_SECURITY_ARTIFACTS_DIR"])
+    factory_qos = dds.DomainParticipant.participant_factory_qos
+    try:
+        disable_monitoring()
+        with UtilityApp.make_secure("DpQosLib::PatientMonitor") as monitor:
+            monitor.vitals.reader.enable()
+            with pytest.raises(dds.Error, match="Failed to create DataWriter"):
+                _ = monitor.vitals.writer
+    finally:
+        dds.DomainParticipant.participant_factory_qos = factory_qos
 
 
 @pytest.mark.secure

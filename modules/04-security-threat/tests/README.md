@@ -11,8 +11,8 @@ injector and exfiltrator participants depending on the attack mode.
 | RTI Connext DDS 7.7.x | `NDDSHOME` must be set |
 | Python 3.11+ | With the Connext Python API (`rti.connextdds`) |
 | pytest | Install the locked developer dependencies as described in the [project test guide](../../../tests/README.md) |
-| Project C++ build complete | From the repository root, run `python build.py` |
-| Security artifacts | Run `system/security/setup_security.py` |
+| Project C++ build complete | From the repository root, run `python medtech.py build` |
+| Security artifacts | Run `system/security/setup_security.py`, then repeat with `--stage` |
 | Threat security artifacts | Run `modules/04-security-threat/security/setup_threat_security.py` |
 
 Tests are automatically skipped if security artifacts have not been

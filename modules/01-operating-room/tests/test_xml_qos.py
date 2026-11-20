@@ -18,9 +18,10 @@ from urllib.request import urlopen
 
 import pytest
 from module01_test_support import REPO_ROOT, SRC_DIR
-from scripts.platform_setup import generated_system_path
-from scripts.test_utils import make_isolated_qos_provider, register_type
 from test_orchestrator_ui import _local_ui_url
+from test_utils import make_isolated_qos_provider, register_type
+
+from tools.medtech.platform_setup import generated_system_path
 
 
 def test_operational_participants_load_from_qos_profiles():
@@ -46,8 +47,8 @@ def test_operational_participants_load_from_qos_profiles():
         str(generated_system_path() / "xml" / "MedTech.xml"),
         str(system / "qos" / "Qos.xml"),
         str(system / "qos" / "NonSecureAppsQos.xml"),
-        str(system / "xml_app_creation" / "DomainLibrary.xml"),
-        str(system / "xml_app_creation" / "ParticipantLibrary.xml"),
+        str(system / "model" / "DomainLibrary.xml"),
+        str(system / "model" / "ParticipantLibrary.xml"),
     )
     participants = []
     try:

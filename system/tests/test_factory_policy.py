@@ -5,7 +5,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from scripts import module_runner
+
+from tools.medtech import module_runner
 
 ROOT = Path(__file__).resolve().parents[2]
 

@@ -143,10 +143,8 @@ jobs:
           echo "available=true" >> "$GITHUB_OUTPUT"
 
       - name: Select Connext patch
-        env:
-          PYTHONPATH: resource/python
         run: |
-          version=$(python3 -c 'from scripts.check_connext_install import project_python_api_version; print(project_python_api_version())')
+          version=$(python3 -c 'from tools.medtech.check_connext_install import project_python_api_version; print(project_python_api_version())')
           case "$version" in
             "${CONNEXT_VERSION}") patch="${version}.0" ;;
             "${CONNEXT_VERSION}".*) patch="$version" ;;
@@ -225,12 +223,9 @@ jobs:
           python -m pip install uv==0.13.8
           uv sync --active --locked --no-dev --extra dev --no-install-project
 
-      - name: Verify Python API and SDK compatibility
-        run: python resource/python/scripts/check_connext_install.py
-
       - name: Build project binaries
         run: |
-          python build.py \
+          python medtech.py build -- \
             -DRTICONNEXTDDS_VERSION=${{ env.CONNEXT_VERSION }} \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=ON \
@@ -239,6 +234,7 @@ jobs:
       - name: Generate security artifacts
         run: |
           python system/security/setup_security.py --force
+          python system/security/setup_security.py --stage
           python modules/04-security-threat/security/setup_threat_security.py --force
 
       - name: Configure Connext runtime environment
@@ -265,7 +261,7 @@ jobs:
       - name: Smoke-test licensed Python DDS runtime
         id: python-runtime
         run: |
-          python resource/python/scripts/smoke_connext_runtime.py
+          python tools/medtech/smoke_connext_runtime.py
           echo "passed=true" >> "$GITHUB_OUTPUT"
 
       - name: Verify required services

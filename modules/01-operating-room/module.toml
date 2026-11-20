@@ -1,0 +1,20 @@
+description = "Digital Operating Room"
+
+[env]
+NDDS_QOS_PROFILES = "system/qos/Qos.xml;${args:security};system/qos/ApplicationFactoryQos.xml;system/model/DomainLibrary.xml;system/model/ParticipantLibrary.xml"
+
+[args.security]
+true = "system/qos/SecureAppsQos.xml"
+false = "system/qos/NonSecureAppsQos.xml"
+
+[app_variants.ArmController]
+default = "simulated"
+choices = { simulated = "ArmController", xbox = "ArmControllerGamepad" }
+
+[apps]
+ArmController = ["${CPP:ArmController}"]
+ArmControllerGamepad = ["${PYTHON:ArmControllerGamepad}"]
+Orchestrator = ["${CPP:Orchestrator}"]
+PatientSensor = ["${CPP:PatientSensor}"]
+Arm = ["${PYTHON:Arm}"]
+PatientMonitor = ["${PYTHON:PatientMonitor}"]

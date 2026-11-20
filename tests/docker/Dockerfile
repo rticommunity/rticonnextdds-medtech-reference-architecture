@@ -16,7 +16,7 @@
 # Stages:
 #   connext-base  — Ubuntu 24.04 + Connext DDS via apt
 #   build-base    — Python + C++ dependencies
-#   build         — CMake configure + build + security artifacts
+#   build         — CMake configure + build
 #   test          — Pytest for headless browser-mode testing
 #
 # RTI license file is NOT baked into the image.
@@ -92,7 +92,7 @@ RUN version="$(sed -n 's/^[[:space:]]*"rti\.connext==\([0-9.]*\)",[[:space:]]*$/
     && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------------
-# Stage 2: Build C++ modules + security artifacts
+# Stage 2: Build dependencies
 # ------------------------------------------------------------------
 FROM connext-base AS build-base
 
@@ -128,7 +128,7 @@ RUN python -m pip install --no-cache-dir --upgrade pip \
     && uv sync --active --locked --no-dev --extra dev --no-install-project
 
 # ------------------------------------------------------------------
-# Stage 3: Build C++ modules + security artifacts
+# Stage 3: Build C++ modules
 # ------------------------------------------------------------------
 FROM build-base AS build
 
@@ -139,12 +139,7 @@ COPY . .
 RUN /bin/bash -ec 'set -- "$NDDSHOME"/resource/scripts/rtisetenv_*.bash; \
     if [[ $# != 1 || ! -f $1 ]]; then echo "Expected one Connext environment script" >&2; exit 1; fi; \
     source "$1"; \
-    python resource/python/scripts/check_connext_install.py; \
-    python build.py -DRTICONNEXTDDS_VERSION="$CONNEXT_VERSION" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON'
-
-# Generate security artifacts (certificates, signed governance/permissions)
-RUN python${PYTHON_VERSION} system/security/setup_security.py --force
-RUN python${PYTHON_VERSION} modules/04-security-threat/security/setup_threat_security.py --force
+    python medtech.py build -- -DRTICONNEXTDDS_VERSION="$CONNEXT_VERSION" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON'
 
 # ------------------------------------------------------------------
 # Stage 4: Test environment

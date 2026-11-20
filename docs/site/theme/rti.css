@@ -1,0 +1,50 @@
+@font-face {
+  font-family: Montserrat;
+  src: url("fonts/montserrat-latin.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Roboto Condensed";
+  src: url("fonts/roboto-condensed-latin.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+:root {
+  --rti-blue: #004c97;
+  --rti-orange: #ed8b00;
+  --rti-gray: #63666a;
+  --md-text-font: "Montserrat";
+  --md-primary-fg-color: var(--rti-blue);
+  --md-primary-bg-color: #fff;
+  --md-accent-fg-color: var(--rti-blue);
+}
+
+.md-header {
+  background-color: var(--rti-blue);
+  color: #fff;
+  border-bottom: 3px solid var(--rti-orange);
+}
+
+.md-header__title,
+.md-typeset :is(h1, h2, h3, h4, h5, h6) {
+  font-family: "Roboto Condensed", "Arial Narrow", sans-serif;
+}
+
+.md-typeset h1 {
+  color: var(--rti-gray);
+}
+
+.md-typeset a:not(.headerlink) {
+  text-underline-offset: 0.15em;
+  text-decoration: underline;
+}
+
+:is(a, button, summary, input):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

@@ -37,16 +37,6 @@ using SecureLogHandler = std::function<void(const SecureLogType &)>;
 using SecureLogReader = std::pair<dds::sub::DataReader<SecureLogType>,
                                   rti::sub::SampleProcessor>;
 
-bool is_secure(const dds::domain::DomainParticipant &participant)
-{
-    if (participant == dds::core::null) {
-        throw std::runtime_error(
-                "Participant must be created to determine if secure.");
-    }
-    return participant.qos().policy<rti::core::policy::Property>().exists(
-            "com.rti.serv.load_plugin");
-}
-
 SecureLogReader setup_secure_log_reader(
         SecureLogHandler log_handler,
         dds::core::QosProvider qos_provider = dds::core::QosProvider::Default())

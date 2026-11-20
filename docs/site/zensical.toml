@@ -1,0 +1,53 @@
+[project]
+site_name = "RTI MedTech Reference Architecture"
+site_url = "https://rticommunity.github.io/rticonnextdds-medtech-reference-architecture/"
+repo_url = "https://github.com/rticommunity/rticonnextdds-medtech-reference-architecture"
+docs_dir = "content"
+extra_css = ["theme/rti.css"]
+nav = [
+  { "Overview" = "index.md" },
+  { "Platform setup" = "docs/SETUP.md" },
+  { "Command-line guide" = "docs/CLI.md" },
+  { "Operator run card" = "docs/OPERATOR.md" },
+  { "Architecture" = [
+    { "DDS contract and guidance" = "system/README.md" },
+    { "DDS design guide" = "system/DDS_DESIGN_GUIDE.md" },
+    { "DDS model" = [
+      { "Overview" = "system/model/README.md" },
+      { "XML application creation" = "system/model/DDS_XML_MODEL.md" },
+      { "Domain library" = "system/model/DOMAINS.md" },
+      { "Participant library" = "system/model/PARTICIPANTS.md" },
+    ] },
+    { "QoS" = [
+      { "Overview" = "system/qos/README.md" },
+      { "Profile reference" = "system/qos/QOS_PROFILE_REFERENCE.md" },
+    ] },
+  ] },
+  { "Security" = [
+    { "Local provider" = "system/security/README.md" },
+    { "Edge Provisioning Service" = "docs/EPS.md" },
+  ] },
+  { "Modules" = [
+    { "01: Operating room" = [
+      { "Walkthrough" = "modules/01-operating-room/README.md" },
+      { "Arm and controller" = "modules/01-operating-room/ARM_AND_CONTROLLER.md" },
+    ] },
+    { "02: Record and replay" = "modules/02-record-playback/README.md" },
+    { "03: Remote teleoperation" = [
+      { "Choose a WAN scenario" = "modules/03-remote-teleoperation/README.md" },
+      { "Scenario 1" = "modules/03-remote-teleoperation/Scenario1.md" },
+      { "Scenario 2" = "modules/03-remote-teleoperation/Scenario2.md" },
+      { "Scenario 3" = "modules/03-remote-teleoperation/Scenario3.md" },
+    ] },
+    { "04: Security demonstration" = "modules/04-security-threat/README.md" },
+  ] },
+]
+
+[project.markdown_extensions]
+pymdownx.quotes.callouts = true
+pymdownx.superfences = {}
+pymdownx.tabbed.alternate_style = true
+
+[project.theme]
+font = false
+features = ["content.code.copy", "content.tabs.link"]

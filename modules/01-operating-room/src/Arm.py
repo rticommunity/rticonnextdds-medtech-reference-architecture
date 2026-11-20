@@ -25,6 +25,7 @@ from DemoUiSupport import (
     DemoUiState,
     create_demo_ui,
     log_failure,
+    participant_security_enabled,
     run_app_task,
     run_demo_ui,
 )
@@ -133,17 +134,16 @@ class ArmApp:
         actual = self.model.view()
         return {
             "kind": "arm",
+            "device_status": self.status.name,
             "title": "Surgical Arm Monitor",
             "status": self.status.name,
             "header_badges": [
                 {
-                    "label": "TeleopControl",
+                    "label": "Controller",
                     "value": controller_status,
                     "tone": "good" if self.controller_connected else "muted",
                 },
-                {"label": "Status", "value": self.status.name},
-                {"label": "Control frame", "value": "BASE (+Z UP)"},
-                {"label": "Arm", "value": self.readiness},
+                {"label": "Arm readiness", "value": self.readiness},
             ],
             "footer": True,
             "arm": actual,
@@ -245,6 +245,7 @@ class ArmApp:
 
         try:
             self.participant.enable()
+            self.ui.update(dds_security=participant_security_enabled(self.participant))
             self.status_writer.write(self.status_sample)
             enabled = True
             self.ui.update(**self.view())

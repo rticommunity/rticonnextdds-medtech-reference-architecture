@@ -16,7 +16,7 @@ Module-specific notes:
 
 - If you plan to use secure mode, make sure the security artifacts from the root README have been generated.
 
-![Scenario 3 diagram](../../resource/images/module-03-diagram-scenario-03.gif)
+![Scenario 3 diagram](../../docs/assets/module-03-diagram-scenario-03.gif)
 
 ## Setup and Installation
 
@@ -35,7 +35,9 @@ On your publicly reachable cloud instance, install the RTI Connext host and the 
 
 ### 3. Security (optional)
 
-The shared trusted security artifacts are covered in the root [Quick Start](../../README.md#quick-start). Complete that setup before running this scenario, then distribute the generated artifacts to whichever machines are used to run the demo applications.
+Prepare the [local security bundle](../../system/security/README.md) before
+running this scenario, or follow the [EPS WAN setup](../../docs/EPS.md#module-03-remote-teleoperation)
+for agent-managed credentials.
 
 **You should generate the security artifacts once and then distribute to whichever machines are used to run the demo applications. This ensures the certificates can be correctly verified across machines during DomainParticipant authentication.**
 
@@ -65,11 +67,11 @@ set INTERNAL_PORT=10777
 
 You will need to add a security rule on your cloud instance to allow incoming/outgoing traffic on `PUBLIC_PORT` for the UDP protocol. For example:
 
-![Configuration cloud instance](../../resource/images/module-03-cloud-ports-config.png)
+![Configuration cloud instance](../../docs/assets/module-03-cloud-ports-config.png)
 
 ## Run the Scenario
 
-> Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+> Important: Run the commands below from the repository root. `medtech.py run` lives at the project root and is the single runtime entrypoint for this project.
 
 *Note: Secure mode will not work if different certificate sets are used on each side.*
 
@@ -79,7 +81,7 @@ From one machine, start the teleop Arm Controller:
 
 ```bash
 # From the repository root
-python3 launch.py 01-operating-room ArmController
+python medtech.py run 01-operating-room ArmController
 ```
 
 ### 2. Launch Passive Side Applications
@@ -88,7 +90,7 @@ From the other machine, start the Operating Room applications:
 
 ```bash
 # From the repository root
-python3 launch.py 01-operating-room Orchestrator PatientSensor Arm PatientMonitor
+python medtech.py run 01-operating-room Orchestrator PatientSensor Arm PatientMonitor
 ```
 
 >**Observe:** You should see **no communication** between applications since the RTI Routing Service infrastructure has not been started yet.
@@ -99,7 +101,7 @@ In a terminal on your cloud instance, run the *Passive* RTI Routing Service:
 
 ```bash
 # From the repository root
-python3 launch.py 03-remote-teleoperation RsCloud
+python medtech.py run 03-remote-teleoperation RsCloud
 ```
 
 ### 4. Launch Active Routing Services
@@ -108,7 +110,7 @@ Open a new terminal on both *Active* sides and run the following in each:
 
 ```bash
 # From the repository root
-python3 launch.py 03-remote-teleoperation RsActive
+python medtech.py run 03-remote-teleoperation RsActive
 ```
 
 ### 5. Observe Communication

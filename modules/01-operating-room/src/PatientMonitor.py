@@ -13,7 +13,14 @@ import asyncio
 
 import rti.asyncio  # noqa: F401 - installs Connext's asyncio integration
 import rti.connextdds as dds
-from DemoUiSupport import DemoUiState, create_demo_ui, log_failure, run_app_task, run_demo_ui
+from DemoUiSupport import (
+    DemoUiState,
+    create_demo_ui,
+    log_failure,
+    participant_security_enabled,
+    run_app_task,
+    run_demo_ui,
+)
 from HeartbeatPresence import publish_heartbeats
 from MedTech import DdsEntities, Device
 from MedTech import Patient as PatientTypes
@@ -74,12 +81,12 @@ class PatientMonitorApp:
         vitals["fresh"] = fresh
         return {
             "kind": "patient-monitor",
+            "device_status": self.status.name,
             "title": "Patient Monitor",
             "status": self.status.name,
             "vitals_status": vitals_status,
             "header_badges": [
                 {"label": "Vitals", "value": vitals_status},
-                {"label": "Device", "value": self.status.name},
             ],
             "footer": True,
             "vitals": vitals,
@@ -135,6 +142,7 @@ class PatientMonitorApp:
 
         try:
             self.participant.enable()
+            self.ui.update(dds_security=participant_security_enabled(self.participant))
             self.status_writer.write(self.status_sample)
             enabled = True
             self.ui.update(**self.view())

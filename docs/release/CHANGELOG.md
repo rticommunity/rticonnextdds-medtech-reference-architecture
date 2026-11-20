@@ -22,9 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   SDK's existing Scene3D renderer, without replacing the UI backend.
 - Added the `DataFlowLibrary::Control` QoS profile for best-effort, volatile,
   depth-one arm/tool rates with diagnostic deadlines and finite writer lifespan.
+- Added `medtech.py` for locked setup, build, launch, and security planning.
 
 ### Changed
 
+- Migrated module and scenario manifests from JSON to TOML without changing
+  their roles, defaults, or launch order.
 - Made browser showcase motion return to observed starting position/jaw gap,
   with explicit stop/manual-takeover and feedback-loss cancellation behavior.
   Separated its presentation from the Connext application code.
@@ -87,6 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   following new events automatically only when already at the bottom.
 - Preserved Scene3D fallback node-list text targets so native WebKit selection
   works on labels as well as row padding.
+- Scenario launches now observe all children and clean up the group on failure.
+  Clean child exits do not interrupt the remaining apps.
 
 ### Removed
 

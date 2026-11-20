@@ -29,7 +29,7 @@
                      environment variable.
                 -->
                 <name>RTI_SECURITY_ARTIFACTS_DIR</name>
-                <value>../../system/security</value>
+                <value>../../system/security/artifacts</value>
             </element>
             <!-- PUBLIC_ADDRESS must be set as an environment variable to the publicly
                  accessible IP address of this cloud instance.
@@ -37,6 +37,10 @@
             <element>
                 <name>PUBLIC_PORT</name>
                 <value>10777</value>
+            </element>
+            <element>
+                <name>RTI_SECURITY_WAN_DOMAIN_DIR</name>
+                <value>1</value>
             </element>
         </value>
     </configuration_variables>
@@ -83,7 +87,37 @@
                      Path is relative to the module directory (modules/03-remote-teleoperation). -->
                 <element>
                     <name>dds.sec.crypto.rtps_psk_secret_passphrase</name>
-                    <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/domain_scope/TeleopWanDomain/TeleopWanDomain.psk</value>
+                    <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/$(RTI_SECURITY_WAN_DOMAIN_DIR)/psk_secret.key</value>
+                </element>
+            </property>
+        </security>
+    </cloud_discovery_service>
+    <cloud_discovery_service name="CdsConfigCloudManaged">
+        <transport>
+            <element>
+                <alias>builtin.udpv4_wan</alias>
+                <receive_port>$(PUBLIC_PORT)</receive_port>
+                <property>
+                    <element>
+                        <name>dds.transport.UDPv4_WAN.builtin.public_address</name>
+                        <value>$(PUBLIC_ADDRESS)</value>
+                    </element>
+                </property>
+            </element>
+        </transport>
+        <security>
+            <property>
+                <element>
+                    <name>dds.sec.access.rtps_psk_protection_kind</name>
+                    <value>ENCRYPT</value>
+                </element>
+                <element>
+                    <name>dds.sec.crypto.rtps_psk_secret_passphrase</name>
+                    <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/$(RTI_SECURITY_WAN_DOMAIN_DIR)/psk_secret.key</value>
+                </element>
+                <element>
+                    <name>dds.sec.crypto.rtps_psk_secret_passphrase_extra</name>
+                    <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/$(RTI_SECURITY_WAN_DOMAIN_DIR)/psk_secret_extra.key</value>
                 </element>
             </property>
         </security>

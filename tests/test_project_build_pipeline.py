@@ -22,8 +22,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "resource" / "python"))
-from scripts import platform_setup
+from tools.medtech import platform_setup
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -44,7 +43,7 @@ def test_configure_and_codegen_outputs_are_prepared():
         generated_dir / "xml" / "MedTech.xml",
     )
     missing = [path for path in expected_outputs if not path.is_file()]
-    assert not missing, f"Build outputs are missing; run `python build.py` first: {missing}"
+    assert not missing, f"Build outputs are missing; run `python medtech.py build` first: {missing}"
 
 
 def test_module_01_executables_are_prepared():

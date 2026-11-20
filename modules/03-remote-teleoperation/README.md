@@ -2,9 +2,9 @@
 
 Module 03 demonstrates remote teleoperation across the Wide Area Network (WAN) using the RTI Real-Time WAN Transport. This transport plugin enables DDS communication across the WAN using UDP as the underlying transport-layer protocol.
 
-This module shows how the *ArmController* from [Module 01: Digital Operating Room](../01-operating-room/) can be located anywhere in the world and continue to communicate with the rest of the system. Be sure you are able to run the operating room application from Module 01 before trying out this module's demo.
+This module shows how the *ArmController* from [Module 01: Digital Operating Room](../01-operating-room/) can communicate with the rest of the simulated system over a configured WAN. Be sure you are able to run the operating room application from Module 01 before trying out this module's demo.
 
-All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
+All run commands in this README are launched from the repository root. The project-level `medtech.py run` script is the runtime entrypoint; there is no module-local launcher in this folder.
 
 The routes separate best-effort arm/jaw rates
 (`t/robot/arm/control`, `t/robot/tool/control`) from reliable device lifecycle
@@ -19,7 +19,7 @@ Original-info/loop-prevention behavior is retained. Lifespan is a local
 reception-based validity window, not a guarantee of source-to-actuator command
 age across WAN hops. Connectivity recovery admits current valid rates without
 a neutral/rearm latch. This demonstration is not a physical teleoperation safety
-system; see the [shared contract](../../system/README.md#rate-command-validity).
+system; see the [shared contract](../../system/DDS_DESIGN_GUIDE.md#rate-command-validity).
 
 ## Contents
 
@@ -31,11 +31,11 @@ system; see the [shared contract](../../system/README.md#rate-command-validity).
 
 ## Module Description
 
-This module extends the Digital Operating Room from Module 01 to demonstrate WAN communication capabilities. The RTI Real-Time WAN Transport enables secure, reliable communication across geographical distances, allowing medical professionals to operate remotely while maintaining real-time control and monitoring.
+This module extends the simulated Digital Operating Room from Module 01 to demonstrate WAN communication. Connectivity, security and delivery behavior depend on the selected scenario and endpoint configuration; the demo does not establish a clinical teleoperation or timing guarantee.
 
 RTI Connext abstracts the underlying transport, such that the api usage and much of the configuration can remain consistent regardless of which transport is used. This is true for the Real-Time WAN Transport, and this module shows that the same applications communicating locally can be extended to work over a remote connection without modification to application code. The WAN deployment does select a WAN-specific transport profile and, when security is enabled, a stricter WAN governance (see below), but the application logic itself is unchanged.
 
-![diagram](../../resource/images/module-03-diagram-teleoperation.svg)
+![Routing Services connect the arm controller and operating room across the WAN](../../docs/assets/module-03-diagram-teleoperation.svg)
 
 WAN communication can be deployed in 3 different scenarios:
 
@@ -52,19 +52,21 @@ The Real-Time WAN Transport enables direct peer-to-peer DDS communication across
 
 Together, the RTI Real-Time WAN Transport, RTI Security Plugins, and RTI Cloud Discovery Service, offer a robust solution that provides:
 
-- **Low-latency communication** across WAN connections
+- **UDP-based communication** across WAN connections; latency depends on the network and configuration
 - **Automatic NAT traversal** capabilities
-- **Secure data transmission** with domain-level protection (`ENCRYPT_WITH_ORIGIN_AUTHENTICATION` + PSK encryption) and topic-level encryption applied to **every** topic. WAN *TeleopWanDomain* governance extends metadata encryption to every topic; LAN *OperationalDomain* governance applies it to patient vitals and the four robot control/status/telemetry topics.
-- **Bandwidth optimization** for efficient data transfer (when compared to TCP-based communication)
-- **Connection resilience** with automatic reconnection
+- **Configurable data protection** when security is enabled: WAN *TeleopWanDomain* governance encrypts RTPS messages and applies metadata encryption to every topic; LAN *OperationalDomain* applies metadata encryption to patient vitals and the four robot control/status/telemetry topics.
+- **Connection recovery** when discovery and network conditions permit
 
 ## Setup and Installation
 
 Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. This module adds WAN-specific prerequisites that the scenario pages cover in detail.
 
+The scenarios describe the default local provider. For EPS, use their transport
+setup with the [EPS LAN/WAN enrollment and launch guide](../../docs/EPS.md#module-03-remote-teleoperation).
+
 ## Run the Demo
 
-> Important: The commands below are run from the repository root using the project-level `launch.py` script.
+> Important: The commands below are run from the repository root using the project-level `medtech.py run` script.
 
 For this module, you will need the following:
 
@@ -75,12 +77,12 @@ For this module, you will need the following:
 
 Refer to the following decision tree to understand which scenario best suits your environment:
 
-![Scenario decision tree](../../resource/images/module-03-diagram-scenario-decision-tree.png)
+![Scenario decision tree](../../docs/assets/module-03-diagram-scenario-decision-tree.png)
 
-To determine your NAT type, use the [NAT type checker](../../resource/nat_type_checker/) script on *each* remote machine:
+To determine your NAT type, use the [NAT type checker](../../tools/nat_type_checker/) script on *each* remote machine:
 
 ```bash
-python3 resource/nat_type_checker/nat_type_checker.py
+python3 tools/nat_type_checker/nat_type_checker.py
 ```
 
 ### 2. Run Your Scenario
@@ -123,6 +125,7 @@ Test how the system handles network interruptions.
 
 ## Next Steps
 
-Check out [Module 04: Security Threat Demonstration](../04-security-threat/), which demonstrates what happens when a malicious application attempts to tamper with surgical arm commands or steal patient vital signs — and how DDS Security blocks these attacks.
+**Next → [Module 04: DDS Security demonstration](../04-security-threat/).**
 
-Head back to the [main README](../../README.md) and pick up with the [Hands-On: Architecture](../../README.md#hands-on-architecture) section to learn more about the system architecture.
+To understand why routing and authorization are separate concerns, see
+[traffic boundaries and access control](../../system/README.md#separate-traffic-boundaries-from-access-control).

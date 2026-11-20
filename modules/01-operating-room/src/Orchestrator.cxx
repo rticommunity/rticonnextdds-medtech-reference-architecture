@@ -36,6 +36,7 @@
 #include "DemoUiSupport.hpp"
 #include "HeartbeatPresence.hpp"
 #include "MedTech.hpp"
+#include "ParticipantSecurity.hpp"
 
 #ifdef RTI_SECURITY_AVAILABLE
     #include "SecureLog.hpp"
@@ -162,15 +163,12 @@ Json orchestrator_view(
         { "kind", "orchestrator" },
         { "title", "System Orchestrator" },
         { "status", security_state },
+        { "dds_security", secure },
         { "header_badges",
-          Json::array({ { { "label", "Security" },
-                          { "value", security_state },
-                          { "tone",
-                            security_threat  ? "danger"
-                                    : secure ? "good"
-                                             : "warn" } },
-                        { { "label", "Status QoS · Command QoS" },
-                          { "value", "ACTIVE" } } }) },
+          security_threat ? Json::array({ { { "label", "Alert" },
+                                            { "value", security_state },
+                                            { "tone", "danger" } } })
+                          : Json::array() },
         { "devices", device_rows },
         { "control_groups",
           Json::array({ { { "title", "" },
@@ -248,7 +246,9 @@ public:
 
         auto selected_device = Device::DeviceType::ARM;
         Json logs = Json::array();
-        auto secure = false;
+        const bool secure =
+                medtech::operating_room::participant_security_enabled(
+                        participant_);
         auto security_threat_until = std::chrono::steady_clock::time_point { };
         auto append_log = [&](std::string message,
                               const std::string &level = "info") {
@@ -262,7 +262,6 @@ public:
         };
 
 #ifdef RTI_SECURITY_AVAILABLE
-        secure = SecureLog::is_secure(participant_);
         SecureLog::SecureLogReader securelog_reader = { dds::core::null,
                                                         dds::core::null };
         if (secure) {
@@ -296,10 +295,10 @@ public:
                                             logs));
         };
         append_log("Started Orchestrator");
-        publish_view();
 
         heartbeat_monitor_->start();
         participant_.enable();
+        publish_view();
         while (!stopping_.load()) {
             while (auto event = events_.try_pop()) {
                 if (event->kind == "command") {

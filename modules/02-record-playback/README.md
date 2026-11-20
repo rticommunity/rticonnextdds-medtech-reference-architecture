@@ -23,7 +23,7 @@ This module reuses the operating room applications from [Module 01](../01-operat
 
 RTI Recording Service and RTI Replay Service can be run on any [officially supported platform](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_professional/release_notes/pam_table.html#rti-infrastructure-services), provided the machine is directly discoverable by the machine the operating room applications are launched from.
 
-All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
+All run commands in this README are launched from the repository root. The project-level `medtech.py run` script is the runtime entrypoint; there is no module-local launcher in this folder.
 
 ## Contents
 
@@ -37,7 +37,7 @@ All run commands in this README are launched from the repository root. The proje
 
 This module uses RTI Recording Service to record data from the operating room applications from Module 01. It then uses RTI Replay Service to replay the recorded data back to the same OR applications. Please find a diagram of how Recording / Replay Service connect to the RTI Connext Databus below:
 
-![diagram](../../resource/images/module-02-diagram-record-playback.svg)
+![Recording and Replay Services connect the operating room's DDS topics to a recording database](../../docs/assets/module-02-diagram-record-playback.svg)
 
 ### RTI Recording Service
 
@@ -49,11 +49,14 @@ RTI Recording Service records `t/robot/arm/control`, `t/robot/tool/control`, and
 RTI Replay Service republishes the same three recorded streams to the live
 Arm and Patient Monitor. With the command streams quiet, the Arm holds its
 current pose/gap when cached rates expire, rather than automatically opening
-the tool. See [command validity](../../system/README.md#rate-command-validity).
+the tool. See [command validity](../../system/DDS_DESIGN_GUIDE.md#rate-command-validity).
 
 ## Setup and Installation
 
 Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. This module reuses the operating room applications from Module 01, so make sure that workflow is built and working before you start record/playback.
+
+For secure runs, prepare a [local bundle](../../system/security/README.md) or
+follow the [EPS recording and replay setup](../../docs/EPS.md#module-02-record-and-replay).
 
 Module-specific notes:
 
@@ -61,9 +64,9 @@ Module-specific notes:
 
 ## Run the Demo
 
-> Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+> Important: Run the commands below from the repository root. `medtech.py run` lives at the project root and is the single runtime entrypoint for this project.
 >
-> Tip: the predefined `record` and `replay` scenarios bundle the operating room apps and the corresponding service into a single command (e.g. `python3 launch.py --scenario record`). The step-by-step flow below instead runs them in separate terminals so you can start and stop the service independently of the OR apps. Run `python3 launch.py --list-scenarios` to see all scenarios.
+> Tip: the predefined `record` and `replay` scenarios bundle the operating room apps and the corresponding service into a single command (e.g. `python medtech.py run --scenario record`). The step-by-step flow below instead runs them in separate terminals so you can start and stop the service independently of the OR apps. Run `python medtech.py run --list-scenarios` to see all scenarios.
 
 ### 1. Run Operating Room Applications
 
@@ -71,7 +74,7 @@ In its own terminal, launch the operating room applications from [Module 01](../
 
 ```bash
 # From the repository root
-python3 launch.py 01-operating-room [-s]
+python medtech.py run 01-operating-room [-s]
 ```
 
 ### 2. Run RTI Recording Service
@@ -80,7 +83,7 @@ In a new terminal, launch RTI Recording Service from the repository root (use `-
 
 ```bash
 # From the repository root
-python3 launch.py 02-record-playback RecordingService [-s]
+python medtech.py run 02-record-playback RecordingService [-s]
 ```
 
 Let RTI Recording Service run for some time (e.g. 10-20 seconds) before initiating shutdown with `Ctrl-C`.
@@ -93,13 +96,13 @@ Inspect [RecordingServiceConfiguration.xml](RecordingServiceConfiguration.xml) t
 
 ### 3. Shutdown Operating Room Applications / Restart GUI Applications
 
-Press `Ctrl-C` in the terminal where Module 01's `launch.py` is running to terminate the operating room applications.
+Press `Ctrl-C` in the terminal where Module 01's `medtech.py run` is running to terminate the operating room applications.
 
 Relaunch the Digital Operating Room Arm and Patient Monitor GUI applications only (use `-s` option for security):
 
 ```bash
 # From the repository root
-python3 launch.py 01-operating-room Arm PatientMonitor [-s]
+python medtech.py run 01-operating-room Arm PatientMonitor [-s]
 ```
 
 >**Observe:** You should see the GUI applications are not receiving data.
@@ -110,7 +113,7 @@ In a new terminal, launch RTI Replay Service from the repository root (use `-s` 
 
 ```bash
 # From the repository root
-python3 launch.py 02-record-playback ReplayService [-s]
+python medtech.py run 02-record-playback ReplayService [-s]
 ```
 
 >**Observe:** You should see the Arm and Patient Monitor applications are receiving data previously recorded.
@@ -195,6 +198,7 @@ Let's try using RTI Admin Console to administer RTI Recording Service.
 
 ## Next Steps
 
-Check out [Module 03: Remote Teleoperation with RTI Real-Time WAN Transport](../03-remote-teleoperation/), which builds upon the applications from this module to show how applications can be deployed remotely and integrate seamlessly over the Wide Area Network (WAN).
+**Next → [Module 03: Remote teleoperation](../03-remote-teleoperation/).**
 
-Head back to the [main README](../../README.md) and pick up with the [Hands-On: Architecture](../../README.md#hands-on-architecture) section to learn more about the system architecture.
+To trace the recorded and replayed data back to its types and endpoints, see
+the [DDS contract](../../system/README.md#dds-contract).

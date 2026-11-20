@@ -36,9 +36,12 @@ Prerequisite: ``NDDSHOME`` must be set to the Connext installation path.
 import argparse
 import logging
 import re
+import shutil
 import subprocess
 from pathlib import Path
+from xml.sax.saxutils import escape
 
+from runtime_bundle import bundle_files, deployment_name, stage_bundle
 from security_tree import (
     CA,
     App,
@@ -417,7 +420,9 @@ _CONFIG_VARS_RE = re.compile(
 )
 
 
-def generate_resolved_qos(security_dir: Path, force: bool = False) -> None:
+def generate_resolved_qos(
+    security_dir: Path, artifacts: Path, deployment: str, force: bool = False
+) -> None:
     """Generate QoS XML files with $(RTI_SECURITY_ARTIFACTS_DIR) resolved to absolute paths.
 
     Reads each source file from the qos/ directory, replaces the variable
@@ -431,7 +436,7 @@ def generate_resolved_qos(security_dir: Path, force: bool = False) -> None:
     out_dir = security_dir / "resolved_qos"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    abs_security_path = str(security_dir)
+    abs_security_path = escape(artifacts.as_posix())
     written_count = 0
     skipped_count = 0
 
@@ -445,6 +450,13 @@ def generate_resolved_qos(security_dir: Path, force: bool = False) -> None:
 
         # Replace the variable reference with the absolute path
         content = content.replace("$(RTI_SECURITY_ARTIFACTS_DIR)", abs_security_path)
+        content = content.replace("$(RTI_SECURITY_DEPLOYMENT_NAME)", deployment)
+        content = content.replace("$(RTI_SECURITY_LAN_DOMAIN_DIR)", "0")
+        content = content.replace("$(RTI_SECURITY_LAN_DOMAIN_TAG)", "")
+        content = content.replace("$(RTI_SECURITY_LAN_BASE)", "CommonSecurityConfig")
+        content = content.replace("$(RTI_SECURITY_WAN_DOMAIN_DIR)", "1")
+        content = content.replace("$(RTI_SECURITY_WAN_DOMAIN_TAG)", "")
+        content = content.replace("$(RTI_SECURITY_WAN_BASE)", "CommonSecurityConfig")
 
         # Remove the <configuration_variables> block since paths are now absolute
         content = _CONFIG_VARS_RE.sub("\n", content)
@@ -469,11 +481,23 @@ def generate_resolved_qos(security_dir: Path, force: bool = False) -> None:
     )
 
 
+def prepare_workspace(workspace: Path) -> None:
+    """Copy only committed-style policy inputs, never issued credentials."""
+    for folder, suffix in (("ca", ".cnf"), ("identity", ".cnf"), ("domain_scope", ".xml")):
+        for source in (SECURITY_DIR / folder).rglob(f"*{suffix}"):
+            target = workspace / source.relative_to(SECURITY_DIR)
+            if target == source or target.exists():
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Generate DDS Security artifacts for the reference architecture."
     )
-    parser.add_argument(
+    operations = parser.add_mutually_exclusive_group()
+    operations.add_argument(
         "--scaffold",
         action="store_true",
         help="(Maintainer-only) Scaffold the directory tree from templates.",
@@ -484,7 +508,7 @@ def main():
         help="Re-generate artifacts even if they already exist.",
     )
     parser.add_argument("--strict", action="store_true", help="Promote warnings to fatal errors.")
-    parser.add_argument(
+    operations.add_argument(
         "--status",
         action="store_true",
         help="Report certificate expiry status and exit.",
@@ -507,7 +531,7 @@ def main():
         help="Override Connext version (e.g. '7.5.0'). "
         "Auto-detected from rti.connextdds if not set.",
     )
-    parser.add_argument(
+    operations.add_argument(
         "--generate-resolved-qos",
         action="store_true",
         help="Generate QoS XML files (SecureAppsQos.xml, SecureExternalAppsQos.xml) "
@@ -515,7 +539,23 @@ def main():
         "Output is written to a 'resolved_qos' subfolder under the security directory. "
         "Existing files are skipped unless --force is set.",
     )
+    operations.add_argument("--stage", action="store_true", help="Stage existing issued material.")
+    parser.add_argument(
+        "--workspace",
+        type=Path,
+        default=SECURITY_DIR,
+        help="Issuance workspace; defaults to the legacy local workspace.",
+    )
+    parser.add_argument(
+        "--artifacts",
+        type=Path,
+        default=SECURITY_DIR / "artifacts",
+        help="Runtime bundle directory; publication never overwrites it.",
+    )
+    parser.add_argument("--deployment", type=deployment_name, default="local")
     args = parser.parse_args()
+    workspace = args.workspace.resolve()
+    artifacts = args.artifacts.resolve() if not args.artifacts.is_symlink() else args.artifacts
 
     level = (logging.WARNING, logging.INFO, logging.DEBUG)[min(args.verbose, 2)]
     logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
@@ -530,15 +570,31 @@ def main():
         )
 
     if args.status:
-        SECURITY_TREE.check_status(root=SECURITY_DIR, warn_days=args.warn_days)
+        SECURITY_TREE.check_status(root=workspace, warn_days=args.warn_days)
     elif args.scaffold:
-        scaffold_tree(SECURITY_TREE, root=SECURITY_DIR, strict=args.strict)
-        print(f"Security directory tree scaffolded under {SECURITY_DIR}")
+        scaffold_tree(
+            SECURITY_TREE,
+            root=workspace,
+            strict=args.strict,
+            templates_dir=SECURITY_DIR / "templates",
+        )
+        print(f"Security directory tree scaffolded under {workspace}")
     elif args.generate_resolved_qos:
-        generate_resolved_qos(SECURITY_DIR, force=args.force)
+        generate_resolved_qos(workspace, artifacts, args.deployment, force=args.force)
+    elif args.stage:
+        files = bundle_files(
+            SECURITY_TREE,
+            workspace,
+            TRUSTED_IDENTITY_CA,
+            args.deployment,
+            {OPERATIONAL_DOMAIN.name: 0, TELEOP_WAN_DOMAIN.name: 1},
+        )
+        changed = stage_bundle(files, artifacts)
+        print(f"{'Staged' if changed else 'Already staged'} runtime bundle: {artifacts}")
     else:
+        prepare_workspace(workspace)
         summary = SECURITY_TREE.generate_artifacts(
-            root=SECURITY_DIR, force=args.force, strict=args.strict
+            root=workspace, force=args.force, strict=args.strict
         )
         print(
             "Security artifact generation complete: "
@@ -569,3 +625,5 @@ if __name__ == "__main__":
         print("STDOUT:", e.stdout)
         print("STDERR:", e.stderr)
         raise
+    except (OSError, ValueError) as e:
+        raise SystemExit(str(e)) from e

@@ -14,7 +14,7 @@
 import sys
 
 from module04_test_support import OR_SRC_DIR, THREAT_SRC_DIR
-from scripts.test_utils import make_isolated_qos_provider, register_type
+from test_utils import make_isolated_qos_provider, register_type
 
 
 def test_unsecure_threat_participants_load_from_qos_profiles(threat_env):

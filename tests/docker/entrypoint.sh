@@ -27,5 +27,8 @@ source "$VIRTUAL_ENV/bin/activate"
 # Run pytest from repo root with any passed arguments
 # Default to running all tests if no args provided
 cd /workspace
-python resource/python/scripts/smoke_connext_runtime.py
+python tools/medtech/smoke_connext_runtime.py
+python system/security/setup_security.py
+python system/security/setup_security.py --stage
+python modules/04-security-threat/security/setup_threat_security.py
 exec python -m pytest "${@:-.}"

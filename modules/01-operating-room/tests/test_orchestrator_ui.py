@@ -16,7 +16,7 @@ from urllib.request import urlopen
 import pytest
 from module01_test_support import invoke as _invoke
 from module01_test_support import local_ui_url as _local_ui_url
-from scripts.test_utils import wait_for_device_status, wait_for_writer_match
+from test_utils import wait_for_device_status, wait_for_writer_match
 
 
 def test_orchestrator_selected_device_receives_browser_command(

@@ -51,6 +51,11 @@ Thumbs.db
 # Security and runtime artifacts
 # ---------------------------------------------------------------------------
 rti_license.dat
+**/*.key
+**/*.crt
+**/*.crl
+**/artifacts/
+**/.medtech/
 **/*.pem
 **/*.p7s
 **/*.csr

@@ -9,7 +9,7 @@ Module-specific tests live under each module's own `tests/` directory.
 | --- | --- |
 | RTI Connext DDS SDK 7.7.0 | `NDDSHOME` and `CONNEXTDDS_ARCH` must be set (via rtisetenv script) |
 | Python 3.11+ | With locked `rti.connext==7.7.0`, `rti-demo-ui`, and `pytest` installed (in `.venv` or equivalent) |
-| C++ build complete | Run `python build.py` first |
+| C++ build complete | Run `python medtech.py build` first |
 
 The browser cases in `test_ui_mode.py` are required for a full test run.
 Playwright is included in the locked developer dependencies. Install its matching
@@ -26,13 +26,14 @@ From the repository root, after sourcing the RTI environment and activating the 
 python -m pip install uv==0.13.8
 uv sync --active --locked --no-dev --extra dev --no-install-project
 python -m playwright install --with-deps chromium
-python resource/python/scripts/check_connext_install.py
+python tools/medtech/check_connext_install.py
 
 # Configure, generate and build once before test execution
-python build.py
+python medtech.py build
 
 # If you want to run the security tests
 python3 system/security/setup_security.py
+python3 system/security/setup_security.py --stage
 python modules/04-security-threat/security/setup_threat_security.py
 
 # Run all tests against the prepared outputs
@@ -88,7 +89,7 @@ an explicit prerequisite and is not started by test collection or execution:
 # Pure collection/configuration checks (no generated bindings or DDS runtime)
 python -m pytest --collect-only -q tests/test_config_parsing.py
 
-# All tests, after `python build.py`
+# All tests, after `python medtech.py build`
 python -m pytest
 
 # Fast feedback on a single file

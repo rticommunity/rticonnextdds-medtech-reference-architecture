@@ -17,6 +17,7 @@ import re
 import select
 import sys
 import time
+import xml.etree.ElementTree as ET
 from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
@@ -25,11 +26,10 @@ import pytest
 from aiohttp import ClientSession
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-WEB_ROOT = PROJECT_ROOT / "resource" / "ui_web"
-sys.path.insert(0, str(PROJECT_ROOT / "resource" / "demo_ui"))
-sys.path.insert(0, str(PROJECT_ROOT / "resource" / "python"))
+WEB_ROOT = PROJECT_ROOT / "resources" / "ui" / "web"
+sys.path.insert(0, str(WEB_ROOT.parent / "support"))
 
-import launch  # noqa: E402
+from tools.medtech import launch  # noqa: E402
 
 
 def _demo_ui_support():
@@ -38,7 +38,7 @@ def _demo_ui_support():
 
 @pytest.fixture
 def launcher_environment(monkeypatch, tmp_path):
-    from scripts import module_runner
+    from tools.medtech import module_runner
 
     monkeypatch.setattr(module_runner.platform_setup, "get_nddshome", lambda: tmp_path)
     monkeypatch.setattr(module_runner.platform_setup, "setup_library_env", lambda *_: None)
@@ -221,8 +221,9 @@ def test_gui_controls_remain_within_resized_windows(module, app):
         "the locked developer dependencies."
     )
 
-    from scripts.module_runner import MODULES_DIR, load_module_config
-    from scripts.test_utils import ProcessManager
+    from test_utils import ProcessManager
+
+    from tools.medtech.module_runner import MODULES_DIR, load_module_config
 
     directory = MODULES_DIR / module
     env, apps = load_module_config(directory, flags={"security": False})
@@ -248,6 +249,22 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                 page = browser.new_page()
                 page.goto(endpoint[0])
                 page.wait_for_function("document.body.dataset.appKind")
+                security = page.locator(".header-controls #header-security")
+                expected_mode = "unknown" if module.startswith("04") else "disabled"
+                page.wait_for_function(
+                    "mode => document.querySelector('#header-security').dataset.mode === mode",
+                    arg=expected_mode,
+                )
+                device = page.locator(".header-controls #header-device")
+                if app in ("Arm", "ArmController", "PatientMonitor"):
+                    assert device.inner_text().split() == ["Device", "ON"]
+                else:
+                    assert not device.is_visible()
+                assert security.get_attribute("aria-label") == (
+                    "DDS Security disabled"
+                    if expected_mode == "disabled"
+                    else "DDS security status unavailable"
+                )
                 if app in ("Orchestrator", "ThreatInjector", "ThreatExfiltrator"):
                     redundant_label_updates = page.evaluate("""async () => {
                         const toggle = document.querySelector('#activity-toggle');
@@ -644,6 +661,102 @@ def _snapshot_page(browser_name="chromium"):
 def snapshot_page():
     with _snapshot_page() as page:
         yield page
+
+
+@pytest.mark.browser
+def test_header_security_mode_is_separate_from_app_status(snapshot_page):
+    page = snapshot_page
+    page.evaluate("""() => window.updateUi({
+        kind: 'threat-exfiltrator',
+        dds_security: true,
+        header_badges: [{label: 'Access', value: 'NO ACCESS'}],
+    })""")
+    security = page.locator(".header-controls #header-security")
+    assert security.get_attribute("aria-label") == "DDS Security enabled"
+    assert page.locator("#header-badges").inner_text() == "Access\nNO ACCESS"
+    assert not page.locator("#header-device").is_visible()
+    page.evaluate("() => window.updateUi({...window.uiData, dds_security: null})")
+    assert security.get_attribute("aria-label") == "DDS security status unavailable"
+
+
+@pytest.mark.browser
+def test_dds_topics_follow_participant_xml_and_stay_open_across_snapshots(snapshot_page):
+    page = snapshot_page
+    participants = ET.parse(PROJECT_ROOT / "system/model/ParticipantLibrary.xml")
+    security_demo = ET.parse(
+        PROJECT_ROOT / "modules/04-security-threat/xml_config/ThreatParticipants.xml"
+    )
+    for kind, library, participant_name in (
+        ("arm", participants, "Arm"),
+        ("arm-controller", participants, "ArmController"),
+        ("gamepad-controller", participants, "ArmController"),
+        ("orchestrator", participants, "Orchestrator"),
+        ("patient-monitor", participants, "PatientMonitor"),
+        ("threat-injector", security_demo, "ThreatInjector/Unsecure"),
+        ("threat-exfiltrator", security_demo, "ThreatExfiltrator/Unsecure"),
+    ):
+        participant = library.find(f".//domain_participant[@name='dp/{participant_name}']")
+        assert participant is not None
+        expected = {
+            (f"{arrow} {entity.attrib['topic_ref']}", direction)
+            for tag, arrow, direction in (
+                ("data_writer", "↑", "Publish"),
+                ("data_reader", "↓", "Subscribe"),
+            )
+            for entity in participant.findall(f".//{tag}")
+        }
+        page.evaluate("kind => window.updateUi({kind})", kind)
+        pane = page.locator(".app-header #dds-topics")
+        summary = pane.locator("summary")
+        assert not pane.evaluate("el => el.open")
+        summary.focus()
+        summary.press("Enter")
+        assert pane.evaluate("el => el.open")
+        rows = pane.locator("li").evaluate_all(
+            """rows => rows.map(row => [
+                [...row.children].map(c => c.textContent).join(' '),
+                row.firstElementChild.getAttribute('aria-label'),
+            ])"""
+        )
+        assert sorted(map(tuple, rows)) == sorted(expected)
+        assert not pane.locator("p").count()
+        page.evaluate("() => window.updateUi({...window.uiData, title: 'Updated'})")
+        assert pane.evaluate("el => el.open")
+        assert summary.evaluate("el => el === document.activeElement")
+
+
+@pytest.mark.browser
+@pytest.mark.parametrize("width", (1280, 390))
+@pytest.mark.parametrize(
+    ("kind", "primary_selector"),
+    (
+        ("arm", ".arm-scene-panel"),
+        ("patient-monitor", ".vitals-grid"),
+        ("arm-controller", ".actual-feedback"),
+        ("gamepad-controller", ".actual-feedback"),
+        ("orchestrator", ".command-panel"),
+    ),
+)
+def test_dds_topics_do_not_resize_primary_view(snapshot_page, kind, primary_selector, width):
+    page = snapshot_page
+    page.set_viewport_size({"width": width, "height": 900})
+    page.evaluate("kind => window.updateUi({kind, arm_feedback: {}})", kind)
+    pane = page.locator(".app-header #dds-topics")
+    primary = page.locator(primary_selector)
+    document_rect = """el => {
+        const {x, y, width, height} = el.getBoundingClientRect();
+        return [x + scrollX, y + scrollY, width, height];
+    }"""
+    before = primary.evaluate(document_rect)
+    pane.locator("summary").click()
+    assert pane.evaluate("el => el.open")
+    assert primary.evaluate(document_rect) == before
+    panel = pane.locator(".dds-topic-panel").bounding_box()
+    assert panel and 0 <= panel["x"] < panel["x"] + panel["width"] <= width
+    colors = pane.locator(".dds-topic-arrow").evaluate_all(
+        "arrows => [...new Set(arrows.map(arrow => getComputedStyle(arrow).color))]"
+    )
+    assert len(colors) == 2
 
 
 @pytest.mark.browser

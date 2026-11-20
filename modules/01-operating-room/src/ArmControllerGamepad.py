@@ -16,7 +16,14 @@ import time
 from typing import TYPE_CHECKING, Any
 
 import pygame
-from DemoUiSupport import DemoUiState, create_demo_ui, log_failure, run_app_task, run_demo_ui
+from DemoUiSupport import (
+    DemoUiState,
+    create_demo_ui,
+    log_failure,
+    participant_security_enabled,
+    run_app_task,
+    run_demo_ui,
+)
 from pygame._sdl2 import controller
 
 if TYPE_CHECKING:
@@ -306,18 +313,17 @@ class ArmControllerGamepadApp:
         )
         return {
             "kind": "gamepad-controller",
+            "device_status": self.status.name,
             "title": "Xbox Arm Controller",
             "status": self.status.name,
             "header_badges": [
                 {
-                    "label": "Input",
+                    "label": "Gamepad",
                     "value": "CONNECTED" if self.gamepad is not None else "WAITING",
                     "tone": "good" if self.gamepad is not None else "warn",
                 },
-                {"label": "Device", "value": self.status.name},
-                {"label": "Control frame", "value": "BASE (+Z UP)"},
                 {
-                    "label": "Arm",
+                    "label": "Arm readiness",
                     "value": readiness_badge,
                     "tone": "good"
                     if feedback["readiness"] == "READY" and self.has_arm_status
@@ -508,6 +514,7 @@ class ArmControllerGamepadApp:
 
         try:
             self.participant.enable()
+            self.ui.update(dds_security=participant_security_enabled(self.participant))
             self.status_writer.write(self.status_sample)
             enabled = True
             initialize_gamepad_input()

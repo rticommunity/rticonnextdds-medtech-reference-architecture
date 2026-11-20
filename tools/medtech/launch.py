@@ -1,0 +1,276 @@
+#!/usr/bin/env python3
+#
+# (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+#
+# RTI grants Licensee a license to use, modify, compile, and create derivative
+# works of the software solely for use with RTI Connext DDS.  Licensee may
+# redistribute copies of the software provided that all such copies are
+# subject to this license. The software is provided "as is", with no warranty
+# of any type, including any warranty for fitness for any purpose. RTI is
+# under no obligation to maintain or support the software.  RTI shall not be
+# liable for any incidental or consequential damages arising out of the use or
+# inability to use the software.
+
+"""Resolve application and scenario launches for ``medtech.py run`` and ``up``."""
+
+from __future__ import annotations
+
+import argparse
+import tomllib
+from pathlib import Path
+
+try:
+    import argcomplete
+except ImportError:
+    argcomplete = None
+
+from . import module_runner
+
+PROJECT_ROOT = module_runner.PROJECT_ROOT
+SCENARIOS_PATH = Path(__file__).with_name("scenarios.toml")
+
+with SCENARIOS_PATH.open("rb") as f:
+    SCENARIOS: dict[str, dict] = tomllib.load(f)
+for spec in SCENARIOS.values():
+    spec["modules"] = [(entry["name"], entry.get("apps")) for entry in spec["modules"]]
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _resolve_module(
+    module_name: str,
+    app_names: list[str] | None,
+    security: bool,
+    variants: dict[tuple[str | None, str], str] | None = None,
+    ui_mode: str = "browser",
+) -> tuple[list[list[str]], Path, dict[str, str]]:
+    """Load a module's config and return (commands, module_dir, env)."""
+    modules = module_runner.discover_modules()
+    module_dir = modules[module_name]
+
+    app_variant_names = module_runner.get_app_variant_names(module_dir)
+    module_variants = {
+        role: choice
+        for (scope, role), choice in (variants or {}).items()
+        if role in app_variant_names and (scope is None or scope == module_name)
+    }
+    env, apps = module_runner.load_module_config(
+        module_dir,
+        flags={"security": security},
+        variants=module_variants,
+        app_names=app_names,
+    )
+    env["RTI_DEMO_UI_MODE"] = ui_mode
+
+    return list(apps.values()), module_dir, env
+
+
+def _parse_variant_selection(value: str) -> tuple[str | None, str, str]:
+    """Parse a ``ROLE=CHOICE`` or ``MODULE:ROLE=CHOICE`` selection."""
+    selector, separator, choice = value.partition("=")
+    if not separator or not selector or not choice:
+        raise argparse.ArgumentTypeError(
+            "app variants must use ROLE=CHOICE (for example, ArmController=xbox)"
+        )
+    if ":" not in selector:
+        return None, selector, choice
+
+    module_name, role = selector.split(":", 1)
+    if not module_name or not role:
+        raise argparse.ArgumentTypeError(
+            "scoped app variants must use MODULE:ROLE=CHOICE "
+            "(for example, 01-operating-room:ArmController=xbox)"
+        )
+    return module_name, role, choice
+
+
+def _validate_variant_selections(
+    variants: dict[tuple[str | None, str], str],
+    module_specs: list[tuple[str, list[str] | None]],
+    modules: dict[str, Path],
+) -> None:
+    """Ensure each requested role is included unambiguously in the launch."""
+    if not variants:
+        return
+
+    configured_roles: dict[str, set[str]] = {}
+    selected_role_modules: dict[str, set[str]] = {}
+    selected_assignments: set[tuple[str, str]] = set()
+    for module_name, app_names in module_specs:
+        role_names = module_runner.get_app_variant_names(modules[module_name])
+        configured_roles[module_name] = role_names
+        for role in role_names:
+            if app_names is None or role in app_names:
+                selected_role_modules.setdefault(role, set()).add(module_name)
+
+    target_modules = set(configured_roles)
+    for scope, role in variants:
+        if scope is not None:
+            if scope not in modules:
+                raise ValueError(f"Unknown module scope '{scope}' for app variant '{role}'")
+            if scope not in target_modules:
+                raise ValueError(f"Module '{scope}' is not part of the selected launch")
+            if role not in configured_roles[scope]:
+                raise ValueError(f"Unknown app variant role '{role}' in module '{scope}'")
+            selected_modules = (
+                {scope}
+                if role in selected_role_modules and scope in selected_role_modules[role]
+                else set()
+            )
+        else:
+            configured_in_targets = {
+                module_name for module_name, roles in configured_roles.items() if role in roles
+            }
+            if not configured_in_targets:
+                raise ValueError(f"Unknown app variant role '{role}'")
+            selected_modules = selected_role_modules.get(role, set())
+
+        if not selected_modules:
+            raise ValueError(f"App variant role '{role}' is not included in the selected apps")
+        if scope is None and len(selected_modules) > 1:
+            raise ValueError(
+                f"App variant role '{role}' is defined in multiple selected modules; "
+                f"use --variant MODULE:{role}=CHOICE to scope it"
+            )
+        for module_name in selected_modules:
+            assignment = (module_name, role)
+            if assignment in selected_assignments:
+                raise ValueError(
+                    f"App variant role '{role}' was selected more than once for "
+                    f"module '{module_name}'"
+                )
+            selected_assignments.add(assignment)
+
+
+def _list_scenarios() -> None:
+    """Print all available scenarios and exit."""
+    print("Available scenarios:\n")
+    max_name = max(len(name) for name in SCENARIOS)
+    for name, spec in SCENARIOS.items():
+        desc = spec.get("description", "")
+        modules_str = ", ".join(
+            f"{m} ({', '.join(apps) if apps else 'all'})" for m, apps in spec["modules"]
+        )
+        print(f"  {name:<{max_name}}  {desc}")
+        print(f"  {'':<{max_name}}  -> {modules_str}")
+        print()
+
+
+def _complete_apps(prefix, parsed_args, **kwargs):
+    """Return app names for the already-selected module (for argcomplete)."""
+    module_name = getattr(parsed_args, "module", None)
+    if not module_name:
+        return []
+    modules = module_runner.discover_modules()
+    module_dir = modules.get(module_name)
+    if not module_dir:
+        return []
+    try:
+        raw = module_runner.read_manifest(module_dir)
+        app_variants = raw.get("app_variants", {})
+        implementation_names = {
+            app_name
+            for spec in app_variants.values()
+            for app_name in spec.get("choices", {}).values()
+        }
+        selectable_apps = (set(raw.get("apps", {})) - implementation_names) | set(app_variants)
+        return sorted(app for app in selectable_apps if app.startswith(prefix))
+    except (AttributeError, OSError, ValueError):
+        return []
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+
+def add_launch_arguments(parser: argparse.ArgumentParser) -> None:
+    modules = module_runner.discover_modules()
+
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
+        "module",
+        nargs="?",
+        choices=sorted(modules),
+        default=None,
+        help="Module to launch (e.g. 01-operating-room).",
+    )
+    group.add_argument(
+        "--scenario",
+        choices=sorted(SCENARIOS),
+        metavar="NAME",
+        help="Launch a predefined scenario.",
+    )
+    group.add_argument(
+        "--list-scenarios",
+        action="store_true",
+        help="List all available scenarios and exit.",
+    )
+
+    parser.add_argument(
+        "apps",
+        nargs="*",
+        default=None,
+        help="Applications to launch (default: all in the module).",
+    ).completer = _complete_apps
+    parser.add_argument(
+        "-s",
+        "--security",
+        action="store_true",
+        help="Launch with Security enabled.",
+    )
+    parser.add_argument(
+        "--variant",
+        action="append",
+        type=_parse_variant_selection,
+        default=[],
+        metavar="ROLE=CHOICE",
+        help=(
+            "Select an app-role implementation; scope duplicate role names as "
+            "MODULE:ROLE=CHOICE. May be repeated."
+        ),
+    )
+    parser.add_argument(
+        "--ui-mode",
+        choices=("browser", "native"),
+        default="browser",
+        help=(
+            "Run graphical apps in a browser (default) or an embedded native "
+            "webview; native support is optional at build/install time."
+        ),
+    )
+
+
+def select_roles(
+    args: argparse.Namespace,
+) -> tuple[list[tuple[str, list[str] | None]], dict[tuple[str | None, str], str]]:
+    modules = module_runner.discover_modules()
+    variants: dict[tuple[str | None, str], str] = {}
+    for scope, role, choice in args.variant:
+        key = (scope, role)
+        if key in variants:
+            raise ValueError(f"App variant role '{role}' was selected more than once")
+        variants[key] = choice
+
+    if args.scenario:
+        if args.apps:
+            raise ValueError("Select individual apps with a module, not --scenario")
+        selected = SCENARIOS[args.scenario]["modules"]
+    else:
+        selected = [(args.module, args.apps or None)]
+    unknown = [name for name, _ in selected if name not in modules]
+    if unknown:
+        raise ValueError(f"Unknown module(s): {', '.join(unknown)}")
+    _validate_variant_selections(variants, selected, modules)
+    return selected, variants
+
+
+def launch_selection(args: argparse.Namespace) -> list[module_runner.LaunchSpec]:
+    selected, variants = select_roles(args)
+    return [
+        _resolve_module(name, apps, args.security, variants, args.ui_mode)
+        for name, apps in selected
+    ]

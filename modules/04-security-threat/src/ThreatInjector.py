@@ -20,11 +20,7 @@ sys.path.insert(
     0,
     str(Path(__file__).resolve().parents[3] / "modules" / "01-operating-room" / "src"),
 )
-from DemoUiSupport import (
-    DemoUiState,
-    create_demo_ui,
-    run_demo_ui,
-)
+from DemoUiSupport import DemoUiState, create_demo_ui, participant_security_enabled, run_demo_ui
 from MedTech import DdsEntities, Device, Geometry, Robot
 from MedTechTypes import register_type
 from ThreatTypes import ThreatEntities
@@ -77,6 +73,7 @@ class ThreatInjectionLogic:
 class ThreatInjectorDdsAdapter:
     def __init__(self) -> None:
         self.participant = None
+        self.dds_security: bool | None = None
         self.teleop_writer = None
         self.command_writer = None
 
@@ -97,11 +94,13 @@ class ThreatInjectorDdsAdapter:
             self.participant.find_datawriter(entities.DEVICE_COMMAND_DW)
         )
         self.participant.enable()
+        self.dds_security = participant_security_enabled(self.participant)
 
     def close(self) -> None:
         if self.participant is not None:
             self.participant.close()
         self.participant = self.teleop_writer = self.command_writer = None
+        self.dds_security = None
 
     def write_teleop(self, axis: str, direction: str) -> None:
         linear, angular = _rates(axis, direction)
@@ -252,6 +251,7 @@ class ThreatInjectorApplication:
         ]
         return {
             "kind": "threat-injector",
+            "dds_security": self.dds.dds_security,
             "title": "Threat Injector",
             "status": status,
             "header_badges": [

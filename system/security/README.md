@@ -18,17 +18,54 @@ From the repository root, run:
 
 ```bash
 python3 system/security/setup_security.py
+python3 system/security/setup_security.py --stage
 ```
 
-This generates all private keys, certificates, and signed XML files needed for secure DDS communication from the committed configuration files (`.cnf`, governance `.xml`, and permissions `.xml`).
+The first command issues credentials from the committed configuration files.
+The second publishes a runtime-only bundle to `system/security/artifacts/`.
+Connext 7.7.0 reads it using explicit `dds.sec.*` paths. The directories
+follow the 7.7.0.1 Full Security layout without enabling that release's
+automatic artifact lookup.
+
+| Runtime location | Contents |
+| --- | --- |
+| `0/` (LAN), `1/` (WAN) | Identity and permissions trust anchors, signed governance, configured PSK |
+| `<domain>/local/<role>/` | Identity chain, private key, and signed role grant |
+
+CA keys and signing databases stay in the issuance workspace. Staging
+checks the identity key pairs and trust chain and verifies the policy
+signatures. The launch preflight only checks the presence of files; a
+successful secure DDS run is the end-to-end check.
 
 The script auto-detects the installed Connext version from the Python environment's `rti.connextdds` package. Use `--connext-version X.Y.Z` to override.
 
-To re-generate all artifacts (overwriting existing ones):
+For a fresh local generation, write to separate ignored directories:
 
 ```bash
-python3 system/security/setup_security.py --force
+python3 system/security/setup_security.py --workspace .medtech/issued-next
+python3 system/security/setup_security.py --workspace .medtech/issued-next \
+  --stage --artifacts .medtech/runtime-next
+export RTI_SECURITY_ARTIFACTS_DIR="$PWD/.medtech/runtime-next"
+python medtech.py run --scenario or-all --security --explain
+python medtech.py run --scenario or-all --security
 ```
+
+Stop the old participants before switching. Update the bundle path together for
+all peers, then restart. Staging leaves an existing bundle untouched; select a
+new destination if content differs. To use a nondefault deployment directory,
+use `--deployment NAME` during staging and set
+`RTI_SECURITY_DEPLOYMENT_NAME=NAME` when launching. A manually prepared compatible
+bundle can be supplied by path without reissuing credentials.
+
+The [launcher provider registry](../../tools/medtech/medtech_cli.py)
+selects `local` (OpenSSL with a self-signed root CA) when no provider is set.
+Modules 01–03 can opt into [EPS](../../docs/EPS.md) with an agent-managed bundle.
+For secure `run` and `up`, `--provider` overrides a provider
+saved by `security plan --save`. Unknown provider names are errors. To add a
+provider, register its preparation instructions and a resolver for its
+already-prepared bundle root and deployment name. Keep enrollment and renewal
+outside the resolver and launcher; the same preflight and runtime paths apply
+regardless of provider.
 
 ### Checking Certificate Status
 
@@ -45,7 +82,11 @@ Certificates expiring within 30 days are flagged as warnings. Use `--warn-days N
 | Flag | Description |
 | --- | --- |
 | *(no flags)* | Generate artifacts (skip existing) |
-| `--force` | Re-generate all artifacts, overwriting existing ones |
+| `--force` | Regenerate in the selected issuance workspace; does not replace a runtime bundle |
+| `--workspace PATH` | Select where issuance state lives (default: `system/security/`) |
+| `--stage` | Stage already issued files into a runtime bundle |
+| `--artifacts PATH` | Select the staging destination or the bundle for resolved QoS |
+| `--deployment NAME` | Select the deployment directory (default: `local`) |
 | `--scaffold` | Re-generate the committed `.cnf`, governance, and permissions files from the Jinja2 templates (maintainer-only — see [Scaffolding](#scaffolding-maintainer-only)) |
 | `--strict` | Promote warnings to fatal errors |
 | `--status` | Report certificate expiry status and exit |
@@ -105,17 +146,39 @@ was added. Regenerate signed artifacts after changing these committed policies.
 
 ## Good Practices for DDS Security
 
-1. One governance document per domain.
-2. One permissions document and identity certificate per DomainParticipant.
-3. Permissions documents specify exactly which topics can be published/subscribed to, with a default rule of `DENY`.
-4. Use separate CAs for identity certificates vs. permissions/governance signing.
-5. Use intermediate CAs rather than signing directly with the root CA.
+> [!TIP]
+> **Best practice:** Maintain one governance file per governance policy.
+
+> [!TIP]
+> **Best practice:** Give each independently provisioned DomainParticipant
+> instance a distinct identity certificate, key pair, and subject name.
+> Scope permissions grants to the identity or to its role, with only the access
+> required for that scope.
+
+An exact `<subject_name>` grant binds to one identity subject. Alternatively,
+`<subject_name_expression>` can match a class of distinct identities that share
+a role: use narrowly scoped patterns over CA-controlled subject attributes.
+These are authorization choices, not a requirement for a separate file per
+identity. Connext recommends including only the applicable grant in the signed
+Permissions Document presented by a participant to reduce exchange overhead.
+See the [matching rules](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p2_core/access_control.html#rules-for-matching-a-subject-name-in-the-permissionsdoc):
+expressions are case-sensitive, an exact subject match takes precedence, and
+the first matching expression wins.
+
+> [!TIP]
+> **Best practice:** Permissions documents specify exactly which topics can be published/subscribed to, with a default rule of `DENY`.
+
+> [!TIP]
+> **Best practice:** Use separate CAs for identity certificates vs. permissions/governance signing.
+
+> [!TIP]
+> **Best practice:** Use intermediate CAs rather than signing directly with the root CA.
 
 ## Considerations for This Reference Architecture
 
 The security artifacts in this reference architecture demonstrate how applications can integrate RTI Security Plugins. This is not comprehensive cybersecurity advice for a production system.
 
-1. The three-tier CA hierarchy (root → intermediate identity CA + intermediate permissions CA) follows best practices. In production, the root CA private key should be kept offline.
+1. The demo uses a root CA with two sibling intermediate CAs for identity and permissions. This two-level hierarchy illustrates separation of signing roles; production PKI design should consider an offline root and the deployment's threat model.
 2. Per-participant topic rules enforce least-privilege access. Each participant can only publish/subscribe to the specific topics it requires.
 3. In a deployed system, you will need to manage the lifecycle of these certificates using a PKI or other security tools.
 4. You should implement safeguards for certificate revocation based on your threat model, and implement other cybersecurity best practices like security information and event management (SIEM).

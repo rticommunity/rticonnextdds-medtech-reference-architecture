@@ -22,7 +22,7 @@ import subprocess
 import time
 
 import pytest
-from scripts.test_utils import (
+from test_utils import (
     check_no_deadline_missed,
     wait_for_device_status,
     wait_for_reader_match,

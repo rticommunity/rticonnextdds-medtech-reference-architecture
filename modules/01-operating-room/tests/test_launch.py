@@ -27,14 +27,15 @@ from urllib.request import Request, urlopen
 
 import pytest
 from module01_test_support import MODULE_DIR, invoke, local_ui_url, ui_data, wait_for_ui_data
-from scripts import module_runner
-from scripts.test_utils import (
+from test_utils import (
     ProcessManager,
     check_no_deadline_missed,
     wait_for_device_status,
     wait_for_samples,
     wait_for_writer_match,
 )
+
+from tools.medtech import module_runner
 
 
 class TestPatientSensor:

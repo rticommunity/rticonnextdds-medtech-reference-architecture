@@ -21,7 +21,7 @@ publication_matched_status to determine whether data can flow.
 
 import pytest
 import rti.connextdds as dds
-from scripts.test_utils import (
+from test_utils import (
     make_isolated_qos_provider,
     register_type,
     wait_for_writer_match,

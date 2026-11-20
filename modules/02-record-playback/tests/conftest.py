@@ -20,10 +20,8 @@ from pathlib import Path
 import pytest
 
 TESTS_DIR = Path(__file__).resolve().parent
-RESOURCE_PYTHON_DIR = TESTS_DIR.parents[3] / "resource" / "python"
 
 sys.path.insert(0, str(TESTS_DIR))
-sys.path.insert(0, str(RESOURCE_PYTHON_DIR))
 
 module02_test_support = importlib.import_module("module02_test_support")
 MODULE_01_DIR = module02_test_support.MODULE_01_DIR
@@ -61,7 +59,7 @@ def pytest_collection_modifyitems(config, items):
 @pytest.fixture(scope="session")
 def module01_env():
     """Non-secure DDS environment from Module 01 (operating-room apps)."""
-    from scripts import module_runner
+    from tools.medtech import module_runner
 
     return module_runner.load_module_config(MODULE_01_DIR, flags={"security": False})
 
@@ -69,7 +67,7 @@ def module01_env():
 @pytest.fixture(scope="session")
 def module02_env():
     """Non-secure DDS environment from Module 02 (recording/replay services)."""
-    from scripts import module_runner
+    from tools.medtech import module_runner
 
     return module_runner.load_module_config(MODULE_DIR, flags={"security": False})
 
@@ -77,7 +75,7 @@ def module02_env():
 @pytest.fixture()
 def or_proc_manager(module01_env):
     """ProcessManager for Module 01 operating-room apps (PatientSensor, etc.)."""
-    from scripts.test_utils import ProcessManager
+    from test_utils import ProcessManager
 
     env, apps = module01_env
     pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
@@ -94,7 +92,7 @@ def recording_workspace(tmp_path):
 @pytest.fixture()
 def svc_proc_manager(module02_env, recording_workspace):
     """ProcessManager for Module 02 recording/replay services."""
-    from scripts.test_utils import ProcessManager
+    from test_utils import ProcessManager
 
     env, apps = module02_env
     pm = ProcessManager(env, apps, cwd=recording_workspace)

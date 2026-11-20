@@ -35,6 +35,7 @@
 #include "DemoUiSupport.hpp"
 #include "HeartbeatPresence.hpp"
 #include "MedTech.hpp"
+#include "ParticipantSecurity.hpp"
 
 using namespace DdsEntities::Constants;
 using namespace std::chrono_literals;
@@ -423,6 +424,9 @@ public:
         auto &commands = commands_;
         auto &stopping = stopping_;
         participant_.enable();
+        const bool secure =
+                medtech::operating_room::participant_security_enabled(
+                        participant_);
 
         medtech::operating_room::HeartbeatPublisher heartbeat(
                 heartbeat_writer_,
@@ -435,6 +439,7 @@ public:
         auto update_view = [&]() {
             app.set_data(
                     arm_controller_view(logic.status,
+                                        secure,
                                         { { "running", logic.demo_enabled() },
                                           { "cycles", logic.demo_cycles() } },
                                         feedback.demo_ready(),

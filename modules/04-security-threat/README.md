@@ -4,7 +4,7 @@ This module demonstrates the security properties of RTI Connext by showing what 
 
 *Note, this module was developed and tested on Debian 11 (Bullseye) and Ubuntu 24.04 running under WSL2 on Windows 11. The instructions below assume a Debian/Ubuntu environment.*
 
-All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
+All run commands in this README are launched from the repository root. The project-level `medtech.py run` script is the runtime entrypoint; there is no module-local launcher in this folder.
 
 ## Contents
 
@@ -79,7 +79,9 @@ Complete the shared setup in the root [Quick Start](../../README.md#quick-start)
 
 Module-specific setup:
 
-The shared trusted system security artifacts are covered in the root [Quick Start](../../README.md#quick-start). Complete that setup first so the generated keys and trust stores are available on whichever machines will run this module.
+Prepare the [local security bundle](../../system/security/README.md) first so the
+generated keys and trust stores are available on the machines that run this
+module. Select `--provider local` if another provider is saved.
 
 Generate the module-specific threat artifacts from the repository root:
 
@@ -96,9 +98,9 @@ Ensure the RTI Security Plugins are installed on every machine that will run a s
 
 ## Run the Demo
 
-> Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+> Important: Run the commands below from the repository root. `medtech.py run` lives at the project root and is the single runtime entrypoint for this project.
 >
-> Tip: the predefined `security-threat`, `threat-inject`, and `threat-exfiltrate` scenarios bundle the operating room apps with the threat application(s) in a single command (e.g. `python3 launch.py --scenario threat-inject`). The step-by-step flow below runs them in separate terminals so you can switch the OR between unsecured and secured modes independently. Run `python3 launch.py --list-scenarios` to see all scenarios.
+> Tip: the predefined `security-threat`, `threat-inject`, and `threat-exfiltrate` scenarios bundle the operating room apps with the threat application(s) in a single command (e.g. `python medtech.py run --scenario threat-inject`). The step-by-step flow below runs them in separate terminals so you can switch the OR between unsecured and secured modes independently. Run `python medtech.py run --list-scenarios` to see all scenarios.
 
 ### 1. Run Operating Room Applications
 
@@ -107,10 +109,10 @@ Open a terminal and launch Module 01 from the repository root in either unsecure
 ```bash
 # From the repository root
 # Unsecured (attacks will SUCCEED):
-python3 launch.py 01-operating-room
+python medtech.py run 01-operating-room
 
 # Secured (attacks will be BLOCKED):
-python3 launch.py 01-operating-room -s
+python medtech.py run 01-operating-room -s
 ```
 
 ### 2. Run a Threat Application
@@ -120,10 +122,10 @@ Open a second terminal and launch the desired threat application:
 ```bash
 # From the repository root
 # Launch the Threat Injector:
-python3 launch.py 04-security-threat ThreatInjector
+python medtech.py run 04-security-threat ThreatInjector
 
 # OR launch the Threat Exfiltrator:
-python3 launch.py 04-security-threat ThreatExfiltrator
+python medtech.py run 04-security-threat ThreatExfiltrator
 ```
 
 ### 3. Observe the Application Behavior
@@ -164,7 +166,7 @@ While the injector is actively attacking in **Unsecure** mode against the unsecu
 ```bash
 # From the repository root
 # Press Ctrl-C to stop the running OR apps, then relaunch with security:
-python3 launch.py 01-operating-room -s
+python medtech.py run 01-operating-room -s
 ```
 
 Watch the threat app's Activity Log: when the secured OR comes up, the injector's `publication_matched_status` drops to zero and the status badge transitions from **ATTACKING** to **NO ACCESS**. The `[OK]` log entries become `[WARN]`, indicating writes are still happening locally but no subscriber is receiving them.
@@ -193,7 +195,6 @@ For a deeper dive into the DDS Security handshake, refer to the [RTI Security Pl
 
 ## Next Steps
 
-- **Module 02: Record and Playback** — Record a session of the operating room in action, then replay it for analysis or training.
-- **Module 03: Remote Teleoperation** — Extend the secure architecture across a WAN link to support remote surgical assistance.
-
-Head back to the [main README](../../README.md) and pick up with the [Hands-On: Architecture](../../README.md#hands-on-architecture) section to learn more about the system architecture.
+**Next → [Inspect the DDS Security design](../../system/DDS_DESIGN_GUIDE.md#security).**
+Follow the [security guide](../../system/security/README.md) to find governance,
+participant grants, and the credentials used at runtime.

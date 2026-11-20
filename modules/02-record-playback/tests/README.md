@@ -11,7 +11,7 @@ and that RTI Replay Service re-publishes recorded samples.
 | RTI Connext DDS 7.7.x | `NDDSHOME` must be set |
 | Python 3.11+ | With the Connext Python API (`rti.connextdds`) |
 | pytest | Install the locked developer dependencies as described in the [project test guide](../../../tests/README.md) |
-| Project C++ build complete | From the repository root, run `python build.py` |
+| Project C++ build complete | From the repository root, run `python medtech.py build` |
 | `rtirecordingservice` | Must be present in `$NDDSHOME/bin/` |
 | `rtireplayservice` | Must be present in `$NDDSHOME/bin/` |
 

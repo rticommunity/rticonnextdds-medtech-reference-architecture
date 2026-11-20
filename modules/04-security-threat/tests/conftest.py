@@ -20,17 +20,15 @@ from pathlib import Path
 import pytest
 
 TESTS_DIR = Path(__file__).resolve().parent
-RESOURCE_PYTHON_DIR = TESTS_DIR.parents[3] / "resource" / "python"
 
 sys.path.insert(0, str(TESTS_DIR))
-sys.path.insert(0, str(RESOURCE_PYTHON_DIR))
 
 module04_test_support = importlib.import_module("module04_test_support")
 MODULE_01_DIR = module04_test_support.MODULE_01_DIR
 MODULE_DIR = module04_test_support.MODULE_DIR
 SYSTEM_DIR = module04_test_support.SYSTEM_DIR
 sys.path.insert(0, str(SYSTEM_DIR / "src"))
-sys.path.insert(0, str(SYSTEM_DIR.parent / "resource" / "demo_ui"))
+sys.path.insert(0, str(SYSTEM_DIR.parent / "resources" / "ui" / "support"))
 
 
 def _or_security_artifacts_exist() -> bool:
@@ -48,7 +46,7 @@ def _threat_artifacts_exist() -> bool:
 @pytest.fixture(scope="session", autouse=True)
 def _monitoring_off():
     """Disable RTI Monitoring 2.0 so in-process secure participants can be created."""
-    from scripts.test_utils import disable_monitoring
+    from test_utils import disable_monitoring
 
     disable_monitoring()
 
@@ -56,7 +54,7 @@ def _monitoring_off():
 @pytest.fixture(autouse=True)
 def _secure_runtime_available(request):
     if request.node.get_closest_marker("secure"):
-        from scripts.test_utils import security_plugin_available
+        from test_utils import security_plugin_available
 
         if not security_plugin_available():
             pytest.skip("DDS Security runtime probe failed")
@@ -80,7 +78,7 @@ def pytest_collection_modifyitems(config, items):
 @pytest.fixture(scope="session")
 def or_env_nonsecure():
     """Module 01 OR env — non-secure mode."""
-    from scripts import module_runner
+    from tools.medtech import module_runner
 
     env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": False})
     return env, apps
@@ -89,7 +87,7 @@ def or_env_nonsecure():
 @pytest.fixture(scope="session")
 def or_env_secure():
     """Module 01 OR env — secure mode."""
-    from scripts import module_runner
+    from tools.medtech import module_runner
 
     env, apps = module_runner.load_module_config(MODULE_01_DIR, flags={"security": True})
     return env, apps
@@ -98,10 +96,10 @@ def or_env_secure():
 @pytest.fixture(scope="session")
 def threat_env():
     """Module 04 threat app environment with generated XML types prepended."""
-    from scripts import module_runner
+    from tools.medtech import module_runner
 
     env, apps = module_runner.load_module_config(MODULE_DIR)
-    from scripts.platform_setup import generated_system_path
+    from tools.medtech.platform_setup import generated_system_path
 
     types_xml = str(generated_system_path() / "xml" / "MedTech.xml")
     env["NDDS_QOS_PROFILES"] = types_xml + ";" + env["NDDS_QOS_PROFILES"]
@@ -117,7 +115,7 @@ def threat_env():
 
 @pytest.fixture()
 def or_pm_nonsecure(or_env_nonsecure):
-    from scripts.test_utils import ProcessManager
+    from test_utils import ProcessManager
 
     env, apps = or_env_nonsecure
     pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
@@ -127,7 +125,7 @@ def or_pm_nonsecure(or_env_nonsecure):
 
 @pytest.fixture()
 def or_pm_secure(or_env_secure):
-    from scripts.test_utils import ProcessManager
+    from test_utils import ProcessManager
 
     env, apps = or_env_secure
     pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)
@@ -138,7 +136,7 @@ def or_pm_secure(or_env_secure):
 @pytest.fixture(scope="class")
 def or_pm_secure_class(or_env_secure):
     """Class-scoped secure ProcessManager — reuses PatientSensor across tests."""
-    from scripts.test_utils import ProcessManager
+    from test_utils import ProcessManager
 
     env, apps = or_env_secure
     pm = ProcessManager(env, apps, cwd=MODULE_01_DIR)

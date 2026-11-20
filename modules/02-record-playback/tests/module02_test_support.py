@@ -9,22 +9,14 @@
 # under no obligation to maintain or support the software.  RTI shall not be
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
-"""Module 02 path constants.
-
-Bootstraps ``resource/python/`` onto sys.path so that every test file
-in this directory can ``from scripts.test_utils import …`` directly.
-"""
+"""Module 02 path constants."""
 
 from __future__ import annotations
 
 import shutil
-import sys
 from pathlib import Path
 
 # Reuse centralized scripts package for platform detection and module config
-sys.path.insert(
-    0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python")
-)
 
 
 # ---------------------------------------------------------------------------

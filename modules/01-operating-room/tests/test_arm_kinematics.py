@@ -326,7 +326,7 @@ def test_combined_motion_keeps_closed_jaws_coupled_without_false_limit_faults():
 
 @pytest.mark.parametrize("opening_rate", (-0.02, 0.0, 0.02))
 def test_rendered_jaws_remain_attached_and_match_observed_contact_gap(opening_rate):
-    asset = (REPO_ROOT / "resource/ui_web/models/articulated-arm.glb").read_bytes()
+    asset = (REPO_ROOT / "resources/ui/web/models/articulated-arm.glb").read_bytes()
     json_length = struct.unpack_from("<I", asset, 12)[0]
     document = json.loads(asset[20 : 20 + json_length])
     nodes = {node["name"]: node for node in document["nodes"]}

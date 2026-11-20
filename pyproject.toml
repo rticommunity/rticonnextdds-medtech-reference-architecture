@@ -66,7 +66,7 @@ select = ["E", "F", "I"]
 
 [tool.codespell]
 # Keep spelling checks focused on source/docs and skip generated/cache content.
-skip = ".git,.venv,.venv*,build,**/build,.pytest_cache,__pycache__,resource/images,*.svg"
+skip = ".git,.venv,.venv*,build,**/build,.pytest_cache,__pycache__,docs/assets,*.svg"
 ignore-words-list = "nddshome,connextdds,rtisetenv,dpqoslib,unsecure"
 check-hidden = false
 
@@ -87,6 +87,7 @@ markers = [
     "slow: long-running scenario (deselect with '-m not slow')",
 ]
 addopts = "-rs"
+pythonpath = [".", "tests/support"]
 
 [tool.rumdl]
 disable = ["MD013"]

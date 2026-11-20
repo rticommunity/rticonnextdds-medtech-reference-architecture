@@ -14,8 +14,8 @@ except ModuleNotFoundError as exc:
     if exc.name != "MedTech":
         raise
     raise RuntimeError(
-        "Shared DDS bindings are missing. Run python build.py, then launch through "
-        "launch.py or add build/<CONNEXTDDS_ARCH>/system/generated/python to PYTHONPATH."
+        "Shared DDS bindings are missing. Run python medtech.py build, then launch through "
+        "medtech.py run or add build/<CONNEXTDDS_ARCH>/system/generated/python to PYTHONPATH."
     ) from exc
 
 

@@ -4,7 +4,7 @@ Module 01 simulates a Digital Operating Room.
 
 The applications have been tested to work in Debian-based environments with a GUI, including those in [WSL2 with GUI support](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps#install-support-for-linux-gui-apps) (Windows 10 and 11), as well as on macOS.
 
-All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
+All run commands in this README are launched from the repository root. The project-level `medtech.py run` script is the runtime entrypoint; there is no module-local launcher in this folder.
 
 ## Contents
 
@@ -18,7 +18,7 @@ All run commands in this README are launched from the repository root. The proje
 
 This module implements five logical Connext applications using the MedTech Reference Architecture to simulate a digital operating room. The Arm Controller has an optional Xbox/gamepad implementation. You can find a diagram below:
 
-![image](../../resource/images/module-01-diagram-digital-OR.svg)
+![DDS data flows among the patient sensor, monitor, orchestrator, arm controller, and arm](../../docs/assets/module-01-diagram-digital-OR.svg)
 
 ### Patient Sensor
 
@@ -54,22 +54,7 @@ jaw controls, and run/stop demonstration motion. The Xbox adapter maps sticks,
 triggers, bumpers, and buttons to the same hardware-independent data model.
 Neither controller predicts actual arm execution from its own command state.
 
-**RUN DEMO** captures the observed TCP position and jaw gap, then repeats a
-small translation/jaw loop with a brief hold at its starting point. Each
-waypoint uses achieved telemetry; the return targets are within 0.7 mm position
-and 0.4 mm gap of the captured start, rather than accumulated command estimates.
-The showcase leaves angular rates at zero; all six manual axes remain available.
-It requires complete pose/jaw telemetry no more than 500 ms old and stops with a
-warning if feedback becomes unavailable, the arm reports a fault, or a waypoint
-cannot be reached within four seconds. This is demo motion, not a safety system.
-
-A manual jog takes over from the showcase. A release-only event does not cancel
-it. **STOP MOTION** clears both the showcase and held jogs. PAUSE/SHUTDOWN clear
-motion and send zero before ending the command stream; START resumes idle zeros,
-not the old showcase or cached browser inputs. A new RUN DEMO captures a new
-starting point. Browser control schemas and presentation are in
-[ArmControllerUi.hpp](src/ArmControllerUi.hpp); ordinary Connext entity lookup,
-reads, and writes remain in [ArmController.cxx](src/ArmController.cxx).
+For controller behavior and the arm command contract, see [Arm and controller](ARM_AND_CONTROLLER.md).
 
 ### Orchestrator
 
@@ -89,19 +74,20 @@ The headless Patient Sensor runs directly from `main()`.
 
 ## Setup and Installation
 
-Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. That covers prerequisites, environment setup, the project-level build, and security artifact generation.
+Complete the shared [Quick start](../../README.md#quick-start). If using
+security, also prepare a [local or EPS bundle](../../README.md#security).
 
 Module-specific notes:
 
-- If you plan to use secure mode, make sure the security artifacts from the root README have been generated.
-- There is no module-local build or launch script; use the project-level `build.py` and `launch.py` scripts from the repository root.
+- Use the [project launcher](../../docs/CLI.md) from the repository root.
 - The Xbox/gamepad variant is optional at runtime. Its Pygame Community Edition dependency is included in the root `user` profile or the `gamepad` capability.
-- Native webview mode is optional. Python requires the `native` capability: `uv sync --active --locked --no-dev --extra user --extra native`. On Linux with Python 3.13+, create the virtual environment with `--system-site-packages` and verify the interpreter can import the distro's `python3-gi` and WebKit2 bindings as described in the root README. C++ requires configuring with `-DRTI_DEMO_BUILD_NATIVE_WEBVIEW=ON`; the SDK root integration builds the core and optional native companion together. Native windows use the project RTI logo; Windows uses its ICO variant. Install the platform prerequisites described in the root README and the RTI Demo UI native-webview guide.
+- Native webview mode is optional. Follow the [platform setup and build options](../../docs/SETUP.md) before selecting `--ui-mode native`.
 - In native mode, the C++ System Orchestrator opens at 1600x950 and the Arm Controller at 1400x900; both windows remain resizable.
 
 ## Run the Demo
 
-> Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+> Run the commands below from the repository root. If the Quick start is
+> already running, skip to [Observe the application behavior](#2-observe-the-application-behavior).
 
 ### 1. Launch the applications
 
@@ -109,17 +95,17 @@ Run operating room applications from the repository root:
 
 ```bash
 # From the repository root
-python3 launch.py 01-operating-room
+python medtech.py run --scenario or-all
 ```
 
 Open the local URL printed by each graphical app. To use an embedded desktop
 webview instead of an external browser, add `--ui-mode native`.
 
-To run with security enabled, use the `-s` option:
+To run with security enabled after preparing credentials:
 
 ```bash
 # From the repository root
-python3 launch.py 01-operating-room -s
+python medtech.py run --scenario or-all --security
 ```
 
 *This script does the following:*
@@ -128,223 +114,50 @@ python3 launch.py 01-operating-room -s
 
 2. Launch the application executables.
 
-*Note, applications can be launched individually by logical app name, e.g. `python3 launch.py 01-operating-room Arm PatientMonitor`. Refer to [module.json](./module.json) for app roles, variant choices, and QoS configuration.*
-
-### Use the Xbox/gamepad Arm Controller
-
-The simulated Arm Controller remains the default and requires no gamepad. Pygame CE is included in the standard project requirements. To select the Xbox/gamepad implementation, run:
-
-```bash
-python3 launch.py 01-operating-room --variant ArmController=xbox
-```
-
-The selection also applies to scenarios that launch the Arm Controller:
-
-```bash
-python3 launch.py --scenario or-all --variant ArmController=xbox
-```
-
-The gamepad app uses Pygame CE only to read SDL controller input; its status page
-is served by RTI Demo UI. Both controller variants publish complete
-`Robot::Arm::TeleopControl` rates on `t/robot/arm/control` and signed
-`Robot::Tool::ParallelJawControl` rates on `t/robot/tool/control`:
-
-| Xbox control | Base-frame control | Effect |
-| --- | --- | --- |
-| Left stick right / left | Positive / negative linear X | Proportional sideways TCP motion |
-| Left stick forward / back | Positive / negative linear Y | Move across the workspace |
-| Right stick up / down | Positive / negative linear Z | Move up / down |
-| Hold LB + right stick right / left | Positive / negative angular Y | Rotate about fixed base Y |
-| Hold LB + right stick up / down | Negative / positive angular X | Rotate about fixed base X |
-| Hold LB + right / left trigger | Positive / negative angular Z | Rotate about fixed base Z |
-| D-pad right-left / up-down | Linear X/Y fallback | Workspace motion when the corresponding stick is neutral |
-| A / B buttons | Positive / negative opening rate | Open / close parallel jaws while held |
-
-Right-stick horizontal and the triggers have no effect unless LB is held.
-While LB is held, right-stick Z translation is disabled; left-stick translation
-and jaw control remain available. After releasing LB, return both right-stick
-axes to their dead zone before Z translation resumes. This prevents a stick held
-for rotation from immediately commanding translation. RB is unused.
-
-This layout uses the fixed, right-handed arm base frame. Base X/Y span the
-horizontal workspace and +Z is up. Neither wrist rotation nor camera orbit
-changes the command axes; they are not screen-relative. Angular commands rotate
-about base-oriented axes through the TCP. Rotation about base Z is not
-necessarily roll around the tool shaft.
-
-Analog magnitude is preserved after dead-zone handling; combined vectors are
-bounded by the demo limits. Opposite digital inputs cancel. Both streams publish
-at 50 Hz while ON, including zero rates when idle, released, or disconnected.
-There is no `STOPPED` wire enum, target-width command, or special gripper-roll
-axis. Browser controls provide matching press/release behavior; their input
-refresh timeout stops a hold if the browser misses a release.
-
-Orchestrator START, PAUSE, and SHUTDOWN retain their device lifecycle meanings.
-Pause stops publication. Fresh rates resume after START/reconnection even when
-controls remain held, subject to the rotation-to-translation neutral rule above.
-With no supported
-gamepad, the app stays running, reports the condition, and emits idle zeros.
-Closing a browser tab does not stop its process; use `Ctrl-C` in the launcher.
-
-### Arm model, command validity, and observed feedback
-
-The demo has one keyed arm, `arm-1`. Linear velocity uses m/s and angular
-velocity rad/s, with IDL unit annotations. Commands are relative to the
-fixed **base frame**, with +Z up, for both linear and angular velocity.
-The separate jaw command remains tool-local: positive jaw rate opens the total
-gap symmetrically along tool X; tool +Z points along the shaft.
-The demo limits are 0.05 m/s linear norm, 0.5 rad/s angular norm, 0.02 m/s
-gap rate, and a 0-0.06 m gap. These are hypothetical demo values, not hardware
-guarantees.
-
-The supported deployment is one operating room, one instance of each app role,
-and one intended arm command source: either controller variant **or** replay.
-Do not run both controller variants or a live controller alongside replay
-against the same arm. Keys identify data instances; they do not provide
-multi-device discovery, command-source arbitration, or operator ownership.
-The security threat demonstration deliberately adds a competing writer to show
-the unsecured/secured contrast; that is not a supported multi-controller mode.
-
-At startup, the simulator uses a raised shoulder and bent elbow, with the tool
-pointing forward and 20 degrees downward. This keeps the initial posture away
-from full extension and gives room for translation and rotation. It is
-initialization only; no HOME action is implemented.
-
-The Arm uses **MuJoCo + Mink**, installed by the root `arm` capability.
-The original [MJCF model](./models/arm.xml) is authoritative for the six-axis
-chain, jaw slides, link dimensions, joint ranges, velocity actuators, illustrative
-inertias, gravity compensation, a coupled parallel-jaw mechanism, and demo rate
-limits. No vendor meshes or robot descriptions are copied, and no URDF or ROS
-installation is required.
-The existing GLB generator reads its link dimensions from that model.
-
-A 50 Hz application tick reads DDS rates independently of incoming message
-handling. Each tick advances MuJoCo in substeps no longer than 2 ms. Mink solves
-constrained differential IK from the **achieved** configuration at each substep.
-IK joint-velocity commands are limited to 2 rad/s. Direction constraints keep
-the solved TCP velocity on the requested base-frame twist: translation does not
-request rotation, rotation does not request translation, and combined components
-slow together rather than acquiring sideways motion. Command speed cannot be
-amplified or reversed by the solver.
-Regularization increases smoothly for commanded directions that approach a
-singularity, avoiding an elbow crossing caused by actuator inertia. Joint-limit
-approaches also slow before the mechanical range ends. An infeasible direction
-holds rather than switching to another IK branch. There is no branch enumeration
-or step-halving solver.
-
-Selected base-to-forearm/wrist/tool and upper-arm-to-tool pairs use simplified
-collision geometry. Mink slows commands as these parts approach one another;
-MuJoCo also resolves contact for those pairs. The IK clearance target is 15 mm,
-but actuator inertia and numerical integration can reduce that clearance.
-Adjacent links, other self-collision pairs, and the environment are not covered.
-
-MuJoCo's gravity-compensated velocity actuators produce the actual movement,
-including short acceleration/braking transients and small integration/tracking
-errors. One tendon actuator controls total jaw opening; a joint equality models
-the gearing between the fingers. Mechanical travel is limited on the total gap,
-not by redundant independent end stops on the coupled fingers.
-Zero rates brake; they do not chase an accumulated Cartesian or joint
-position target. Thus achieved speed/pose need not exactly equal the command,
-and equal-duration outward/return holds need not return to the starting pose
-when one direction was limited. Telemetry and scene transforms come from the
-actual physics state, not the IK velocity solution.
-A fixed overlay inside the scene reports reduced or held motion without moving
-the header, scene, or telemetry. Moving in another direction can resume arm
-motion; the jaws remain independently controllable.
-Links never stretch and requested poses are not reported as achieved. This is a
-demo simulation, not a physical hardware or safety guarantee. Numerical backend
-failures stop the application with ERROR/FAULT and an explicit diagnostic.
-
-Each step reads the current valid DDS rates, including previously READ samples.
-Rates remain eligible until replaced or removed by the writer's 250 ms
-lifespan. Reusing a valid rate advances another time interval; it does not
-repeat a one-shot action. There is no application-owned active target or
-duplicate command timeout. No eligible arm command brakes both arm and jaws;
-no eligible tool command brakes the jaws independently. A valid zero arm
-stream permits tool-only operation. Pause/START drain cached pre-transition
-commands. Command loss never automatically opens the jaws.
-
-Command QoS is best-effort, volatile, KEEP_LAST(1), with a diagnostic 50 ms
-deadline. Finite lifespan is required on every command writer, including routing
-and replay outputs, and is not enforced by DDS requested/offered matching.
-Reader expiration uses reception time in Connext 7.7. Braking begins on the next
-running tick after expiry (250 ms plus up to one 20 ms period and scheduling
-jitter); delayed/republished data can start a new local validity window.
-Deadlines and liveliness are diagnostics, not stopping mechanisms or safety
-guarantees.
-
-`t/robot/arm/status` reports initial/on-change readiness separately from device
-lifecycle. `t/robot/arm/telemetry` carries actual base-relative TCP pose and optional
-jaw gap at approximately 20 Hz. Both controllers display this DDS feedback and
-telemetry freshness, not a local command prediction. Readiness is displayed as
-the last known status: silence is normal for an on-change publisher and does not
-expire the value. Stale telemetry indicates missing periodic feedback, not a
-new readiness state or proof of the status writer's availability. The orientation quaternion
-`(x,y,z,w)` maps tool vectors into base coordinates. There is no payload timestamp;
-unavailable optional feedback is not replaced with zeros.
-
-The Arm's own window labels its local pose/gap readouts **Reported telemetry**.
-Its green light blinks while local telemetry publications continue; it dims
-after 500 ms without a newly observed publication. This is publication activity,
-not confirmation of delivery to a remote reader. These are the simulated values
-the Arm publishes, not incoming controller data, so this window has no
-FRESH/STALE badge. The Arm continues reporting its stationary state when the
-controller disconnects. With reduced-motion preferences, the green light is
-steady while publishing.
-
-The browser and optional native webview use the pinned SDK's existing
-Three.js-backed Scene3D renderer, with an original
-[articulated GLB](../../resource/ui_web/models/articulated-arm.glb) and
-[reproducible generator](../../resource/ui_web/generate_arm_glb.py). Drag to
-orbit, right-drag or Shift-drag to pan, and scroll to zoom; two-finger touch
-gestures pan and zoom. These controls and reset change only the camera, not
-command frames. Telemetry sits beside the scene on wide windows and below it
-on narrow windows. Model-load or WebGL
-failure is explicitly reported as degraded visualization; native support depends
-on the webview/platform. The same backend-derived joint transforms drive the
-scene, without a second JavaScript kinematics solver.
-
-**Reset camera** restores the initial camera angle, center, and distance. It
-does not change the arm's pose and has no visual effect if the view is already
-at its initial setting; an inline message confirms the camera action.
-**Fit arm** centers/fits the model and its reference ring while retaining the
-current viewing direction; it has no visible effect if already fitted.
-The renderer's internal node-status list is hidden during normal visualization;
-it remains available as diagnostic fallback if the model cannot be rendered.
-**Side view** and **Top view** snap to base-relative views and fit the arm.
-Camera presets remain browser-local and survive periodic pose updates; they
-never change control axes or move the arm. Reset camera always returns to the
-initial view, including after selecting a preset.
-The SDK preserves the GLB's graphite/silver structure, blue accents, and orange
-tool marker instead of repainting the model with node-status colors. Arm
-readiness and faults remain visible in the status display.
-
-The gripper palm connects both sliding fingers to the wrist. The TCP is centered
-between the opposing contact pads; their inner-face separation matches the
-observed total jaw gap, including zero gap when closed. The shaft ends at the
-palm rather than extending into the gripping space.
-
-This is a rigid-body/actuator simulation with illustrative parameters, not a
-calibrated hardware digital twin. The selected self-collision pairs are not a
-complete collision model. Environment/object contact, grasping, and
-force-feedback control are not enabled.
-There is no claim of collision-safe movement. No real arm adapter is implemented.
-A future adapter must translate
-units/frames and supply vendor-specific execution/safety behavior; this DDS
-polling loop is not suitable inside a vendor hard-real-time callback.
+*Launch individual apps by logical name, e.g. `python medtech.py run 01-operating-room Arm PatientMonitor`. See [module.toml](./module.toml) for app roles, variant choices, and QoS configuration.*
 
 ### 2. Observe the application behavior
 
-Observe and play around with the interactive operating room applications. The following are some ideas to get started:
+1. In **Orchestrator**, check which devices are online. In **Patient Monitor**,
+   check that synthetic vitals are updating.
+2. Select **Patient Sensor** in Orchestrator and send **PAUSE**, then **START**.
+   The vitals stream pauses and resumes without the sensor leaving the system.
+   If you already did this in Quick Start, continue with the arm.
 
-- From the *Orchestrator* application, send a "PAUSE" command to the *Patient Sensor* Medical Device. Observe the effect in the *Patient Monitor* GUI application. Resume the *Patient Sensor* by sending a "START" command.
+#### Try the arm controller
+
+Select **RUN DEMO** in **Arm Controller**. Compare the commanded motion with
+the observed pose in **Surgical Arm Monitor**, then select **STOP MOTION**.
+
+Expand **DDS topics** in either app's header. An orange ↑ marks a configured
+publisher and a blue ↓ marks a configured subscriber. This is a topic map,
+not a live traffic indicator. The lock reports whether the local participant
+has DDS Security enabled, not whether peers have authenticated it. A dash means
+no active participant status is available.
+
+#### What DDS is doing
+
+- The sensor publishes vitals separately from device heartbeats. See [cadence,
+  liveliness, and device presence](../../system/README.md#separate-data-cadence-writer-liveliness-and-device-presence).
+- The controller publishes motion intent; the arm publishes observed state.
+  See [why state and commands use different QoS](../../system/README.md#give-late-joiners-state-not-old-commands).
+
+### 3. Stop or continue
+
+Press `Ctrl-C` in the launcher terminal to stop all apps. Closing a browser tab
+does not stop its app process.
+
+**Next → [Module 02: Record and replay](../02-record-playback/README.md#run-the-demo).**
+
+## Optional controller and simulation reference
+
+See [Arm and controller](ARM_AND_CONTROLLER.md) for gamepad controls, command validity, feedback, and simulation details.
+
+### Optional demo variations
+
 - From the *Arm Controller*, hold translation and rotation controls to move the TCP in all six base-frame components, and hold jaw controls to open/close the tool. Release to zero the rate. "RUN DEMO" and "STOP MOTION" start/stop a bounded motion/tool sequence. Rotate the tool, then command +Z translation: it still moves upward in the base frame, not along the shaft. Compare observed feedback in the controller and Arm views.
 - Ungracefully terminate the *Arm* application process. Observe the effect in the *Orchestrator* activity stream.
 - Initiate a graceful remote shutdown of the *Arm Controller* by sending the appropriate command from the *Orchestrator*. Observe the effect of the *Arm Controller* application.
-
-### 3. Kill the applications
-
-Press `Ctrl-C` in the terminal where `launch.py` is running to terminate all application processes. Closing a browser tab does not stop its app process.
 
 ## Hands-On: Going Further
 
@@ -379,16 +192,16 @@ Let's try testing how modifying QoS Profiles can adjust system behavior without 
 
    *Note, you should undo this configuration change after completing this demonstration.*
 
-    ```xml
-    <datareader_qos>
-      <deadline>
-        <period>
-          <sec>5</sec>
-          <nanosec>0</nanosec>
-        </period>
-      </deadline>
-    </datareader_qos>
-    ```
+   ```xml
+   <datareader_qos>
+     <deadline>
+       <period>
+         <sec>5</sec>
+         <nanosec>0</nanosec>
+       </period>
+     </deadline>
+   </datareader_qos>
+   ```
 
 3. Relaunch the operating room applications.
 
@@ -411,7 +224,7 @@ Let's try testing how removing a content filter can adjust system behavior witho
 
 1. Kill all active operating room applications.
 
-2. Comment out the `<content_filter>` tag and contained content within it, for *dr/DeviceCommand* under *dp/PatientMonitor* in [ParticipantLibrary.xml](../../system/xml_app_creation/ParticipantLibrary.xml).
+2. Comment out the `<content_filter>` tag and contained content within it, for *dr/DeviceCommand* under *dp/PatientMonitor* in [ParticipantLibrary.xml](../../system/model/ParticipantLibrary.xml).
 
    *Note, you should undo this configuration change after completing this demonstration.*
 
@@ -429,4 +242,4 @@ Check out [Module 02: RTI Recording Service & RTI Replay Service](../02-record-p
 
 Check out [Module 03: Remote Teleoperation with RTI Real-Time WAN Transport](../03-remote-teleoperation/), which builds upon the applications from this module to show how applications can be deployed remotely and integrate seamlessly over the Wide Area Network (WAN).
 
-Head back to the [main README](../../README.md) and pick up with the [Hands-On: Architecture](../../README.md#hands-on-architecture) section to learn more about the system architecture.
+To trace these flows in the source, go directly to the [DDS contract](../../system/README.md#dds-contract). For a prepared demo, use the [operator run card](../../docs/OPERATOR.md).

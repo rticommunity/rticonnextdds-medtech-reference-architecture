@@ -1,0 +1,13 @@
+description = "Record & Playback"
+setup_library_paths = false
+
+[env]
+NDDS_QOS_PROFILES = "system/qos/Qos.xml;${args:security}"
+
+[args.security]
+true = "system/qos/SecureAppsQos.xml"
+false = "system/qos/NonSecureAppsQos.xml"
+
+[apps]
+RecordingService = ["${RTISERVICE:rtirecordingservice}", "-cfgFile", "RecordingServiceConfiguration.xml", "-cfgName", "RecServCfg"]
+ReplayService = ["${RTISERVICE:rtireplayservice}", "-cfgFile", "ReplayServiceConfiguration.xml", "-cfgName", "RepServCfg"]

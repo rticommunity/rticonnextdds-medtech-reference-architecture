@@ -28,7 +28,7 @@ class TestReplay:
 
     def test_replay_produces_vitals(self, or_proc_manager, svc_proc_manager, clean_recording_dir):
         """Replay Service should publish t/patient/vitals from a recording."""
-        from scripts.test_utils import UtilityApp, wait_for_reader_match, wait_for_samples
+        from test_utils import UtilityApp, wait_for_reader_match, wait_for_samples
 
         # ── Phase 1: Record some data ─────────────────────────────────
         ps = or_proc_manager.start_app_ready("PatientSensor")
@@ -65,7 +65,7 @@ class TestReplay:
         self, or_proc_manager, svc_proc_manager, clean_recording_dir
     ):
         from MedTech import Geometry, Robot
-        from scripts.test_utils import (
+        from test_utils import (
             UtilityApp,
             wait_for_reader_match,
             wait_for_samples,

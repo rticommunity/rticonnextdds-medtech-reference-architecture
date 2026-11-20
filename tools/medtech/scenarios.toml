@@ -1,0 +1,51 @@
+[or-all]
+description = "Full operating room — all apps"
+modules = [{ name = "01-operating-room" }]
+
+[or-gui]
+description = "Operating room GUI apps only (Arm + PatientMonitor)"
+modules = [{ name = "01-operating-room", apps = ["Arm", "PatientMonitor"] }]
+
+[or-headless]
+description = "Operating room headless apps (ArmController, Orchestrator, PatientSensor)"
+modules = [{ name = "01-operating-room", apps = ["ArmController", "Orchestrator", "PatientSensor"] }]
+
+[record]
+description = "Run Recording Service + OR apps"
+modules = [
+    { name = "02-record-playback", apps = ["RecordingService"] },
+    { name = "01-operating-room" },
+]
+
+[replay]
+description = "Replay recorded data to GUI apps"
+modules = [
+    { name = "02-record-playback", apps = ["ReplayService"] },
+    { name = "01-operating-room", apps = ["Arm", "PatientMonitor"] },
+]
+
+[teleop-or-side]
+description = "Teleoperation: OR-side apps + Active Routing Service"
+modules = [
+    { name = "01-operating-room", apps = ["Orchestrator", "PatientSensor", "Arm", "PatientMonitor"] },
+    { name = "03-remote-teleoperation", apps = ["RsActive"] },
+]
+
+[teleop-controller-side]
+description = "Teleoperation: controller-side app + Passive Routing Service"
+modules = [
+    { name = "01-operating-room", apps = ["ArmController"] },
+    { name = "03-remote-teleoperation", apps = ["RsPassive"] },
+]
+
+[security-threat]
+description = "Run OR apps + threat injector and exfiltrator"
+modules = [{ name = "01-operating-room" }, { name = "04-security-threat" }]
+
+[threat-inject]
+description = "Run OR apps + threat injector only"
+modules = [{ name = "01-operating-room" }, { name = "04-security-threat", apps = ["ThreatInjector"] }]
+
+[threat-exfiltrate]
+description = "Run OR apps + threat exfiltrator only"
+modules = [{ name = "01-operating-room" }, { name = "04-security-threat", apps = ["ThreatExfiltrator"] }]

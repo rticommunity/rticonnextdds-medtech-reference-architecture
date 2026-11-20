@@ -16,11 +16,11 @@ from types import ModuleType
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT / "resource" / "python"))
 sys.path.insert(0, str(PROJECT_ROOT / "system" / "security"))
 import rti  # noqa: E402
 import security_tree  # noqa: E402
-from scripts import check_connext_install  # noqa: E402
+
+from tools.medtech import check_connext_install  # noqa: E402
 
 
 def test_python_api_version_is_pinned_exactly():

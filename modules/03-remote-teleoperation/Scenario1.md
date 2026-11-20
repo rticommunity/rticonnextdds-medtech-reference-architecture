@@ -10,7 +10,7 @@ For secure mode, append `-s` to each Module 01 and Routing Service launch below.
 
 Make sure the shared setup in the root [Quick Start](../../README.md#quick-start) section is complete and that Module 01 is already working before you try this scenario.
 
-![Scenario 1 diagram](../../resource/images/module-03-diagram-scenario-01.gif)
+![Scenario 1 diagram](../../docs/assets/module-03-diagram-scenario-01.gif)
 
 ## Setup and Installation
 
@@ -26,7 +26,9 @@ The RTI Real-Time WAN Transport is available as an add-on product. Follow the [R
 
 ### 2. Security (optional)
 
-The shared trusted security artifacts are covered in the root [Quick Start](../../README.md#quick-start). Complete that setup before running this scenario, then distribute the generated artifacts to whichever machines are used to run the demo applications.
+Prepare the [local security bundle](../../system/security/README.md) before
+running this scenario, or follow the [EPS WAN setup](../../docs/EPS.md#module-03-remote-teleoperation)
+for agent-managed credentials.
 
 **You should generate the security artifacts once and then distribute to whichever machines are used to run the demo applications. This ensures the certificates can be correctly verified across machines during DomainParticipant authentication.**
 
@@ -57,11 +59,11 @@ set INTERNAL_PORT=10777
 You must then configure UDP port forwarding on your *Passive* side router between `PUBLIC_PORT` and `INTERNAL_PORT` to expose your DDS applications on the WAN.
 For example:
 
-![Home office router configuration](../../resource/images/module-03-home-router-config.png)
+![Home office router configuration](../../docs/assets/module-03-home-router-config.png)
 
 ## Run the Scenario
 
-> Important: Run the commands below from the repository root. `launch.py` lives at the project root and is the single runtime entrypoint for this project.
+> Important: Run the commands below from the repository root. `medtech.py run` lives at the project root and is the single runtime entrypoint for this project.
 
 *Note: This scenario will not work if different certificate sets are used on each side when using Security.*
 
@@ -71,7 +73,7 @@ From the machine *not* publicly exposed, start the teleop Arm Controller as the 
 
 ```bash
 # From the repository root
-python3 launch.py 01-operating-room ArmController
+python medtech.py run 01-operating-room ArmController
 ```
 
 ### 2. Launch Passive Side Applications
@@ -80,7 +82,7 @@ From the machine *publicly* exposed, start the Operating Room applications as th
 
 ```bash
 # From the repository root
-python3 launch.py 01-operating-room Orchestrator PatientSensor Arm PatientMonitor
+python medtech.py run 01-operating-room Orchestrator PatientSensor Arm PatientMonitor
 ```
 
 >**Observe:** You should see **no communication** between applications since the Routing Service infrastructure has not been started yet.
@@ -91,7 +93,7 @@ In a new terminal on the *Passive* side:
 
 ```bash
 # From the repository root
-python3 launch.py 03-remote-teleoperation RsPassive
+python medtech.py run 03-remote-teleoperation RsPassive
 ```
 
 ### 4. Launch Active Routing Service
@@ -100,7 +102,7 @@ In a new terminal on the *Active* side:
 
 ```bash
 # From the repository root
-python3 launch.py 03-remote-teleoperation RsActive
+python medtech.py run 03-remote-teleoperation RsActive
 ```
 
 ### 5. Observe Communication

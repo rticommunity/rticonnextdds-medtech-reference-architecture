@@ -11,11 +11,11 @@ behave as described in the module README.
 | RTI Connext DDS 7.7.x | `NDDSHOME` must be set |
 | Python 3.11+ | With the Connext Python API (`rti.connextdds`) |
 | pytest | `pip install pytest` |
-| Central build complete | Run `python build.py` from the repository root, including generated C++/Python/XML |
+| Central build complete | Run `python medtech.py build` from the repository root, including generated C++/Python/XML |
 | `rti-demo-ui` | For browser UI process and API tests |
 | Pygame CE | Installed through the root `user` extra; used by the gamepad app |
 | MuJoCo, Mink, DAQP | Installed through the root `user` extra; headless arm simulation needs no ROS/GPU |
-| Security artifacts (optional) | Run `system/security/setup_security.py` for `@secure` tests |
+| Security artifacts (optional) | Run `system/security/setup_security.py`, then repeat with `--stage`, for `@secure` tests |
 
 ## Running Tests
 
@@ -73,4 +73,4 @@ they do not independently test Connext internals or compare design alternatives.
 - `@pytest.mark.gui` — Browser UI process tests; no graphical display is required.
 - `@pytest.mark.slow` — Long-running tests (>10s). Safe to skip for quick validation.
 - `@pytest.mark.secure` — Requires DDS Security artifacts. Auto-skipped if
-  `setup_security.py` hasn't been run.
+  the runtime bundle hasn't been staged.

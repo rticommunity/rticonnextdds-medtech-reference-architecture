@@ -27,6 +27,7 @@ struct ArmControllerUiCommand {
 
 inline rti::demo::ui::Json arm_controller_view(
         Device::DeviceStatuses device_status,
+        bool secure,
         const rti::demo::ui::Json &demo,
         bool demo_ready,
         const rti::demo::ui::Json &logs,
@@ -99,12 +100,11 @@ inline rti::demo::ui::Json arm_controller_view(
     return {
         { "kind", "arm-controller" },
         { "title", "Arm Controller" },
+        { "dds_security", secure },
+        { "device_status", status },
         { "header_badges",
           Json::array(
-                  { { { "label", "Command QoS" }, { "value", "ACTIVE" } },
-                    { { "label", "Control frame" },
-                      { "value", "BASE (+Z UP)" } },
-                    { { "label", "Arm readiness" },
+                  { { { "label", "Arm readiness" },
                       { "value", readiness_badge },
                       { "tone",
                         readiness == "READY" && status_known ? "good"

@@ -14,7 +14,7 @@ import time
 
 import rti.asyncio  # noqa: F401 - installs Connext's asyncio integration
 import rti.connextdds as dds
-from DemoUiSupport import DemoUiState, create_demo_ui, run_demo_ui
+from DemoUiSupport import DemoUiState, create_demo_ui, participant_security_enabled, run_demo_ui
 from MedTech import DdsEntities, Patient
 from MedTechTypes import register_type
 from ThreatTypes import ThreatEntities
@@ -52,6 +52,7 @@ class ThreatExfiltrationLogic:
 class ThreatExfiltratorDdsAdapter:
     def __init__(self) -> None:
         self.participant = None
+        self.dds_security: bool | None = None
         self.reader = None
 
     def open(self, mode: str) -> None:
@@ -63,11 +64,13 @@ class ThreatExfiltratorDdsAdapter:
             self.participant.find_datareader(DdsEntities.Constants.VITALS_DR)
         )
         self.participant.enable()
+        self.dds_security = participant_security_enabled(self.participant)
 
     def close(self) -> None:
         if self.participant is not None:
             self.participant.close()
         self.participant = self.reader = None
+        self.dds_security = None
 
 
 class ThreatExfiltratorApplication:
@@ -138,6 +141,7 @@ class ThreatExfiltratorApplication:
         )
         return {
             "kind": "threat-exfiltrator",
+            "dds_security": self.dds.dds_security,
             "title": "Threat Exfiltrator",
             "status": status,
             "vitals_status": vitals_status,

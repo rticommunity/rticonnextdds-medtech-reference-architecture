@@ -17,6 +17,7 @@ contributors working from a fork.
 - [Running Tests Locally](#running-tests-locally)
 - [Branch and PR Conventions](#branch-and-pr-conventions)
 - [Upgrading Ruff](#upgrading-ruff)
+- [Documentation site preview](#documentation-site-preview)
 
 ---
 
@@ -44,7 +45,7 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 python -m pip install uv==0.13.8
 uv sync --active --locked --no-dev --extra maint
 python -m playwright install --with-deps chromium
-python resource/python/scripts/check_connext_install.py
+python tools/medtech/check_connext_install.py
 
 # 3. Register git hooks so pre-commit runs automatically on every commit
 pre-commit install
@@ -77,7 +78,7 @@ browser prerequisites are failures, not automatic skips.
 
 Edit domain IDL under [system/idl](../system/idl/), included by `MedTech.idl`.
 Keep topic constants beside payloads and XML entity/service/security bindings
-consistent with the contract. Run `python build.py` to generate central C++,
+consistent with the contract. Run `python medtech.py build` to generate central C++,
 joined Python, and XML under
 `build/<CONNEXTDDS_ARCH>/system/generated/`; never edit generated files.
 The launcher and shared test bootstrap expose the generated Python path.
@@ -176,7 +177,7 @@ The pipeline has two CI jobs; `test` runs only after `lint` passes. A conditiona
 | Job | What it does |
 | --- | --- |
 | `lint` (Lint & Format) | Runs **all** pre-commit hooks across the repo (`pre-commit/action` with `--all-files`) — the same ruff, ruff-format, codespell, clang-format, rumdl, and hygiene hooks you run locally. |
-| `test` (Build & Test) | Installs Connext (apt) and Python deps, builds all C++ modules with `python build.py`, generates the system and Module 04 security artifacts, then runs the full suite from the repo root with `python -m pytest -v -m "not build_pipeline"` and uploads `results.xml`. |
+| `test` (Build & Test) | Installs Connext (apt) and Python deps, builds all C++ modules with `python medtech.py build`, generates the system and Module 04 security artifacts, then runs the full suite from the repo root with `python -m pytest -v -m "not build_pipeline"` and uploads `results.xml`. |
 | `release` (Publish GitHub Release) | Validates the SemVer tag and publishes generated release notes. Pre-release tags are marked accordingly. |
 
 Because the `lint` job runs `pre-commit` itself, CI and your local hooks execute
@@ -329,3 +330,22 @@ pre-commit run --all-files
 git add .pre-commit-config.yaml pyproject.toml uv.lock
 git commit -m "chore: bump Ruff to <new-version>"
 ```
+
+## Documentation site preview
+
+The site renders the repository's canonical Markdown; edit that source, not HTML.
+The [site theme](site/theme/rti.css) keeps branding out of the Markdown and
+uses local webfonts with their SIL Open Font License notices.
+These dependencies are only for documentation maintainers. In a separate virtual
+environment, run from the repository root:
+
+```bash
+python -m pip install -r docs/site/requirements.txt
+python docs/site/build.py .medtech/site
+python -m http.server 8000 --directory .medtech/site
+```
+
+Open `http://localhost:8000`. Choose a new output directory for another build.
+The Documentation workflow builds a preview artifact on pull requests. To
+publish reviewed content, configure GitHub Pages to use GitHub Actions, then
+manually run **Documentation** on the default branch with **publish** selected.

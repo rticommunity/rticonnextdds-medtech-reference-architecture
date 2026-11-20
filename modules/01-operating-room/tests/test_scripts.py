@@ -19,7 +19,8 @@ from pathlib import Path
 
 import pytest
 from module01_test_support import MODULE_DIR
-from scripts import module_runner, platform_setup
+
+from tools.medtech import module_runner, platform_setup
 
 # ---------------------------------------------------------------------------
 # module_runner.load_module_config()

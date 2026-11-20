@@ -22,7 +22,7 @@ works of the software solely for use with RTI Connext DDS. -->
       -->
       <element>
         <name>RTI_SECURITY_ARTIFACTS_DIR</name>
-        <value>../../system/security</value>
+        <value>../../system/security/artifacts</value>
       </element>
     </value>
   </configuration_variables>
@@ -52,7 +52,7 @@ works of the software solely for use with RTI Connext DDS. -->
           <value>
             <element>
               <name>dds.sec.crypto.rtps_psk_secret_passphrase</name>
-              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/domain_scope/OperationalDomain/OperationalDomain.psk</value>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/0/psk_secret.key</value>
             </element>
           </value>
         </property>
@@ -93,7 +93,7 @@ works of the software solely for use with RTI Connext DDS. -->
           <value>
             <element>
               <name>dds.sec.auth.identity_ca</name>
-              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/ca/TrustedIdentityCa/certs/TrustedRootCa/TrustedIdentityCa.crt</value>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/0/identity_ca.crt</value>
             </element>
             <element>
               <!-- permissions_ca and governance must both be signed by the rogue CA;
@@ -120,11 +120,11 @@ works of the software solely for use with RTI Connext DDS. -->
           <value>
             <element>
               <name>dds.sec.auth.identity_ca</name>
-              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/ca/TrustedIdentityCa/certs/TrustedRootCa/TrustedIdentityCa.crt</value>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/0/identity_ca.crt</value>
             </element>
             <element>
               <name>dds.sec.access.permissions_ca</name>
-              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/ca/TrustedPermissionsCa/certs/TrustedRootCa/TrustedPermissionsCa.crt</value>
+              <value>file:$(RTI_SECURITY_ARTIFACTS_DIR)/0/permissions_ca.crt</value>
             </element>
             <element>
               <name>dds.sec.access.governance</name>

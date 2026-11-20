@@ -13,37 +13,35 @@
 """Pytest-only hooks and fixtures for Module 01 tests."""
 
 import importlib
+import os
 import sys
 from pathlib import Path
 
 import pytest
 
 TESTS_DIR = Path(__file__).resolve().parent
-RESOURCE_PYTHON_DIR = TESTS_DIR.parents[3] / "resource" / "python"
 
 sys.path.insert(0, str(TESTS_DIR))
-sys.path.insert(0, str(RESOURCE_PYTHON_DIR))
 
 module01_test_support = importlib.import_module("module01_test_support")
 MODULE_DIR = module01_test_support.MODULE_DIR
 SECURITY_DIR = module01_test_support.SECURITY_DIR
+ARTIFACTS_DIR = SECURITY_DIR / "artifacts"
 sys.path.insert(0, str(MODULE_DIR / "src"))
-sys.path.insert(0, str(module01_test_support.REPO_ROOT / "resource" / "demo_ui"))
+sys.path.insert(0, str(module01_test_support.REPO_ROOT / "resources" / "ui" / "support"))
 sys.path.insert(0, str(module01_test_support.REPO_ROOT / "system" / "src"))
 
 
 def _security_artifacts_exist() -> bool:
     """Return True when setup_security.py has been run for module 01."""
-    domain_scope_dir = SECURITY_DIR / "domain_scope"
-    if not domain_scope_dir.is_dir():
-        return False
-    return any(domain_scope_dir.rglob("*.p7s"))
+    root = Path(os.environ.get("RTI_SECURITY_ARTIFACTS_DIR", ARTIFACTS_DIR))
+    return (root / "0" / "governance.p7s").is_file()
 
 
 def pytest_collection_modifyitems(config, items):
     """Skip tests when prerequisites are missing."""
     skip_sec_artifacts = pytest.mark.skip(
-        reason="Security artifacts not generated (run setup_security.py)",
+        reason="Runtime bundle not staged (run setup_security.py, then setup_security.py --stage)",
     )
     _has_security_artifacts = _security_artifacts_exist()
 
@@ -57,7 +55,7 @@ def pytest_collection_modifyitems(config, items):
 @pytest.fixture(scope="session")
 def dds_env():
     """Session-scoped environment for non-secure subprocess launches."""
-    from scripts import module_runner
+    from tools.medtech import module_runner
 
     env, apps = module_runner.load_module_config(MODULE_DIR, flags={"security": False})
     return env, apps
@@ -66,21 +64,24 @@ def dds_env():
 @pytest.fixture(scope="session")
 def dds_env_secure():
     """Session-scoped environment for secure subprocess launches."""
-    from scripts import module_runner
-    from scripts.test_utils import security_plugin_available
+    from test_utils import security_plugin_available
+
+    from tools.medtech import module_runner
 
     if not security_plugin_available():
         pytest.skip("DDS Security runtime probe failed")
 
     env, apps = module_runner.load_module_config(MODULE_DIR, flags={"security": True})
-    env["RTI_SECURITY_ARTIFACTS_DIR"] = str(SECURITY_DIR)
+    env["RTI_SECURITY_ARTIFACTS_DIR"] = str(
+        Path(os.environ.get("RTI_SECURITY_ARTIFACTS_DIR", ARTIFACTS_DIR)).resolve()
+    )
     return env, apps
 
 
 @pytest.fixture()
 def proc_manager(dds_env):
     """Yield a ProcessManager wired to the non-secure DDS environment."""
-    from scripts.test_utils import ProcessManager
+    from test_utils import ProcessManager
 
     env, apps = dds_env
     pm = ProcessManager(env, apps, cwd=MODULE_DIR)
@@ -91,7 +92,7 @@ def proc_manager(dds_env):
 @pytest.fixture(scope="class")
 def class_proc_manager(dds_env):
     """Class-scoped ProcessManager for read-only test classes."""
-    from scripts.test_utils import ProcessManager
+    from test_utils import ProcessManager
 
     env, apps = dds_env
     pm = ProcessManager(env, apps, cwd=MODULE_DIR)
@@ -102,7 +103,7 @@ def class_proc_manager(dds_env):
 @pytest.fixture()
 def proc_manager_secure(dds_env_secure):
     """Yield a ProcessManager wired to the secure DDS environment."""
-    from scripts.test_utils import ProcessManager
+    from test_utils import ProcessManager
 
     env, apps = dds_env_secure
     pm = ProcessManager(env, apps, cwd=MODULE_DIR)
@@ -113,7 +114,7 @@ def proc_manager_secure(dds_env_secure):
 @pytest.fixture()
 def nonsecure_utility_app():
     """Create a UtilityApp for in-process DDS observation."""
-    from scripts.test_utils import UtilityApp
+    from test_utils import UtilityApp
 
     app = UtilityApp.make_non_secure()
     yield app

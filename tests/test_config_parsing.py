@@ -17,18 +17,16 @@ and parser failure modes in ``module_runner.load_module_config``.
 
 from __future__ import annotations
 
-import importlib
 import json
 import re
-import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
 
+from tools.medtech import module_runner
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "resource" / "python"))
-module_runner = importlib.import_module("scripts.module_runner")
 
 ARGS_REF_RE = re.compile(r"\$\{args:([^}]+)\}")
 
@@ -54,19 +52,15 @@ def _collect_args_refs(raw: object) -> set[str]:
     return refs
 
 
-class TestModuleJsonContract:
-    """Validate structure and parser-facing invariants of every module.json."""
+class TestModuleTomlContract:
+    """Validate structure and parser-facing invariants of every module.toml."""
 
-    def test_module_json_has_required_shapes(self):
+    def test_module_toml_has_required_shapes(self):
         modules = module_runner.discover_modules()
         assert modules, "No modules discovered"
 
         for module_name, module_dir in modules.items():
-            config_path = module_dir / "module.json"
-            assert config_path.is_file(), f"Missing module.json for {module_name}: {config_path}"
-
-            with open(config_path, encoding="utf-8") as f:
-                raw = json.load(f)
+            raw = module_runner.read_manifest(module_dir)
 
             assert isinstance(raw.get("description"), str) and raw["description"].strip(), (
                 f"{module_name}: description must be a non-empty string"
@@ -118,12 +112,11 @@ class TestModuleJsonContract:
                     f"{module_name}: app '{app_name}' command tokens must be non-empty strings"
                 )
 
-    def test_module_json_args_references_are_defined(self):
+    def test_module_toml_args_references_are_defined(self):
         modules = module_runner.discover_modules()
 
         for module_name, module_dir in modules.items():
-            with open(module_dir / "module.json", encoding="utf-8") as f:
-                raw = json.load(f)
+            raw = module_runner.read_manifest(module_dir)
 
             defined = set(raw.get("args", {}).keys())
             referenced = _collect_args_refs(
@@ -148,10 +141,9 @@ class TestRemoteTeleoperationRoutes:
             ET.parse(route_file)
             assert "t/robot/arm/control" in content, f"{route_file.name} omits teleop routes"
 
-    def test_module_json_app_variants_reference_defined_apps(self):
+    def test_module_toml_app_variants_reference_defined_apps(self):
         for module_name, module_dir in module_runner.discover_modules().items():
-            with open(module_dir / "module.json", encoding="utf-8") as f:
-                raw = json.load(f)
+            raw = module_runner.read_manifest(module_dir)
 
             apps = raw.get("apps", {})
             assert isinstance(apps, dict), f"{module_name}: apps must be an object"
@@ -164,14 +156,25 @@ class TestRemoteTeleoperationRoutes:
                 pytest.fail(f"{module_name}: invalid app_variants: {exc}")
 
 
+def _write_config(module_dir: Path, payload: dict) -> None:
+    def literal(value):
+        if isinstance(value, dict):
+            return (
+                "{ " + ", ".join(f"{key} = {literal(item)}" for key, item in value.items()) + " }"
+            )
+        return json.dumps(value)
+
+    module_dir.mkdir(parents=True, exist_ok=True)
+    (module_dir / "module.toml").write_text(
+        "".join(f"{key} = {literal(value)}\n" for key, value in payload.items()),
+        encoding="utf-8",
+    )
+
+
 class TestAppVariantResolution:
     """App variants expose one logical app backed by its selected implementation."""
 
-    @staticmethod
-    def _write_config(module_dir: Path, payload: dict) -> None:
-        module_dir.mkdir(parents=True, exist_ok=True)
-        with open(module_dir / "module.json", "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2)
+    _write_config = staticmethod(_write_config)
 
     @staticmethod
     def _payload() -> dict:
@@ -260,6 +263,15 @@ class TestAppVariantResolution:
         with pytest.raises(ValueError, match="Unknown app variant role"):
             module_runner.load_module_config(module_dir, variants={"Unknown": "xbox"})
 
+    def test_resolve_only_selected_roles(self, tmp_path, monkeypatch):
+        module_dir = tmp_path / "module"
+        payload = self._payload()
+        payload["apps"]["ArmController"] = ["${CPP:Missing}"]
+        self._write_config(module_dir, payload)
+        self._patch_environment(monkeypatch)
+        _, apps = module_runner.load_module_config(module_dir, app_names=["Observer"])
+        assert apps == {"Observer": ["echo", "observer"]}
+
     def test_unknown_choice_raises(self, tmp_path, monkeypatch):
         module_dir = tmp_path / "module"
         self._write_config(module_dir, self._payload())
@@ -270,13 +282,9 @@ class TestAppVariantResolution:
 
 
 class TestLoadModuleConfigNegativeParsing:
-    """Ensure parser errors are raised for invalid module.json content."""
+    """Ensure parser errors are raised for invalid module.toml content."""
 
-    @staticmethod
-    def _write_config(module_dir: Path, payload: dict) -> None:
-        module_dir.mkdir(parents=True, exist_ok=True)
-        with open(module_dir / "module.json", "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2)
+    _write_config = staticmethod(_write_config)
 
     def test_missing_required_flag_raises(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         module_dir = tmp_path / "bad-module-1"

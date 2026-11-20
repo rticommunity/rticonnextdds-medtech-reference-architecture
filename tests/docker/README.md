@@ -9,7 +9,7 @@ applications as end-user runtime containers.
 
 | Image | Target | Purpose |
 | --- | --- | --- |
-| `medtech-build` | `build` | Ubuntu 24.04 + Connext SDK 7.7.0 + CMake build of C++ modules + security artifacts |
+| `medtech-build` | `build` | Ubuntu 24.04 + Connext SDK 7.7.0 + CMake build of C++ modules |
 | `medtech-test` | `test` | Extends build with Playwright Chromium and its system dependencies for the full pytest suite |
 
 ## Prerequisites
@@ -90,7 +90,8 @@ The image build is the explicit configure/codegen/build stage. The
 
 1. Sources the RTI Connext environment
 2. Runs the separate licensed Python participant smoke
-3. Runs pytest with any provided arguments; it does not reconfigure or rebuild
+3. Issues and stages test credentials inside the disposable container, not the image
+4. Runs pytest with any provided arguments; it does not reconfigure or rebuild
 
 Example: `docker run medtech-test` → entrypoint calls `pytest .` against the
 outputs built into the image

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 import rti.connextdds as dds
-from scripts.test_utils import make_isolated_qos_provider
+from test_utils import make_isolated_qos_provider
 
 ROOT = Path(__file__).resolve().parents[2]
 

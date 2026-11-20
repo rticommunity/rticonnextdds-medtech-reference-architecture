@@ -9,27 +9,16 @@
 # under no obligation to maintain or support the software.  RTI shall not be
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
-"""Module 01 path constants and skip helpers.
-
-Bootstraps ``resource/python/`` onto sys.path so that every test file
-in this directory can ``from scripts.test_utils import …`` directly.
-"""
+"""Module 01 path constants and test helpers."""
 
 from __future__ import annotations
 
 import json
 import re
 import select
-import sys
 import time
 from pathlib import Path
 from urllib.request import Request, urlopen
-
-# Make resource/python/ importable — the `scripts` package contains
-# module_runner (centralized since origin/main).
-sys.path.insert(
-    0, str(Path(__file__).resolve().parent.parent.parent.parent / "resource" / "python")
-)
 
 # ---------------------------------------------------------------------------
 # Path bootstrapping — mirror what the launch scripts do

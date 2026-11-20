@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en" data-sdk-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RTI Connext</title>
+    <link rel="stylesheet" href="/sdk/theme.css">
+    <link rel="stylesheet" href="/app.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-identity">
+        <img class="brand-logo" src="/rti_logo.png" alt="">
+        <span class="brand-name">RTI Connext</span>
+        <h1 id="app-title"></h1>
+      </div>
+      <div id="header-badges" class="header-badges"></div>
+      <button id="activity-toggle" class="activity-toggle" type="button" hidden>▾  ALERTS</button>
+      <div class="header-controls">
+        <span id="header-device" class="header-badge" data-label="device" hidden>
+          <span class="header-badge-label">Device</span>
+          <strong class="header-badge-value"></strong>
+        </span>
+        <span id="header-security" class="header-security" role="img"
+              aria-label="DDS security status unavailable" title="DDS security status unavailable">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14"/>
+          </svg>
+        </span>
+        <details id="dds-topics" class="dds-topics" hidden>
+          <summary>DDS topics</summary>
+          <div class="dds-topic-panel">
+            <ul></ul>
+          </div>
+        </details>
+      </div>
+    </header>
+    <main id="app-main" class="app-main"></main>
+    <footer id="app-footer" class="app-footer">
+      Real-Time Innovations · RTI Connext · MedTech Reference Architecture
+    </footer>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

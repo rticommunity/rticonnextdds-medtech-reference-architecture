@@ -10,9 +10,9 @@ import time
 from types import SimpleNamespace
 
 import pytest
+import test_utils
 from MedTech import Device
-from scripts import test_utils
-from scripts.test_utils import wait_for_device_status, wait_for_samples, wait_for_writer_match
+from test_utils import wait_for_device_status, wait_for_samples, wait_for_writer_match
 
 
 def _status(device):

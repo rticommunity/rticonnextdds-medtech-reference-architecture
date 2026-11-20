@@ -15,7 +15,7 @@ from unittest.mock import Mock
 import pytest
 import rti.connextdds as dds
 from module04_test_support import MODULE_DIR, THREAT_SRC_DIR
-from scripts.test_utils import (
+from test_utils import (
     ProcessManager,
     UtilityApp,
     make_isolated_qos_provider,
