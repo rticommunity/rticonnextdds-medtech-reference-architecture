@@ -33,7 +33,7 @@ import rti.connextdds as dds
 
 from tools.medtech import platform_setup
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+_PROJECT_ROOT = platform_setup.PROJECT_ROOT
 _SYSTEM_SRC = _PROJECT_ROOT / "system" / "src"
 if str(_SYSTEM_SRC) not in sys.path:
     sys.path.insert(0, str(_SYSTEM_SRC))

@@ -11,6 +11,8 @@ from types import SimpleNamespace
 
 import pytest
 
+_UNSECURED_QOS = SimpleNamespace(property=SimpleNamespace(exists=lambda _: False))
+
 
 def _fail(message):
     raise RuntimeError(message)
@@ -42,6 +44,7 @@ def test_participant_closed_when_final_status_write_fails(module_name, class_nam
     application.participant = SimpleNamespace(
         enable=lambda: None,
         close=lambda: closed.append(True),
+        qos=_UNSECURED_QOS,
     )
     application.status_writer = SimpleNamespace(write=lambda _: None)
     application.status_sample = object()
@@ -95,7 +98,7 @@ def test_arm_participant_closed_when_final_readiness_write_fails(capsys):
             _fail("final readiness failed")
 
     application.participant = SimpleNamespace(
-        enable=lambda: None, close=lambda: closed.append(True)
+        enable=lambda: None, close=lambda: closed.append(True), qos=_UNSECURED_QOS
     )
     application.status_writer = SimpleNamespace(write=lambda _: None)
     application.status_sample = object()
@@ -123,6 +126,7 @@ def test_gamepad_and_participant_closed_when_stop_motion_fails(monkeypatch, caps
     application.participant = SimpleNamespace(
         enable=lambda: None,
         close=lambda: closed.append("dds"),
+        qos=_UNSECURED_QOS,
     )
     application.status_writer = SimpleNamespace(write=lambda _: None)
     application.status_sample = object()
@@ -171,7 +175,7 @@ def test_patient_monitor_handles_vitals_task_failure_locally(capsys):
     application = module.PatientMonitorApp.__new__(module.PatientMonitorApp)
     closed = []
     application.participant = SimpleNamespace(
-        enable=lambda: None, close=lambda: closed.append(True)
+        enable=lambda: None, close=lambda: closed.append(True), qos=_UNSECURED_QOS
     )
     application.status_writer = SimpleNamespace(write=lambda _: None)
     application.status_sample = module.Device.Status(
