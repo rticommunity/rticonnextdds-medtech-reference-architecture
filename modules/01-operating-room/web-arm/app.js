@@ -38,7 +38,6 @@ function handleShutdown() {
     overlay.id = "shutdown-overlay";
     overlay.innerHTML = "Device shut down<span>You can close this tab.</span>";
     document.body.appendChild(overlay);
-    clearInterval(pollTimer);
     setTimeout(() => window.close(), 1200);
 }
 
@@ -224,8 +223,9 @@ async function pollState() {
         // Backend process has likely exited (SHUTDOWN command) — the server
         // will never respond again, so treat repeated failures as shutdown.
         if (consecutiveFailures >= 3) handleShutdown();
+    } finally {
+        if (!shutdownHandled) setTimeout(pollState, POLL_INTERVAL_MS);
     }
 }
 
 pollState();
-const pollTimer = setInterval(pollState, POLL_INTERVAL_MS);

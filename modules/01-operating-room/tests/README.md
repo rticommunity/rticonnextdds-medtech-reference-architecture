@@ -55,6 +55,10 @@ Tests create their own DDS participant on domain 0 and use it to:
 
 This tests the real DDS communication paths without interacting with browser interfaces.
 
+Run `node --test tests/web-controls.test.cjs` separately to test browser request
+scheduling and command feedback with delayed HTTP responses. This suite needs
+Node.js but does not need DDS or a running workspace.
+
 ## Markers
 
 - `@pytest.mark.slow` — Long-running tests (>10s). Safe to skip for quick validation.

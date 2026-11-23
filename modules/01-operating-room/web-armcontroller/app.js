@@ -17,11 +17,18 @@ let lastAlertText = "";
 let renderedOnce = false;
 let shutdownHandled = false;
 let consecutiveFailures = 0;
-const jogTimers = {};
+let jogTimer;
+let jogSession;
+let jogRequest;
+let playPending = false;
+let motorRevision = 0;
 
 const motorsEl = document.getElementById("motors");
 const alertsEl = document.getElementById("alerts");
 const statusEl = document.getElementById("device-status");
+const commandStatus = document.getElementById("command-status");
+const playAllButton = document.getElementById("btn-play-all");
+const stopAllButton = document.getElementById("btn-stop-all");
 
 function statusClass(status) {
     if (status === "ON") return "status-on";
@@ -36,7 +43,7 @@ function handleShutdown() {
     overlay.id = "shutdown-overlay";
     overlay.innerHTML = "Device shut down<span>You can close this tab.</span>";
     document.body.appendChild(overlay);
-    clearInterval(pollTimer);
+    stopJog();
     setTimeout(() => window.close(), 1200);
 }
 
@@ -60,6 +67,7 @@ function buildMotorRow(motorId) {
         startJog(motorId, "dec");
     });
     dec.addEventListener("touchend", stopJog);
+    dec.addEventListener("touchcancel", stopJog);
     row.appendChild(dec);
 
     const inc = document.createElement("button");
@@ -72,16 +80,23 @@ function buildMotorRow(motorId) {
         startJog(motorId, "inc");
     });
     inc.addEventListener("touchend", stopJog);
+    inc.addEventListener("touchcancel", stopJog);
     row.appendChild(inc);
 
     const playToggle = document.createElement("button");
     playToggle.className = "play-toggle";
     playToggle.textContent = "AUTO";
+    playToggle.setAttribute("aria-pressed", "false");
     playToggle.dataset.motorId = motorId;
     playToggle.addEventListener("click", () => togglePlay(motorId, playToggle));
     row.appendChild(playToggle);
 
     return row;
+}
+
+function setPlaying(button, active) {
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
 }
 
 function renderMotors(motors) {
@@ -94,7 +109,7 @@ function renderMotors(motors) {
         const toggle = motorsEl.querySelector(
                 `.play-toggle[data-motor-id="${m.id}"]`);
         if (toggle) {
-            toggle.classList.toggle("active", m.playing);
+            setPlaying(toggle, m.playing);
         }
     });
 }
@@ -121,12 +136,13 @@ function renderAlerts(alerts) {
 }
 
 async function pollState() {
+    const revision = motorRevision;
     try {
         const res = await fetch("api/state", { cache: "no-store" });
         if (!res.ok) return;
         const state = await res.json();
         consecutiveFailures = 0;
-        renderMotors(state.motors || []);
+        if (!playPending && revision === motorRevision) renderMotors(state.motors || []);
         renderStatus(state.status || "OFF");
         renderAlerts(state.alerts || []);
         if (state.status === "OFF") handleShutdown();
@@ -134,66 +150,95 @@ async function pollState() {
         console.warn("Failed to fetch /api/state:", err);
         consecutiveFailures += 1;
         if (consecutiveFailures >= 3) handleShutdown();
+    } finally {
+        if (!shutdownHandled) setTimeout(pollState, POLL_INTERVAL_MS);
     }
 }
 
-async function sendMotor(motorId, action) {
+async function postCommand(endpoint, body) {
+    const response = await fetch(`api/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const result = await response.json();
+    if (result.ok !== true) throw new Error("Command was not acknowledged");
+}
+
+async function sendPlay(active, motorId = null) {
+    if (playPending || shutdownHandled) return;
+    const toggles = [...motorsEl.querySelectorAll(".play-toggle")];
+    const controls = [playAllButton, stopAllButton, ...motorsEl.querySelectorAll("button")];
+    playPending = true;
+    stopJog();
+    controls.forEach(button => { button.disabled = true; });
+    commandStatus.textContent = "Sending command...";
     try {
-        await fetch("api/motor", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ motor: motorId, action }),
-        });
+        if (jogRequest) {
+            await jogRequest;
+            if (shutdownHandled) return;
+            commandStatus.textContent = "Sending command...";
+        }
+        await (motorId === null
+            ? postCommand("play_all", { active })
+            : postCommand("play", { motor: motorId, active }));
+        toggles.filter(button => motorId === null || button.dataset.motorId === motorId)
+            .forEach(button => setPlaying(button, active));
+        commandStatus.textContent = "";
     } catch (err) {
-        console.warn("Failed to send motor command:", err);
+        commandStatus.textContent = `Command not confirmed: ${err.message}`;
+        console.warn("Failed to confirm play command:", err);
+    } finally {
+        // A poll started before the acknowledgement may carry older motor state.
+        motorRevision++;
+        playPending = false;
+        controls.forEach(button => { button.disabled = false; });
     }
 }
 
-async function sendPlay(motorId, active) {
-    try {
-        await fetch("api/play", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ motor: motorId, active }),
+async function repeatJog(session) {
+    const started = performance.now();
+    if (jogRequest) await jogRequest;
+    if (jogSession !== session) return;
+    jogRequest = postCommand("motor", { motor: session.motorId, action: session.action })
+        .then(() => {
+            motorRevision++;
+            const toggle = motorsEl.querySelector(`.play-toggle[data-motor-id="${session.motorId}"]`);
+            if (toggle) setPlaying(toggle, false);
+        })
+        .catch(err => {
+            if (jogSession === session) stopJog();
+            commandStatus.textContent = `Jog not confirmed: ${err.message}`;
+            console.warn("Failed to confirm jog command:", err);
         });
-    } catch (err) {
-        console.warn("Failed to send play command:", err);
-    }
-}
-
-async function sendPlayAll(active) {
-    try {
-        await fetch("api/play_all", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ active }),
-        });
-    } catch (err) {
-        console.warn("Failed to send play_all command:", err);
+    await jogRequest;
+    jogRequest = undefined;
+    if (jogSession === session) {
+        jogTimer = setTimeout(() => repeatJog(session),
+            Math.max(0, JOG_REPEAT_MS - (performance.now() - started)));
     }
 }
 
 function startJog(motorId, action) {
+    if (playPending || shutdownHandled) return;
     stopJog();
-    sendMotor(motorId, action);
-    jogTimers.id = setInterval(() => sendMotor(motorId, action), JOG_REPEAT_MS);
+    commandStatus.textContent = "";
+    jogSession = { motorId, action };
+    repeatJog(jogSession);
 }
 
 function stopJog() {
-    if (jogTimers.id) {
-        clearInterval(jogTimers.id);
-        jogTimers.id = null;
-    }
+    jogSession = undefined;
+    clearTimeout(jogTimer);
 }
 
 function togglePlay(motorId, toggleEl) {
-    const nowActive = !toggleEl.classList.contains("active");
-    toggleEl.classList.toggle("active", nowActive);
-    sendPlay(motorId, nowActive);
+    sendPlay(!toggleEl.classList.contains("active"), motorId);
 }
 
-document.getElementById("btn-play-all").addEventListener("click", () => sendPlayAll(true));
-document.getElementById("btn-stop-all").addEventListener("click", () => sendPlayAll(false));
+playAllButton.addEventListener("click", () => sendPlay(true));
+stopAllButton.addEventListener("click", () => sendPlay(false));
+window.addEventListener("blur", stopJog);
 
 pollState();
-const pollTimer = setInterval(pollState, POLL_INTERVAL_MS);

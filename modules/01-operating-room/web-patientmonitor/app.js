@@ -121,7 +121,6 @@ function handleShutdown() {
     overlay.id = "shutdown-overlay";
     overlay.innerHTML = "Device shut down<span>You can close this tab.</span>";
     document.body.appendChild(overlay);
-    clearInterval(pollTimer);
     setTimeout(() => window.close(), 1200);
 }
 
@@ -156,6 +155,8 @@ async function pollState() {
         console.warn("Failed to fetch /api/state:", err);
         consecutiveFailures += 1;
         if (consecutiveFailures >= 3) handleShutdown();
+    } finally {
+        if (!shutdownHandled) setTimeout(pollState, POLL_INTERVAL_MS);
     }
 }
 
@@ -171,5 +172,4 @@ function tick() {
 }
 
 pollState();
-const pollTimer = setInterval(pollState, POLL_INTERVAL_MS);
 setInterval(tick, FRAME_MS);

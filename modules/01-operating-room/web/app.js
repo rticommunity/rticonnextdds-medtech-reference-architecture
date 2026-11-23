@@ -22,6 +22,8 @@ let launcherOrigin = null;
 let nextRequestId = 0;
 const startRequests = new Map();
 const startingDevices = new Map();
+const pendingCommands = new Set();
+const commandErrors = new Map();
 const deviceStatuses = new Map();
 const stoppingDevices = new Set();
 
@@ -61,8 +63,12 @@ function requestStart(device) {
 
 function updateCommands() {
     const pending = startingDevices.has(selectedDevice);
-    [btnStart, btnPause, btnOff].forEach(button => { button.disabled = !selectedDevice || pending; });
+    const sending = pendingCommands.has(selectedDevice);
+    [btnStart, btnPause, btnOff].forEach(button => {
+        button.disabled = !selectedDevice || pending || sending;
+    });
     btnStart.textContent = pending ? "Starting..." : "Start";
+    commandStatus.textContent = sending ? "Sending command..." : (commandErrors.get(selectedDevice) || "");
 }
 
 function handleShutdown() {
@@ -72,7 +78,6 @@ function handleShutdown() {
     overlay.id = "shutdown-overlay";
     overlay.innerHTML = "Orchestrator shut down<span>You can close this tab.</span>";
     document.body.appendChild(overlay);
-    clearInterval(pollTimer);
     setTimeout(() => window.close(), 1200);
 }
 
@@ -91,7 +96,7 @@ function renderDevices(devices) {
         const deadline = startingDevices.get(device.id);
         if (deadline && (device.status.includes("ON") || device.status.includes("PAUSED") || Date.now() > deadline)) {
             startingDevices.delete(device.id);
-            if (Date.now() > deadline) commandStatus.textContent = "Device startup timed out";
+            if (Date.now() > deadline) commandErrors.set(device.id, "Device startup timed out");
         }
         const card = document.createElement("div");
         card.className = "device-card" + (device.id === selectedDevice ? " selected" : "");
@@ -166,14 +171,18 @@ async function pollState() {
         console.warn("Failed to fetch /api/state:", err);
         consecutiveFailures += 1;
         if (consecutiveFailures >= 3) handleShutdown();
+    } finally {
+        if (!shutdownHandled) setTimeout(pollState, POLL_INTERVAL_MS);
     }
 }
 
 async function sendCommand(command) {
     if (!selectedDevice) return;
     const device = selectedDevice;
-    if (startingDevices.has(device)) return;
-    commandStatus.textContent = "";
+    if (startingDevices.has(device) || pendingCommands.has(device)) return;
+    pendingCommands.add(device);
+    commandErrors.delete(device);
+    updateCommands();
     if (command === "SHUTDOWN") stoppingDevices.add(device);
     try {
         if (command === "START" && launcherOrigin) {
@@ -194,9 +203,10 @@ async function sendCommand(command) {
     } catch (err) {
         startingDevices.delete(device);
         if (command === "SHUTDOWN") stoppingDevices.delete(device);
-        commandStatus.textContent = err.message;
+        commandErrors.set(device, err.message);
         console.warn("Failed to send command:", err);
     } finally {
+        pendingCommands.delete(device);
         updateCommands();
     }
 }
@@ -206,4 +216,3 @@ btnPause.addEventListener("click", () => sendCommand("PAUSE"));
 btnOff.addEventListener("click", () => sendCommand("SHUTDOWN"));
 
 pollState();
-const pollTimer = setInterval(pollState, POLL_INTERVAL_MS);
