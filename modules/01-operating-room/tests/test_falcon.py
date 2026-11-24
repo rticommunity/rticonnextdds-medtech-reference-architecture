@@ -205,8 +205,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 class FalconDeviceBridge:
+    def getCount(self):
+        return int(Path(os.environ["TEST_FALCON_STATE"]).read_text() != "absent")
     def open(self, index):
-        return index == 0
+        return index == 0 and self.getCount() > 0
     def loadFirmware(self):
         return True
     def setHomingMode(self, enabled):
@@ -225,6 +227,79 @@ class FalconDeviceBridge:
 """
     )
     return state, set_input
+
+
+@pytest.mark.browser
+def test_falcon_waits_for_device_and_connects_when_attached(tmp_path):
+    import playwright.sync_api as playwright
+    from MedTech import Device
+    from test_utils import ProcessManager, wait_for_samples
+
+    state, set_input = fake_falcon(tmp_path)
+    set_input("absent")
+    env, apps = local_dds_env(tmp_path, {"ArmController": "falcon"})
+    env["TEST_FALCON_STATE"] = str(state)
+    utility = local_dds_utility(tmp_path)
+    manager = ProcessManager(env, apps, cwd=MODULE_DIR)
+    try:
+        controller = manager.start_app_ready("ArmController")
+        url = local_ui_url(controller, "Novint Falcon Controller listening on")
+        with playwright.sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True)
+            try:
+                page = browser.new_page()
+                page.goto(url)
+                playwright.expect(page.locator(".gamepad-connection")).to_contain_text(
+                    "NO FALCON DETECTED"
+                )
+                button = page.get_by_role("button", name="HOME FALCON")
+                playwright.expect(button).to_be_disabled()
+                statuses = wait_for_samples(
+                    utility.device_status.reader,
+                    filter_fn=lambda sample: sample.device == Device.DeviceType.ARM_CONTROLLER,
+                )
+                assert statuses[-1].readiness == Device.DeviceReadinessKind.NOT_READY
+                commands = wait_for_samples(utility.teleop_control.reader)
+                assert commands
+                assert (
+                    commands[-1].linear_velocity.x,
+                    commands[-1].linear_velocity.y,
+                    commands[-1].linear_velocity.z,
+                ) == (0.0, 0.0, 0.0)
+                assert (
+                    commands[-1].angular_velocity.x,
+                    commands[-1].angular_velocity.y,
+                    commands[-1].angular_velocity.z,
+                ) == (0.0, 0.0, 0.0)
+                jaw_commands = wait_for_samples(utility.tool_control.reader)
+                assert jaw_commands and jaw_commands[-1].opening_rate == 0.0
+                set_input("unhomed")
+                playwright.expect(button).to_be_enabled(timeout=10000)
+                playwright.expect(page.locator(".gamepad-connection")).to_contain_text(
+                    "WAITING FOR HOMING"
+                )
+                assert controller.poll() is None
+            finally:
+                browser.close()
+    finally:
+        manager.shutdown_all()
+        utility.close()
+
+
+def test_falcon_missing_bridge_is_a_startup_error(tmp_path):
+    from test_utils import ProcessManager
+
+    (tmp_path / "pynifalcon.py").write_text("raise ImportError('test missing dependency')\n")
+    env, apps = local_dds_env(tmp_path, {"ArmController": "falcon"})
+    manager = ProcessManager(env, apps, cwd=MODULE_DIR)
+    try:
+        controller = manager.start_app("ArmController")
+        _, stderr = controller.communicate(timeout=10)
+        assert controller.returncode != 0
+        assert b"Falcon requires the compatible pynifalcon bridge" in stderr
+        assert b"KeyError: 'master'" not in stderr
+    finally:
+        manager.shutdown_all()
 
 
 @pytest.mark.browser

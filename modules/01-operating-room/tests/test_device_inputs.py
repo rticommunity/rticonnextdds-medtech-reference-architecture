@@ -37,6 +37,9 @@ class FalconBridge:
         self.homing_modes = []
         self.position = SimpleNamespace(x=0.01, y=0.02, z=0.03)
 
+    def getCount(self):
+        return 1
+
     def open(self, index):
         assert index == 0
         return True
@@ -149,6 +152,31 @@ def test_falcon_firmware_failure_closes_device():
         device.open()
     assert bridge.closed
     assert not device.opened
+
+
+@pytest.mark.parametrize("failure", ["enumeration", "open"])
+def test_falcon_device_errors_are_not_treated_as_absence(failure):
+    import FalconInput as falcon
+
+    bridge = FalconBridge()
+    if failure == "enumeration":
+        bridge.getCount = lambda: -1
+        message = "enumerate"
+    else:
+        bridge.open = lambda _: False
+        message = "open Falcon"
+    device = falcon.FalconInput(bridge)
+    with pytest.raises(RuntimeError, match=message):
+        device.open()
+    assert not device.opened
+
+
+def test_falcon_incompatible_bridge_fails_without_a_device():
+    import FalconInput as falcon
+
+    device = falcon.FalconInput(SimpleNamespace(getCount=lambda: 0))
+    with pytest.raises(RuntimeError, match="Incompatible pynifalcon bridge"):
+        device.open()
 
 
 def test_falcon_closes_even_if_disabling_homing_fails():

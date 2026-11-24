@@ -33,6 +33,7 @@ from MedTechTypes import device_status_after_command, register_type
 TITLE = "Novint Falcon Controller"
 ARM_ID = "arm-1"
 CONTROL_PERIOD_SECONDS = 0.02
+INPUT_RETRY_SECONDS = 1.0
 FEEDBACK_STALE_SECONDS = 0.5
 MAX_LINEAR_SPEED = 0.05
 MAX_ANGULAR_SPEED = 0.5
@@ -240,6 +241,7 @@ class ArmControllerFalconApp:
         self.last_telemetry: dict | None = None
         self.last_telemetry_time: float | None = None
         self.running = True
+        self.next_input_attempt_at = 0.0
         self.ui.app.register_command(
             "home-falcon",
             {"type": "object", "additionalProperties": False},
@@ -284,6 +286,7 @@ class ArmControllerFalconApp:
         input_descriptions = self._input_descriptions()
         homing_state = self.input_device.homing_state
         homing_instructions = {
+            "NO DEVICE": "Connect a Falcon; the controller will retry automatically.",
             "CHECKING": "Checking Falcon homing status.",
             "WAITING": "Select HOME FALCON before manually homing the device.",
             "HOMING": "Move the Falcon handle fully out, then straight fully in.",
@@ -376,6 +379,7 @@ class ArmControllerFalconApp:
         if self.input_device.homing_state == "TIMED OUT":
             return "ERROR · HOMING TIMEOUT", "danger"
         return {
+            "NO DEVICE": "NO FALCON DETECTED",
             "CHECKING": "CHECKING",
             "WAITING": "WAITING FOR HOMING",
             "HOMING": "HOMING",
@@ -476,7 +480,9 @@ class ArmControllerFalconApp:
         return rates, {"POSITION": any(velocity), "BUTTONS": bool(buttons & DEADMAN)}
 
     def initialize_input(self) -> None:
-        self.input_device.open()
+        if not self.input_device.open():
+            self.ui.log("No Falcon detected; waiting for a device", "warn")
+            self.next_input_attempt_at = time.monotonic() + INPUT_RETRY_SECONDS
         self.ui.log("Falcon translation: release then hold button 1; no jaw or rotation", "warn")
         self.ui.log(f"Falcon target workspace: {self.control.lower} to {self.control.upper}")
 
@@ -608,6 +614,10 @@ class ArmControllerFalconApp:
                 try:
                     while self.running:
                         now = time.monotonic()
+                        if not self.input_device.opened and now >= self.next_input_attempt_at:
+                            self.next_input_attempt_at = now + INPUT_RETRY_SECONDS
+                            if self.input_device.open():
+                                self.ui.log("Falcon detected; checking homing status", "ok")
                         self.rates, self.active_inputs = self.read_controls()
                         readiness = (
                             Device.DeviceReadinessKind.READY
@@ -675,9 +685,11 @@ def main() -> int:
     application = None
     result = 1
     try:
+        input_device = FalconInput()
+        input_device.prepare()
         app = create_demo_ui(TITLE)
         ui = configure_ui(app)
-        application = ArmControllerFalconApp(ui)
+        application = ArmControllerFalconApp(ui, device=input_device)
         run_demo_ui(app, application.run)
         result = int(application.failed)
     except Exception as error:

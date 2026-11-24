@@ -15,6 +15,17 @@ HOMING_CHECK_SECONDS = 1.0
 HOMING_TIMEOUT_SECONDS = 30.0
 HOMING_CONFIRM_SECONDS = 0.05
 FALCON_IO_FLAGS = 0x1 | 0x2 | 0x4
+BRIDGE_METHODS = (
+    "getCount",
+    "open",
+    "close",
+    "loadFirmware",
+    "setHomingMode",
+    "runIOLoop",
+    "isHomed",
+    "getPosition",
+    "getButtons",
+)
 
 
 class FalconInput:
@@ -29,7 +40,7 @@ class FalconInput:
         self.homed_since: float | None = None
         self.homing_enabled = False
 
-    def open(self) -> None:
+    def prepare(self) -> None:
         if self.bridge is None:
             try:
                 from pynifalcon import FalconDeviceBridge
@@ -38,6 +49,24 @@ class FalconInput:
                     "Falcon requires the compatible pynifalcon bridge on PYTHONPATH"
                 ) from exc
             self.bridge = FalconDeviceBridge()
+        missing = [
+            name for name in BRIDGE_METHODS if not callable(getattr(self.bridge, name, None))
+        ]
+        if missing:
+            raise RuntimeError(
+                f"Incompatible pynifalcon bridge; missing methods: {', '.join(missing)}"
+            )
+
+    def open(self) -> bool:
+        if self.opened:
+            raise RuntimeError("Falcon input device is already open")
+        self.prepare()
+        count = self.bridge.getCount()
+        if count < 0:
+            raise RuntimeError("Could not enumerate Falcon input devices")
+        if count == 0:
+            self.homing_state = "NO DEVICE"
+            return False
         if not self.bridge.open(0):
             raise RuntimeError("Could not open Falcon input device")
         self.opened = True
@@ -57,6 +86,7 @@ class FalconInput:
         finally:
             if not initialized:
                 self.close()
+        return True
 
     def start_homing(self) -> bool:
         if not self.opened or self.homing_state not in ("WAITING", "TIMED OUT"):
@@ -68,6 +98,8 @@ class FalconInput:
 
     def read(self) -> tuple[tuple[float, float, float], int] | None:
         if not self.opened:
+            if self.homing_state == "NO DEVICE":
+                return None
             raise RuntimeError("Falcon input device is not open")
         now = time.monotonic()
         assert self.opened_at is not None
@@ -120,3 +152,5 @@ class FalconInput:
                     self.opened = False
                     self.homing_enabled = False
                     self.homing_state = "CLOSED"
+        else:
+            self.homing_state = "CLOSED"

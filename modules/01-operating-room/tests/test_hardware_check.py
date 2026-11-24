@@ -71,6 +71,7 @@ def test_falcon_check_runs_without_site_packages_or_dds(tmp_path):
         """
 from types import SimpleNamespace
 class FalconDeviceBridge:
+    def getCount(self): return 1
     def open(self, index): return index == 0
     def loadFirmware(self): return True
     def setHomingMode(self, enabled): pass
@@ -99,7 +100,7 @@ def test_falcon_check_homes_only_when_requested(monkeypatch, capsys):
         homing_state = "WAITING"
 
         def open(self):
-            pass
+            return True
 
         def read(self):
             if self.homing_state == "HOMING":
@@ -175,7 +176,7 @@ raise SystemExit(check_kortex.main())
 def test_check_failure_reports_error_and_closes(monkeypatch, capsys):
     events = []
     device = SimpleNamespace(
-        open=lambda: events.append("open"),
+        open=lambda: events.append("open") or True,
         read=lambda: (_ for _ in ()).throw(RuntimeError("device not homed")),
         close=lambda: events.append("close"),
     )

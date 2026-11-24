@@ -20,7 +20,8 @@ from FalconInput import FalconInput  # noqa: E402
 def check(*, home: bool = False) -> int:
     device = FalconInput()
     try:
-        device.open()
+        if not device.open():
+            raise RuntimeError("No Falcon device detected")
         homing_requested = False
         sample = device.read()
         while sample is None:

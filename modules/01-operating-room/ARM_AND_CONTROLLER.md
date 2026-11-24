@@ -15,10 +15,14 @@ authorization and an appropriate supervised plan.
 The Kinova app and check require a compatible `kortex_api` and `KORTEX_IP`,
 `KORTEX_USERNAME`, and `KORTEX_PASSWORD` in their process environment. Supply
 credentials securely, not in source or shell history. The Falcon app and check
-require the compatible `pynifalcon.FalconDeviceBridge`, its native dependencies,
-and a Falcon device. Neither vendor SDK nor bridge is packaged by this project.
-The bridge must provide `loadFirmware()` and `setHomingMode()`; initialization
-may load its embedded firmware.
+require the compatible `pynifalcon.FalconDeviceBridge` and its native dependencies;
+the check also requires a connected Falcon. Neither vendor SDK nor bridge is
+packaged by this project.
+The bridge must provide device enumeration, input, `loadFirmware()`, and
+`setHomingMode()`; initialization may load its embedded firmware.
+With a compatible bridge but no detected Falcon, the controller stays open,
+reports not ready, publishes neutral commands, and retries device detection.
+Missing bridge dependencies and device initialization failures remain errors.
 
 The [software motion gate](src/PhysicalMotionGate.py) disarms on loss of arm
 connection, health, or valid required commands. Kortex requires only the arm
