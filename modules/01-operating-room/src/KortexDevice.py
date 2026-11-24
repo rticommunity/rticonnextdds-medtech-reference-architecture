@@ -30,6 +30,7 @@ class KortexHealth:
     state_connection_id: int | None = None
     command_connection_id: int | None = None
     feedback_observed_at: float | None = None
+    manual_control_ready: bool = False
 
 
 def pose_from_feedback(base) -> tuple[tuple[float, ...], tuple[float, ...]]:
@@ -155,6 +156,11 @@ class KortexDevice:
             and arm_state == self._api.Common.ARMSTATE_SERVOING_READY
             and servoing_mode == self._api.Base.SINGLE_LEVEL_SERVOING
         )
+        manual_control_ready = (
+            not faulted
+            and arm_state == self._api.Common.ARMSTATE_SERVOING_MANUALLY_CONTROLLED
+            and servoing_mode == self._api.Base.SINGLE_LEVEL_SERVOING
+        )
         return KortexHealth(
             arm_state,
             servoing_mode,
@@ -166,6 +172,7 @@ class KortexDevice:
             state_connection_id,
             command_connection_id,
             feedback_observed_at,
+            manual_control_ready,
         )
 
     def read_pose(self):

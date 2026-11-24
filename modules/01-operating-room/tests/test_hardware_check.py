@@ -157,7 +157,8 @@ KortexDevice._load_kortex_api = lambda: NS(
     SessionManager=Session, TCPTransport=Transport, UDPTransport=Transport,
     BaseClient=BaseClient, BaseCyclicClient=Cyclic,
     Session=NS(CreateSessionInfo=NS), Base=NS(SINGLE_LEVEL_SERVOING=2),
-    Common=NS(ARMSTATE_IN_FAULT=4, ARMSTATE_SERVOING_READY=7))
+    Common=NS(ARMSTATE_IN_FAULT=4, ARMSTATE_SERVOING_READY=7,
+              ARMSTATE_SERVOING_MANUALLY_CONTROLLED=9))
 sys.argv = ['check_kortex.py']
 raise SystemExit(check_kortex.main())
 """

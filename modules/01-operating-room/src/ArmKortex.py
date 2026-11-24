@@ -210,6 +210,7 @@ class ArmKortexApp:
         self.motion_gate = PhysicalMotionGate()
         self._motion_cancelled = threading.Event()
         self._motion_cancelled.set()
+        self._control_twist_sent = threading.Event()
         self.readiness = Device.DeviceReadinessKind.NOT_READY
         self.controller_connected = False
         self.telemetry_sequence = 0
@@ -540,6 +541,7 @@ class ArmKortexApp:
                     "warn",
                 )
             else:
+                self._control_twist_sent.clear()
                 await self._rpc(self.driver.open)
                 self.arm_connected = True
                 self.ui.log(
@@ -606,6 +608,7 @@ class ArmKortexApp:
                     self.failed = True
                     log_failure("Kinova participant close", error)
             self._rpc_executor.shutdown(wait=True, cancel_futures=True)
+            self._control_twist_sent.clear()
             if self.failed:
                 try:
                     await app.stop()
@@ -701,6 +704,7 @@ class ArmKortexApp:
         if trace is not None:
             trace("dispatch", time.monotonic())
         self.driver.send_twist(linear, angular)
+        self._control_twist_sent.set()
         if trace is not None:
             trace("completed", time.monotonic())
         return True
@@ -743,7 +747,8 @@ class ArmKortexApp:
         if self._trace_health_after_twist:
             self._trace_health_after_twist = False
             self._log_health_trace("After first neutral twist", health)
-        if not health.ready:
+        ready = health.ready or (self._control_twist_sent.is_set() and health.manual_control_ready)
+        if not ready:
             was_armed = self.motion_gate.armed
             self._disarm_motion()
             if was_armed and not health.faulted:
@@ -753,10 +758,10 @@ class ArmKortexApp:
                     f"applied monotonic={time.monotonic():.3f}s)",
                     "warn",
                 )
-        if not health.ready and (self._health_observed_at is None or self.arm_healthy):
+        if not ready and (self._health_observed_at is None or self.arm_healthy):
             self._stop_required = True
         self.arm_connected = True
-        self.arm_healthy = health.ready
+        self.arm_healthy = ready
         self._health_observed_at = time.monotonic()
         self._arm_faulted = health.faulted
         if health.faulted:
@@ -765,7 +770,7 @@ class ArmKortexApp:
                 f"(ARMSTATE={health.arm_state}, fault banks "
                 f"A=0x{health.fault_bank_a:08x}, B=0x{health.fault_bank_b:08x})"
             )
-        elif not health.ready and self.status == Device.DeviceStatusKind.ON:
+        elif not ready and self.status == Device.DeviceStatusKind.ON:
             self.readiness = Device.DeviceReadinessKind.NOT_READY
 
     async def control_step(self) -> None:

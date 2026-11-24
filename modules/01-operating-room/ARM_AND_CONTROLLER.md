@@ -190,7 +190,13 @@ before physical motion.
 The arm publishes lifecycle `ON` with `NOT_READY` while connecting; `ON` is
 application lifecycle, not physical connection or motion permission.
 It requires recent fault-free Kortex health, valid neutral arm commands
-and an explicit UI re-arm. The arm window's **LOG** control shows re-arm and
+and an explicit UI re-arm. Initially, the arm must report `SERVOING_READY` (7).
+After a gate-authorized twist RPC succeeds in the current connection session,
+including a neutral twist, `SERVOING_MANUALLY_CONTROLLED` (9) is also accepted
+while single-level servoing and the fault checks remain satisfied. Best-effort
+stop commands do not grant this permission; it is reset when the session closes.
+This bookkeeping does not prove exclusive control: other control sources and
+physical overrides remain possible. The arm window's **LOG** control shows re-arm and
 disarm diagnostics, including stale health, unavailable commands and missed
 deadlines. Re-arm, the first neutral twist dispatch and completion, and an
 unhealthy observation include millisecond-resolution monotonic timestamps for

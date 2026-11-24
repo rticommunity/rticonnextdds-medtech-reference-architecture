@@ -79,6 +79,7 @@ def _fake_api(events, *, fault_banks=None, fail_udp_connect=False, limits=None, 
     class Common:
         ARMSTATE_IN_FAULT = 4
         ARMSTATE_SERVOING_READY = 7
+        ARMSTATE_SERVOING_MANUALLY_CONTROLLED = 9
         CARTESIAN_REFERENCE_FRAME_BASE = 3
 
     class Session:
@@ -388,6 +389,7 @@ def _make_app():
     app.failed = False
     app.motion_gate = PhysicalMotionGate()
     app._motion_cancelled = threading.Event()
+    app._control_twist_sent = threading.Event()
     app.arm_connected = True
     app.arm_healthy = True
     app._health_observed_at = time.monotonic()
@@ -447,6 +449,96 @@ def test_neutral_rearm_reports_ready_without_nonzero_motion():
 
     assert app.readiness == Device.DeviceReadinessKind.READY
     assert app.driver.twists == [((0.0, 0.0, 0.0), (0.0, 0.0, 0.0))]
+
+
+def test_manual_state_requires_successful_gated_twist_and_preserves_interlocks(monkeypatch):
+    fault_banks = {"a": 0, "b": 0}
+    api = _fake_api([], fault_banks=fault_banks)
+    monkeypatch.setattr(kinova, "_load_kortex_api", lambda: api)
+    monkeypatch.setattr(motion, "_load_control_config_client", lambda: api.ControlConfigClient)
+    monkeypatch.setenv("KORTEX_IP", "192.0.2.10")
+    monkeypatch.setenv("KORTEX_USERNAME", "operator")
+    monkeypatch.setenv("KORTEX_PASSWORD", "test-only")
+    monkeypatch.setenv(motion.LIVE_WATCHDOG_ACK_ENV, motion.LIVE_WATCHDOG_ACK_VALUE)
+    driver = motion.KortexDriver()
+    driver.open()
+    app = _make_app()
+    app.driver = driver
+
+    def set_arm_state(state):
+        driver._base.GetArmState = lambda **_kwargs: SimpleNamespace(active_state=state)
+
+    try:
+        set_arm_state(api.Common.ARMSTATE_SERVOING_MANUALLY_CONTROLLED)
+        app.apply_health(driver.read_health())
+        assert app.request_motion_rearm({}) == {"armed": False}
+        asyncio.run(app._send_stop(force=True))
+        app.apply_health(driver.read_health())
+        assert app.request_motion_rearm({}) == {"armed": False}
+
+        set_arm_state(api.Common.ARMSTATE_SERVOING_READY)
+        app.apply_health(driver.read_health())
+        assert app.request_motion_rearm({}) == {"armed": True}
+        asyncio.run(app.control_step())
+        set_arm_state(api.Common.ARMSTATE_SERVOING_MANUALLY_CONTROLLED)
+        app.apply_health(driver.read_health())
+        asyncio.run(app.control_step())
+        assert app.motion_gate.armed
+        assert app.readiness == Device.DeviceReadinessKind.READY
+
+        app._test_state.update(fresh=False, neutral=False)
+        asyncio.run(app.control_step())
+        assert not app.motion_gate.armed
+        assert app.request_motion_rearm({}) == {"armed": False}
+        app._test_state.update(fresh=True, neutral=True)
+        assert app.request_motion_rearm({}) == {"armed": True}
+
+        fault_banks["b"] = 0x20
+        app.apply_health(driver.read_health())
+        assert not app.motion_gate.armed
+        assert app.readiness == Device.DeviceReadinessKind.FAULTED
+    finally:
+        driver.close()
+
+
+def test_manual_state_requires_single_level_servoing_after_gated_twist(monkeypatch):
+    api = _fake_api([])
+    monkeypatch.setattr(kinova, "_load_kortex_api", lambda: api)
+    monkeypatch.setattr(motion, "_load_control_config_client", lambda: api.ControlConfigClient)
+    monkeypatch.setenv("KORTEX_IP", "192.0.2.10")
+    monkeypatch.setenv("KORTEX_USERNAME", "operator")
+    monkeypatch.setenv("KORTEX_PASSWORD", "test-only")
+    monkeypatch.setenv(motion.LIVE_WATCHDOG_ACK_ENV, motion.LIVE_WATCHDOG_ACK_VALUE)
+    driver = motion.KortexDriver()
+    driver.open()
+    app = _make_app()
+    app.driver = driver
+    try:
+        app.apply_health(driver.read_health())
+        assert app.request_motion_rearm({}) == {"armed": True}
+        asyncio.run(app.control_step())
+        driver._base.GetArmState = lambda **_kwargs: SimpleNamespace(
+            active_state=api.Common.ARMSTATE_SERVOING_MANUALLY_CONTROLLED
+        )
+        driver._base.GetServoingMode = lambda **_kwargs: SimpleNamespace(servoing_mode=0)
+        app.apply_health(driver.read_health())
+        assert not app.motion_gate.armed
+        assert not app.arm_healthy
+    finally:
+        driver.close()
+
+
+def test_failed_gated_twist_does_not_allow_manual_state():
+    app = _make_app()
+    assert app.request_motion_rearm({}) == {"armed": True}
+    app._test_state.update(linear=(0.01, 0.0, 0.0), neutral=False)
+    app.driver.fail_nonzero_once = True
+    with pytest.raises(OSError, match="RPC connection lost"):
+        asyncio.run(app.control_step())
+
+    app.apply_health(motion.KortexHealth(9, 2, 0, 0, False, False, manual_control_ready=True))
+    assert not app.arm_healthy
+    assert not app.motion_gate.armed
 
 
 @pytest.mark.parametrize("writer_count", [0, 2])
