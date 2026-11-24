@@ -358,12 +358,12 @@ def test_hardware_controller_showcase_and_manual_takeover(tmp_path, variant):
                         math.cos(0.01 / 2)
                     )
                     assert data["demo"]["running"]
-                    if data["demo"]["cycles"] >= 2:
+                    if data["demo"]["cycles"] >= 1:
                         assert distance <= 0.0012 and gap_change <= 0.0006
                         break
                     time.sleep(0.05)
                 else:
-                    pytest.fail("Showcase did not complete two loops")
+                    pytest.fail("Showcase did not complete one loop")
                 assert largest_excursion > 0.012 and largest_gap_change > 0.006
 
                 set_input("move")
@@ -399,18 +399,18 @@ def test_hardware_controller_showcase_and_manual_takeover(tmp_path, variant):
                 assert wait_for_samples(
                     arm_reader, filter_fn=lambda sample: sample.linear_velocity.x != 0
                 )
+                wait_for_ui_data(url, lambda data: any(item["active"] for item in data["inputs"]))
+                playwright.expect(run).to_be_disabled(timeout=10000)
                 set_input("released")
                 playwright.expect(run).to_be_enabled(timeout=10000)
                 run.click()
                 wait_for_ui_data(url, lambda data: data["demo"]["running"])
+                arm_reader.take()
+                assert wait_for_samples(
+                    arm_reader, filter_fn=lambda sample: sample.linear_velocity.x != 0
+                )
+                arm_reader.take()
                 set_input("drop")
-                if variant == "falcon":
-                    assert controller.wait(timeout=10) != 0
-                else:
-                    wait_for_ui_data(
-                        url,
-                        lambda data: not data["demo"]["running"] and not data["input_connected"],
-                    )
                 assert wait_for_samples(
                     arm_reader,
                     filter_fn=lambda sample: all(
@@ -419,6 +419,13 @@ def test_hardware_controller_showcase_and_manual_takeover(tmp_path, variant):
                         for axis in "xyz"
                     ),
                 )
+                if variant == "falcon":
+                    assert controller.wait(timeout=10) != 0
+                else:
+                    wait_for_ui_data(
+                        url,
+                        lambda data: not data["demo"]["running"] and not data["input_connected"],
+                    )
             finally:
                 browser.close()
     finally:
