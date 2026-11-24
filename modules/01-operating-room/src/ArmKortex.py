@@ -238,8 +238,10 @@ class ArmKortexApp:
         self._stop_required = False
         self._twist_active = False
         self._trace_next_neutral_twist = False
+        self._trace_health_after_twist = False
         self.observed_pose = None
         self._last_health = None
+        self._latest_health: KortexHealth | None = None
 
     def apply_command(self, command: Device.DeviceCommandKind) -> None:
         if (
@@ -337,14 +339,34 @@ class ArmKortexApp:
         if armed:
             self._motion_cancelled = threading.Event()
             self._trace_next_neutral_twist = True
+            self._trace_health_after_twist = False
         self.ui.log(
             f"Software motion gate armed by operator (monotonic={time.monotonic():.3f}s)"
             if armed
             else "Re-arm rejected; require a ready arm and fresh neutral commands",
             "ok" if armed else "warn",
         )
+        if armed:
+            self._log_health_trace("Before first neutral twist", self._latest_health)
         self.ui.update(**self.view())
         return {"armed": armed}
+
+    def _log_health_trace(self, label: str, health: KortexHealth | None) -> None:
+        if health is None:
+            self.ui.log(f"{label}: health observation unavailable", "info")
+            return
+        observed = (
+            "unavailable"
+            if health.feedback_observed_at is None
+            else f"{health.feedback_observed_at:.3f}s"
+        )
+        self.ui.log(
+            f"{label}: cyclic state={health.feedback_state}, "
+            f"state-change connection ID={health.state_connection_id}, "
+            f"command router session ID={health.command_connection_id}, "
+            f"feedback received monotonic={observed}",
+            "info",
+        )
 
     def update_motion_gate(self, *, connected: bool, healthy: bool) -> None:
         now = time.monotonic()
@@ -717,6 +739,10 @@ class ArmKortexApp:
             self._last_health = message
 
     def apply_health(self, health: KortexHealth) -> None:
+        self._latest_health = health
+        if self._trace_health_after_twist:
+            self._trace_health_after_twist = False
+            self._log_health_trace("After first neutral twist", health)
         if not health.ready:
             was_armed = self.motion_gate.armed
             self._disarm_motion()
@@ -797,6 +823,8 @@ class ArmKortexApp:
             sent = await self._rpc(
                 self._send_twist, linear, angular, cancellation, health_observed_at, trace
             )
+            if sent and trace is not None:
+                self._trace_health_after_twist = True
             if not sent:
                 cancelled = cancellation.is_set()
                 health_age = (

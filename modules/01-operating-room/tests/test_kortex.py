@@ -49,6 +49,9 @@ def _fake_api(events, *, fault_banks=None, fail_udp_connect=False, limits=None, 
         def __init__(self, transport, _callback=None):
             self.transport = transport
 
+        def getConnectionId(self):
+            return 42 if self.transport.label == "tcp" else 99
+
     class Options:
         timeout_ms = 10000
 
@@ -112,6 +115,8 @@ def _fake_api(events, *, fault_banks=None, fail_udp_connect=False, limits=None, 
                 base=SimpleNamespace(
                     fault_bank_a=fault_banks["a"],
                     fault_bank_b=fault_banks["b"],
+                    active_state=Common.ARMSTATE_SERVOING_READY,
+                    active_state_connection_identifier=42,
                 )
             )
 
@@ -155,7 +160,12 @@ def test_driver_uses_local_kortex_api_and_closes_sessions(monkeypatch):
     driver.open()
     assert driver.connected
     assert "hard_limits.read" in events
-    assert driver.read_health().ready
+    health = driver.read_health()
+    assert health.ready
+    assert health.feedback_state == 7
+    assert health.state_connection_id == 42
+    assert health.command_connection_id == 42
+    assert health.feedback_observed_at is not None
     driver._base.GetArmState = lambda **_kwargs: SimpleNamespace(
         active_state=api.Common.ARMSTATE_IN_FAULT
     )
@@ -385,7 +395,9 @@ def _make_app():
     app._stop_required = False
     app._twist_active = False
     app._trace_next_neutral_twist = False
+    app._trace_health_after_twist = False
     app._last_health = None
+    app._latest_health = None
     app._last_published_readiness = None
     app._last_diagnostic_at = {}
     app._control_wake = asyncio.Event()
@@ -492,6 +504,7 @@ def test_neutral_twist_and_health_diagnostics_show_event_order(monkeypatch):
     now = [1000.0]
     monkeypatch.setattr(motion, "time", SimpleNamespace(monotonic=lambda: now[0]))
     app._health_observed_at = now[0]
+    app._latest_health = motion.KortexHealth(7, 2, 0, 0, True, False, 7, 12, 42, 999.99)
     messages = []
     app.ui.log = lambda text, level: messages.append((text, level))
     send_twist = app.driver.send_twist
@@ -508,7 +521,7 @@ def test_neutral_twist_and_health_diagnostics_show_event_order(monkeypatch):
         assert app.request_motion_rearm({}) == {"armed": True}
         await app.control_step()
         await app.control_step()
-        app.apply_health(motion.KortexHealth(9, 2, 0, 0, False, False))
+        app.apply_health(motion.KortexHealth(9, 2, 0, 0, False, False, 9, 42, 42, 1000.007))
         await asyncio.sleep(0)
 
     try:
@@ -518,12 +531,41 @@ def test_neutral_twist_and_health_diagnostics_show_event_order(monkeypatch):
 
     assert [text for text, _level in messages] == [
         "Software motion gate armed by operator (monotonic=1000.000s)",
+        "Before first neutral twist: cyclic state=7, state-change connection ID=12, "
+        "command router session ID=42, feedback received monotonic=999.990s",
         "First neutral twist dispatch (monotonic=1000.000s)",
         "First neutral twist completed (monotonic=1000.004s)",
+        "After first neutral twist: cyclic state=9, state-change connection ID=42, "
+        "command router session ID=42, feedback received monotonic=1000.007s",
         "Software motion gate disarmed: arm health not ready "
         "(ARMSTATE=9, servoing mode=2; applied monotonic=1000.008s)",
     ]
     assert not app.motion_gate.armed
+
+
+@pytest.mark.parametrize(("new_router_api", "expected_id"), [(False, None), (True, 57)])
+def test_connection_id_api_variants_do_not_change_health(monkeypatch, new_router_api, expected_id):
+    api = _fake_api([])
+    monkeypatch.setattr(kinova, "_load_kortex_api", lambda: api)
+    monkeypatch.setenv("KORTEX_IP", "192.0.2.10")
+    monkeypatch.setenv("KORTEX_USERNAME", "operator")
+    monkeypatch.setenv("KORTEX_PASSWORD", "test-only")
+    driver = kinova.KortexDevice()
+    driver.open()
+    driver._tcp_router.getConnectionId = None
+    if new_router_api:
+        driver._tcp_router.GetConnectionId = lambda: 57
+    driver._cyclic.RefreshFeedback = lambda **_kwargs: SimpleNamespace(
+        base=SimpleNamespace(fault_bank_a=0, fault_bank_b=0)
+    )
+    try:
+        health = driver.read_health()
+        assert health.ready
+        assert health.feedback_state is None
+        assert health.state_connection_id is None
+        assert health.command_connection_id == expected_id
+    finally:
+        driver.close()
 
 
 def test_cancelled_neutral_twist_has_no_dispatch_or_completion_trace():

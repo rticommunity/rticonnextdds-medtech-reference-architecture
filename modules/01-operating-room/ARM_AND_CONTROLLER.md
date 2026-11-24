@@ -195,6 +195,14 @@ disarm diagnostics, including stale health, unavailable commands and missed
 deadlines. Re-arm, the first neutral twist dispatch and completion, and an
 unhealthy observation include millisecond-resolution monotonic timestamps for
 comparing their order; these do not establish which client controls the arm.
+The LOG also shows the latest cyclic feedback before the first neutral twist
+and the first health feedback afterward, including the cyclic arm state, the
+connection ID associated with its last state change and the TCP command router's
+session ID. The feedback timestamp is when the response was received, not when
+the robot sampled it. A matching ID is evidence about the last state change,
+not proof of the current controller or of physical safety; `None` or router ID
+zero indicates unavailable identification. The SDK's session and feedback
+identifier semantics must be verified before relying on a comparison.
 It attempts Kortex
 `Stop` on loss of motion, a command deadline miss, health or permission, and
 on lifecycle shutdown. These

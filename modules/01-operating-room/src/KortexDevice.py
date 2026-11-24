@@ -10,6 +10,7 @@
 import ipaddress
 import math
 import os
+import time
 from contextlib import ExitStack
 from dataclasses import dataclass
 from types import SimpleNamespace
@@ -25,6 +26,10 @@ class KortexHealth:
     fault_bank_b: int
     ready: bool
     faulted: bool
+    feedback_state: int | None = None
+    state_connection_id: int | None = None
+    command_connection_id: int | None = None
+    feedback_observed_at: float | None = None
 
 
 def pose_from_feedback(base) -> tuple[tuple[float, ...], tuple[float, ...]]:
@@ -131,6 +136,13 @@ class KortexDevice:
         arm_state = self._base.GetArmState(options=self._options()).active_state
         servoing_mode = self._base.GetServoingMode(options=self._options()).servoing_mode
         feedback = self._cyclic.RefreshFeedback(options=self._options())
+        feedback_observed_at = time.monotonic()
+        feedback_state = getattr(feedback.base, "active_state", None)
+        state_connection_id = getattr(feedback.base, "active_state_connection_identifier", None)
+        connection_id = getattr(self._tcp_router, "getConnectionId", None)
+        if connection_id is None:
+            connection_id = getattr(self._tcp_router, "GetConnectionId", None)
+        command_connection_id = connection_id() if callable(connection_id) else None
         fault_bank_a = int(feedback.base.fault_bank_a)
         fault_bank_b = int(feedback.base.fault_bank_b)
         faulted = (
@@ -143,7 +155,18 @@ class KortexDevice:
             and arm_state == self._api.Common.ARMSTATE_SERVOING_READY
             and servoing_mode == self._api.Base.SINGLE_LEVEL_SERVOING
         )
-        return KortexHealth(arm_state, servoing_mode, fault_bank_a, fault_bank_b, ready, faulted)
+        return KortexHealth(
+            arm_state,
+            servoing_mode,
+            fault_bank_a,
+            fault_bank_b,
+            ready,
+            faulted,
+            feedback_state,
+            state_connection_id,
+            command_connection_id,
+            feedback_observed_at,
+        )
 
     def read_pose(self):
         if self._cyclic is None:
