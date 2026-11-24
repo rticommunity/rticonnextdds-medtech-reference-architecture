@@ -486,6 +486,82 @@ raise SystemExit(motion.main())
     return stub
 
 
+def test_kortex_offline_preview_stays_not_ready_without_sdk_calls(tmp_path):
+    from MedTech import Device
+    from test_utils import ProcessManager, wait_for_samples, wait_for_writer_match
+
+    stub = tmp_path / "run_preview_kinova.py"
+    stub.write_text(
+        """
+import ArmKortex as motion
+
+motion._load_kortex_api = lambda: None
+motion._load_control_config_client = lambda: None
+
+class Driver:
+    def __getattribute__(self, name):
+        raise RuntimeError(f"Unexpected SDK operation in preview: {name}")
+
+motion.KortexDriver = Driver
+raise SystemExit(motion.main())
+"""
+    )
+    env, apps = local_dds_env(tmp_path, {"Arm": "kortex"})
+    env["PYTHONPATH"] += os.pathsep + str(MODULE_DIR / "src")
+    env.pop("KORTEX_LIVE_WATCHDOG", None)
+    env.update(KORTEX_IP="192.0.2.10", KORTEX_USERNAME="operator", KORTEX_PASSWORD="test-only")
+    apps["Arm"] = [sys.executable, str(stub)]
+    utility = local_dds_utility(tmp_path)
+    manager = ProcessManager(env, apps, cwd=MODULE_DIR)
+    try:
+        arm = manager.start_app_ready("Arm")
+        url = local_ui_url(arm, "Kinova Gen3 Kortex Arm listening on")
+        state = wait_for_ui_data(
+            url, lambda data: data.get("backend_label") == "KINOVA · OFFLINE PREVIEW"
+        )
+        assert state["feedback"]["readiness"] == "NOT_READY"
+        assert state["feedback"]["position"] is None
+        assert state["control_groups"][0]["controls"][0]["disabled"]
+        assert not invoke(url, "rearm-motion", {})["result"]["armed"]
+        statuses = wait_for_samples(
+            utility.device_status.reader,
+            filter_fn=lambda sample: sample.device == Device.DeviceType.ARM,
+        )
+        assert statuses[-1].readiness == Device.DeviceReadinessKind.NOT_READY
+        heartbeats = wait_for_samples(
+            utility.device_heartbeat.reader,
+            filter_fn=lambda sample: sample.device == Device.DeviceType.ARM,
+        )
+        assert heartbeats
+        assert arm.poll() is None
+        command_writer = utility.device_command.writer
+        assert wait_for_writer_match(command_writer)
+        command_writer.write(
+            Device.Command(device=Device.DeviceType.ARM, command=Device.DeviceCommandKind.SHUTDOWN)
+        )
+        assert arm.wait(timeout=10) == 0
+    finally:
+        manager.shutdown_all()
+        utility.close()
+
+
+def test_kortex_preview_requires_sdk_before_starting_ui(tmp_path):
+    from test_utils import ProcessManager
+
+    (tmp_path / "kortex_api.py").write_text("raise ImportError('test missing dependency')\n")
+    env, apps = local_dds_env(tmp_path, {"Arm": "kortex"})
+    env.pop("KORTEX_LIVE_WATCHDOG", None)
+    manager = ProcessManager(env, apps, cwd=MODULE_DIR)
+    try:
+        arm = manager.start_app("Arm")
+        _, stderr = arm.communicate(timeout=10)
+        assert arm.returncode != 0
+        assert b"Kinova requires a compatible Kortex Python SDK" in stderr
+        assert b"KeyError: 'master'" not in stderr
+    finally:
+        manager.shutdown_all()
+
+
 def wait_for_twist(path, predicate):
     deadline = time.monotonic() + 5
     while time.monotonic() < deadline:

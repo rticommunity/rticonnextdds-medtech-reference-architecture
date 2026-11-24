@@ -34,7 +34,7 @@ from DemoUiSupport import (
     run_demo_ui,
 )
 from HeartbeatPresence import publish_heartbeats
-from KortexDevice import KortexDevice, KortexHealth
+from KortexDevice import KortexDevice, KortexHealth, _load_kortex_api
 from MedTech import DdsEntities, Device, Geometry, Robot
 from MedTechTypes import device_status_after_command, register_type
 from PhysicalMotionGate import MotionConditions, PhysicalMotionGate
@@ -42,6 +42,7 @@ from rti_demo_ui import CommandConfirmation
 
 TITLE = "Kinova Gen3 Kortex Arm"
 BACKEND_LABEL = "KINOVA · SUPERVISED MOTION"
+PREVIEW_LABEL = "KINOVA · OFFLINE PREVIEW"
 ARM_ID = "arm-1"
 CONTROL_PERIOD = 0.02
 TELEMETRY_PERIOD = 0.05
@@ -62,6 +63,13 @@ def require_live_watchdog_ack() -> None:
             "Kortex connection-timeout stop behavior has been verified; this application "
             "does not test or guarantee that behavior"
         )
+
+
+def offline_preview() -> bool:
+    if LIVE_WATCHDOG_ACK_ENV not in os.environ:
+        return True
+    require_live_watchdog_ack()
+    return False
 
 
 def _load_control_config_client():
@@ -164,7 +172,7 @@ class KortexDriver(KortexDevice):
 
 class ArmKortexApp:
     def __init__(self, ui: DemoUiState, driver: KortexDriver | None = None) -> None:
-        require_live_watchdog_ack()
+        self.preview = offline_preview()
         entities = DdsEntities.Constants
         for data_type in (
             Device.Status,
@@ -196,7 +204,7 @@ class ArmKortexApp:
         self.failed = False
         self.ui = ui
         self.title = TITLE
-        self.backend_label = BACKEND_LABEL
+        self.backend_label = PREVIEW_LABEL if self.preview else BACKEND_LABEL
         self.status = Device.DeviceStatusKind.ON
         self.motion_gate = PhysicalMotionGate()
         self._motion_cancelled = threading.Event()
@@ -314,6 +322,9 @@ class ArmKortexApp:
         }
 
     def request_motion_rearm(self, _payload: dict) -> dict[str, bool]:
+        if self.preview:
+            self.ui.log("Re-arm unavailable in offline preview", "warn")
+            return {"armed": False}
         self.rates()
         self.update_motion_gate(connected=self.arm_connected, healthy=self.arm_healthy)
         armed = self.motion_gate.rearm()
@@ -415,19 +426,22 @@ class ArmKortexApp:
             while self.status != Device.DeviceStatusKind.OFF:
                 now = loop.time()
                 try:
-                    if now >= next_health:
-                        health = await self._rpc(self.driver.read_health)
-                        self.apply_health(health)
-                        next_health = loop.time() + HEALTH_PERIOD
-
-                    await self.control_step()
-                    if loop.time() >= next_telemetry:
-                        pose = await self._rpc(self.driver.read_pose)
-                        self.observed_pose = pose
-                        self.write_telemetry()
-                        self.telemetry_sequence += 1
+                    if self.preview:
                         self.controller_connected = self._controller_writers_match()
-                        next_telemetry = loop.time() + TELEMETRY_PERIOD
+                    else:
+                        if now >= next_health:
+                            health = await self._rpc(self.driver.read_health)
+                            self.apply_health(health)
+                            next_health = loop.time() + HEALTH_PERIOD
+
+                        await self.control_step()
+                        if loop.time() >= next_telemetry:
+                            pose = await self._rpc(self.driver.read_pose)
+                            self.observed_pose = pose
+                            self.write_telemetry()
+                            self.telemetry_sequence += 1
+                            self.controller_connected = self._controller_writers_match()
+                            next_telemetry = loop.time() + TELEMETRY_PERIOD
                     self.write_readiness(self.readiness)
                     self.ui.update(**self.view())
                     try:
@@ -472,13 +486,20 @@ class ArmKortexApp:
             self.write_status(self.status)
             self.ui.update(**self.view())
             self.write_readiness(self.readiness)
-            await self._rpc(self.driver.open)
-            self.arm_connected = True
-            self.ui.log(
-                "Kinova motion connected; software re-arm required. Watchdog assertion is "
-                "operator-supplied and not verified by this application.",
-                "warn",
-            )
+            if self.preview:
+                self.ui.log(
+                    "Offline preview: no Kinova connection or motion. Restart with the "
+                    "verified watchdog assertion for live operation.",
+                    "warn",
+                )
+            else:
+                await self._rpc(self.driver.open)
+                self.arm_connected = True
+                self.ui.log(
+                    "Kinova motion connected; software re-arm required. Watchdog assertion is "
+                    "operator-supplied and not verified by this application.",
+                    "warn",
+                )
             failure_context = "Kinova motion application"
             async with asyncio.TaskGroup() as tasks:
                 workers.extend(
@@ -516,11 +537,12 @@ class ArmKortexApp:
             except Exception as error:
                 self.failed = True
                 log_failure("Kinova final best-effort zero twist", error)
-            try:
-                await self._rpc(self.driver.close)
-            except Exception as error:
-                self.failed = True
-                log_failure("Kinova SDK cleanup", error)
+            if not self.preview:
+                try:
+                    await self._rpc(self.driver.close)
+                except Exception as error:
+                    self.failed = True
+                    log_failure("Kinova SDK cleanup", error)
             try:
                 if enabled:
                     if self.status != Device.DeviceStatusKind.OFF:
@@ -803,7 +825,9 @@ def main() -> int:
     application = None
     result = 1
     try:
-        require_live_watchdog_ack()
+        if offline_preview():
+            _load_kortex_api()
+            _load_control_config_client()
         app = create_demo_ui(TITLE)
         ui = configure_ui(app)
         application = ArmKortexApp(ui)

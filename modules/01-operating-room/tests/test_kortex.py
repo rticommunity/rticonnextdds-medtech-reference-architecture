@@ -322,7 +322,7 @@ def test_motion_driver_cleans_up_on_limit_rpc_or_invalid_limit(monkeypatch, fail
     ]
 
 
-def test_watchdog_acknowledgement_is_required_before_driver_or_app_start(monkeypatch):
+def test_watchdog_acknowledgement_is_required_before_driver_open(monkeypatch):
     monkeypatch.delenv(motion.LIVE_WATCHDOG_ACK_ENV, raising=False)
     monkeypatch.setattr(
         kinova,
@@ -333,6 +333,9 @@ def test_watchdog_acknowledgement_is_required_before_driver_or_app_start(monkeyp
     with pytest.raises(RuntimeError, match=motion.LIVE_WATCHDOG_ACK_ENV):
         driver.open()
 
+
+def test_invalid_watchdog_acknowledgement_is_a_startup_error(monkeypatch):
+    monkeypatch.setenv(motion.LIVE_WATCHDOG_ACK_ENV, "invalid")
     monkeypatch.setattr(
         motion,
         "register_type",
@@ -366,6 +369,7 @@ class _FakeDriver:
 
 def _make_app():
     app = motion.ArmKortexApp.__new__(motion.ArmKortexApp)
+    app.preview = False
     app.title = motion.TITLE
     app.backend_label = motion.BACKEND_LABEL
     app.status = Device.DeviceStatusKind.ON

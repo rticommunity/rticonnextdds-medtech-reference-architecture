@@ -12,9 +12,13 @@ The Falcon check exchanges device packets and performs kinematics; it is not
 electrically passive. Do not deploy or connect to the target without explicit
 authorization and an appropriate supervised plan.
 
-The Kinova app and check require a compatible `kortex_api` and `KORTEX_IP`,
-`KORTEX_USERNAME`, and `KORTEX_PASSWORD` in their process environment. Supply
-credentials securely, not in source or shell history. The Falcon app and check
+The Kinova app and check require a compatible `kortex_api`. For live operation,
+they also require `KORTEX_IP`, `KORTEX_USERNAME`, and `KORTEX_PASSWORD` in their
+process environment. Supply credentials securely, not in source or shell history.
+Without the watchdog assertion described below, the Kinova app opens an offline
+preview: it does not connect to the arm, stays not ready, and cannot re-arm.
+Restart with the verified assertion to use the live arm. An invalid assertion
+is an error. The Falcon app and check
 require the compatible `pynifalcon.FalconDeviceBridge` and its native dependencies;
 the check also requires a connected Falcon. Neither vendor SDK nor bridge is
 packaged by this project.
