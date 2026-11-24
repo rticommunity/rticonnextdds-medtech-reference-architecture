@@ -20,6 +20,7 @@ import math
 import os
 import threading
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 
 import rti.asyncio  # noqa: F401 - installs Connext's asyncio integration
@@ -236,6 +237,7 @@ class ArmKortexApp:
         self._arm_faulted = False
         self._stop_required = False
         self._twist_active = False
+        self._trace_next_neutral_twist = False
         self.observed_pose = None
         self._last_health = None
 
@@ -334,8 +336,9 @@ class ArmKortexApp:
         armed = self.motion_gate.rearm()
         if armed:
             self._motion_cancelled = threading.Event()
+            self._trace_next_neutral_twist = True
         self.ui.log(
-            "Software motion gate armed by operator"
+            f"Software motion gate armed by operator (monotonic={time.monotonic():.3f}s)"
             if armed
             else "Re-arm rejected; require a ready arm and fresh neutral commands",
             "ok" if armed else "warn",
@@ -659,7 +662,12 @@ class ArmKortexApp:
         return await loop.run_in_executor(self._rpc_executor, function, *args)
 
     def _send_twist(
-        self, linear, angular, cancelled: threading.Event, health_observed_at: float | None
+        self,
+        linear,
+        angular,
+        cancelled: threading.Event,
+        health_observed_at: float | None,
+        trace: Callable[[str, float], None] | None,
     ) -> bool:
         # Revalidate on the SDK worker, not before waiting in its executor queue.
         if (
@@ -668,7 +676,11 @@ class ArmKortexApp:
             or not (0 <= time.monotonic() - health_observed_at <= HEALTH_MAX_AGE_SECONDS)
         ):
             return False
+        if trace is not None:
+            trace("dispatch", time.monotonic())
         self.driver.send_twist(linear, angular)
+        if trace is not None:
+            trace("completed", time.monotonic())
         return True
 
     async def _send_stop(self, *, force: bool = False) -> None:
@@ -711,7 +723,8 @@ class ArmKortexApp:
             if was_armed and not health.faulted:
                 self.ui.log(
                     "Software motion gate disarmed: arm health not ready "
-                    f"(ARMSTATE={health.arm_state}, servoing mode={health.servoing_mode})",
+                    f"(ARMSTATE={health.arm_state}, servoing mode={health.servoing_mode}; "
+                    f"applied monotonic={time.monotonic():.3f}s)",
                     "warn",
                 )
         if not health.ready and (self._health_observed_at is None or self.arm_healthy):
@@ -769,8 +782,20 @@ class ArmKortexApp:
                 self._twist_active = True
             cancellation = self._motion_cancelled
             health_observed_at = self._health_observed_at
+            trace = None
+            if not command_active and self._trace_next_neutral_twist:
+                self._trace_next_neutral_twist = False
+                loop = asyncio.get_running_loop()
+
+                def trace(event: str, timestamp: float) -> None:
+                    loop.call_soon_threadsafe(
+                        self.ui.log,
+                        f"First neutral twist {event} (monotonic={timestamp:.3f}s)",
+                        "info",
+                    )
+
             sent = await self._rpc(
-                self._send_twist, linear, angular, cancellation, health_observed_at
+                self._send_twist, linear, angular, cancellation, health_observed_at, trace
             )
             if not sent:
                 cancelled = cancellation.is_set()

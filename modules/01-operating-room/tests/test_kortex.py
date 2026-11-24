@@ -384,6 +384,7 @@ def _make_app():
     app._arm_faulted = False
     app._stop_required = False
     app._twist_active = False
+    app._trace_next_neutral_twist = False
     app._last_health = None
     app._last_published_readiness = None
     app._last_diagnostic_at = {}
@@ -462,7 +463,7 @@ def test_stale_health_prevents_rearm_until_new_health_arrives(monkeypatch):
     [
         ("health-age", "health observation 0.260 s old"),
         ("command", "arm command unavailable or invalid"),
-        ("unhealthy", "arm health not ready (ARMSTATE=0, servoing mode=2)"),
+        ("unhealthy", "arm health not ready (ARMSTATE=0, servoing mode=2;"),
     ],
 )
 def test_armed_gate_reports_disarm_reason(monkeypatch, failure, message):
@@ -484,6 +485,101 @@ def test_armed_gate_reports_disarm_reason(monkeypatch, failure, message):
     assert len(messages) == 1
     assert message in messages[0][0]
     assert messages[0][1] == "warn"
+
+
+def test_neutral_twist_and_health_diagnostics_show_event_order(monkeypatch):
+    app = _make_app()
+    now = [1000.0]
+    monkeypatch.setattr(motion, "time", SimpleNamespace(monotonic=lambda: now[0]))
+    app._health_observed_at = now[0]
+    messages = []
+    app.ui.log = lambda text, level: messages.append((text, level))
+    send_twist = app.driver.send_twist
+
+    def timed_send(linear, angular):
+        send_twist(linear, angular)
+        now[0] += 0.004
+
+    app.driver.send_twist = timed_send
+    app._rpc_executor = ThreadPoolExecutor(max_workers=1)
+    app._rpc = motion.ArmKortexApp._rpc.__get__(app)
+
+    async def exercise():
+        assert app.request_motion_rearm({}) == {"armed": True}
+        await app.control_step()
+        await app.control_step()
+        app.apply_health(motion.KortexHealth(9, 2, 0, 0, False, False))
+        await asyncio.sleep(0)
+
+    try:
+        asyncio.run(exercise())
+    finally:
+        app._rpc_executor.shutdown(wait=True)
+
+    assert [text for text, _level in messages] == [
+        "Software motion gate armed by operator (monotonic=1000.000s)",
+        "First neutral twist dispatch (monotonic=1000.000s)",
+        "First neutral twist completed (monotonic=1000.004s)",
+        "Software motion gate disarmed: arm health not ready "
+        "(ARMSTATE=9, servoing mode=2; applied monotonic=1000.008s)",
+    ]
+    assert not app.motion_gate.armed
+
+
+def test_cancelled_neutral_twist_has_no_dispatch_or_completion_trace():
+    app = _make_app()
+    app._motion_cancelled.set()
+    events = []
+    assert not app._send_twist(
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0),
+        app._motion_cancelled,
+        app._health_observed_at,
+        lambda event, timestamp: events.append((event, timestamp)),
+    )
+    assert not events
+    assert not app.driver.twists
+
+
+def test_neutral_twist_dispatch_is_visible_while_rpc_is_blocked():
+    app = _make_app()
+    messages = []
+    release = threading.Event()
+    app._rpc_executor = ThreadPoolExecutor(max_workers=1)
+    app._rpc = motion.ArmKortexApp._rpc.__get__(app)
+
+    def blocked_send(_linear, _angular):
+        if not release.wait(5):
+            raise TimeoutError("Test did not release the Kortex RPC")
+
+    app.driver.send_twist = blocked_send
+
+    async def exercise():
+        dispatch = asyncio.Event()
+
+        def log(text, _level):
+            messages.append(text)
+            if text.startswith("First neutral twist dispatch"):
+                dispatch.set()
+
+        app.ui.log = log
+        assert app.request_motion_rearm({}) == {"armed": True}
+        task = asyncio.create_task(app.control_step())
+        try:
+            await asyncio.wait_for(dispatch.wait(), 2)
+            assert not task.done()
+            assert not any("First neutral twist completed" in text for text in messages)
+        finally:
+            release.set()
+            await asyncio.wait_for(task, 2)
+        await asyncio.sleep(0)
+        assert any("First neutral twist completed" in text for text in messages)
+
+    try:
+        asyncio.run(exercise())
+    finally:
+        release.set()
+        app._rpc_executor.shutdown(wait=True)
 
 
 @pytest.mark.parametrize("command", ["START", "PAUSE", "SHUTDOWN"])

@@ -192,7 +192,10 @@ application lifecycle, not physical connection or motion permission.
 It requires recent fault-free Kortex health, valid neutral arm commands
 and an explicit UI re-arm. The arm window's **LOG** control shows re-arm and
 disarm diagnostics, including stale health, unavailable commands and missed
-deadlines. It attempts Kortex
+deadlines. Re-arm, the first neutral twist dispatch and completion, and an
+unhealthy observation include millisecond-resolution monotonic timestamps for
+comparing their order; these do not establish which client controls the arm.
+It attempts Kortex
 `Stop` on loss of motion, a command deadline miss, health or permission, and
 on lifecycle shutdown. These
 are best-effort RPCs: if a request or process blocks, or the connection is
