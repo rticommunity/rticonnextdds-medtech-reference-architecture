@@ -16,8 +16,9 @@ The Kinova app and check require a compatible `kortex_api` and `KORTEX_IP`,
 `KORTEX_USERNAME`, and `KORTEX_PASSWORD` in their process environment. Supply
 credentials securely, not in source or shell history. The Falcon app and check
 require the compatible `pynifalcon.FalconDeviceBridge`, its native dependencies,
-loaded firmware and a homed device. Neither vendor SDK nor bridge is packaged
-by this project.
+and a Falcon device. Neither vendor SDK nor bridge is packaged by this project.
+The bridge must provide `loadFirmware()` and `setHomingMode()`; initialization
+may load its embedded firmware.
 
 The [software motion gate](src/PhysicalMotionGate.py) disarms on loss of arm
 connection, health, or valid required commands. Kortex requires only the arm
@@ -63,8 +64,8 @@ against the same domain.
 The Kinova steps require a compatible Kortex API on the launcher Python import
 path and `KORTEX_IP`, `KORTEX_USERNAME`, and `KORTEX_PASSWORD` in the
 environment. Supply credentials securely. Falcon motion requires the compatible
-`pynifalcon.FalconDeviceBridge` and native dependencies, loaded firmware, and a
-homed Falcon. Neither SDK nor bridge is installed by the launcher. `up` uses
+`pynifalcon.FalconDeviceBridge` and native dependencies. Neither SDK nor bridge
+is installed by the launcher. `up` uses
 the project `.venv`; ensure the relevant imports work there before the hardware
 steps (or in the active environment when using `run`):
 
@@ -92,13 +93,19 @@ steps (or in the active environment when using `run`):
    .venv/bin/python modules/01-operating-room/tools/check_falcon.py
    ```
 
+   If homing is not confirmed, rerun with `--home` and follow the prompt. The
+   check closes the device afterward; homing may need to be repeated in the app.
+
    Then launch the scenario:
 
    ```bash
    FALCON_WORKSPACE_MAX=0.5,0.25,0.60 python3 medtech.py up --scenario or-all --variant ArmController=falcon
    ```
 
-   With the Falcon connected and homed, release button 1, then hold it and
+   If the app shows **WAITING FOR HOMING**, select **HOME FALCON** and move the
+   handle fully out, then straight fully in. Wait for **READY**. During homing,
+   the controller publishes neutral commands. If homing times out, retry.
+   With the Falcon ready, release button 1, then hold it and
    move the handle. Check that the simulated TCP responds and release stops
    the command. Observe the mapping and telemetry; no physical arm is
    commanded. The override includes the simulated arm's initial X position;
@@ -224,6 +231,10 @@ time since the application processed the latest telemetry, not its source or
 DDS reception timestamp. It uses a 0.01 m/s speed limit, 0.02 m/s² acceleration
 limit and 0.35 smoothing factor.
 Force feedback, rotation and jaw control are not implemented.
+The app checks for confirmed homing at startup; if needed, **HOME FALCON**
+starts a 30-second manual homing window. It remains not ready and publishes
+neutral commands until homing is confirmed. Loss of homing during tracking
+stops the controller.
 
 The default target workspace is `(-0.25, -0.25, 0.10)` to
 `(0.25, 0.25, 0.60)` metres in the arm base frame. Override these using

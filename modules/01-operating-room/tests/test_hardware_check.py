@@ -72,6 +72,8 @@ def test_falcon_check_runs_without_site_packages_or_dds(tmp_path):
 from types import SimpleNamespace
 class FalconDeviceBridge:
     def open(self, index): return index == 0
+    def loadFirmware(self): return True
+    def setHomingMode(self, enabled): pass
     def runIOLoop(self, flags): return True
     def isHomed(self): return True
     def getPosition(self): return SimpleNamespace(x=0.1, y=0.2, z=0.3)
@@ -90,6 +92,33 @@ class FalconDeviceBridge:
     assert result.returncode == 0, result.stderr
     assert "Falcon connection and homing: OK" in result.stdout
     assert "button bitfield: 0x1" in result.stdout
+
+
+def test_falcon_check_homes_only_when_requested(monkeypatch, capsys):
+    class Device:
+        homing_state = "WAITING"
+
+        def open(self):
+            pass
+
+        def read(self):
+            if self.homing_state == "HOMING":
+                return ((0.1, 0.2, 0.3), 0)
+            return None
+
+        def start_homing(self):
+            self.homing_state = "HOMING"
+            return True
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(check_falcon, "FalconInput", Device)
+    monkeypatch.setattr(check_falcon.time, "sleep", lambda _: None)
+    with pytest.raises(RuntimeError, match="--home"):
+        check_falcon.check()
+    assert check_falcon.check(home=True) == 0
+    assert "fully out" in capsys.readouterr().out
 
 
 def test_kinova_check_runs_without_dds_or_motion_rpc():

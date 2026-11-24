@@ -28,66 +28,158 @@ def test_module_keeps_simulators_as_defaults():
     assert defaults["ArmController"] == ["${CPP:ArmController}"]
 
 
-def test_falcon_reads_input_and_detects_timeout(monkeypatch):
+class FalconBridge:
+    def __init__(self):
+        self.closed = False
+        self.has_data = True
+        self.homed = True
+        self.firmware_ok = True
+        self.homing_modes = []
+        self.position = SimpleNamespace(x=0.01, y=0.02, z=0.03)
+
+    def open(self, index):
+        assert index == 0
+        return True
+
+    def loadFirmware(self):
+        return self.firmware_ok
+
+    def setHomingMode(self, enabled):
+        self.homing_modes.append(enabled)
+
+    def runIOLoop(self, flags):
+        assert flags == 0x1 | 0x2 | 0x4
+        return self.has_data
+
+    def isHomed(self):
+        return self.homed
+
+    def getPosition(self):
+        return self.position
+
+    def getButtons(self):
+        return 1
+
+    def close(self):
+        self.closed = True
+
+
+def test_falcon_confirms_homing_reads_input_and_detects_timeout(monkeypatch):
     import FalconInput as falcon
-
-    class Bridge:
-        def __init__(self):
-            self.closed = False
-            self.has_data = True
-            self.homed = True
-
-        def open(self, index):
-            assert index == 0
-            return True
-
-        def runIOLoop(self, flags):
-            assert flags == falcon.FALCON_IO_FLAGS
-            return self.has_data
-
-        def isHomed(self):
-            return self.homed
-
-        def getPosition(self):
-            return SimpleNamespace(x=0.01, y=0.02, z=0.03)
-
-        def getButtons(self):
-            return 1
-
-        def close(self):
-            self.closed = True
 
     now = [10.0]
     monkeypatch.setattr(falcon.time, "monotonic", lambda: now[0])
-    bridge = Bridge()
+    bridge = FalconBridge()
     device = falcon.FalconInput(bridge)
     device.open()
+    assert bridge.homing_modes == [True]
+    assert device.read() is None
+    now[0] += falcon.HOMING_CONFIRM_SECONDS + 0.01
     assert device.read() == ((0.01, 0.02, 0.03), 1)
+    assert device.homing_state == "READY"
 
     bridge.has_data = False
     now[0] += falcon.INPUT_TIMEOUT_SECONDS + 0.01
-    with pytest.raises(TimeoutError, match="firmware"):
+    with pytest.raises(TimeoutError, match="timed out"):
         device.read()
     device.close()
     assert bridge.closed
+    assert bridge.homing_modes == [True, False]
 
 
-def test_falcon_rejects_unhomed_or_invalid_input():
+def test_falcon_homing_requires_operator_action_and_stable_status(monkeypatch):
     import FalconInput as falcon
 
-    bridge = SimpleNamespace(
-        open=lambda _: True,
-        runIOLoop=lambda _: True,
-        isHomed=lambda: False,
-        close=lambda: None,
-    )
+    now = [10.0]
+    monkeypatch.setattr(falcon.time, "monotonic", lambda: now[0])
+    bridge = FalconBridge()
+    bridge.homed = False
     device = falcon.FalconInput(bridge)
     device.open()
-    with pytest.raises(RuntimeError, match="not homed"):
+    assert device.read() is None
+    now[0] += falcon.HOMING_CHECK_SECONDS + 0.01
+    assert device.read() is None
+    assert device.homing_state == "WAITING"
+    bridge.homed = True
+    assert device.read() is None
+    assert device.start_homing()
+    assert not device.start_homing()
+    assert device.read() is None
+    bridge.homed = False
+    now[0] += 0.02
+    assert device.read() is None
+    bridge.homed = True
+    now[0] += 0.02
+    assert device.read() is None
+    now[0] += falcon.HOMING_CONFIRM_SECONDS + 0.01
+    assert device.read() == ((0.01, 0.02, 0.03), 1)
+    assert not device.start_homing()
+    bridge.homed = False
+    with pytest.raises(RuntimeError, match="homing status was lost"):
         device.read()
-    bridge.isHomed = lambda: True
-    bridge.getPosition = lambda: SimpleNamespace(x=float("nan"), y=0.0, z=0.0)
-    bridge.getButtons = lambda: 0
+    device.close()
+
+
+def test_falcon_homing_timeout_can_be_retried(monkeypatch):
+    import FalconInput as falcon
+
+    now = [10.0]
+    monkeypatch.setattr(falcon.time, "monotonic", lambda: now[0])
+    bridge = FalconBridge()
+    bridge.homed = False
+    device = falcon.FalconInput(bridge)
+    device.open()
+    now[0] += falcon.HOMING_CHECK_SECONDS + 0.01
+    assert device.read() is None
+    assert device.start_homing()
+    now[0] += falcon.HOMING_TIMEOUT_SECONDS + 0.01
+    assert device.read() is None
+    assert device.homing_state == "TIMED OUT"
+    assert device.start_homing()
+    device.close()
+
+
+def test_falcon_firmware_failure_closes_device():
+    import FalconInput as falcon
+
+    bridge = FalconBridge()
+    bridge.firmware_ok = False
+    device = falcon.FalconInput(bridge)
+    with pytest.raises(RuntimeError, match="initialize Falcon firmware"):
+        device.open()
+    assert bridge.closed
+    assert not device.opened
+
+
+def test_falcon_closes_even_if_disabling_homing_fails():
+    import FalconInput as falcon
+
+    class Bridge(FalconBridge):
+        def setHomingMode(self, enabled):
+            if not enabled:
+                raise RuntimeError("homing disable failed")
+            super().setHomingMode(enabled)
+
+    bridge = Bridge()
+    device = falcon.FalconInput(bridge)
+    device.open()
+    with pytest.raises(RuntimeError, match="homing disable failed"):
+        device.close()
+    assert bridge.closed
+    assert not device.opened
+
+
+def test_falcon_rejects_invalid_input(monkeypatch):
+    import FalconInput as falcon
+
+    now = [10.0]
+    monkeypatch.setattr(falcon.time, "monotonic", lambda: now[0])
+    bridge = FalconBridge()
+    device = falcon.FalconInput(bridge)
+    device.open()
+    assert device.read() is None
+    now[0] += falcon.HOMING_CONFIRM_SECONDS + 0.01
+    bridge.position = SimpleNamespace(x=float("nan"), y=0.0, z=0.0)
     with pytest.raises(ValueError, match="invalid input"):
         device.read()
     device.close()

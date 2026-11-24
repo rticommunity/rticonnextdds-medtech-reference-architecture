@@ -207,10 +207,14 @@ from types import SimpleNamespace
 class FalconDeviceBridge:
     def open(self, index):
         return index == 0
+    def loadFirmware(self):
+        return True
+    def setHomingMode(self, enabled):
+        pass
     def runIOLoop(self, flags):
         return True
     def isHomed(self):
-        return True
+        return Path(os.environ["TEST_FALCON_STATE"]).read_text() != "unhomed"
     def getPosition(self):
         moving = Path(os.environ["TEST_FALCON_STATE"]).read_text() == "move"
         return SimpleNamespace(x=0.02 if moving else 0.0, y=0.0, z=0.0)
@@ -221,6 +225,66 @@ class FalconDeviceBridge:
 """
     )
     return state, set_input
+
+
+@pytest.mark.browser
+def test_falcon_ui_homes_explicitly_and_publishes_neutral(tmp_path):
+    import playwright.sync_api as playwright
+    from MedTech import Device
+    from test_utils import ProcessManager, wait_for_samples
+
+    state, set_input = fake_falcon(tmp_path)
+    set_input("unhomed")
+    env, apps = local_dds_env(tmp_path, {"ArmController": "falcon"})
+    env["TEST_FALCON_STATE"] = str(state)
+    utility = local_dds_utility(tmp_path)
+    manager = ProcessManager(env, apps, cwd=MODULE_DIR)
+    try:
+        controller = manager.start_app_ready("ArmController")
+        url = local_ui_url(controller, "Novint Falcon Controller listening on")
+        with playwright.sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True)
+            try:
+                page = browser.new_page()
+                page.goto(url)
+                button = page.get_by_role("button", name="HOME FALCON")
+                playwright.expect(button).to_be_enabled(timeout=10000)
+                playwright.expect(page.locator(".gamepad-connection")).to_contain_text(
+                    "WAITING FOR HOMING"
+                )
+                statuses = wait_for_samples(
+                    utility.device_status.reader,
+                    filter_fn=lambda sample: sample.device == Device.DeviceType.ARM_CONTROLLER,
+                )
+                assert statuses[-1].readiness == Device.DeviceReadinessKind.NOT_READY
+                commands = wait_for_samples(utility.teleop_control.reader)
+                assert commands
+                assert commands[-1].linear_velocity.x == 0
+                assert commands[-1].linear_velocity.y == 0
+                assert commands[-1].linear_velocity.z == 0
+                button.click()
+                playwright.expect(page.locator(".gamepad-connection")).to_contain_text("HOMING")
+                playwright.expect(button).to_be_disabled()
+                assert not invoke(url, "home-falcon", {})["result"]["started"]
+                playwright.expect(page.locator(".gamepad-instruction")).to_contain_text("fully out")
+                commands = wait_for_samples(utility.teleop_control.reader)
+                assert commands and commands[-1].linear_velocity.x == 0
+                set_input("released")
+                playwright.expect(page.locator(".gamepad-connection")).to_contain_text("CONNECTED")
+                playwright.expect(button).to_be_disabled()
+                statuses = wait_for_samples(
+                    utility.device_status.reader,
+                    filter_fn=lambda sample: (
+                        sample.device == Device.DeviceType.ARM_CONTROLLER
+                        and sample.readiness == Device.DeviceReadinessKind.READY
+                    ),
+                )
+                assert statuses
+            finally:
+                browser.close()
+    finally:
+        manager.shutdown_all()
+        utility.close()
 
 
 @pytest.mark.parametrize("variant", ["simulated", "xbox", "falcon"])

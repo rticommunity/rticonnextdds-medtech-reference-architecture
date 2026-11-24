@@ -240,6 +240,11 @@ class ArmControllerFalconApp:
         self.last_telemetry: dict | None = None
         self.last_telemetry_time: float | None = None
         self.running = True
+        self.ui.app.register_command(
+            "home-falcon",
+            {"type": "object", "additionalProperties": False},
+            self.request_homing,
+        )
 
     @staticmethod
     def zero_rates() -> dict:
@@ -277,6 +282,13 @@ class ArmControllerFalconApp:
         )
         input_status, input_tone = self.input_status()
         input_descriptions = self._input_descriptions()
+        homing_state = self.input_device.homing_state
+        homing_instructions = {
+            "CHECKING": "Checking Falcon homing status.",
+            "WAITING": "Select HOME FALCON before manually homing the device.",
+            "HOMING": "Move the Falcon handle fully out, then straight fully in.",
+            "TIMED OUT": "Falcon homing timed out; select HOME FALCON to retry.",
+        }
         return {
             "kind": self.kind,
             "device_status": self.status.name,
@@ -316,6 +328,25 @@ class ArmControllerFalconApp:
             "input_connected": self.input_connected(),
             "input_label": self.input_label,
             "input_name": self.input_name,
+            "input_connection_text": (
+                f"Falcon · {input_status}" if not self.input_connected() else None
+            ),
+            "control_groups": [
+                {
+                    "title": "FALCON HOMING",
+                    "controls": [
+                        {
+                            "type": "button",
+                            "label": "HOME FALCON",
+                            "command": "home-falcon",
+                            "payload": {},
+                            "disabled": self.status != Device.DeviceStatusKind.ON
+                            or homing_state not in ("WAITING", "TIMED OUT"),
+                            "className": "run-demo",
+                        }
+                    ],
+                }
+            ],
             "inputs": [
                 {
                     "label": label,
@@ -326,7 +357,9 @@ class ArmControllerFalconApp:
             ],
             "footer": True,
             "feedback": feedback,
-            "control_instruction": f"{self.control.reason}. Rotation and jaw are disabled.",
+            "control_instruction": homing_instructions.get(
+                homing_state, f"{self.control.reason}. Rotation and jaw are disabled."
+            ),
         }
 
     def input_connected(self) -> bool:
@@ -338,7 +371,29 @@ class ArmControllerFalconApp:
         )
 
     def input_status(self) -> tuple[str, str]:
-        return ("CONNECTED", "good") if self.input_connected() else ("WAITING", "warn")
+        if self.input_connected():
+            return "READY", "good"
+        if self.input_device.homing_state == "TIMED OUT":
+            return "ERROR · HOMING TIMEOUT", "danger"
+        return {
+            "CHECKING": "CHECKING",
+            "WAITING": "WAITING FOR HOMING",
+            "HOMING": "HOMING",
+        }.get(self.input_device.homing_state, "WAITING"), "warn"
+
+    def request_homing(self, _payload: dict) -> dict[str, bool]:
+        started = self.status == Device.DeviceStatusKind.ON and self.input_device.start_homing()
+        if started:
+            self.stop_motion()
+            self.control.reset("Homing Falcon")
+        self.ui.log(
+            "Falcon homing started; move the handle fully out, then straight fully in"
+            if started
+            else "Falcon homing request rejected",
+            "warn",
+        )
+        self.ui.update(**self.view())
+        return {"started": started}
 
     def _input_descriptions(self) -> tuple[tuple[str, str], ...]:
         if self.last_input is None:

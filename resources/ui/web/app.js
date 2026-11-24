@@ -988,6 +988,9 @@ function renderGamepad(data) {
     );
     panel.append(row);
   }
+  if ((data.control_groups || []).length) {
+    panel.append(renderControlGroups(data.control_groups));
+  }
   appMain.append(
     connection,
     panel,
@@ -1004,9 +1007,11 @@ function renderGamepad(data) {
 function updateGamepad(data) {
   const connection = appMain.querySelector(".gamepad-connection > span");
   connection.classList.toggle("connected", Boolean(data.input_connected));
-  updateText(connection, data.input_connected
-    ? `●  ${data.input_name} CONNECTED`
-    : `●  NO SUPPORTED ${String(data.input_label || "INPUT DEVICE").toUpperCase()} CONNECTED; WAITING`);
+  updateText(connection, data.input_connection_text
+    ? `●  ${data.input_connection_text}`
+    : data.input_connected
+      ? `●  ${data.input_name} CONNECTED`
+      : `●  NO SUPPORTED ${String(data.input_label || "INPUT DEVICE").toUpperCase()} CONNECTED; WAITING`);
   updateText(
     appMain.querySelector(".gamepad-instruction"),
     data.control_instruction || "Hold a control to command a base-frame velocity (+Z up). Directions do not follow the camera or tool. Return it to neutral to stop.",
@@ -1224,9 +1229,11 @@ function render(snapshot, connectionState = "connected") {
   if (
     data.kind === "gamepad-controller" &&
     data.kind === renderedKind &&
-    gamepadSignature === renderedGamepadSignature
+    gamepadSignature === renderedGamepadSignature &&
+    controlSignature === renderedControlSignature
   ) {
     renderBadges(data);
+    updateControls(data.control_groups || []);
     updateActualFeedback(data.feedback);
     updateGamepad(data);
     return;
