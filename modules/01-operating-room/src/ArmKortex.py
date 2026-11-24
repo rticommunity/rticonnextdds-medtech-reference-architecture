@@ -250,7 +250,10 @@ class ArmKortexApp:
         self.status = device_status_after_command(command)
         if self.readiness != Device.DeviceReadinessKind.FAULTED:
             self.readiness = Device.DeviceReadinessKind.NOT_READY
+        was_armed = self.motion_gate.armed
         self._disarm_motion()
+        if was_armed:
+            self.ui.log(f"Software motion gate disarmed: received {command.name} command", "warn")
         if command in (Device.DeviceCommandKind.PAUSE, Device.DeviceCommandKind.SHUTDOWN):
             self.teleop_reader.take()
 
@@ -309,6 +312,7 @@ class ArmKortexApp:
             "scene_available": False,
             "header_badges": header_badges,
             "control_groups": control_groups,
+            "show_activity_toggle": True,
             "footer": True,
             "feedback": {
                 "source": "reported",
@@ -341,10 +345,9 @@ class ArmKortexApp:
 
     def update_motion_gate(self, *, connected: bool, healthy: bool) -> None:
         now = time.monotonic()
-        health_fresh = (
-            self._health_observed_at is not None
-            and 0 <= now - self._health_observed_at <= HEALTH_MAX_AGE_SECONDS
-        )
+        health_age = None if self._health_observed_at is None else now - self._health_observed_at
+        health_fresh = health_age is not None and 0 <= health_age <= HEALTH_MAX_AGE_SECONDS
+        was_armed = self.motion_gate.armed
         self.motion_gate.update(
             MotionConditions(
                 arm_connected=connected,
@@ -355,6 +358,20 @@ class ArmKortexApp:
         )
         if not self.motion_gate.armed:
             self._motion_cancelled.set()
+            if was_armed:
+                reasons = []
+                if not connected:
+                    reasons.append("arm disconnected")
+                if self.status != Device.DeviceStatusKind.ON:
+                    reasons.append(f"device status {self.status.name}")
+                if not healthy:
+                    reasons.append("arm health not ready")
+                if not health_fresh:
+                    age = "unavailable" if health_age is None else f"{health_age:.3f} s old"
+                    reasons.append(f"health observation {age}")
+                if not self.commands_fresh:
+                    reasons.append("arm command unavailable or invalid")
+                self.ui.log("Software motion gate disarmed: " + "; ".join(reasons), "warn")
 
     def _disarm_motion(self) -> None:
         self._motion_cancelled.set()
@@ -365,6 +382,7 @@ class ArmKortexApp:
         return arm_writers > 0
 
     def _control_deadline_missed(self, name, reader) -> None:
+        was_armed = self.motion_gate is not None and self.motion_gate.armed
         if self.motion_gate is None:
             reader.take()
         else:
@@ -372,7 +390,11 @@ class ArmKortexApp:
             self.teleop_reader.take()
         self.commands_fresh = False
         self.command_rates_neutral = False
-        self._diagnostic(f"{name} command deadline missed; cached commands discarded")
+        message = f"{name} command deadline missed; cached commands discarded"
+        if was_armed:
+            self.ui.log(message, "warn")
+        else:
+            self._diagnostic(message)
         self._control_wake.set()
 
     async def monitor_control_health(self) -> None:
@@ -684,7 +706,14 @@ class ArmKortexApp:
 
     def apply_health(self, health: KortexHealth) -> None:
         if not health.ready:
+            was_armed = self.motion_gate.armed
             self._disarm_motion()
+            if was_armed and not health.faulted:
+                self.ui.log(
+                    "Software motion gate disarmed: arm health not ready "
+                    f"(ARMSTATE={health.arm_state}, servoing mode={health.servoing_mode})",
+                    "warn",
+                )
         if not health.ready and (self._health_observed_at is None or self.arm_healthy):
             self._stop_required = True
         self.arm_connected = True
@@ -738,12 +767,24 @@ class ArmKortexApp:
                 return
             if command_active:
                 self._twist_active = True
+            cancellation = self._motion_cancelled
+            health_observed_at = self._health_observed_at
             sent = await self._rpc(
-                self._send_twist, linear, angular, self._motion_cancelled, self._health_observed_at
+                self._send_twist, linear, angular, cancellation, health_observed_at
             )
             if not sent:
+                cancelled = cancellation.is_set()
+                health_age = (
+                    "unavailable"
+                    if health_observed_at is None
+                    else f"{time.monotonic() - health_observed_at:.3f} s old"
+                )
                 self._disarm_motion()
-                self._diagnostic("Queued arm command discarded; motion permission expired")
+                self.ui.log(
+                    "Queued arm command discarded; motion permission expired "
+                    f"(at completion: cancelled={cancelled}, health observation {health_age})",
+                    "warn",
+                )
             self._twist_active = command_active
             if self.status != Device.DeviceStatusKind.ON or not self.motion_gate.armed:
                 await self._send_stop(force=True)

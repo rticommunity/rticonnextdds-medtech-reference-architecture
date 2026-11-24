@@ -457,6 +457,61 @@ def test_stale_health_prevents_rearm_until_new_health_arrives(monkeypatch):
     assert app.request_motion_rearm({}) == {"armed": True}
 
 
+@pytest.mark.parametrize(
+    ("failure", "message"),
+    [
+        ("health-age", "health observation 0.260 s old"),
+        ("command", "arm command unavailable or invalid"),
+        ("unhealthy", "arm health not ready (ARMSTATE=0, servoing mode=2)"),
+    ],
+)
+def test_armed_gate_reports_disarm_reason(monkeypatch, failure, message):
+    app = _make_app()
+    messages = []
+    app.ui.log = lambda text, level: messages.append((text, level))
+    assert app.request_motion_rearm({}) == {"armed": True}
+    messages.clear()
+    if failure == "unhealthy":
+        app.apply_health(motion.KortexHealth(0, 2, 0, 0, False, False))
+    else:
+        if failure == "health-age":
+            monkeypatch.setattr(motion.time, "monotonic", lambda: app._health_observed_at + 0.26)
+        else:
+            app.commands_fresh = False
+        app.update_motion_gate(connected=True, healthy=True)
+        app.update_motion_gate(connected=True, healthy=True)
+    assert not app.motion_gate.armed
+    assert len(messages) == 1
+    assert message in messages[0][0]
+    assert messages[0][1] == "warn"
+
+
+@pytest.mark.parametrize("command", ["START", "PAUSE", "SHUTDOWN"])
+def test_armed_gate_reports_lifecycle_disarm(command):
+    app = _make_app()
+    messages = []
+    app.ui.log = lambda text, level: messages.append((text, level))
+    assert app.request_motion_rearm({}) == {"armed": True}
+    app.apply_command(getattr(Device.DeviceCommandKind, command))
+    assert (f"Software motion gate disarmed: received {command} command", "warn") in messages
+
+
+def test_deadline_disarm_is_reported_even_after_recent_deadline_warning():
+    app = _make_app()
+    messages = []
+    app.ui.log = lambda text, level: messages.append((text, level))
+
+    async def exercise():
+        app._control_deadline_missed("Arm", app.teleop_reader)
+        assert app.request_motion_rearm({}) == {"armed": True}
+        app._control_deadline_missed("Arm", app.teleop_reader)
+
+    asyncio.run(exercise())
+    warning = ("Arm command deadline missed; cached commands discarded", "warn")
+    assert messages.count(warning) == 2
+    assert not app.motion_gate.armed
+
+
 def test_health_expiring_during_twist_disarms_and_attempts_stop(monkeypatch):
     app = _make_app()
     now = [app._health_observed_at]
@@ -501,6 +556,8 @@ def test_deadline_miss_during_twist_disarms_and_attempts_stop():
 )
 def test_queued_twist_is_not_sent_after_motion_permission_changes(monkeypatch, invalidation):
     app = _make_app()
+    messages = []
+    app.ui.log = lambda text, level: messages.append((text, level))
     now = [app._health_observed_at]
     monkeypatch.setattr(motion, "time", SimpleNamespace(monotonic=lambda: now[0]))
     assert app.request_motion_rearm({}) == {"armed": True}
@@ -564,6 +621,12 @@ def test_queued_twist_is_not_sent_after_motion_permission_changes(monkeypatch, i
     assert all(not any((*linear, *angular)) for linear, angular in app.driver.twists)
     assert not app.motion_gate.armed
     assert app.readiness != Device.DeviceReadinessKind.READY
+    discarded = [text for text, _level in messages if "Queued arm command discarded" in text]
+    assert len(discarded) == 1
+    if invalidation == "health-age":
+        assert "cancelled=False, health observation 0.260 s old" in discarded[0]
+    else:
+        assert "cancelled=True" in discarded[0]
 
 
 def test_active_to_neutral_uses_base_stop_and_keeps_neutral_readiness():

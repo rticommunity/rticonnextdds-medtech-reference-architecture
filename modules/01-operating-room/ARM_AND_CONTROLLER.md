@@ -190,7 +190,9 @@ before physical motion.
 The arm publishes lifecycle `ON` with `NOT_READY` while connecting; `ON` is
 application lifecycle, not physical connection or motion permission.
 It requires recent fault-free Kortex health, valid neutral arm commands
-and an explicit UI re-arm. It attempts Kortex
+and an explicit UI re-arm. The arm window's **LOG** control shows re-arm and
+disarm diagnostics, including stale health, unavailable commands and missed
+deadlines. It attempts Kortex
 `Stop` on loss of motion, a command deadline miss, health or permission, and
 on lifecycle shutdown. These
 are best-effort RPCs: if a request or process blocks, or the connection is

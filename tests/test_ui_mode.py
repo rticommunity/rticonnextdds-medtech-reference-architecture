@@ -869,6 +869,8 @@ def test_arm_motion_gate_control_updates_in_place_and_invokes_command(snapshot_p
         """() => updateUi({
             kind: 'arm',
             backend_label: 'KINOVA · SUPERVISED MOTION',
+            show_activity_toggle: true,
+            logs: [{time: '12:00', level: 'ok', message: 'Gate armed'}],
             control_groups: [{title: 'MOTION PERMISSION', layout: 'motion-gate', controls: [
                 {type: 'button', label: 'RE-ARM MOTION', command: 'rearm-motion',
                  payload: {}, disabled: true, className: 'run-demo'},
@@ -877,10 +879,18 @@ def test_arm_motion_gate_control_updates_in_place_and_invokes_command(snapshot_p
     )
     button = page.get_by_role("button", name="RE-ARM MOTION", exact=True)
     assert button.is_disabled()
+    assert "Gate armed" in page.locator("#activity-panel").inner_text()
     page.evaluate("""() => {
         uiData.control_groups[0].controls[0].disabled = false;
+        uiData.logs.push({time: '12:01', level: 'warn', message: 'Health observation stale'});
         updateUi(uiData);
     }""")
+    assert "Health observation stale" in page.locator("#activity-panel").inner_text()
+    toggle = page.locator("#activity-toggle")
+    toggle.click()
+    assert page.locator("#activity-panel").is_hidden()
+    toggle.click()
+    assert page.locator("#activity-panel").is_visible()
     button.focus()
     button.evaluate("(node) => { window.motionGateButton = node; }")
     page.evaluate("""() => {

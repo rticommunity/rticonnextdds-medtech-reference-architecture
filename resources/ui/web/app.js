@@ -709,6 +709,9 @@ function renderArmApp(data) {
     body.append(renderActualFeedback(data.arm_feedback || data.feedback));
   }
   appMain.append(body);
+  if (data.show_activity_toggle) {
+    appMain.append(renderActivity(data.logs, data.activity_title || "ALERTS"));
+  }
   updateArmMotionStatus(data);
 }
 
@@ -1193,6 +1196,8 @@ function render(snapshot, connectionState = "connected") {
     updateControls(data.control_groups || []);
     updateArmMotionStatus(data);
     updateActualFeedback(data.arm_feedback || data.feedback);
+    updateActivity(data.logs, data.activity_title || "ALERTS");
+    setActivityToggle(data);
     reconcileArmScene(snapshot);
     return;
   }
