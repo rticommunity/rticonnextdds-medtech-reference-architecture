@@ -133,9 +133,9 @@ system/security/
 - **PSK passphrases:** Pre-Shared Key seed files (`.psk`) are generated per domain scope and stored alongside the governance/permissions artifacts (e.g. `domain_scope/OperationalDomain/OperationalDomain.psk`, `domain_scope/TeleopWanDomain/TeleopWanDomain.psk`). The file format is `<id>:<seed>` where `<id>` is an integer in [0, 254]. Participants load the passphrase via the `dds.sec.crypto.rtps_psk_secret_passphrase` property. Both domains use `rtps_psk_protection_kind=ENCRYPT` in their governance to protect pre-authentication RTPS traffic.
 - **Domain-level protection:** Both `OperationalDomain` and `TeleopWanDomain` use the [Builtin Security Plugins for domain-level protection](https://community.rti.com/static/documentation/connext-dds/7.7.0/doc/manuals/connext_dds_secure/users_manual/p3_advanced/threat_modeling.html#dds-security-threat-protection) pattern: `rtps_protection_kind=ENCRYPT_WITH_ORIGIN_AUTHENTICATION` provides insider integrity and availability protection; `rtps_psk_protection_kind=ENCRYPT` secures pre-authentication traffic.
 - **Topic-level protection:** LAN governance uses `metadata_protection_kind=ENCRYPT`
-  for patient vitals and all four robot topics: arm control, tool control, arm
-  status, and arm telemetry. WAN governance applies metadata encryption to every
-  topic via a catch-all, after the explicit secure-log rule.
+  for patient vitals, device status, arm control, tool control, and arm
+  telemetry. WAN governance applies metadata encryption to every topic via a
+  catch-all, after the explicit secure-log rule.
 
 The Arm role subscribes to arm/tool control and publishes arm readiness/telemetry.
 The controller role has the opposite directions. Recording subscribes to both

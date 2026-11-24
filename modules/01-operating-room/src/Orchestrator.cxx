@@ -53,7 +53,26 @@ struct UiEvent {
     std::string device;
     std::string command;
     std::string message;
+    std::string level;
 };
+
+#ifdef RTI_SECURITY_AVAILABLE
+std::optional<std::string> security_event_level(
+        DDSSecurity::LoggingLevel severity)
+{
+    switch (severity) {
+    case DDSSecurity::LoggingLevel::EMERGENCY_LEVEL:
+    case DDSSecurity::LoggingLevel::ALERT_LEVEL:
+    case DDSSecurity::LoggingLevel::CRITICAL_LEVEL:
+    case DDSSecurity::LoggingLevel::ERROR_LEVEL:
+        return "error";
+    case DDSSecurity::LoggingLevel::WARNING_LEVEL:
+        return "warn";
+    default:
+        return std::nullopt;
+    }
+}
+#endif
 
 std::string current_time()
 {
@@ -84,7 +103,7 @@ std::string device_name(Device::DeviceType device)
     return "UNKNOWN";
 }
 
-Device::DeviceType parse_device(const std::string &name)
+std::optional<Device::DeviceType> parse_device(const std::string &name)
 {
     if (name == "ARM")
         return Device::DeviceType::ARM;
@@ -92,32 +111,52 @@ Device::DeviceType parse_device(const std::string &name)
         return Device::DeviceType::ARM_CONTROLLER;
     if (name == "PATIENT_SENSOR")
         return Device::DeviceType::PATIENT_SENSOR;
-    return Device::DeviceType::PATIENT_MONITOR;
+    if (name == "PATIENT_MONITOR")
+        return Device::DeviceType::PATIENT_MONITOR;
+    return std::nullopt;
 }
 
-Device::DeviceCommands parse_command(const std::string &name)
+std::optional<Device::DeviceCommandKind> parse_command(const std::string &name)
 {
     if (name == "START")
-        return Device::DeviceCommands::START;
+        return Device::DeviceCommandKind::START;
     if (name == "PAUSE")
-        return Device::DeviceCommands::PAUSE;
-    return Device::DeviceCommands::SHUTDOWN;
+        return Device::DeviceCommandKind::PAUSE;
+    if (name == "SHUTDOWN")
+        return Device::DeviceCommandKind::SHUTDOWN;
+    return std::nullopt;
 }
 
-std::string status_name(Device::DeviceStatuses status)
+std::string status_name(Device::DeviceStatusKind status)
 {
-    if (status == Device::DeviceStatuses::ON)
+    if (status == Device::DeviceStatusKind::ON)
         return "ON";
-    if (status == Device::DeviceStatuses::PAUSED)
+    if (status == Device::DeviceStatusKind::PAUSED)
         return "PAUSED";
-    if (status == Device::DeviceStatuses::ERROR)
+    if (status == Device::DeviceStatusKind::ERROR)
         return "ERROR";
-    return "OFF";
+    if (status == Device::DeviceStatusKind::OFF)
+        return "OFF";
+    return "UNKNOWN";
+}
+
+std::string readiness_name(Device::DeviceReadinessKind readiness)
+{
+    switch (readiness) {
+    case Device::DeviceReadinessKind::NOT_READY:
+        return "NOT_READY";
+    case Device::DeviceReadinessKind::READY:
+        return "READY";
+    case Device::DeviceReadinessKind::FAULTED:
+        return "FAULTED";
+    }
+    return "UNKNOWN";
 }
 
 Json orchestrator_view(
         const std::map<Device::DeviceType, std::string> &statuses,
-        const std::map<Device::DeviceType, bool> &presence,
+        const std::map<Device::DeviceType, std::string> &readiness,
+        const std::map<Device::DeviceType, std::string> &presence,
         Device::DeviceType selected_device,
         bool secure,
         bool security_threat,
@@ -134,7 +173,9 @@ Json orchestrator_view(
         const auto status = statuses.at(device);
         device_rows.push_back({
                 { "name", device_name(device) },
-                { "status", presence.at(device) ? status : "OFF" },
+                { "status", status },
+                { "readiness", readiness.at(device) },
+                { "presence", presence.at(device) },
                 { "selected", device == selected_device },
         });
     }
@@ -156,7 +197,7 @@ Json orchestrator_view(
               { "payload", { { "command", "SHUTDOWN" } } },
               { "className", "shutdown-command" } },
     });
-    const std::string security_state = security_threat ? "THREAT DETECTED"
+    const std::string security_state = security_threat ? "SECURITY EVENT"
             : secure                                   ? "SECURITY: OK"
                                                        : "UNSECURE";
     return {
@@ -233,15 +274,17 @@ public:
     void run()
     {
         std::map<Device::DeviceType, std::string> statuses;
-        std::map<Device::DeviceType, bool> presence;
+        std::map<Device::DeviceType, std::string> readiness;
+        std::map<Device::DeviceType, std::string> presence;
         for (const auto device : {
                      Device::DeviceType::ARM,
                      Device::DeviceType::ARM_CONTROLLER,
                      Device::DeviceType::PATIENT_SENSOR,
                      Device::DeviceType::PATIENT_MONITOR,
              }) {
-            statuses[device] = "OFF";
-            presence[device] = false;
+            statuses[device] = "UNKNOWN";
+            readiness[device] = "UNKNOWN";
+            presence[device] = "UNKNOWN";
         }
 
         auto selected_device = Device::DeviceType::ARM;
@@ -250,6 +293,7 @@ public:
                 medtech::operating_room::participant_security_enabled(
                         participant_);
         auto security_threat_until = std::chrono::steady_clock::time_point { };
+        bool displayed_security_threat = false;
         auto append_log = [&](std::string message,
                               const std::string &level = "info") {
             logs.push_back({
@@ -267,16 +311,16 @@ public:
         if (secure) {
             securelog_reader = SecureLog::setup_secure_log_reader(
                     [this](const SecureLog::SecureLogType &sample) {
-                        const auto severity =
-                                static_cast<int32_t>(sample.severity);
-                        if (severity <= static_cast<int32_t>(
-                                    DDSSecurity::LoggingLevel::WARNING_LEVEL)) {
+                        const auto level =
+                                security_event_level(sample.severity);
+                        if (level) {
                             events_.push({
                                     "security",
                                     { },
                                     { },
-                                    "SECURITY THREAT [" + sample.appname + "] "
+                                    "SECURITY EVENT [" + sample.appname + "] "
                                             + sample.message,
+                                    *level,
                             });
                         }
                     },
@@ -288,11 +332,13 @@ public:
             const bool security_threat =
                     std::chrono::steady_clock::now() < security_threat_until;
             app_.set_data(orchestrator_view(statuses,
+                                            readiness,
                                             presence,
                                             selected_device,
                                             secure,
                                             security_threat,
                                             logs));
+            displayed_security_threat = security_threat;
         };
         append_log("Started Orchestrator");
 
@@ -300,31 +346,55 @@ public:
         participant_.enable();
         publish_view();
         while (!stopping_.load()) {
+            bool view_changed = false;
             while (auto event = events_.try_pop()) {
+                view_changed = true;
                 if (event->kind == "command") {
                     const auto command = parse_command(event->command);
+                    if (!command) {
+                        append_log("Rejected unknown device command: "
+                                           + event->command,
+                                   "warn");
+                        continue;
+                    }
                     command_writer_.write(
-                            Device::Command(selected_device, command));
+                            Device::Command(selected_device, *command));
                     append_log("Writing " + event->command + " to "
                                + device_name(selected_device));
                 } else if (event->kind == "select-device") {
-                    selected_device = parse_device(event->device);
+                    const auto device = parse_device(event->device);
+                    if (!device) {
+                        append_log("Rejected unknown device: " + event->device,
+                                   "warn");
+                        continue;
+                    }
+                    selected_device = *device;
                     append_log("Selected " + device_name(selected_device));
                 } else if (event->kind == "security") {
-                    append_log(event->message, "blocked");
+                    append_log(event->message, event->level);
                     security_threat_until =
                             std::chrono::steady_clock::now() + 8s;
                 } else if (event->kind == "heartbeat-present") {
                     const auto device = parse_device(event->device);
-                    presence[device] = true;
-                    append_log(device_name(device)
+                    if (!device) {
+                        append_log("Unknown heartbeat device: " + event->device,
+                                   "warn");
+                        continue;
+                    }
+                    presence[*device] = "PRESENT";
+                    append_log(device_name(*device)
                                + " resumed sending heartbeats");
                 } else if (event->kind == "heartbeat-lost") {
                     const auto device = parse_device(event->device);
-                    presence[device] = false;
+                    if (!device) {
+                        append_log("Unknown heartbeat device: " + event->device,
+                                   "warn");
+                        continue;
+                    }
+                    presence[*device] = "OFFLINE";
                     append_log(
-                        device_name(device)
-                                + " stopped sending heartbeats; marking it OFF",
+                        device_name(*device)
+                                + " stopped sending heartbeats; presence OFFLINE",
                         "warn");
                 }
             }
@@ -335,11 +405,16 @@ public:
                 const auto device = sample.data().device;
                 const auto status = status_name(sample.data().status);
                 statuses[device] = status;
+                readiness[device] = readiness_name(sample.data().readiness);
+                view_changed = true;
                 append_log("Received " + status + " status from "
                            + device_name(device));
             }
 
-            publish_view();
+            const bool security_threat =
+                    std::chrono::steady_clock::now() < security_threat_until;
+            if (view_changed || security_threat != displayed_security_threat)
+                publish_view();
             std::this_thread::sleep_for(50ms);
         }
         heartbeat_monitor_->stop();

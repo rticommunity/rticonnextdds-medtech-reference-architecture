@@ -16,19 +16,21 @@ module Device {
     const string TOPIC_COMMAND = "t/device/command";
     const string TOPIC_STATUS = "t/device/status";
     const string TOPIC_HEARTBEAT = "t/device/heartbeat";
-    enum DeviceStatuses { ON, OFF, PAUSED, ERROR };
-    enum DeviceType { ARM_CONTROLLER, ARM, VIDEO_PUB, VIDEO_SUB, PATIENT_MONITOR, PATIENT_SENSOR };
-    enum DeviceCommands { START, SHUTDOWN, PAUSE };
+    enum DeviceStatusKind { ON, OFF, PAUSED, ERROR };
+    enum DeviceReadinessKind { NOT_READY, READY, FAULTED };
+    enum DeviceType { ARM_CONTROLLER, ARM, PATIENT_MONITOR, PATIENT_SENSOR };
+    enum DeviceCommandKind { START, SHUTDOWN, PAUSE };
     @appendable struct Status {
         @key DeviceType device;
-        DeviceStatuses status;
+        DeviceStatusKind status;
+        DeviceReadinessKind readiness;
     };
     @appendable struct Heartbeat {
         @key DeviceType device;
     };
     @appendable struct Command {
         @key DeviceType device;
-        DeviceCommands command;
+        DeviceCommandKind command;
     };
 };
 #endif

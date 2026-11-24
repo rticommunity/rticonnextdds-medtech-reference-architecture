@@ -30,6 +30,7 @@ DEFAULT_PROVIDER = "local"
 CAPABILITIES = ("arm", "gamepad", "native")
 ROLE_PACKAGES = {
     "Arm": ("arm", ("mink", "mujoco", "qpsolvers", "daqp")),
+    "ArmKortex": ("arm", ("mink", "mujoco", "qpsolvers", "daqp")),
     "ArmControllerGamepad": ("gamepad", ("pygame-ce",)),
 }
 LOG = logging.getLogger(__name__)

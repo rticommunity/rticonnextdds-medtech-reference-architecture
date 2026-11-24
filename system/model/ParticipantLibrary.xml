@@ -27,9 +27,6 @@ inability to use the software. -->
         <data_writer name="dw/DeviceHeartbeat" topic_ref="t/device/heartbeat">
           <datawriter_qos base_name="DataFlowLibrary::Heartbeat"/>
         </data_writer>
-        <data_writer name="dw/ArmStatus" topic_ref="t/robot/arm/status">
-          <datawriter_qos base_name="DataFlowLibrary::Status"/>
-        </data_writer>
         <data_writer name="dw/ArmTelemetry" topic_ref="t/robot/arm/telemetry">
           <datawriter_qos base_name="DataFlowLibrary::Telemetry"/>
         </data_writer>
@@ -44,6 +41,36 @@ inability to use the software. -->
           <datareader_qos base_name="DataFlowLibrary::Control"/>
         </data_reader>
 
+        <data_reader name="dr/DeviceCommand" topic_ref="t/device/command">
+          <content_filter name="filter" kind="builtin.sql">
+            <expression>device = 'ARM'</expression>
+          </content_filter>
+          <datareader_qos base_name="DataFlowLibrary::Command"/>
+        </data_reader>
+      </subscriber>
+    </domain_participant>
+
+    <domain_participant name="dp/ArmKortex" domain_ref="ConnextDomainLib::OperationalDataDomain">
+      <domain_participant_qos base_name="DpQosLib::Arm"/>
+
+      <publisher name="p/publisher">
+        <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
+        <data_writer name="dw/DeviceStatus" topic_ref="t/device/status">
+          <datawriter_qos base_name="DataFlowLibrary::Status"/>
+        </data_writer>
+        <data_writer name="dw/DeviceHeartbeat" topic_ref="t/device/heartbeat">
+          <datawriter_qos base_name="DataFlowLibrary::Heartbeat"/>
+        </data_writer>
+        <data_writer name="dw/ArmTelemetry" topic_ref="t/robot/arm/telemetry">
+          <datawriter_qos base_name="DataFlowLibrary::Telemetry"/>
+        </data_writer>
+      </publisher>
+
+      <subscriber name="s/subscriber">
+        <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
+        <data_reader name="dr/TeleopControl" topic_ref="t/robot/arm/control">
+          <datareader_qos base_name="DataFlowLibrary::Control"/>
+        </data_reader>
         <data_reader name="dr/DeviceCommand" topic_ref="t/device/command">
           <content_filter name="filter" kind="builtin.sql">
             <expression>device = 'ARM'</expression>
@@ -83,7 +110,10 @@ inability to use the software. -->
           <datareader_qos base_name="DataFlowLibrary::Command"/>
 
         </data_reader>
-        <data_reader name="dr/ArmStatus" topic_ref="t/robot/arm/status">
+        <data_reader name="dr/DeviceStatus" topic_ref="t/device/status">
+          <content_filter name="filter" kind="builtin.sql">
+            <expression>device = 'ARM'</expression>
+          </content_filter>
           <datareader_qos base_name="DataFlowLibrary::Status"/>
         </data_reader>
         <data_reader name="dr/ArmTelemetry" topic_ref="t/robot/arm/telemetry">
@@ -122,7 +152,7 @@ inability to use the software. -->
         <publisher_qos base_name="BuiltinQosLib::Generic.Common"/>
 
         <data_writer name="dw/Vitals" topic_ref="t/patient/vitals">
-          <datawriter_qos base_name="DataFlowLibrary::Streaming"/>
+          <datawriter_qos base_name="DataFlowLibrary::Vitals"/>
         </data_writer>
         <data_writer name="dw/DeviceStatus" topic_ref="t/device/status">
           <datawriter_qos base_name="DataFlowLibrary::Status"/>
@@ -169,7 +199,11 @@ inability to use the software. -->
         </data_reader>
 
         <data_reader name="dr/Vitals" topic_ref="t/patient/vitals">
-          <datareader_qos base_name="DataFlowLibrary::Streaming"/>
+          <content_filter name="filter" kind="builtin.sql">
+            <expression>patient_id = %0</expression>
+            <expression_parameters><element>'ab1234'</element></expression_parameters>
+          </content_filter>
+          <datareader_qos base_name="DataFlowLibrary::Vitals"/>
         </data_reader>
       </subscriber>
     </domain_participant>

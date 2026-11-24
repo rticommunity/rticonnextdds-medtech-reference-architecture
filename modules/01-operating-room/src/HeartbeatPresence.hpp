@@ -148,7 +148,11 @@ public:
                                 .policy<dds::core::policy::Deadline>()
                                 .period()),
               deadline_condition_(reader_),
-              data_condition_(reader_, dds::sub::status::DataState::new_data()),
+              data_condition_(reader_,
+                              dds::sub::status::DataState(
+                                      dds::sub::status::SampleState::not_read(),
+                                      dds::sub::status::ViewState::any(),
+                                      dds::sub::status::InstanceState::any())),
               presence_handler_(std::move(presence_handler))
     {
         for (const auto device : {
@@ -234,6 +238,18 @@ private:
                          std::vector<Transition> &transitions)
     {
         for (const auto &sample : samples) {
+            if (sample.info().state().instance_state()
+                != dds::sub::status::InstanceState::alive()) {
+                Device::Heartbeat key;
+                if (sample.info().valid()) {
+                    key = sample.data();
+                } else {
+                    reader_.key_value(key, sample.info().instance_handle());
+                }
+                last_reception_.erase(key.device);
+                update_presence(key.device, false, transitions);
+                continue;
+            }
             if (!sample.info().valid())
                 continue;
 
@@ -265,9 +281,7 @@ private:
                     return;
 
                 const auto samples =
-                        reader_.select()
-                                .state(dds::sub::status::DataState::new_data())
-                                .take();
+                        reader_.select().condition(data_condition_).take();
                 const auto now = participant_.current_time();
                 process_samples(samples, now, transitions);
 

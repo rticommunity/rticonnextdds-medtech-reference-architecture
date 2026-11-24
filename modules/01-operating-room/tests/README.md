@@ -52,6 +52,8 @@ pytest tests/ -v -m "not secure"
 | `test_arm_kinematics.py` | Engine-derived FK, constrained base-frame motion, collision approaches/recovery, singularity recovery, actuator braking, numerical faults, signed jaw travel | — |
 | `test_dds_communication.py` | Actual data paths, including arm/jaw motion, hold after stream loss, and fresh-command recovery | `gui` for Arm tests |
 | `test_demo_flow.py` | End-to-end README scenarios (crash detection, pause/resume, shutdown) | `gui`, `slow`, `secure` |
+| `test_kortex.py`, `test_falcon.py`, `test_device_inputs.py` | Physical adapter behavior using mocked devices and focused DDS paths | No physical-device qualification |
+| `test_physical_motion_gate.py` | Re-arm and disarm behavior of the software motion gate | — |
 | `test_xml_qos.py` | Loads system QoS XML and creates the five operational named participants; secure Orchestrator startup creates SecureLogReader | `gui`, `secure` for SecureLogReader |
 
 ## How It Works

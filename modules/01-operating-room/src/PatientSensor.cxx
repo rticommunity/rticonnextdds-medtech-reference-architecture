@@ -77,7 +77,7 @@ public:
         require_endpoint(command_reader_, DEVICE_COMMAND_DR);
 
         current_status_.device = Device::DeviceType::PATIENT_SENSOR;
-        status_ = Device::DeviceStatuses::ON;
+        status_ = Device::DeviceStatusKind::ON;
 
         command_read_condition_ = dds::sub::cond::ReadCondition(
                 command_reader_,
@@ -98,7 +98,7 @@ public:
 
         heartbeat.start();
         while (!g_shutdown && !heartbeat.failed()
-               && status_ != Device::DeviceStatuses::OFF) {
+               && status_ != Device::DeviceStatusKind::OFF) {
             command_waitset_.dispatch(dds::core::Duration(1));
             write_vitals();
         }
@@ -109,7 +109,7 @@ public:
 
         if (g_shutdown) {
             std::cout << "Shutting Down Patient Sensor (signal)" << std::endl;
-            status_ = Device::DeviceStatuses::OFF;
+            status_ = Device::DeviceStatusKind::OFF;
             write_status();
         }
     }
@@ -123,7 +123,7 @@ private:
     dds::sub::cond::ReadCondition command_read_condition_ = dds::core::null;
     dds::core::cond::WaitSet command_waitset_;
     Device::Status current_status_;
-    Device::DeviceStatuses status_ { Device::DeviceStatuses::OFF };
+    Device::DeviceStatusKind status_ { Device::DeviceStatusKind::OFF };
 
     void write_vitals()
     {
@@ -135,13 +135,16 @@ private:
         sample.nibp_s = 115 + rand() % 11;
         sample.nibp_d = 75 + rand() % 11;
 
-        if (status_ == Device::DeviceStatuses::ON)
+        if (status_ == Device::DeviceStatusKind::ON)
             vitals_writer_.write(sample);
     }
 
     void write_status()
     {
         current_status_.status = status_;
+        current_status_.readiness = status_ == Device::DeviceStatusKind::ON
+                ? Device::DeviceReadinessKind::READY
+                : Device::DeviceReadinessKind::NOT_READY;
         status_writer_.write(current_status_);
     }
 
@@ -152,16 +155,16 @@ private:
 
         for (const auto &sample : samples) {
             if (sample.info().valid()) {
-                if (sample.data().command == Device::DeviceCommands::PAUSE) {
+                if (sample.data().command == Device::DeviceCommandKind::PAUSE) {
                     std::cout << "Pausing Patient Sensor" << std::endl;
-                    status_ = Device::DeviceStatuses::PAUSED;
+                    status_ = Device::DeviceStatusKind::PAUSED;
                 } else if (sample.data().command
-                           == Device::DeviceCommands::START) {
+                           == Device::DeviceCommandKind::START) {
                     std::cout << "Starting Patient Sensor" << std::endl;
-                    status_ = Device::DeviceStatuses::ON;
+                    status_ = Device::DeviceStatusKind::ON;
                 } else {  // shutdown
                     std::cout << "Shutting Down Patient Sensor" << std::endl;
-                    status_ = Device::DeviceStatuses::OFF;
+                    status_ = Device::DeviceStatusKind::OFF;
                 }
                 write_status();
             }

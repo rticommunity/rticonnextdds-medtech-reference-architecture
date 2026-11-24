@@ -17,7 +17,8 @@
 #   connext-base  — Ubuntu 24.04 + Connext DDS via apt
 #   build-base    — Python + C++ dependencies
 #   build         — CMake configure + build
-#   test          — Pytest for headless browser-mode testing
+#   wan-lab       — Optional WAN lab node image
+#   test          — Pytest for headless browser-mode testing (default)
 #
 # RTI license file is NOT baked into the image.
 # Mount it at runtime via -v:
@@ -36,7 +37,7 @@
 #
 # Run specific tests:
 #   docker run --rm \
-#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_connext_dds-7.7.0/rti_license.dat:ro \
+#     -v $RTI_LICENSE_FILE:/opt/rti.com/rti_license.dat:ro \
 #     medtech-test system/tests -v
 # ==========================================================================
 
@@ -142,7 +143,17 @@ RUN /bin/bash -ec 'set -- "$NDDSHOME"/resource/scripts/rtisetenv_*.bash; \
     python medtech.py build -- -DRTICONNEXTDDS_VERSION="$CONNEXT_VERSION" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON'
 
 # ------------------------------------------------------------------
-# Stage 4: Test environment
+# Stage 4: Optional WAN lab nodes
+# ------------------------------------------------------------------
+FROM build AS wan-lab
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        iproute2 iptables tcpdump \
+    && rm -rf /var/lib/apt/lists/*
+
+# ------------------------------------------------------------------
+# Stage 5: Test environment (default target)
 # ------------------------------------------------------------------
 FROM build AS test
 

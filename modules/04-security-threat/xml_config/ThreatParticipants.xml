@@ -80,7 +80,7 @@ works of the software solely for use with RTI Connext DDS. -->
       <subscriber name="s/subscriber">
         <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
         <data_reader name="dr/Vitals" topic_ref="t/patient/vitals">
-          <datareader_qos base_name="DataFlowLibrary::Streaming"/>
+          <datareader_qos base_name="DataFlowLibrary::Vitals"/>
         </data_reader>
       </subscriber>
     </domain_participant>
@@ -93,7 +93,7 @@ works of the software solely for use with RTI Connext DDS. -->
       <subscriber name="s/subscriber">
         <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
         <data_reader name="dr/Vitals" topic_ref="t/patient/vitals">
-          <datareader_qos base_name="DataFlowLibrary::Streaming"/>
+          <datareader_qos base_name="DataFlowLibrary::Vitals"/>
         </data_reader>
       </subscriber>
     </domain_participant>
@@ -106,7 +106,7 @@ works of the software solely for use with RTI Connext DDS. -->
       <subscriber name="s/subscriber">
         <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
         <data_reader name="dr/Vitals" topic_ref="t/patient/vitals">
-          <datareader_qos base_name="DataFlowLibrary::Streaming"/>
+          <datareader_qos base_name="DataFlowLibrary::Vitals"/>
         </data_reader>
       </subscriber>
     </domain_participant>
@@ -119,7 +119,7 @@ works of the software solely for use with RTI Connext DDS. -->
       <subscriber name="s/subscriber">
         <subscriber_qos base_name="BuiltinQosLib::Generic.Common"/>
         <data_reader name="dr/Vitals" topic_ref="t/patient/vitals">
-          <datareader_qos base_name="DataFlowLibrary::Streaming"/>
+          <datareader_qos base_name="DataFlowLibrary::Vitals"/>
         </data_reader>
       </subscriber>
     </domain_participant>

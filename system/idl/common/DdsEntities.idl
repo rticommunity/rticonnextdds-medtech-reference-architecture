@@ -16,6 +16,7 @@ module DdsEntities {
     module Constants {
         const string ARM_CONTROLLER_DP = "MedicalDemoParticipantLibrary::dp/ArmController";
         const string ARM_DP = "MedicalDemoParticipantLibrary::dp/Arm";
+        const string ARM_KORTEX_DP = "MedicalDemoParticipantLibrary::dp/ArmKortex";
         const string ORCHESTRATOR_DP = "MedicalDemoParticipantLibrary::dp/Orchestrator";
         const string PATIENT_MONITOR_DP = "MedicalDemoParticipantLibrary::dp/PatientMonitor";
         const string PATIENT_SENSOR_DP = "MedicalDemoParticipantLibrary::dp/PatientSensor";
@@ -28,8 +29,6 @@ module DdsEntities {
         const string TELEOP_CONTROL_DR = "s/subscriber::dr/TeleopControl";
         const string TOOL_CONTROL_DW = "p/publisher::dw/ToolControl";
         const string TOOL_CONTROL_DR = "s/subscriber::dr/ToolControl";
-        const string ARM_STATUS_DW = "p/publisher::dw/ArmStatus";
-        const string ARM_STATUS_DR = "s/subscriber::dr/ArmStatus";
         const string ARM_TELEMETRY_DW = "p/publisher::dw/ArmTelemetry";
         const string ARM_TELEMETRY_DR = "s/subscriber::dr/ArmTelemetry";
         const string DEVICE_COMMAND_DW = "p/publisher::dw/DeviceCommand";

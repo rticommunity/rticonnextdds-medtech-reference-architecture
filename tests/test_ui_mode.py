@@ -288,6 +288,15 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                     sensor_process = manager.start_app_ready("PatientSensor")
                     sensor = page.locator(".device-card").filter(has_text="PATIENT_SENSOR")
                     playwright.expect(sensor.locator(".device-status")).to_have_text("ON")
+                    playwright.expect(sensor.locator(".device-status-label")).to_have_text(
+                        "Lifecycle · last reported"
+                    )
+                    playwright.expect(sensor.locator(".device-presence")).to_have_text(
+                        "Presence: PRESENT"
+                    )
+                    playwright.expect(sensor.locator(".device-readiness")).to_have_text(
+                        "Readiness · last reported: READY"
+                    )
                     sensor.click(delay=150)
                     playwright.expect(sensor).to_have_attribute("aria-pressed", "true")
                     playwright.expect(page.locator(".command-panel > p")).to_have_text(
@@ -312,6 +321,13 @@ def test_gui_controls_remain_within_resized_windows(module, app):
                         in page.locator("#activity-panel").inner_text()
                     )
                     assert sensor_process.wait(timeout=5) == 0
+                    playwright.expect(sensor.locator(".device-presence")).to_have_text(
+                        "Presence: OFFLINE", timeout=5000
+                    )
+                    playwright.expect(sensor.locator(".device-status")).to_have_text("OFF")
+                    playwright.expect(sensor.locator(".device-readiness")).to_have_text(
+                        "Readiness · last reported: NOT_READY"
+                    )
                 if app == "Arm":
                     page.wait_for_function(
                         "document.querySelector('.arm-scene-status')?.textContent.includes('loaded')"
@@ -847,6 +863,53 @@ def test_jog_survives_unrelated_updates_but_stops_when_disabled(snapshot_page, c
 
 
 @pytest.mark.browser
+def test_arm_motion_gate_control_updates_in_place_and_invokes_command(snapshot_page):
+    page = snapshot_page
+    page.evaluate(
+        """() => updateUi({
+            kind: 'arm',
+            backend_label: 'KINOVA · SUPERVISED MOTION',
+            control_groups: [{title: 'MOTION PERMISSION', layout: 'motion-gate', controls: [
+                {type: 'button', label: 'RE-ARM MOTION', command: 'rearm-motion',
+                 payload: {}, disabled: true, className: 'run-demo'},
+            ]}],
+        })"""
+    )
+    button = page.get_by_role("button", name="RE-ARM MOTION", exact=True)
+    assert button.is_disabled()
+    page.evaluate("""() => {
+        uiData.control_groups[0].controls[0].disabled = false;
+        updateUi(uiData);
+    }""")
+    button.focus()
+    button.evaluate("(node) => { window.motionGateButton = node; }")
+    page.evaluate("""() => {
+        uiData.control_groups[0].controls[0].label = 'RE-ARM AVAILABLE';
+        updateUi(uiData);
+    }""")
+    assert page.evaluate(
+        "motionGateButton.isConnected && document.activeElement === motionGateButton"
+    )
+    available_button = page.get_by_role("button", name="RE-ARM AVAILABLE", exact=True)
+    assert not available_button.is_disabled()
+    available_button.click()
+    page.wait_for_function("commands.length === 1")
+    assert page.evaluate("commands[0]") == {
+        "command": "rearm-motion",
+        "payload": {},
+    }
+
+    page.evaluate("""() => {
+        uiData.control_groups[0].controls[0].disabled = true;
+        uiData.control_groups[0].controls[0].label = 'MOTION ARMED';
+        updateUi(uiData);
+    }""")
+    armed_button = page.get_by_role("button", name="MOTION ARMED", exact=True)
+    assert armed_button.is_disabled()
+    assert page.evaluate("motionGateButton.isConnected")
+
+
+@pytest.mark.browser
 def test_frequency_edit_survives_snapshots_and_publishes_operator_value(snapshot_page):
     page = snapshot_page
     page.evaluate("""() => updateUi({
@@ -925,6 +988,37 @@ def test_activity_preserves_rows_and_reading_position_while_following_tail(snaps
 
 
 @pytest.mark.browser
+def test_physical_monitors_do_not_show_simulated_motion_or_scene(snapshot_page):
+    page = snapshot_page
+    page.evaluate("""() => updateUi({
+        kind: 'arm', scene_available: false, device_status: 'ON',
+        feedback: {source: 'reported', readiness: 'NOT_READY', status_known: true},
+    })""")
+    assert page.locator(".arm-scene-panel").count() == 0
+    assert "NOT_READY" in page.locator(".actual-feedback").inner_text()
+    assert page.locator("[data-feedback='position'] .feedback-value").inner_text() == "---"
+    assert page.locator("[data-feedback='opening_width'] .feedback-value").inner_text() == "---"
+    page.evaluate("""() => updateUi({
+        kind: 'gamepad-controller', input_connected: false, input_label: 'Falcon',
+        control_instruction: 'Observe-only input; no arm or jaw commands are published.',
+        inputs: [],
+    })""")
+    assert page.locator(".gamepad-instruction").inner_text() == (
+        "Observe-only input; no arm or jaw commands are published."
+    )
+    assert "FALCON" in page.locator(".gamepad-connection").inner_text()
+    assert "GAMEPAD" not in page.locator(".gamepad-connection").inner_text()
+    page.evaluate("""() => updateUi({
+        kind: 'gamepad-controller', input_connected: false,
+        control_instruction: 'Waiting for fresh, ready arm feedback.',
+        inputs: [],
+    })""")
+    assert page.locator(".gamepad-instruction").inner_text() == (
+        "Waiting for fresh, ready arm feedback."
+    )
+
+
+@pytest.mark.browser
 def test_gamepad_feedback_survives_input_and_connection_updates(snapshot_page):
     page = snapshot_page
     page.evaluate("""() => updateUi({
@@ -935,7 +1029,7 @@ def test_gamepad_feedback_survives_input_and_connection_updates(snapshot_page):
         window.feedback = document.querySelector('.actual-feedback');
         window.inputRow = document.querySelector('.gamepad-input-row');
         uiData.input_connected = true;
-        uiData.gamepad_name = 'Test gamepad';
+        uiData.input_name = 'Test gamepad';
         uiData.inputs[0].active = true;
         uiData.inputs[0].description = 'Return to neutral';
         updateUi(uiData);

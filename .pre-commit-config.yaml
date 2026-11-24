@@ -49,7 +49,7 @@ repos:
         types_or: [batch]
       - id: name-tests-test
         args: [--pytest-test-first]
-        exclude: ^(modules/.*/tests/module.*_test_support|tests/support/check_security)\.py$
+        exclude: ^(modules/.*/tests/module.*_test_support|tests/support/check_security|tests/docker/(check_wan_lab|check_wan_loopback|wan_probe))\.py$
       - id: check-illegal-windows-names
 
   - repo: https://github.com/codespell-project/codespell

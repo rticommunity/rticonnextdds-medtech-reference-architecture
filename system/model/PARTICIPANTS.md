@@ -135,6 +135,7 @@ This reference architecture defines the following DomainParticipants in [Partici
 | DomainParticipant | Domain
 | ----------------- | ------
 | [*dp/Arm*](#medicaldemoparticipantlibrarydparm) | [*ConnextDomainLib::OperationalDataDomain*](DOMAINS.md#connextdomainliboperationaldatadomain)
+| [*dp/ArmKortex*](#medicaldemoparticipantlibrarydparmkortex) | [*ConnextDomainLib::OperationalDataDomain*](DOMAINS.md#connextdomainliboperationaldatadomain)
 | [*dp/ArmController*](#medicaldemoparticipantlibrarydparmcontroller) | [*ConnextDomainLib::OperationalDataDomain*](DOMAINS.md#connextdomainliboperationaldatadomain)
 | [*dp/Orchestrator*](#medicaldemoparticipantlibrarydporchestrator) | [*ConnextDomainLib::OperationalDataDomain*](DOMAINS.md#connextdomainliboperationaldatadomain)
 | [*dp/PatientSensor*](#medicaldemoparticipantlibrarydppatientsensor) | [*ConnextDomainLib::OperationalDataDomain*](DOMAINS.md#connextdomainliboperationaldatadomain)
@@ -152,7 +153,6 @@ jaws. It publishes observed feedback separately from command intent.
 | ---------- | ----- | ----------- | ------------
 | *dw/DeviceStatus* | *t/device/status* | [*DataFlowLibrary::Status*](../qos/QOS_PROFILE_REFERENCE.md#dataflowlibrarystatus-profile) | Publish Arm device status
 | *dw/DeviceHeartbeat* | *t/device/heartbeat* | [*DataFlowLibrary::Heartbeat*](../qos/QOS_PROFILE_REFERENCE.md#dataflowlibraryheartbeat-profile) | Assert Arm device is alive
-| *dw/ArmStatus* | *t/robot/arm/status* | [*DataFlowLibrary::Status*](../qos/QOS_PROFILE_REFERENCE.md#dataflowlibrarystatus-profile) | Initial/on-change readiness
 | *dw/ArmTelemetry* | *t/robot/arm/telemetry* | `DataFlowLibrary::Telemetry` | Periodic observed pose and optional jaw gap
 
 *dp/Arm* contains the following DataReaders (`<data_reader>`):
@@ -162,6 +162,17 @@ jaws. It publishes observed feedback separately from command intent.
 | *dr/TeleopControl* | *t/robot/arm/control* | [*DataFlowLibrary::Control*](../qos/QOS_PROFILE_REFERENCE.md#dataflowlibrarycontrol-profile) | -- | Read current base-frame linear/angular TCP rates each step
 | *dr/ToolControl* | *t/robot/tool/control* | `DataFlowLibrary::Control` | -- | Read current signed total jaw-opening rate each step
 | *dr/DeviceCommand* | *t/device/command* | [*DataFlowLibrary::Command*](../qos/QOS_PROFILE_REFERENCE.md#dataflowlibrarycommand-profile) | `device = 'ARM'` | Receive and process device commands targeting this Arm
+
+##### ***MedicalDemoParticipantLibrary::dp/ArmKortex***
+
+The experimental Kortex participant uses the same Arm participant QoS,
+writers, arm-control reader and ARM-filtered lifecycle-command reader as
+[*dp/Arm*](#medicaldemoparticipantlibrarydparm), but has no `dr/ToolControl`.
+It therefore does not match jaw command writers or require jaw updates for
+motion admission. It reports observed TCP telemetry without a jaw gap.
+This changes no wire types, routed/recorded topics or security identity: it
+uses the existing Arm role. See the [physical-device limitations and re-arm
+requirements](../../modules/01-operating-room/ARM_AND_CONTROLLER.md#experimental-kinova-motion-arm).
 
 ##### ***MedicalDemoParticipantLibrary::dp/ArmController***
 
@@ -181,7 +192,7 @@ The *ArmController* DomainParticipant is intended to administer commands to the 
 | DataReader | Topic | QoS Profile | Content Filter | Intended Use
 | ---------- | ----- | ----------- | -------------- | ------------
 | *dr/DeviceCommand* | *t/device/command* | [*DataFlowLibrary::Command*](../qos/QOS_PROFILE_REFERENCE.md#dataflowlibrarycommand-profile) | `device = 'ARM_CONTROLLER'` | Receive and process device commands targeting this Arm Controller
-| *dr/ArmStatus* | *t/robot/arm/status* | `DataFlowLibrary::Status` | -- | Observe arm readiness
+| *dr/DeviceStatus* | *t/device/status* | `DataFlowLibrary::Status` | `device = 'ARM'` | Observe arm readiness
 | *dr/ArmTelemetry* | *t/robot/arm/telemetry* | `DataFlowLibrary::Telemetry` | -- | Display actual pose/gap with independent freshness
 
 ##### ***MedicalDemoParticipantLibrary::dp/Orchestrator***
@@ -209,7 +220,7 @@ The *PatientSensor* DomainParticipant is intended to simulate a streaming source
 
 | DataWriter | Topic | QoS Profile | Intended Use
 | ---------- | ----- | ----------- | ------------
-| *dw/Vitals* | *t/patient/vitals* | [*DataFlowLibrary::Streaming*](../qos/QOS_PROFILE_REFERENCE.md#dataflowlibrarystreaming-profile) | Publish simulated patient vitals data stream
+| *dw/Vitals* | *t/patient/vitals* | [*DataFlowLibrary::Vitals*](../qos/QOS_PROFILE_REFERENCE.md#dataflowlibraryvitals-profile) | Publish simulated patient vitals data stream
 | *dw/DeviceStatus* | *t/device/status* | [*DataFlowLibrary::Status*](../qos/QOS_PROFILE_REFERENCE.md#dataflowlibrarystatus-profile) | Publish PatientSensor device status
 | *dw/DeviceHeartbeat* | *t/device/heartbeat* | [*DataFlowLibrary::Heartbeat*](../qos/QOS_PROFILE_REFERENCE.md#dataflowlibraryheartbeat-profile) | Assert PatientSensor device is alive
 
@@ -235,7 +246,7 @@ The *PatientMonitor* DomainParticipant is intended to process (display) patient 
 | DataReader | Topic | QoS Profile | Content Filter | Intended Use
 | ---------- | ----- | ----------- | -------------- | ------------
 | *dr/DeviceCommand* | *t/device/command* | [*DataFlowLibrary::Command*](../qos/QOS_PROFILE_REFERENCE.md#dataflowlibrarycommand-profile) | `device = 'PATIENT_MONITOR'` | Receive and process device commands targeting this PatientMonitor
-| *dr/Vitals* | *t/patient/vitals* | [*DataFlowLibrary::Streaming*](../qos/QOS_PROFILE_REFERENCE.md#dataflowlibrarystreaming-profile) | -- | Receive and process patient vitals data stream
+| *dr/Vitals* | *t/patient/vitals* | [*DataFlowLibrary::Vitals*](../qos/QOS_PROFILE_REFERENCE.md#dataflowlibraryvitals-profile) | `patient_id = %0` | Receive the configured patient ID (default `ab1234`)
 
 ##### ***MedicalDemoParticipantLibrary::dp/SecureLogReader***
 

@@ -56,7 +56,7 @@ set PUBLIC_PORT=10777
 set INTERNAL_PORT=10777
 ```
 
-You must then configure UDP port forwarding on your *Passive* side router between `PUBLIC_PORT` and `INTERNAL_PORT` to expose your DDS applications on the WAN.
+If the *Passive* side is behind a NAT, configure UDP port forwarding on its router between `PUBLIC_PORT` and `INTERNAL_PORT`. Without NAT, use the same value for both ports and allow it through the firewall.
 For example:
 
 ![Home office router configuration](../../docs/assets/module-03-home-router-config.png)
@@ -65,7 +65,8 @@ For example:
 
 > Important: Run the commands below from the repository root. `medtech.py run` lives at the project root and is the single runtime entrypoint for this project.
 
-*Note: This scenario will not work if different certificate sets are used on each side when using Security.*
+*Note: Secure peers need compatible trust, governance, permissions and WAN
+PSK configuration. Each participant should use its own identity key.*
 
 ### 1. Launch Active Side Applications
 
@@ -85,7 +86,8 @@ From the machine *publicly* exposed, start the Operating Room applications as th
 python medtech.py run 01-operating-room Orchestrator PatientSensor Arm PatientMonitor
 ```
 
->**Observe:** You should see **no communication** between applications since the Routing Service infrastructure has not been started yet.
+> [!NOTE]
+> **Observe:** You should see **no communication** between applications since the Routing Service infrastructure has not been started yet.
 
 ### 3. Launch Passive Routing Service
 
@@ -109,7 +111,10 @@ python medtech.py run 03-remote-teleoperation RsActive
 
 [Observe the operating room applications](../01-operating-room/README.md#2-observe-the-application-behavior) to verify that all *Module 01: Digital Operating Room* functionality works across the WAN.
 
->**Observe:** Once discovery completes, you should see data flow between the Operating Room applications and the Arm Controller. RTI Routing Service provides scalability by bridging between the local networks over the WAN and avoids managing a separate WAN connection for each set of remote applications that communicate.
+> [!NOTE]
+> **Observe:** Once discovery completes, you should see data flow between the Operating Room applications and the Arm Controller.
+
+RTI Routing Service bridges the local networks over the WAN, avoiding a separate WAN connection for each set of communicating applications.
 
 ### 6. Kill the applications
 

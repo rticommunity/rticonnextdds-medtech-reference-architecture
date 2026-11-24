@@ -83,7 +83,7 @@ inability to use the software. -->
                 <topic_name>t/patient/vitals</topic_name>
                 <registered_type_name>Patient::Vitals</registered_type_name>
                 <!-- Using the same QoS profile we use in our applications -->
-                <datawriter_qos base_name="DataFlowLibrary::Streaming"/>
+                <datawriter_qos base_name="DataFlowLibrary::Vitals"/>
             </topic>
 
             <!-- This topic group would replay all the topics but the rti/* topics -->

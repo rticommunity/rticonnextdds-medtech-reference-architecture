@@ -37,7 +37,10 @@ Thumbs.db
 # Docker context exclusions (VCS and CI metadata)
 # ---------------------------------------------------------------------------
 .git/
-.github/
+.github/*
+!.github/workflows/
+.github/workflows/*
+!.github/workflows/ci.yml
 
 # ---------------------------------------------------------------------------
 # Generated source artifacts
@@ -66,6 +69,7 @@ rti_license.dat
 # Application runtime output
 # ---------------------------------------------------------------------------
 **/or_recording/
+tests/docker/clab-medtechwan/
 
 # ---------------------------------------------------------------------------
 # Misc temporary files

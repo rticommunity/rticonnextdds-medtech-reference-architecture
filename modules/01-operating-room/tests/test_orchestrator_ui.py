@@ -53,7 +53,7 @@ def test_orchestrator_selected_device_receives_browser_command(
     seen = wait_for_device_status(
         nonsecure_utility_app.device_status.reader,
         expected_devices={Device.DeviceType.PATIENT_SENSOR},
-        device_statuses=[Device.DeviceStatuses.PAUSED],
+        device_statuses=[Device.DeviceStatusKind.PAUSED],
         timeout_sec=5,
     )
     assert Device.DeviceType.PATIENT_SENSOR in seen
@@ -88,23 +88,27 @@ def test_orchestrator_tracks_keyed_heartbeat_loss_and_recovery(
         status.write(
             Device.Status(
                 device=device,
-                status=Device.DeviceStatuses.ERROR,
+                status=Device.DeviceStatusKind.ERROR,
+                readiness=Device.DeviceReadinessKind.FAULTED,
             )
         )
 
-    def device_status(device):
+    def device_row(device):
         with urlopen(f"{url}/api/state", timeout=2) as response:
             return next(
-                row["status"]
-                for row in json.load(response)["data"]["devices"]
-                if row["name"] == device.name
+                row for row in json.load(response)["data"]["devices"] if row["name"] == device.name
             )
+
+    assert all(device_row(device)["presence"] == "UNKNOWN" for device in devices)
 
     deadline = time.monotonic() + 5
     while time.monotonic() < deadline:
         for device in devices:
             heartbeat.write(Device.Heartbeat(device=device))
-        if all(device_status(device) == "ERROR" for device in devices):
+        if all(
+            device_row(device)["status"] == "ERROR" and device_row(device)["presence"] == "PRESENT"
+            for device in devices
+        ):
             break
         time.sleep(0.05)
     else:
@@ -115,29 +119,40 @@ def test_orchestrator_tracks_keyed_heartbeat_loss_and_recovery(
         while time.monotonic() < deadline:
             heartbeat.write(Device.Heartbeat(device=Device.DeviceType.ARM_CONTROLLER))
             if (
-                device_status(Device.DeviceType.ARM) == "OFF"
-                and device_status(Device.DeviceType.ARM_CONTROLLER) == "ERROR"
+                device_row(Device.DeviceType.ARM)["presence"] == "OFFLINE"
+                and device_row(Device.DeviceType.ARM_CONTROLLER)["presence"] == "PRESENT"
             ):
                 break
             time.sleep(0.05)
         else:
-            raise AssertionError("A silent key did not become OFF while the other stayed present")
+            raise AssertionError(
+                "A silent key did not become offline while the other stayed present"
+            )
 
     deadline = time.monotonic() + 5
     while time.monotonic() < deadline:
-        if all(device_status(device) == "OFF" for device in devices):
+        if all(
+            device_row(device)["presence"] == "OFFLINE"
+            and device_row(device)["status"] == "ERROR"
+            and device_row(device)["readiness"] == "FAULTED"
+            for device in devices
+        ):
             break
         time.sleep(0.05)
     else:
-        raise AssertionError("Heartbeat loss did not mark all keyed devices OFF")
+        raise AssertionError("Heartbeat loss did not preserve the last reported lifecycle")
 
     heartbeat.write(Device.Heartbeat(device=Device.DeviceType.ARM))
 
     deadline = time.monotonic() + 3
     while time.monotonic() < deadline:
         if (
-            device_status(Device.DeviceType.ARM) == "ERROR"
-            and device_status(Device.DeviceType.ARM_CONTROLLER) == "OFF"
+            device_row(Device.DeviceType.ARM)["presence"] == "PRESENT"
+            and device_row(Device.DeviceType.ARM)["status"] == "ERROR"
+            and device_row(Device.DeviceType.ARM)["readiness"] == "FAULTED"
+            and device_row(Device.DeviceType.ARM_CONTROLLER)["presence"] == "OFFLINE"
+            and device_row(Device.DeviceType.ARM_CONTROLLER)["status"] == "ERROR"
+            and device_row(Device.DeviceType.ARM_CONTROLLER)["readiness"] == "FAULTED"
         ):
             return
         time.sleep(0.05)

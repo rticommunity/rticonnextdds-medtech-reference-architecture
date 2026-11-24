@@ -300,6 +300,7 @@ body[data-app-kind="patient-monitor"] { height: 100vh; }
 .device-card:hover { border-color: #336699; background: #121f30; }
 .device-card.selected { border-color: var(--blue); background: #0c1830; }
 .device-name { overflow-wrap: anywhere; color: #c8d8e8; font-size: clamp(18px, 2vw, 24px); font-weight: 700; }
+.device-status-label, .device-readiness, .device-presence { color: #c8d8e8; font-size: 13px; }
 .device-status { width: max-content; padding: 4px 10px; border: 1px solid transparent; border-radius: 4px; font-size: 16px; font-weight: 700; }
 .device-status.on { color: var(--green); border-color: #006633; background: #00331a; }
 .device-status.paused { color: var(--orange); border-color: #664400; background: #1a0d00; }

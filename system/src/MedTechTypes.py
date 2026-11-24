@@ -22,14 +22,14 @@ except ModuleNotFoundError as exc:
 _registered_types: dict[str, type] = {}
 
 _COMMAND_STATUSES = {
-    Device.DeviceCommands.START: Device.DeviceStatuses.ON,
-    Device.DeviceCommands.PAUSE: Device.DeviceStatuses.PAUSED,
-    Device.DeviceCommands.SHUTDOWN: Device.DeviceStatuses.OFF,
+    Device.DeviceCommandKind.START: Device.DeviceStatusKind.ON,
+    Device.DeviceCommandKind.PAUSE: Device.DeviceStatusKind.PAUSED,
+    Device.DeviceCommandKind.SHUTDOWN: Device.DeviceStatusKind.OFF,
 }
 
 
-def device_status_after_command(command: Device.DeviceCommands) -> Device.DeviceStatuses:
-    if not isinstance(command, Device.DeviceCommands):
+def device_status_after_command(command: Device.DeviceCommandKind) -> Device.DeviceStatusKind:
+    if not isinstance(command, Device.DeviceCommandKind):
         raise ValueError(f"Unsupported device command: {command}")
     try:
         return _COMMAND_STATUSES[command]

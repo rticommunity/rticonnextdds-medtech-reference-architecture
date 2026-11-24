@@ -4,7 +4,7 @@ This scenario demonstrates WAN communication when both DomainParticipants are be
 
 The *Active* RTI Routing Services initiate discovery towards the public cloud instance. The cloud-based *Passive* RTI Routing Service relays communication between both NAT-protected *Active* Routing Services.
 
-This scenario does **not** require the *OR's* and the *Arm Controller's* NATs to be cone NATs, making it the most flexible deployment option. However, the communication between local networks is not direct over the WAN, and is instead bridged by the cloud-based RTI Routing Service instance.
+This scenario does **not** require the *OR's* and the *Arm Controller's* NATs to be cone NATs. Both edges must be able to reach the cloud Routing Service over UDP. Communication between local networks is not direct over the WAN; the cloud Routing Service relays the data.
 
 Security is optional. When enabled, both Routing Service participants are secured: Domain 0 uses `OperationalDomain` and Domain 1 uses `TeleopWanDomain`. Both profiles require authentication and protect RTPS traffic; their topic-level protection differs. See the [security documentation](../../system/security/README.md) for details.
 
@@ -73,7 +73,8 @@ You will need to add a security rule on your cloud instance to allow incoming/ou
 
 > Important: Run the commands below from the repository root. `medtech.py run` lives at the project root and is the single runtime entrypoint for this project.
 
-*Note: Secure mode will not work if different certificate sets are used on each side.*
+*Note: Secure peers need compatible trust, governance, permissions and WAN
+PSK configuration. Each participant should use its own identity key.*
 
 ### 1. Launch Active Side Applications
 
@@ -93,7 +94,8 @@ From the other machine, start the Operating Room applications:
 python medtech.py run 01-operating-room Orchestrator PatientSensor Arm PatientMonitor
 ```
 
->**Observe:** You should see **no communication** between applications since the RTI Routing Service infrastructure has not been started yet.
+> [!NOTE]
+> **Observe:** You should see **no communication** between applications since the RTI Routing Service infrastructure has not been started yet.
 
 ### 3. Launch Cloud Routing Service
 
@@ -117,7 +119,10 @@ python medtech.py run 03-remote-teleoperation RsActive
 
 [Observe the operating room applications](../01-operating-room/README.md#2-observe-the-application-behavior) to verify that all *Module 01: Digital Operating Room* functionality works across the WAN.
 
->**Observe:** Once discovery completes, you should see data flow between the Operating Room applications and the Arm Controller. The cloud-based RTI Routing Service acts as a relay, facilitating communication between both NAT-protected sides. RTI Routing Service provides scalability by bridging between the local networks over the WAN and avoids managing a separate WAN connection for each set of remote applications that communicate.
+> [!NOTE]
+> **Observe:** Once discovery completes, you should see data flow between the Operating Room applications and the Arm Controller.
+
+The cloud-based RTI Routing Service relays data between the NAT-protected sides.
 
 ### 6. Kill the applications
 

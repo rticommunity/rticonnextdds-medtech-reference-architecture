@@ -50,6 +50,10 @@ For recording/replay or WAN, use the
 [module guides](../README.md#modules) to prepare the required services
 and data before changing scenarios.
 
+For experimental physical devices, use the separately supervised
+[staged rehearsal and physical checks](../modules/01-operating-room/ARM_AND_CONTROLLER.md#staged-rehearsal-and-physical-checks);
+this simulated run card does not qualify hardware motion.
+
 ## Reset, stop and recover
 
 - Stop motion before restarting. For a clean reset, press **Ctrl-C** in the

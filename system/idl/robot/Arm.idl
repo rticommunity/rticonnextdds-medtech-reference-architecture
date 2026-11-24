@@ -17,19 +17,13 @@
 module Robot {
     module Arm {
         const string TOPIC_CONTROL = "t/robot/arm/control";
-        const string TOPIC_STATUS = "t/robot/arm/status";
         const string TOPIC_TELEMETRY = "t/robot/arm/telemetry";
-        enum Readiness { NOT_READY, READY, FAULT };
         // TCP linear/angular velocity uses the fixed, right-handed arm base frame (+Z up).
         // Angular velocity rotates about base-oriented axes through the TCP, not the base origin.
         @appendable struct TeleopControl {
             @key string<32> arm_id;
             @unit("m/s") Geometry::Vector3 linear_velocity;
             @unit("rad/s") Geometry::Vector3 angular_velocity;
-        };
-        @appendable struct Status {
-            @key string<32> arm_id;
-            Readiness readiness;
         };
         @appendable struct Telemetry {
             @key string<32> arm_id;

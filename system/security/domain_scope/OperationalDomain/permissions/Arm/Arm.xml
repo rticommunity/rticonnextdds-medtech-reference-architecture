@@ -27,7 +27,6 @@ inability to use the software. -->
                     <topics>
                         <topic>t/device/status</topic>
                         <topic>t/device/heartbeat</topic>
-                        <topic>t/robot/arm/status</topic>
                         <topic>t/robot/arm/telemetry</topic>
                         <topic>DDS:Security:LogTopicV2</topic>
                     </topics>

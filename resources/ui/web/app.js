@@ -15,11 +15,11 @@ let displayedTopicKind;
 // Keep aligned with ParticipantLibrary.xml and ThreatParticipants.xml.
 const controllerTopics = {
   Publish: ["t/robot/arm/control", "t/robot/tool/control", "t/device/status", "t/device/heartbeat"],
-  Subscribe: ["t/device/command", "t/robot/arm/status", "t/robot/arm/telemetry"],
+  Subscribe: ["t/device/command", "t/device/status", "t/robot/arm/telemetry"],
 };
 const topicsByKind = {
   arm: {
-    Publish: ["t/device/status", "t/device/heartbeat", "t/robot/arm/status", "t/robot/arm/telemetry"],
+    Publish: ["t/device/status", "t/device/heartbeat", "t/robot/arm/telemetry"],
     Subscribe: ["t/robot/arm/control", "t/robot/tool/control", "t/device/command"],
   },
   "arm-controller": controllerTopics,
@@ -688,18 +688,23 @@ function renderSharedStatus(data, connected) {
 
 function renderArmApp(data) {
   const body = element("div", "arm-view");
-  const scenePanel = element("section", "arm-scene-panel");
-  const heading = element("div", "arm-scene-heading");
-  heading.append(
-    element("h2", "", "ARTICULATED ARM · SIMULATION"),
-    element("span", "arm-scene-status", "Connecting to 3D renderer"),
-  );
-  const host = element("div", "arm-scene-host");
-  host.id = "arm-scene-host";
-  const motion = element("p", "arm-motion-status");
-  motion.setAttribute("role", "status");
-  scenePanel.append(heading, host, motion);
-  body.append(scenePanel);
+  if ((data.control_groups || []).length) {
+    body.append(renderControlGroups(data.control_groups));
+  }
+  if (data.scene_available !== false) {
+    const scenePanel = element("section", "arm-scene-panel");
+    const heading = element("div", "arm-scene-heading");
+    heading.append(
+      element("h2", "", data.backend_label || "ARTICULATED ARM · SIMULATION"),
+      element("span", "arm-scene-status", "Connecting to 3D renderer"),
+    );
+    const host = element("div", "arm-scene-host");
+    host.id = "arm-scene-host";
+    const motion = element("p", "arm-motion-status");
+    motion.setAttribute("role", "status");
+    scenePanel.append(heading, host, motion);
+    body.append(scenePanel);
+  }
   if (data.arm_feedback || data.feedback) {
     body.append(renderActualFeedback(data.arm_feedback || data.feedback));
   }
@@ -989,7 +994,7 @@ function renderGamepad(data) {
     element(
       "p",
       "gamepad-instruction",
-      "Hold a control to command a base-frame velocity (+Z up). Directions do not follow the camera or tool. Return it to neutral to stop.",
+      data.control_instruction || "Hold a control to command a base-frame velocity (+Z up). Directions do not follow the camera or tool. Return it to neutral to stop.",
     ),
     renderActualFeedback(data.feedback),
   );
@@ -1000,8 +1005,12 @@ function updateGamepad(data) {
   const connection = appMain.querySelector(".gamepad-connection > span");
   connection.classList.toggle("connected", Boolean(data.input_connected));
   updateText(connection, data.input_connected
-    ? `●  ${data.gamepad_name} CONNECTED`
-    : "●  NO SUPPORTED GAMEPAD CONNECTED; WAITING");
+    ? `●  ${data.input_name} CONNECTED`
+    : `●  NO SUPPORTED ${String(data.input_label || "INPUT DEVICE").toUpperCase()} CONNECTED; WAITING`);
+  updateText(
+    appMain.querySelector(".gamepad-instruction"),
+    data.control_instruction || "Hold a control to command a base-frame velocity (+Z up). Directions do not follow the camera or tool. Return it to neutral to stop.",
+  );
   appMain.querySelectorAll(".gamepad-input-row").forEach((row, index) => {
     const input = data.inputs[index];
     row.querySelector(".gamepad-input-label").classList.toggle("active", Boolean(input.active));
@@ -1022,11 +1031,14 @@ function renderDeviceCards(data) {
     card.setAttribute("aria-pressed", String(Boolean(device.selected)));
     card.append(
       element("span", "device-name", device.name),
+      element("span", "device-status-label", "Lifecycle · last reported"),
       element(
         "span",
-        `device-status ${String(device.status || "OFF").toLowerCase()}`,
-        device.status || "OFF",
+        `device-status ${String(device.status || "UNKNOWN").toLowerCase()}`,
+        device.status || "UNKNOWN",
       ),
+      element("span", "device-readiness", `Readiness · last reported: ${device.readiness || "UNKNOWN"}`),
+      element("span", "device-presence", `Presence: ${device.presence || "UNKNOWN"}`),
     );
     card.addEventListener("click", () =>
       sendCommand("select-device", { device: device.name }),
@@ -1042,9 +1054,11 @@ function updateOrchestrator(data) {
     card.classList.toggle("selected", Boolean(device.selected));
     card.setAttribute("aria-pressed", String(Boolean(device.selected)));
     const status = card.querySelector(".device-status");
-    const label = device.status || "OFF";
+    const label = device.status || "UNKNOWN";
     status.className = `device-status ${String(label).toLowerCase()}`;
     updateText(status, label);
+    updateText(card.querySelector(".device-readiness"), `Readiness · last reported: ${device.readiness || "UNKNOWN"}`);
+    updateText(card.querySelector(".device-presence"), `Presence: ${device.presence || "UNKNOWN"}`);
   }
   const target = appMain.querySelector(".command-panel > p");
   const label = `to ${data.selected_device || "selected device"}`;
@@ -1171,6 +1185,7 @@ function render(snapshot, connectionState = "connected") {
     appMain.querySelector(".arm-view")
   ) {
     renderBadges(data);
+    updateControls(data.control_groups || []);
     updateArmMotionStatus(data);
     updateActualFeedback(data.arm_feedback || data.feedback);
     reconcileArmScene(snapshot);

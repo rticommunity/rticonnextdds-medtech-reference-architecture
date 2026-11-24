@@ -115,7 +115,7 @@ class ThreatInjectorDdsAdapter:
         self.command_writer.write(
             Device.Command(
                 device=Device.DeviceType.ARM,
-                command=getattr(Device.DeviceCommands, command),
+                command=getattr(Device.DeviceCommandKind, command),
             )
         )
 

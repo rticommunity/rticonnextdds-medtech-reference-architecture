@@ -10,60 +10,45 @@
 # liable for any incidental or consequential damages arising out of the use or
 # inability to use the software.
 
-import time
+import socket
 
-import requests
 import stun
 
 
-def get_public_ip():
+def main():
+    print("Querying third-party STUN servers; this may take a minute...")
     try:
-        response = requests.get("https://api.ipify.org?format=json", timeout=10)
-        response.raise_for_status()
-        return response.json()["ip"]
-    except requests.RequestException as e:
-        print(f"Error fetching public IP: {e}")
-        return None
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(2)
+            sock.bind(("0.0.0.0", 0))
+            nat_type, _ = stun.get_nat_type(sock, "0.0.0.0", sock.getsockname()[1])
+    except (OSError, TypeError, KeyError, ValueError) as exc:
+        print(f"STUN probe failed: {exc}")
+        print("Result: inconclusive. Consider Scenario 3 and test end-to-end.")
+        return 1
 
+    advice = {
+        stun.FullCone: (
+            "Scenario 2 may work with a compatible peer, including a peer behind another NAT type."
+        ),
+        stun.RestricNAT: ("Scenario 2 may work if the other peer is also behind a cone NAT."),
+        stun.RestricPortNAT: ("Scenario 2 may work if the other peer is also behind a cone NAT."),
+        stun.SymmetricNAT: (
+            "Scenario 2 may work with a full-cone peer; otherwise consider Scenario 3."
+        ),
+    }
+    if nat_type not in advice:
+        print(f"STUN probe result: {nat_type}")
+        print("Result: inconclusive. Consider Scenario 3 and test end-to-end.")
+        return 1
 
-def get_stun_info(retries=3, delay=2):
-    for attempt in range(retries):
-        try:
-            nat_type, external_ip, external_port = stun.get_ip_info()
-            if external_ip is not None:
-                return nat_type, external_ip, external_port
-        except Exception as e:
-            print(f"Error fetching STUN info (attempt {attempt + 1}): {e}")
-        time.sleep(delay)
-    return None, None, None
-
-
-def check_cone_nat():
-
-    print("\nRunning... This will take a few seconds\n")
-
-    try:
-        _, external_ip, _ = get_stun_info()
-        public_ip = get_public_ip()
-
-        if public_ip is None:
-            print("Could not determine public IP")
-            return
-
-        if external_ip is None:
-            print("Could not determine STUN server IP")
-            return
-
-        print(f"Public IP: {public_ip}")
-        print(f"STUN server IP: {external_ip}")
-
-        if public_ip == external_ip:
-            print("You have a Cone NAT")
-        else:
-            print("You do not have a Cone NAT")
-    except Exception as e:
-        print(f"Error checking NAT type: {e}")
+    print(f"STUN library reported: {nat_type}")
+    print("This is an advisory result, not proof of NAT type or reachability.")
+    print(advice[nat_type])
+    print("Scenario 1 is an option if a peer is publicly reachable on its configured UDP port.")
+    print("Verify the chosen scenario with both endpoints and their actual network policies.")
+    return 0
 
 
 if __name__ == "__main__":
-    check_cone_nat()
+    raise SystemExit(main())

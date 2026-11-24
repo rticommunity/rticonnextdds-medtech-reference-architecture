@@ -37,7 +37,6 @@ def test_operational_participants_load_from_qos_profiles():
         Patient.Vitals,
         Robot.Arm.TeleopControl,
         Robot.Tool.ParallelJawControl,
-        Robot.Arm.Status,
         Robot.Arm.Telemetry,
     ):
         register_type(type_class)
@@ -73,7 +72,7 @@ def test_secure_log_reader_loads_from_named_participant_config(proc_manager_secu
     while time.monotonic() < deadline:
         with urlopen(f"{url}/api/state", timeout=2) as response:
             status = json.load(response).get("data", {}).get("status")
-        if status in {"SECURITY: OK", "THREAT DETECTED"}:
+        if status in {"SECURITY: OK", "SECURITY EVENT"}:
             assert proc.poll() is None
             return
         if proc.poll() is not None:

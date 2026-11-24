@@ -22,10 +22,10 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, integration/v2]
+    branches: [demo/main]
     tags: ["v*"]
   pull_request:
-    branches: [main, develop, integration/v2]
+    branches: [demo/main]
   workflow_dispatch:
 
 concurrency:
@@ -37,7 +37,7 @@ permissions:
 
 env:
   CONNEXT_VERSION: "7.7.0"
-  PYTHON_VERSION: "3.11"
+  PYTHON_VERSION: "3.12"
 
 jobs:
   # ── Lint ────────────────────────────────────────────────────────────────

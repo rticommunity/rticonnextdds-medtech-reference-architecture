@@ -21,9 +21,10 @@ domain scopes, and identity modules of a DDS security system, plus
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from fnmatch import fnmatch
 from pathlib import Path
@@ -989,8 +990,6 @@ def scaffold_tree(
 
 def _compute_tree_hash(tree: SecurityTree) -> str:
     """Compute a deterministic hash of the tree configuration for stale detection."""
-    import json
-    from dataclasses import asdict
 
     def _serialize(obj):
         if isinstance(obj, Path):

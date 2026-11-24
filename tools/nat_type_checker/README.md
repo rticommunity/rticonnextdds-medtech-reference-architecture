@@ -1,59 +1,27 @@
 # NAT Type Checker
 
-This script checks if you have a Cone NAT by comparing your public IP address
-with the IP address seen by a STUN server.
+This optional diagnostic helps select a [Module 03 WAN scenario](../../modules/03-remote-teleoperation/).
+It uses `pystun3` to probe third-party STUN servers and reports the library's
+classification as a **hint**, not a guarantee of NAT type or peer reachability.
+The servers observe your public network address.
 
-## Requirements
-
-- Python 3.10+
-- `requests` library
-- `pystun3` library
-
-These are included in the project's base Python dependencies. If you have already followed the [Quick Start](../../README.md#quick-start) setup, no additional installation is needed.
-
-To install standalone:
+Run on each edge machine from the repository root:
 
 ```sh
-pip install requests pystun3
+python3 tools/nat_type_checker/nat_type_checker.py
 ```
 
-## Usage
+The shared [Quick Start](../../README.md#quick-start) installs `pystun3`. For
+standalone use, install it with `python3 -m pip install pystun3`.
 
-Run the script using python3:
+The library uses an older STUN classification test. Servers may be unavailable
+or lack the required changed-address and change-request behavior; firewalls,
+multiple NATs and timeouts can also affect the result. In particular, a failed
+change request is not proof of restrictive filtering. The tool does not
+distinguish a directly reachable host from a full-cone NAT. An inconclusive
+result is not proof that UDP is blocked.
 
-```sh
-python3 nat_type_checker.py
-```
-
-The script will output whether you have a Cone NAT or not.
-
-## Script Explanation
-
-The script performs the following steps:
-
-1. Fetches your public IP address using the `requests` library and the `ipify` service.
-2. Uses the `pystun3` library to get the IP address seen by a STUN server.
-3. Compares the two IP addresses to determine if you have a Cone NAT.
-
-If the public IP address matches the IP address seen by the STUN server, it
-indicates that you have a Cone NAT.
-
-## Example Output
-
-```plaintext
-Running... This will take a few seconds
-
-Public IP: 203.0.113.1
-STUN server IP: 203.0.113.1
-You have a Cone NAT
-```
-
-If the IP addresses do not match, the script will output:
-
-```plaintext
-Running... This will take a few seconds
-
-Public IP: 203.0.113.1
-STUN server IP: 198.51.100.1
-You do not have a Cone NAT
-```
+Compare both edges' results with the scenario requirements, confirm public
+endpoint and firewall configuration, and test actual end-to-end data flow.
+Scenario 3 is a useful fallback when the NAT behavior is unknown or direct
+communication fails, provided both edges can reach its public relay.

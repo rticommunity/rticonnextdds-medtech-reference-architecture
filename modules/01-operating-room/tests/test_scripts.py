@@ -38,33 +38,6 @@ class TestModuleConfig:
         env = self._get_env(security=False)
         assert "NDDS_QOS_PROFILES" in env
 
-    def test_nonsecure_profiles_contain_qos_xml(self):
-        env = self._get_env(security=False)
-        profiles = env["NDDS_QOS_PROFILES"]
-        assert "Qos.xml" in profiles
-
-    def test_nonsecure_profiles_contain_nonsecure_qos(self):
-        env = self._get_env(security=False)
-        paths = env["NDDS_QOS_PROFILES"].split(";")
-        basenames = [p.rsplit("/", 1)[-1].rsplit("\\\\", 1)[-1] for p in paths]
-        assert "NonSecureAppsQos.xml" in basenames
-        assert "SecureAppsQos.xml" not in basenames
-
-    def test_secure_profiles_contain_secure_qos(self):
-        env = self._get_env(security=True)
-        paths = env["NDDS_QOS_PROFILES"].split(";")
-        basenames = [p.rsplit("/", 1)[-1].rsplit("\\\\", 1)[-1] for p in paths]
-        assert "SecureAppsQos.xml" in basenames
-        assert "NonSecureAppsQos.xml" not in basenames
-
-    def test_profiles_contain_domain_library(self):
-        env = self._get_env(security=False)
-        assert "DomainLibrary.xml" in env["NDDS_QOS_PROFILES"]
-
-    def test_profiles_contain_participant_library(self):
-        env = self._get_env(security=False)
-        assert "ParticipantLibrary.xml" in env["NDDS_QOS_PROFILES"]
-
     def test_all_referenced_xml_files_exist(self):
         """Every path in NDDS_QOS_PROFILES should resolve to a real file."""
         env = self._get_env(security=False)

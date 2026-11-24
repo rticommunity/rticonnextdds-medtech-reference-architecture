@@ -288,7 +288,7 @@ def wait_for_processes_ready(
 def wait_for_device_status(
     reader,
     expected_devices: set,
-    device_statuses: Optional[list["Device.DeviceStatuses"]] = None,
+    device_statuses: Optional[list["Device.DeviceStatusKind"]] = None,
     timeout_sec: float = 5.0,
 ) -> set:
     """Wait until all *expected_devices* have reported a DeviceStatus.
@@ -656,18 +656,6 @@ class UtilityApp:
         return self._topics["tool_control"]
 
     @property
-    def arm_status(self) -> Topic:
-        if "arm_status" not in self._topics:
-            self._topics["arm_status"] = self.Topic(
-                qos_provider=self.qos_provider,
-                participant=self.participant,
-                topic_name=Robot.Arm.TOPIC_STATUS,
-                qos_profile="DataFlowLibrary::Status",
-                type_cls=Robot.Arm.Status,
-            )
-        return self._topics["arm_status"]
-
-    @property
     def arm_telemetry(self) -> Topic:
         if "arm_telemetry" not in self._topics:
             self._topics["arm_telemetry"] = self.Topic(
@@ -710,7 +698,7 @@ class UtilityApp:
                 qos_provider=self.qos_provider,
                 participant=self.participant,
                 topic_name=Patient.TOPIC_VITALS,
-                qos_profile="DataFlowLibrary::Streaming",
+                qos_profile="DataFlowLibrary::Vitals",
                 type_cls=Patient.Vitals,
             )
         return self._topics["vitals"]

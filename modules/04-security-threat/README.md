@@ -147,9 +147,13 @@ prints the local URL to open; the browser is the default presentation mode.
 | Vitals exfiltrate | Secured | Rogue CA | Status: **NO ACCESS**; vitals panels show `---` | *Patient Monitor* continues normally |
 | Vitals exfiltrate | Secured | Expired Cert | Status: **ATTACK FAILED**; participant creation blocked | *Patient Monitor* continues normally |
 
-> **Observe:** When the OR is running in unsecured mode and you select **Teleop Inject → LAUNCH ATTACK**, the *Arm* browser view in Module 01 begins receiving the fabricated commands and the arm visualization moves erratically — even though no legitimate operator is sending commands. Switch the OR to secured mode (restart with `-s`) and repeat: the arm in Module 01 is completely unaffected, and the injector's status changes to **NO ACCESS**.
->
-> **Observe:** When you switch between Rogue CA and Forged Permissions modes, both result in **NO ACCESS** because the DDS Security handshake fails at different stages — but the observable result from the threat app's perspective is the same: no publication match, no data flowing.
+> [!NOTE]
+> **Observe:** In unsecured mode, select **Teleop Inject → LAUNCH ATTACK**: the *Arm* browser view moves erratically without a legitimate operator. Restart the OR in secured mode (`-s`) and repeat: the arm is unaffected and the injector reports **NO ACCESS**.
+
+> [!NOTE]
+> **Observe:** Rogue CA and Forged Permissions both result in **NO ACCESS**: no publication match and no data flowing.
+
+The DDS Security handshake fails at different stages for those two attack modes.
 
 ### 4. Kill the Applications
 

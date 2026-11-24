@@ -7,14 +7,24 @@ NDDS_QOS_PROFILES = "system/qos/Qos.xml;${args:security};system/qos/ApplicationF
 true = "system/qos/SecureAppsQos.xml"
 false = "system/qos/NonSecureAppsQos.xml"
 
+[app_variants.Arm]
+default = "simulated"
+choices = { simulated = "Arm", kortex = "ArmKortex" }
+
 [app_variants.ArmController]
 default = "simulated"
-choices = { simulated = "ArmController", xbox = "ArmControllerGamepad" }
+
+[app_variants.ArmController.choices]
+simulated = "ArmController"
+xbox = "ArmControllerGamepad"
+falcon = "ArmControllerFalcon"
 
 [apps]
 ArmController = ["${CPP:ArmController}"]
 ArmControllerGamepad = ["${PYTHON:ArmControllerGamepad}"]
+ArmControllerFalcon = ["${PYTHON:ArmControllerFalcon}"]
 Orchestrator = ["${CPP:Orchestrator}"]
 PatientSensor = ["${CPP:PatientSensor}"]
 Arm = ["${PYTHON:Arm}"]
+ArmKortex = ["${PYTHON:ArmKortex}"]
 PatientMonitor = ["${PYTHON:PatientMonitor}"]

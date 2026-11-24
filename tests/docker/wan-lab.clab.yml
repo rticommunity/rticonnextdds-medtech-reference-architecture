@@ -1,0 +1,92 @@
+name: medtechwan
+
+mgmt:
+  network: medtechwan-mgmt
+  ipv4-subnet: 172.29.231.0/24
+
+topology:
+  defaults:
+    kind: linux
+    image: medtech-wan-lab:local
+    image-pull-policy: Never
+    network-mode: none
+    restart-policy: "no"
+    privileged: false
+    cap-add:
+      - NET_ADMIN
+      - NET_RAW
+    cmd: sleep infinity
+  nodes:
+    edge-a:
+      binds:
+        - ${RTI_LICENSE_FILE}:/opt/rti.com/rti_license.dat:ro
+      exec:
+        - ip6tables -P INPUT DROP
+        - ip6tables -P OUTPUT DROP
+        - ip6tables -P FORWARD DROP
+        - ip address add 10.77.1.2/24 dev eth1
+        - ip route add default via 10.77.1.1
+    nat-a:
+      sysctls:
+        net.ipv4.ip_forward: "1"
+      exec:
+        - ip6tables -P INPUT DROP
+        - ip6tables -P OUTPUT DROP
+        - ip6tables -P FORWARD DROP
+        - ip address add 10.77.1.1/24 dev eth1
+        - ip address add 198.18.0.2/30 dev eth2
+        - ip route add default via 198.18.0.1
+        - iptables -P FORWARD DROP
+        - iptables -A FORWARD -i eth1 -o eth2 -j ACCEPT
+        - iptables -A FORWARD -i eth2 -o eth1 -p udp -d 10.77.1.2 -j ACCEPT
+        - iptables -t nat -A POSTROUTING -o eth2 -s 10.77.1.2 -j SNAT --to-source 198.18.0.2
+        - iptables -t nat -A PREROUTING -i eth2 -p udp -d 198.18.0.2 -j DNAT --to-destination 10.77.1.2
+    internet:
+      sysctls:
+        net.ipv4.ip_forward: "1"
+      exec:
+        - ip6tables -P INPUT DROP
+        - ip6tables -P OUTPUT DROP
+        - ip6tables -P FORWARD DROP
+        - ip address add 198.18.0.1/30 dev eth1
+        - ip address add 198.18.0.5/30 dev eth2
+        - ip address add 198.18.0.9/30 dev eth3
+    nat-b:
+      sysctls:
+        net.ipv4.ip_forward: "1"
+      exec:
+        - ip6tables -P INPUT DROP
+        - ip6tables -P OUTPUT DROP
+        - ip6tables -P FORWARD DROP
+        - ip address add 10.77.2.1/24 dev eth1
+        - ip address add 198.18.0.6/30 dev eth2
+        - ip route add default via 198.18.0.5
+        - iptables -P FORWARD DROP
+        - iptables -A FORWARD -i eth1 -o eth2 -j ACCEPT
+        - iptables -A FORWARD -i eth2 -o eth1 -p udp -d 10.77.2.2 -j ACCEPT
+        - iptables -t nat -A POSTROUTING -o eth2 -s 10.77.2.2 -j SNAT --to-source 198.18.0.6
+        - iptables -t nat -A PREROUTING -i eth2 -p udp -d 198.18.0.6 -j DNAT --to-destination 10.77.2.2
+    edge-b:
+      binds:
+        - ${RTI_LICENSE_FILE}:/opt/rti.com/rti_license.dat:ro
+      exec:
+        - ip6tables -P INPUT DROP
+        - ip6tables -P OUTPUT DROP
+        - ip6tables -P FORWARD DROP
+        - ip address add 10.77.2.2/24 dev eth1
+        - ip route add default via 10.77.2.1
+    cloud:
+      binds:
+        - ${RTI_LICENSE_FILE}:/opt/rti.com/rti_license.dat:ro
+      exec:
+        - ip6tables -P INPUT DROP
+        - ip6tables -P OUTPUT DROP
+        - ip6tables -P FORWARD DROP
+        - ip address add 198.18.0.10/30 dev eth1
+        - ip route add default via 198.18.0.9
+  links:
+    - endpoints: ["edge-a:eth1", "nat-a:eth1"]
+    - endpoints: ["nat-a:eth2", "internet:eth1"]
+    - endpoints: ["internet:eth2", "nat-b:eth2"]
+    - endpoints: ["nat-b:eth1", "edge-b:eth1"]
+    - endpoints: ["internet:eth3", "cloud:eth1"]

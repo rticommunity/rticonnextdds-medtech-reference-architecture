@@ -16,7 +16,7 @@ All run commands in this README are launched from the repository root. The proje
 
 ## Module Description
 
-This module implements five logical Connext applications using the MedTech Reference Architecture to simulate a digital operating room. The Arm Controller has an optional Xbox/gamepad implementation. You can find a diagram below:
+This module implements five logical Connext applications using the MedTech Reference Architecture to simulate a digital operating room. The Arm Controller has optional Xbox/gamepad and Falcon variants; the Arm has an optional Kortex variant. Experimental physical-device variants require separate authorization and dependencies. You can find a diagram below:
 
 ![DDS data flows among the patient sensor, monitor, orchestrator, arm controller, and arm](../../docs/assets/module-01-diagram-digital-OR.svg)
 
@@ -28,13 +28,29 @@ It has no user interface.
 
 ### Patient Monitor
 
-The *Patient Monitor* application's primary function is to subscribe to simulated patient vitals data on Topic `t/patient/vitals`.
+The *Patient Monitor* application's primary function is to subscribe to simulated patient vitals data on Topic `t/patient/vitals`. Its XML content filter selects `ab1234` by default. Set `MEDTECH_PATIENT_ID` before launching to select another ID (1–8 UTF-8 bytes, without NUL or apostrophes); the built-in sensor still publishes `ab1234`. The filter cannot authenticate a source or distinguish a different patient from a silent stream.
 
 The RTI Demo UI browser frontend displays synthetic ECG, plethysmograph, and capnography waveforms with numeric vital readouts.
+The sensor normally writes approximately once per second. The Vitals QoS profile
+sets a two-second offered and requested Deadline and a two-second writer
+Lifespan. Deadline marks previously observed data quiet on a missed update;
+Lifespan expires queued samples, not copies already displayed by the UI. A
+non-alive instance also marks observed data quiet. Until a selected sample is
+processed, the monitor remains waiting. The monitor rejects oxygen saturation
+over 100% and blood pressure with diastolic greater than systolic. On START, the
+monitor discards samples already in the reader cache and waits for another
+sample. This drain is not an atomic reception or remote-generation boundary.
+Invalid data is reported until another sample or a Deadline miss.
+
+Deadline and Lifespan do not provide an atomic order between a miss and a
+sample at the expiration boundary. Default reader Lifespan is reception-based,
+and forwarded or replayed data can receive a new local validity window. This
+demo indication is not an end-to-end freshness or safety guarantee.
+These checks are demo data validation, not clinical alarms.
 
 ### Arm
 
-The *Arm* application simulates a six-axis articulated arm with fixed-length
+The default *Arm* application simulates a six-axis articulated arm with fixed-length
 links, a spherical wrist, an oriented TCP, and parallel jaws. It integrates
 base-frame velocity on `t/robot/arm/control` and signed jaw-opening rate on
 `t/robot/tool/control`, using lightweight FK/IK with joint/reach limits.
@@ -43,16 +59,24 @@ The existing RTI Demo UI Scene3D renderer displays an original articulated GLB
 with persistent orbit/zoom and observed pose/gap readouts. Its connection badge
 indicates a matched arm-control DDS writer, not a physical Xbox connection.
 Readiness is separate from connectivity and generic device lifecycle.
+The separately selected `kortex` variant adds a software-gated,
+experimental Kortex motion path; see its stop limitations and operating
+requirements in [Arm and controller](ARM_AND_CONTROLLER.md#experimental-kinova-motion-arm).
 
 ### Arm Controller
 
-Both *Arm Controller* variants publish complete arm/tool rate streams at 50 Hz,
+The simulated and Xbox *Arm Controller* variants publish complete arm/tool rate streams at 50 Hz,
 including zeros while idle, and display actual arm readiness and telemetry.
 
 The C++ frontend provides six base-frame translation/rotation controls, signed
 jaw controls, and run/stop demonstration motion. The Xbox adapter maps sticks,
 triggers, bumpers, and buttons to the same hardware-independent data model.
 Neither controller predicts actual arm execution from its own command state.
+The separately selected `falcon` variant publishes experimental
+deadman-held translation commands; see its workspace and validation limits in
+[Arm and controller](ARM_AND_CONTROLLER.md#experimental-falcon-motion-controller).
+The [hardware check](ARM_AND_CONTROLLER.md#staged-rehearsal-and-physical-checks)
+reports device state without DDS or motion commands.
 
 For controller behavior and the arm command contract, see [Arm and controller](ARM_AND_CONTROLLER.md).
 
@@ -60,7 +84,13 @@ For controller behavior and the arm command contract, see [Arm and controller](A
 
 The *Orchestrator* application primarily acts as a system application state observer and controller. It detects the presence and current status of other system applications on Topics `t/device/heartbeat` and `t/device/status`, respectively. It can also command device-level actions, such as "Start" or "Shut Down" on Topic `t/device/command`.
 
-The RTI Demo UI frontend displays current device statuses, presents buttons to administer device commands, and shows an activity stream of observed events.
+The RTI Demo UI frontend displays each device's last reported lifecycle and
+readiness separately from heartbeat presence, presents buttons to administer
+device commands, and shows an activity stream of observed events. Readiness
+describes the device's primary role: arm motion, controller input and command
+publication, sensor publication, or current patient-monitor vitals. A present
+heartbeat does not establish that last reported status is current or that the
+device is healthy.
 
 All graphical apps serve the same local web frontend. Browser mode is the
 default; `--ui-mode native` opens that frontend in the RTI Demo UI embedded
@@ -174,12 +204,12 @@ known device's most recent reception timestamp against the deadline before
 logging a presence transition:
 
 ```text
-PATIENT_MONITOR stopped sending heartbeats; marking it OFF
+PATIENT_MONITOR stopped sending heartbeats; presence OFFLINE
 ```
 
 The Orchestrator monitors heartbeat presence asynchronously with an AsyncWaitSet:
-a requested-deadline-missed StatusCondition detects loss, and a new-data
-ReadCondition restores presence when a heartbeat arrives.
+a requested-deadline-missed StatusCondition detects loss, and a ReadCondition
+handles heartbeat arrivals and instance-lifecycle notifications.
 The Python publishers run as separate asyncio tasks, not separate threads:
 blocking work on the event loop can delay their heartbeats.
 
@@ -209,8 +239,9 @@ Let's try testing how modifying QoS Profiles can adjust system behavior without 
    the *Patient Monitor* process (for example, `kill -9 <pid>` on Linux or
    macOS). Closing its browser tab does not stop the process.
 
-   >**Observe:** You should see the alert mentioned above logged approximately
-   >5 seconds after the last Patient Monitor heartbeat.
+   > [!NOTE]
+   > **Observe:** You should see the alert mentioned above logged approximately
+   > 5 seconds after the last Patient Monitor heartbeat.
 
 5. Undo the QoS change to revert to the recommended configuration.
 
@@ -232,7 +263,10 @@ Let's try testing how removing a content filter can adjust system behavior witho
 
 4. While monitoring both the *Arm Controller* and *Patient Monitor* application windows, send a "Shut Down" command from the *Orchestrator* application **for the *Arm Controller* application only**.
 
-   >**Observe:** You should see both the *Arm Controller* and *Patient Monitor* applications shut down and exit. This is because the *Patient Monitor* is no longer configured to receive only device commands for Patient Monitor apps but any app.
+   > [!NOTE]
+   > **Observe:** Both the *Arm Controller* and *Patient Monitor* applications shut down and exit.
+
+   Without its filter, the *Patient Monitor* receives commands intended for any app.
 
 5. Undo the Content Filter change to revert to the recommended configuration.
 

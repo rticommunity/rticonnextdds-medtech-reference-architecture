@@ -49,10 +49,9 @@ build directory.
 | Topic | Data type | Intended use |
 | --- | --- | --- |
 | `t/device/command` | `Device::Command` | Discrete START/PAUSE/SHUTDOWN |
-| `t/device/status` | `Device::Status` | Initial and changed device lifecycle state |
+| `t/device/status` | `Device::Status` | Initial and changed device lifecycle and primary-role readiness |
 | `t/device/heartbeat` | `Device::Heartbeat` | Periodic application presence |
 | `t/robot/arm/control` | `Robot::Arm::TeleopControl` | Complete base-frame linear/angular TCP velocity |
-| `t/robot/arm/status` | `Robot::Arm::Status` | Initial and changed NOT_READY/READY/FAULT |
 | `t/robot/arm/telemetry` | `Robot::Arm::Telemetry` | Periodic actual base-relative TCP pose and optional jaw gap |
 | `t/robot/tool/control` | `Robot::Tool::ParallelJawControl` | Signed total jaw-gap opening rate |
 | `t/patient/vitals` | `Patient::Vitals` | Periodic vital signs for a keyed patient |
@@ -117,25 +116,27 @@ sample each step, including already-READ samples: reusing a velocity integrates
 the next time interval rather than repeating a one-shot action. Discrete
 lifecycle commands retain their separate command semantics.
 
-Both command streams use best-effort, volatile, KEEP_LAST(1), diagnostic 50 ms
+Both command streams use best-effort, volatile, KEEP_LAST(1), 50 ms
 deadlines, and a **writer lifespan of 250 ms**. Expired cache entries no longer
 drive motion; no eligible arm sample means hold pose and jaw gap, while missing
 tool data holds the gap independently. A valid zero arm stream allows tool-only
-motion. Fresh valid rates resume immediately, even when controls remain held.
-Lifecycle transitions drain command caches so pre-transition rates are not reused.
+motion. In the ungated simulator, fresh valid rates can resume even when
+controls remain held. PAUSE and SHUTDOWN drain the simulator's arm and jaw
+command caches; START does not. Draining does not exclude commands still in
+flight at a transition.
 
 All command writers, including routing/replay outputs, must use the finite
 lifespan: lifespan is not a requested/offered compatibility check. Connext 7.7
 reader expiration is reception-based; delayed or republished data may start a
-new local validity window. Stopping is observed at the next running tick,
-approximately lifespan plus one 20 ms period and scheduling jitter, not an
-end-to-end age bound. There is no retained application target or duplicate
-command watchdog. Deadline/liveliness diagnostics do not implement stopping.
+new local validity window. A requested Deadline miss also causes the arm
+application to discard cached commands; a gated arm disarms. Neither policy
+guarantees a stop or an end-to-end command-age bound.
 
-This is a non-hard-real-time kinematic demo, not hardware safety control. A
-future physical-arm adapter needs its own vendor-specific execution and safety
-design; DDS polling must not be inserted into vendor hard-real-time callbacks.
-No vendor arm SDK integration is implemented.
+The simulator and experimental Kortex adapter are not hardware safety control.
+The Kortex adapter has additional device-health, re-arm and best-effort stop
+behavior, with important limitations described in the
+[arm and controller guide](../modules/01-operating-room/ARM_AND_CONTROLLER.md#physical-device-development).
+DDS polling must not be inserted into vendor hard-real-time callbacks.
 
 #### Data Model References
 

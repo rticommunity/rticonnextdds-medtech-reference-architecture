@@ -33,10 +33,10 @@ def test_registration_is_idempotent_only_for_the_same_type(monkeypatch):
 
 def test_device_command_transitions_use_generated_enums():
     transition = MedTechTypes.device_status_after_command
-    assert transition(Device.DeviceCommands.START) == Device.DeviceStatuses.ON
-    assert transition(Device.DeviceCommands.PAUSE) == Device.DeviceStatuses.PAUSED
-    assert transition(Device.DeviceCommands.SHUTDOWN) == Device.DeviceStatuses.OFF
+    assert transition(Device.DeviceCommandKind.START) == Device.DeviceStatusKind.ON
+    assert transition(Device.DeviceCommandKind.PAUSE) == Device.DeviceStatusKind.PAUSED
+    assert transition(Device.DeviceCommandKind.SHUTDOWN) == Device.DeviceStatusKind.OFF
     with pytest.raises(ValueError, match="Unsupported device command"):
         transition("REBOOT")
     with pytest.raises(ValueError, match="Unsupported device command"):
-        transition(Device.DeviceStatuses.ON)
+        transition(Device.DeviceStatusKind.ON)

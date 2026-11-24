@@ -47,7 +47,10 @@ uv sync --active --locked --no-dev --extra maint
 python -m playwright install --with-deps chromium
 python tools/medtech/check_connext_install.py
 
-# 3. Register git hooks so pre-commit runs automatically on every commit
+# 3. Inspect the hook path and any existing hook before installing
+git config --show-origin --get core.hooksPath
+git rev-parse --git-path hooks/pre-commit
+# Install only when it will not overwrite a hook shared by other worktrees
 pre-commit install
 ```
 
@@ -165,24 +168,30 @@ committing. In exceptional circumstances you can bypass hooks with
 | Event | Triggered by | What runs |
 | --- | --- | --- |
 | `git commit` | git hook (local) | All pre-commit hooks (lint, format, whitespace, clang-format, markdown via rumdl) |
-| `git push` / open PR | GitHub Actions | Full CI pipeline (see below) |
-| PR merge to `main` | Blocked until CI passes | — |
-| Push `v*` tag | GitHub Actions | Full CI, then GitHub Release publication |
+| Push to `demo/main` | GitHub Actions | Lint and trusted DDS integration |
+| Open a PR targeting `demo/main` | GitHub Actions | Lint and license-free tests |
+| Push `v*` tag | GitHub Actions | Lint, trusted DDS integration, then GitHub Release publication |
 
 ### CI pipeline (`.github/workflows/ci.yml`)
 
-The pipeline has two CI jobs; `test` runs only after `lint` passes. A conditional
-`release` job runs only for pushed `v*` tags and only after `test` passes:
+The demo branch uses Ubuntu 24.04 and Python 3.12. The test jobs run after
+`lint` passes. The licensed integration job requires the repository's
+`RTI_LICENSE_FILE` secret and runs on trusted pushes, not pull requests:
 
 | Job | What it does |
 | --- | --- |
 | `lint` (Lint & Format) | Runs **all** pre-commit hooks across the repo (`pre-commit/action` with `--all-files`) — the same ruff, ruff-format, codespell, clang-format, rumdl, and hygiene hooks you run locally. |
-| `test` (Build & Test) | Installs Connext (apt) and Python deps, builds all C++ modules with `python medtech.py build`, generates the system and Module 04 security artifacts, then runs the full suite from the repo root with `python -m pytest -v -m "not build_pipeline"` and uploads `results.xml`. |
-| `release` (Publish GitHub Release) | Validates the SemVer tag and publishes generated release notes. Pre-release tags are marked accordingly. |
+| `test` (license-free) | Runs selected project-owned tests on PRs and manual dispatch, without a license secret or a DDS integration claim. |
+| `integration` (trusted push) | Installs Connext and Python dependencies, builds the project, generates security artifacts, installs Chromium and runs the full suite. The WAN lab remains opt-in. |
+| `release` (Publish GitHub Release) | After successful integration on a pushed tag, validates the SemVer tag and publishes generated release notes. Pre-release tags are marked accordingly. |
+
+Manual dispatch runs lint and license-free tests, not licensed integration.
+Tag triggers are independent of branch filters. Required checks and branch
+protection must be configured separately in GitHub.
 
 Because the `lint` job runs `pre-commit` itself, CI and your local hooks execute
 the **exact same** hook versions (pinned in `.pre-commit-config.yaml`). A clean
-local commit will therefore not produce lint failures in CI. See
+local `pre-commit run --all-files` checks the same hooks as CI. See
 [Upgrading Ruff](#upgrading-ruff) for how the Ruff pin is managed.
 
 ## Graphical-app architecture
@@ -216,8 +225,8 @@ jobs locally with [`act`](https://github.com/nektos/act).
 # Ensure RTI_LICENSE_FILE points to your local rti_license.dat
 export RTI_LICENSE_FILE=/path/to/rti_license.dat
 
-# Run the "test" job from .github/workflows/ci.yml
-act push -j test \
+# Run the trusted integration job from .github/workflows/ci.yml
+act push -j integration \
     --secret RTI_LICENSE_FILE="$(base64 -w0 "$RTI_LICENSE_FILE")" \
     --platform ubuntu-24.04=catthehacker/ubuntu:act-24.04
 ```
@@ -276,6 +285,7 @@ In summary:
 | Branch prefix | Purpose |
 | --- | --- |
 | `main` | Stable, release-ready. All releases are tagged here. |
+| `demo/main` | Long-lived demo variant, maintained alongside `main`; applicable changes may be cherry-picked between branches. |
 | `develop` | Optional integration branch for parallel work. |
 | `feat/*` | New features — branch from and merge back to `main`. |
 | `bugfix/*` | Bug fixes — branch from and merge back to `main`. |

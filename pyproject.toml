@@ -23,7 +23,6 @@ dependencies = [
     "argcomplete>=3.1",
     "Jinja2>=3.1",
     "pystun3>=2.0",
-    "requests>=2.31",
     "rti.connext==7.7.0",
     "rti-demo-ui @ git+https://github.com/wcoleman-rti/rti-demo-ui.git@e31e8981d625f9d6bbc00797d7e38caf8a165659",
 ]
@@ -76,6 +75,7 @@ testpaths = [
     "system/tests",
     "modules/01-operating-room/tests",
     "modules/02-record-playback/tests",
+    "modules/03-remote-teleoperation/tests",
     "modules/04-security-threat/tests",
 ]
 markers = [

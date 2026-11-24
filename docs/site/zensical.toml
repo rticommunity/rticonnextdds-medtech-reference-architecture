@@ -35,9 +35,9 @@ nav = [
     { "02: Record and replay" = "modules/02-record-playback/README.md" },
     { "03: Remote teleoperation" = [
       { "Choose a WAN scenario" = "modules/03-remote-teleoperation/README.md" },
-      { "Scenario 1" = "modules/03-remote-teleoperation/Scenario1.md" },
-      { "Scenario 2" = "modules/03-remote-teleoperation/Scenario2.md" },
-      { "Scenario 3" = "modules/03-remote-teleoperation/Scenario3.md" },
+      { "Scenario 1" = "modules/03-remote-teleoperation/SCENARIO_1_PUBLIC_ENDPOINT.md" },
+      { "Scenario 2" = "modules/03-remote-teleoperation/SCENARIO_2_CLOUD_DISCOVERY.md" },
+      { "Scenario 3" = "modules/03-remote-teleoperation/SCENARIO_3_ROUTING_RELAY.md" },
     ] },
     { "04: Security demonstration" = "modules/04-security-threat/README.md" },
   ] },

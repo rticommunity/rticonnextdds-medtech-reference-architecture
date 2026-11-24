@@ -97,7 +97,7 @@ shows `participant_.enable()` after early setup and handler registration.
 #### Receive data without coupling DDS to the UI
 
 **DDS concept:** C++ `AsyncWaitSet` dispatches triggered conditions on worker
-threads; Python `take_data_async()` yields samples in an asyncio application.
+threads; Python can use `take_data_async()` or an asyncio-compatible `WaitSet`.
 Neither changes reliability, history, or publication mode.
 
 > [!TIP]
@@ -108,7 +108,8 @@ Neither changes reliability, history, or publication mode.
 **In this project:** Compare the C++ condition handlers in
 [HeartbeatPresence.hpp](../modules/01-operating-room/src/HeartbeatPresence.hpp)
 with the Python vitals loop in
-[PatientMonitor.py](../modules/01-operating-room/src/PatientMonitor.py).
+[PatientMonitor.py](../modules/01-operating-room/src/PatientMonitor.py), which
+handles data and Deadline notifications together.
 
 #### Separate traffic boundaries from access control
 

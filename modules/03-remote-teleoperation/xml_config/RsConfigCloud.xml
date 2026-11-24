@@ -89,12 +89,12 @@
                 <auto_topic_route name="Local_to_WAN_Status_route">
                     <publish_with_original_info>false</publish_with_original_info>
                     <input participant="WAN_domain">
-                        <allow_topic_name_filter>t/device/status,t/robot/arm/status</allow_topic_name_filter>
+                        <allow_topic_name_filter>t/device/status</allow_topic_name_filter>
                         <creation_mode>ON_DOMAIN_MATCH</creation_mode>
                         <datareader_qos base_name="DataFlowLibrary::Status"/>
                     </input>
                     <output participant="WAN_domain">
-                        <allow_topic_name_filter>t/device/status,t/robot/arm/status</allow_topic_name_filter>
+                        <allow_topic_name_filter>t/device/status</allow_topic_name_filter>
                         <creation_mode>ON_ROUTE_MATCH</creation_mode>
                         <datawriter_qos base_name="DataFlowLibrary::Status"/>
                     </output>
@@ -161,12 +161,12 @@
                     <input participant="WAN_domain">
                         <allow_topic_name_filter>t/patient/vitals</allow_topic_name_filter>
                         <creation_mode>ON_DOMAIN_MATCH</creation_mode>
-                        <datareader_qos base_name="DataFlowLibrary::Streaming"/>
+                        <datareader_qos base_name="DataFlowLibrary::Vitals"/>
                     </input>
                     <output participant="WAN_domain">
                         <allow_topic_name_filter>t/patient/vitals</allow_topic_name_filter>
                         <creation_mode>ON_ROUTE_MATCH</creation_mode>
-                        <datawriter_qos base_name="DataFlowLibrary::Streaming"/>
+                        <datawriter_qos base_name="DataFlowLibrary::Vitals"/>
                     </output>
                 </auto_topic_route>
             </session>

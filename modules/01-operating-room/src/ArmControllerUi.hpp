@@ -26,19 +26,21 @@ struct ArmControllerUiCommand {
 };
 
 inline rti::demo::ui::Json arm_controller_view(
-        Device::DeviceStatuses device_status,
+        Device::DeviceStatusKind device_status,
         bool secure,
         const rti::demo::ui::Json &demo,
         bool demo_ready,
         const rti::demo::ui::Json &logs,
-        const rti::demo::ui::Json &feedback)
+        const rti::demo::ui::Json &feedback,
+        bool arm_matched,
+        bool jaw_matched)
 {
     using rti::demo::ui::Json;
-    const std::string status = device_status == Device::DeviceStatuses::ON
+    const std::string status = device_status == Device::DeviceStatusKind::ON
             ? "ON"
-            : device_status == Device::DeviceStatuses::PAUSED ? "PAUSED"
-                                                              : "OFF";
-    const bool enabled = device_status == Device::DeviceStatuses::ON;
+            : device_status == Device::DeviceStatusKind::PAUSED ? "PAUSED"
+                                                                : "OFF";
+    const bool enabled = device_status == Device::DeviceStatusKind::ON;
     const bool status_known = feedback.at("status_known");
     const std::string readiness = feedback.at("readiness");
     const std::string readiness_badge =
@@ -109,6 +111,12 @@ inline rti::demo::ui::Json arm_controller_view(
                       { "tone",
                         readiness == "READY" && status_known ? "good"
                                                              : "warn" } },
+                    { { "label", "Arm command subscribers" },
+                      { "value", arm_matched ? "MATCHED" : "NO MATCH" },
+                      { "tone", arm_matched ? "good" : "muted" } },
+                    { { "label", "Jaw command subscribers" },
+                      { "value", jaw_matched ? "MATCHED" : "NO MATCH" },
+                      { "tone", jaw_matched ? "good" : "muted" } },
                     { { "label", "Demo" },
                       { "value",
                         demo.at("running").get<bool>()

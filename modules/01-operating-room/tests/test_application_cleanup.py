@@ -23,6 +23,10 @@ async def _fail_stream():
     yield
 
 
+async def _fail_task():
+    _fail("worker failed")
+
+
 async def _wait():
     await asyncio.Event().wait()
 
@@ -40,23 +44,31 @@ def test_participant_closed_when_final_status_write_fails(module_name, class_nam
     module = importlib.import_module(module_name)
     application = getattr(module, class_name).__new__(getattr(module, class_name))
     closed = []
-    reader = SimpleNamespace(take_data_async=_fail_stream)
+    reader = SimpleNamespace(take_data_async=_fail_stream, take_async=_fail_stream)
     application.participant = SimpleNamespace(
         enable=lambda: None,
         close=lambda: closed.append(True),
         qos=_UNSECURED_QOS,
+        current_time=object(),
     )
     application.status_writer = SimpleNamespace(write=lambda _: None)
     application.status_sample = object()
-    application.write_status = lambda _: _fail("final status failed")
+
+    def write_status(status):
+        if status != module.Device.DeviceStatusKind.ON:
+            _fail("final status failed")
+
+    application.write_status = write_status
     application.write_readiness = lambda _: None
     application.rates = lambda: _fail("worker failed")
     application.vitals_reader = reader
+    application.receive_vitals_stream = _fail_task
     application.command_reader = reader
     application.heartbeat_writer = object()
     application.failed = False
-    application.status = module.Device.DeviceStatuses.ON
-    application.readiness = "NOT_READY"
+    application.status = module.Device.DeviceStatusKind.ON
+    application.last_sample_at = None
+    application.readiness = module.Device.DeviceReadinessKind.NOT_READY
     application.view = lambda **_: {}
     application.ui = SimpleNamespace(update=lambda **_: None, log=lambda *args: None)
 
@@ -94,7 +106,7 @@ def test_arm_participant_closed_when_final_readiness_write_fails(capsys):
 
     def write_readiness(status):
         readiness_writes.append(status)
-        if status == "NOT_READY" and len(readiness_writes) > 1:
+        if status == module.Device.DeviceReadinessKind.NOT_READY and len(readiness_writes) > 1:
             _fail("final readiness failed")
 
     application.participant = SimpleNamespace(
@@ -108,8 +120,8 @@ def test_arm_participant_closed_when_final_readiness_write_fails(capsys):
     application.command_reader = reader
     application.heartbeat_writer = object()
     application.failed = False
-    application.status = module.Device.DeviceStatuses.ON
-    application.readiness = "NOT_READY"
+    application.status = module.Device.DeviceStatusKind.ON
+    application.readiness = module.Device.DeviceReadinessKind.NOT_READY
     application.view = lambda: {}
     application.ui = SimpleNamespace(update=lambda **_: None, log=lambda *args: None)
 
@@ -129,9 +141,10 @@ def test_gamepad_and_participant_closed_when_stop_motion_fails(monkeypatch, caps
         qos=_UNSECURED_QOS,
     )
     application.status_writer = SimpleNamespace(write=lambda _: None)
-    application.status_sample = object()
+    application.status_sample = SimpleNamespace(status=module.Device.DeviceStatusKind.ON)
     application.heartbeat_writer = object()
     application.failed = False
+    application.status = module.Device.DeviceStatusKind.ON
     application.gamepad = SimpleNamespace(quit=lambda: closed.append("gamepad"))
     application.ui = SimpleNamespace(update=lambda **_: None, log=lambda *args: None)
     application.view = lambda: {}
@@ -175,18 +188,22 @@ def test_patient_monitor_handles_vitals_task_failure_locally(capsys):
     application = module.PatientMonitorApp.__new__(module.PatientMonitorApp)
     closed = []
     application.participant = SimpleNamespace(
-        enable=lambda: None, close=lambda: closed.append(True), qos=_UNSECURED_QOS
+        enable=lambda: None,
+        close=lambda: closed.append(True),
+        qos=_UNSECURED_QOS,
+        current_time=object(),
     )
     application.status_writer = SimpleNamespace(write=lambda _: None)
     application.status_sample = module.Device.Status(
         device=module.Device.DeviceType.PATIENT_MONITOR,
-        status=module.Device.DeviceStatuses.ON,
+        status=module.Device.DeviceStatusKind.ON,
     )
-    application.vitals_reader = SimpleNamespace(take_data_async=_fail_stream)
+    application.receive_vitals_stream = _fail_task
     application.command_reader = SimpleNamespace(take_data_async=_fail_stream)
     application.heartbeat_writer = object()
     application.failed = False
-    application.status = module.Device.DeviceStatuses.ON
+    application.status = module.Device.DeviceStatusKind.ON
+    application.last_sample_at = None
     application.view = lambda **_: {}
     application.ui = SimpleNamespace(update=lambda **_: None, log=lambda *args: None)
 
@@ -213,9 +230,8 @@ def test_main_closes_participant_if_ui_fails_before_run(monkeypatch, module_name
     monkeypatch.setattr(module, class_name, lambda *args: application)
     if module_name == "Arm":
         monkeypatch.setattr(module, "ArmModel", lambda: object())
-        monkeypatch.setattr(module, "configure_ui", lambda *_: (object(), object()))
-    else:
-        monkeypatch.setattr(module, "configure_ui", lambda *_: object())
+        monkeypatch.setattr(module, "add_arm_scene", lambda *_: object())
+    monkeypatch.setattr(module, "configure_ui", lambda *_: object())
 
     def fail_ui(*_args):
         raise SystemExit(1)

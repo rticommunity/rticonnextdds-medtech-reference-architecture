@@ -80,11 +80,11 @@ std::string current_time()
 
 class ArmControllerLogic {
 public:
-    Device::DeviceStatuses status = Device::DeviceStatuses::ON;
+    Device::DeviceStatusKind status = Device::DeviceStatusKind::ON;
 
     bool start_demo(const Geometry::Pose &pose, double jaw_width)
     {
-        if (status != Device::DeviceStatuses::ON)
+        if (status != Device::DeviceStatusKind::ON)
             return false;
         stop_manual();
         demo_origin_ = pose.position;
@@ -108,16 +108,16 @@ public:
         held_axes_.clear();
     }
 
-    void apply_device_command(Device::DeviceCommands command)
+    void apply_device_command(Device::DeviceCommandKind command)
     {
-        if (command == Device::DeviceCommands::START) {
-            status = Device::DeviceStatuses::ON;
-        } else if (command == Device::DeviceCommands::PAUSE) {
-            status = Device::DeviceStatuses::PAUSED;
+        if (command == Device::DeviceCommandKind::START) {
+            status = Device::DeviceStatusKind::ON;
+        } else if (command == Device::DeviceCommandKind::PAUSE) {
+            status = Device::DeviceStatusKind::PAUSED;
             stop_demo();
             stop_manual();
         } else {
-            status = Device::DeviceStatuses::OFF;
+            status = Device::DeviceStatusKind::OFF;
             stop_demo();
             stop_manual();
         }
@@ -155,7 +155,7 @@ public:
 
     VelocityTarget rates_for_tick(const Geometry::Pose &pose, double jaw_width)
     {
-        if (status != Device::DeviceStatuses::ON)
+        if (status != Device::DeviceStatusKind::ON)
             return { };
         if (demo_motion_enabled_)
             return next_demo_rates(pose, jaw_width);
@@ -290,7 +290,7 @@ struct ArmFeedback {
     bool demo_ready() const
     {
         return has_telemetry && has_pose && has_jaw_width
-                && readiness != "FAULT"
+                && readiness != "FAULTED"
                 && std::chrono::steady_clock::now() - telemetry_received
                 <= FEEDBACK_STALE
                 && std::isfinite(pose.position.x)
@@ -331,12 +331,12 @@ struct ArmFeedback {
     }
 };
 
-std::string readiness_name(Robot::Arm::Readiness readiness)
+std::string readiness_name(Device::DeviceReadinessKind readiness)
 {
-    if (readiness == Robot::Arm::Readiness::READY)
+    if (readiness == Device::DeviceReadinessKind::READY)
         return "READY";
-    if (readiness == Robot::Arm::Readiness::FAULT)
-        return "FAULT";
+    if (readiness == Device::DeviceReadinessKind::FAULTED)
+        return "FAULTED";
     return "NOT_READY";
 }
 
@@ -367,7 +367,6 @@ public:
         rti::domain::register_type<Device::Heartbeat>();
         rti::domain::register_type<Robot::Arm::TeleopControl>();
         rti::domain::register_type<Robot::Tool::ParallelJawControl>();
-        rti::domain::register_type<Robot::Arm::Status>();
         rti::domain::register_type<Robot::Arm::Telemetry>();
 
         auto provider = dds::core::QosProvider::Default();
@@ -392,9 +391,8 @@ public:
                 participant_,
                 std::string(DEVICE_COMMAND_DR));
         arm_status_reader_ = rti::sub::find_datareader_by_name<
-                dds::sub::DataReader<Robot::Arm::Status>>(
-                participant_,
-                std::string(ARM_STATUS_DR));
+                dds::sub::DataReader<Device::Status>>(participant_,
+                                                      std::string(STATUS_DR));
         arm_telemetry_reader_ = rti::sub::find_datareader_by_name<
                 dds::sub::DataReader<Robot::Arm::Telemetry>>(
                 participant_,
@@ -414,7 +412,7 @@ public:
         require_endpoint(teleop_writer_, TELEOP_CONTROL_DW);
         require_endpoint(tool_writer_, TOOL_CONTROL_DW);
         require_endpoint(command_reader_, DEVICE_COMMAND_DR);
-        require_endpoint(arm_status_reader_, ARM_STATUS_DR);
+        require_endpoint(arm_status_reader_, STATUS_DR);
         require_endpoint(arm_telemetry_reader_, ARM_TELEMETRY_DR);
     }
 
@@ -433,10 +431,19 @@ public:
                 Device::DeviceType::ARM_CONTROLLER);
         ArmControllerLogic logic;
         ArmFeedback feedback;
-        Device::Status status(Device::DeviceType::ARM_CONTROLLER, logic.status);
+        Device::Status status;
+        status.device = Device::DeviceType::ARM_CONTROLLER;
+        status.status = logic.status;
+        status.readiness = Device::DeviceReadinessKind::READY;
         status_writer_.write(status);
         Json logs = Json::array();
         auto update_view = [&]() {
+            const bool arm_matched =
+                    teleop_writer_.publication_matched_status().current_count()
+                    > 0;
+            const bool jaw_matched =
+                    tool_writer_.publication_matched_status().current_count()
+                    > 0;
             app.set_data(
                     arm_controller_view(logic.status,
                                         secure,
@@ -444,7 +451,9 @@ public:
                                           { "cycles", logic.demo_cycles() } },
                                         feedback.demo_ready(),
                                         logs,
-                                        feedback.view()));
+                                        feedback.view(),
+                                        arm_matched,
+                                        jaw_matched));
         };
         auto log = [&](const std::string &message,
                        const std::string &level = "info") {
@@ -463,7 +472,7 @@ public:
         auto next_ui_refresh = now;
 
         while (!stopping.load() && !heartbeat.failed()
-               && logic.status != Device::DeviceStatuses::OFF) {
+               && logic.status != Device::DeviceStatusKind::OFF) {
             while (auto intent = commands.try_pop()) {
                 if (intent->action == "start-demo") {
                     if (feedback.demo_ready()
@@ -480,7 +489,7 @@ public:
                     logic.stop_manual();
                     log("Stopped all motion");
                 } else if (intent->action == "teleop") {
-                    if (logic.status != Device::DeviceStatuses::ON) {
+                    if (logic.status != Device::DeviceStatusKind::ON) {
                         log("Ignored jog while controller is not ON", "warn");
                         continue;
                     }
@@ -501,16 +510,20 @@ public:
                 if (!sample.info().valid())
                     continue;
                 logic.apply_device_command(sample.data().command);
-                if (logic.status != Device::DeviceStatuses::ON)
+                if (logic.status != Device::DeviceStatusKind::ON)
                     publish_target(teleop_writer_, tool_writer_, { });
                 status.status = logic.status;
+                status.readiness = logic.status == Device::DeviceStatusKind::ON
+                        ? Device::DeviceReadinessKind::READY
+                        : Device::DeviceReadinessKind::NOT_READY;
                 status_writer_.write(status);
                 update_view();
                 log("Received a device command from Orchestrator");
             }
 
             for (const auto &sample : arm_status_reader_.take()) {
-                if (!sample.info().valid() || sample.data().arm_id != ARM_ID)
+                if (!sample.info().valid()
+                    || sample.data().device != Device::DeviceType::ARM)
                     continue;
                 feedback.readiness = readiness_name(sample.data().readiness);
                 feedback.has_status = true;
@@ -542,7 +555,7 @@ public:
             for (const auto &axis : logic.expire_manual_inputs(now)) {
                 log("Jog input timed out; stopped " + axis + " axis", "warn");
             }
-            if (logic.status == Device::DeviceStatuses::ON
+            if (logic.status == Device::DeviceStatusKind::ON
                 && now >= next_control) {
                 publish_target(teleop_writer_,
                                tool_writer_,
@@ -561,7 +574,8 @@ public:
         heartbeat.stop();
         if (heartbeat.failed())
             throw std::runtime_error("Arm Controller heartbeat worker failed");
-        status.status = Device::DeviceStatuses::OFF;
+        status.status = Device::DeviceStatusKind::OFF;
+        status.readiness = Device::DeviceReadinessKind::NOT_READY;
         status_writer_.write(status);
         log("Arm Controller is shutting down");
         app.stop();
@@ -579,8 +593,7 @@ private:
     dds::pub::DataWriter<Robot::Tool::ParallelJawControl> tool_writer_ =
             dds::core::null;
     dds::sub::DataReader<Device::Command> command_reader_ = dds::core::null;
-    dds::sub::DataReader<Robot::Arm::Status> arm_status_reader_ =
-            dds::core::null;
+    dds::sub::DataReader<Device::Status> arm_status_reader_ = dds::core::null;
     dds::sub::DataReader<Robot::Arm::Telemetry> arm_telemetry_reader_ =
             dds::core::null;
 };

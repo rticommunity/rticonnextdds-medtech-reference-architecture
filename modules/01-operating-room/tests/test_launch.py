@@ -133,6 +133,79 @@ def test_python_app_startup_error_exits_with_failure(proc_manager, tmp_path, app
 
 
 class TestArmController:
+    @pytest.mark.parametrize("variant", ("simulated", "xbox"))
+    def test_controller_reads_only_arm_device_readiness(self, nonsecure_utility_app, variant):
+        from MedTech import Device, Geometry, Robot
+
+        env, apps = module_runner.load_module_config(
+            MODULE_DIR,
+            flags={"security": False},
+            variants={"ArmController": variant},
+        )
+        manager = ProcessManager(env, apps, cwd=MODULE_DIR)
+        try:
+            controller = manager.start_app_ready(
+                "ArmController", extra_env={"SDL_VIDEODRIVER": "dummy"}
+            )
+            assert controller.stdout is not None
+            deadline = time.monotonic() + 5
+            output = ""
+            url = None
+            while time.monotonic() < deadline:
+                readable, _, _ = select.select([controller.stdout], [], [], 0.25)
+                if readable:
+                    output += controller.stdout.read1(4096).decode()
+                    match = re.search(r"https?://127\.0\.0\.1:\d+", output)
+                    if match:
+                        url = match.group(0)
+                        break
+            assert url is not None, output
+            status_writer = nonsecure_utility_app.device_status.writer
+            telemetry_writer = nonsecure_utility_app.arm_telemetry.writer
+            assert wait_for_writer_match(status_writer)
+            assert wait_for_writer_match(telemetry_writer)
+            other_status = Device.Status(
+                device=Device.DeviceType.PATIENT_SENSOR,
+                status=Device.DeviceStatusKind.ON,
+                readiness=Device.DeviceReadinessKind.READY,
+            )
+            arm_status = Device.Status(
+                device=Device.DeviceType.ARM,
+                status=Device.DeviceStatusKind.ERROR,
+                readiness=Device.DeviceReadinessKind.FAULTED,
+            )
+            telemetry = Robot.Arm.Telemetry(
+                arm_id="arm-1",
+                tcp_pose=Geometry.Pose(position=Geometry.Vector3(0.3, 0.0, 0.3)),
+                parallel_jaw=Robot.Tool.ParallelJawState(opening_width=0.02),
+            )
+            status_writer.write(other_status)
+            time.sleep(0.2)
+            assert not ui_data(url)["feedback"]["status_known"]
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                status_writer.write(arm_status)
+                telemetry_writer.write(telemetry)
+                feedback = ui_data(url)["feedback"]
+                if feedback["status_known"] and feedback["readiness"] == "FAULTED":
+                    break
+                time.sleep(0.05)
+            else:
+                pytest.fail("Controller did not observe the arm's device readiness")
+            status_writer.write(other_status)
+            time.sleep(0.2)
+            assert ui_data(url)["feedback"]["readiness"] == "FAULTED"
+            if variant == "simulated":
+                telemetry_writer.write(telemetry)
+                assert invoke(url, "start-demo", {})["ok"]
+                state = wait_for_ui_data(
+                    url,
+                    lambda data: any("Cannot start demo" in row["message"] for row in data["logs"]),
+                )
+                assert not state["demo"]["running"]
+        finally:
+            manager.shutdown_all()
+
     """ArmController serves the RTI Demo UI browser frontend."""
 
     def test_starts_and_stays_alive(self, proc_manager):
@@ -228,7 +301,7 @@ class TestArmController:
         reader.take()
         writer.write(
             Device.Command(
-                device=Device.DeviceType.ARM_CONTROLLER, command=Device.DeviceCommands.PAUSE
+                device=Device.DeviceType.ARM_CONTROLLER, command=Device.DeviceCommandKind.PAUSE
             )
         )
         assert wait_for_samples(
@@ -248,7 +321,7 @@ class TestArmController:
         )
         writer.write(
             Device.Command(
-                device=Device.DeviceType.ARM_CONTROLLER, command=Device.DeviceCommands.START
+                device=Device.DeviceType.ARM_CONTROLLER, command=Device.DeviceCommandKind.START
             )
         )
         resumed = wait_for_ui_data(url, lambda data: data["status"] == "ON")
@@ -487,7 +560,7 @@ class TestAllApps:
         seen = wait_for_device_status(
             status_reader,
             expected,
-            device_statuses=[Device.DeviceStatuses.ON],
+            device_statuses=[Device.DeviceStatusKind.ON],
             timeout_sec=30,
         )
         assert seen == expected, (
@@ -543,7 +616,7 @@ class TestArmControllerGamepad:
             seen = wait_for_device_status(
                 nonsecure_utility_app.device_status.reader,
                 expected_devices={Device.DeviceType.ARM_CONTROLLER},
-                device_statuses=[Device.DeviceStatuses.ON],
+                device_statuses=[Device.DeviceStatusKind.ON],
                 timeout_sec=10,
             )
             assert Device.DeviceType.ARM_CONTROLLER in seen

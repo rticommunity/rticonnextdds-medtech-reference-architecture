@@ -1,6 +1,6 @@
 # Scenario 2: Direct Peer-to-Peer Communication Using RTI Cloud Discovery Service
 
-This scenario demonstrates WAN communication when both DomainParticipants are behind cone NATs and cannot reach each other directly. RTI Cloud Discovery Service is run on a publicly accessible cloud instance to facilitate discovery between the *Active* RTI Routing Services.
+This scenario demonstrates direct WAN communication between *Active* Routing Services behind compatible NATs. RTI Cloud Discovery Service runs on a publicly accessible cloud instance to facilitate their discovery; it does not relay payload data.
 
 The *Active* Routing Services initiate discovery towards the public *Cloud* instance. Cloud Discovery Service facilitates discovery between both NAT-protected *Active* Routing Services, which in turn establishes peer-to-peer communication.
 
@@ -14,7 +14,10 @@ Make sure the shared setup in the root [Quick Start](../../README.md#quick-start
 
 ## Setup and Installation
 
-**This scenario requires the *OR's* and the *Arm Controller's* NATs to be cone NATs. You can use the NAT type checker script in [tools/nat_type_checker](../../tools/nat_type_checker) to make sure you have cone NATs.**
+The two edges must either both be behind cone NATs, or one must be behind a
+full-cone NAT while the other can be behind any NAT. Network policies must
+also permit the direct UDP path. The [NAT type checker](../../tools/nat_type_checker)
+provides an advisory result only; verify the actual data path end-to-end.
 
 Complete the shared setup in the root [Quick Start](../../README.md#quick-start) section. This scenario then adds the WAN transport, cloud instance, security, and network configuration below.
 
@@ -72,7 +75,8 @@ You will need to add a security rule on your cloud instance to allow incoming/ou
 
 > Important: Run the commands below from the repository root. `medtech.py run` lives at the project root and is the single runtime entrypoint for this project.
 
-*Note: This scenario will not work if different certificate sets are used on each side when using Security.*
+*Note: Secure peers need compatible trust, governance, permissions and WAN
+PSK configuration. Each participant should use its own identity key.*
 
 ### 1. Launch Active Side Applications
 
@@ -92,7 +96,8 @@ From the other machine, start the Operating Room applications:
 python medtech.py run 01-operating-room Orchestrator PatientSensor Arm PatientMonitor
 ```
 
->**Observe:** You should see **no communication** between applications since the Routing Service and Cloud Discovery Service infrastructure has not been started yet.
+> [!NOTE]
+> **Observe:** You should see **no communication** between applications since the Routing Service and Cloud Discovery Service infrastructure has not been started yet.
 
 ### 3. Launch Cloud Discovery Service
 
@@ -116,7 +121,10 @@ python medtech.py run 03-remote-teleoperation RsActive
 
 [Observe the operating room applications](../01-operating-room/README.md#2-observe-the-application-behavior) to verify that all *Module 01: Digital Operating Room* functionality works across the WAN.
 
->**Observe:** Once discovery completes, you should see data flow between the Operating Room applications and the Arm Controller. RTI Cloud Discovery Service facilitates discovery between the *Active* Routing Services, allowing them to establish peer-to-peer communication. RTI Routing Service provides scalability by bridging between the local networks over the WAN and avoids managing a separate WAN connection for each set of remote applications that communicate.
+> [!NOTE]
+> **Observe:** Once discovery completes, you should see data flow between the Operating Room applications and the Arm Controller.
+
+RTI Cloud Discovery Service facilitates discovery between the *Active* Routing Services, allowing peer-to-peer communication. RTI Routing Service bridges the local networks over the WAN.
 
 ### 6. Kill the applications
 

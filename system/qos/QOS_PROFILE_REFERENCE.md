@@ -117,7 +117,8 @@ It derives from *Streaming*, not the depth-100 *Pattern.ReliableStreaming*:
 
 - *BEST_EFFORT*, *KEEP_LAST(1)*, *VOLATILE* on both endpoints. History is per key,
   not a bound on every network/application queue.
-- A 50 ms offered/requested *Deadline* for diagnostics, not a stop action.
+- A 50 ms offered/requested *Deadline*. A reader miss reports an update gap;
+  the arm application discards cached commands and disarms when gated.
 - A 250 ms writer *Lifespan*. The Arm reads retained READ and NOT_READ samples
   for each step; rereading does not renew expiry. No eligible arm data holds
   pose and jaw gap; absent tool data holds gap independently.
@@ -137,6 +138,18 @@ This is a non-hard-real-time demo, not a physical safety-stop design. See the
 Telemetry inherits from *Streaming* and adds the 200 ms offered/requested
 deadline snippet for stale-feedback diagnostics. The Arm publishes observed
 feedback at approximately 20 Hz.
+
+#### ***DataFlowLibrary::Vitals* profile**
+
+Vitals inherits from *Streaming* and sets a two-second offered and requested
+Deadline and a two-second writer Lifespan for the approximately one-second
+sensor cadence. Sensor, monitor, routing, recording, and replay endpoints use
+this profile. Deadline detects misses only after an instance is observed;
+Lifespan expires cached samples, not application copies. Writer Lifespan is
+not a requested/offered matching requirement, so all vitals writers must use
+the profile. Routing and replay republish samples, so each hop has its own
+cadence and reception-based expiry window. Neither policy authenticates the
+source or guarantees original measurement freshness.
 
 #### ***DataFlowLibrary::Status* profile**
 

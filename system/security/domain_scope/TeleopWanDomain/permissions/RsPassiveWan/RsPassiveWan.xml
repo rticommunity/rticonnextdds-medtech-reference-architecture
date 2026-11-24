@@ -29,7 +29,6 @@ inability to use the software. -->
                         <topic>t/device/heartbeat</topic>
                         <topic>t/robot/arm/control</topic>
                         <topic>t/robot/tool/control</topic>
-                        <topic>t/robot/arm/status</topic>
                         <topic>t/robot/arm/telemetry</topic>
                         <topic>t/device/command</topic>
                         <topic>t/patient/vitals</topic>
@@ -42,7 +41,6 @@ inability to use the software. -->
                         <topic>t/device/heartbeat</topic>
                         <topic>t/robot/arm/control</topic>
                         <topic>t/robot/tool/control</topic>
-                        <topic>t/robot/arm/status</topic>
                         <topic>t/robot/arm/telemetry</topic>
                         <topic>t/device/command</topic>
                         <topic>t/patient/vitals</topic>

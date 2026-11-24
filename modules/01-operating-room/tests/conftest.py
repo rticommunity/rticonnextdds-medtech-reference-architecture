@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pytest
 
+from tools.medtech.platform_setup import generated_system_path
+
 TESTS_DIR = Path(__file__).resolve().parent
 
 sys.path.insert(0, str(TESTS_DIR))
@@ -30,6 +32,8 @@ ARTIFACTS_DIR = SECURITY_DIR / "artifacts"
 sys.path.insert(0, str(MODULE_DIR / "src"))
 sys.path.insert(0, str(module01_test_support.REPO_ROOT / "resources" / "ui" / "support"))
 sys.path.insert(0, str(module01_test_support.REPO_ROOT / "system" / "src"))
+if os.environ.get("CONNEXTDDS_ARCH"):
+    sys.path.insert(0, str(generated_system_path() / "python"))
 
 
 def _security_artifacts_exist() -> bool:

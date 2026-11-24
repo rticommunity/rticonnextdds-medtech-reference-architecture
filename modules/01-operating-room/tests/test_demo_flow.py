@@ -115,7 +115,7 @@ class TestPauseAndResume:
         seen = wait_for_device_status(
             status_reader,
             expected_devices={Device.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Device.DeviceStatuses.ON],
+            device_statuses=[Device.DeviceStatusKind.ON],
             timeout_sec=10,
         )
         assert Device.DeviceType.PATIENT_SENSOR in seen, (
@@ -131,7 +131,7 @@ class TestPauseAndResume:
         cmd_writer.write(
             Device.Command(
                 device=Device.DeviceType.PATIENT_SENSOR,
-                command=Device.DeviceCommands.PAUSE,
+                command=Device.DeviceCommandKind.PAUSE,
             )
         )
 
@@ -139,7 +139,7 @@ class TestPauseAndResume:
         seen = wait_for_device_status(
             status_reader,
             expected_devices={Device.DeviceType.PATIENT_SENSOR},
-            device_statuses=[Device.DeviceStatuses.PAUSED],
+            device_statuses=[Device.DeviceStatusKind.PAUSED],
             timeout_sec=5,
         )
         assert Device.DeviceType.PATIENT_SENSOR in seen, (
@@ -160,7 +160,7 @@ class TestPauseAndResume:
         cmd_writer.write(
             Device.Command(
                 device=Device.DeviceType.PATIENT_SENSOR,
-                command=Device.DeviceCommands.START,
+                command=Device.DeviceCommandKind.START,
             )
         )
 
@@ -198,7 +198,7 @@ class TestGracefulShutdown:
         seen = wait_for_device_status(
             status_reader,
             expected,
-            device_statuses=[Device.DeviceStatuses.ON],
+            device_statuses=[Device.DeviceStatusKind.ON],
             timeout_sec=30,
         )
         assert seen == expected, (
@@ -210,7 +210,7 @@ class TestGracefulShutdown:
             cmd_writer.write(
                 Device.Command(
                     device=device_type,
-                    command=Device.DeviceCommands.SHUTDOWN,
+                    command=Device.DeviceCommandKind.SHUTDOWN,
                 )
             )
 
@@ -301,7 +301,7 @@ class TestSecureAllApps:
                 seen = wait_for_device_status(
                     observer.device_status.reader,
                     expected_devices=expected,
-                    device_statuses=[Device.DeviceStatuses.ON],
+                    device_statuses=[Device.DeviceStatusKind.ON],
                     timeout_sec=15,
                 )
         finally:

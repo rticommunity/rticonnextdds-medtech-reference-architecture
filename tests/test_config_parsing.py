@@ -141,6 +141,25 @@ class TestRemoteTeleoperationRoutes:
             ET.parse(route_file)
             assert "t/robot/arm/control" in content, f"{route_file.name} omits teleop routes"
 
+    def test_vitals_routes_offer_and_request_the_vitals_deadline(self):
+        route_dir = PROJECT_ROOT / "modules" / "03-remote-teleoperation" / "xml_config"
+        for route_file in sorted(route_dir.glob("RsConfig*.xml")):
+            routes = ET.parse(route_file).findall(".//auto_topic_route")
+            vitals_routes = [
+                route
+                for route in routes
+                if route.findtext("input/allow_topic_name_filter") == "t/patient/vitals"
+            ]
+            assert vitals_routes, f"{route_file.name} omits vitals routes"
+            for route in vitals_routes:
+                assert (
+                    route.find("input/datareader_qos").get("base_name") == "DataFlowLibrary::Vitals"
+                )
+                assert (
+                    route.find("output/datawriter_qos").get("base_name")
+                    == "DataFlowLibrary::Vitals"
+                )
+
     def test_module_toml_app_variants_reference_defined_apps(self):
         for module_name, module_dir in module_runner.discover_modules().items():
             raw = module_runner.read_manifest(module_dir)

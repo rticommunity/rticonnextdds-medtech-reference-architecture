@@ -62,6 +62,29 @@ integration CI job uses the Ubuntu runner's system libraries and installs only
 the matching Chromium browser; missing libraries still fail browser launch.
 Browser coverage does not validate native-webview mode.
 
+## Conditional coverage and skipped tests
+
+A passing run with skipped tests is not full-feature acceptance. Check the
+skip summary before reporting coverage:
+
+- **DDS Security:** local runs skip runtime security cases when issued/staged
+  core credentials or threat-demo credentials are absent. These exercise the
+  project's secured applications, role permissions, security-log reader and
+  threat scenarios, not only the SDK. Prepare the credentials above or use the
+  [Docker test runner](docker/README.md), which generates them inside its
+  disposable container. The trusted integration CI also prepares them; missing
+  credentials should not be a routine acceptance gap there.
+- **WAN:** the three application scenarios require the explicitly deployed
+  [Containerlab WAN lab](docker/README.md#containerlab-wan-and-nat-check) and
+  `MEDTECH_WAN_LAB=1`. Ordinary pytest does not create privileged networking
+  infrastructure. Once selected and deployed, a missing or unusable lab fails
+  those tests rather than silently skipping them.
+- **Native UI:** browser coverage and native-runner delegation tests do not
+  establish that actual native windows work. Build with
+  `-DRTI_DEMO_BUILD_NATIVE_WEBVIEW=ON`, prepare the optional Python native
+  capability and desktop prerequisites, and rehearse the real applications in
+  native mode before claiming native support was verified.
+
 ## Environment Setup
 
 The root `pyproject.toml` configures pytest to automatically discover tests in:
@@ -69,6 +92,7 @@ The root `pyproject.toml` configures pytest to automatically discover tests in:
 - `tests/` — Project-level tests
 - `modules/01-operating-room/tests/` — Module 01 tests
 - `modules/02-record-playback/tests/` — Module 02 tests
+- `modules/03-remote-teleoperation/tests/` — Module 03 tests (the WAN lab is opt-in)
 - `modules/04-security-threat/tests/` — Module 04 tests
 
 Before running pytest, ensure the RTI environment is sourced:

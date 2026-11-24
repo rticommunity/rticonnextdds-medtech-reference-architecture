@@ -88,7 +88,8 @@ python medtech.py run 02-record-playback RecordingService [-s]
 
 Let RTI Recording Service run for some time (e.g. 10-20 seconds) before initiating shutdown with `Ctrl-C`.
 
->**Observe:** Once finished, a new folder should be created - `or_recording` - containing the recording files.
+> [!NOTE]
+> **Observe:** Once finished, a new folder should be created - `or_recording` - containing the recording files.
 
 #### Further Learning: Recording Service
 
@@ -105,7 +106,8 @@ Relaunch the Digital Operating Room Arm and Patient Monitor GUI applications onl
 python medtech.py run 01-operating-room Arm PatientMonitor [-s]
 ```
 
->**Observe:** You should see the GUI applications are not receiving data.
+> [!NOTE]
+> **Observe:** You should see the GUI applications are not receiving data.
 
 ### 4. Run RTI Replay Service
 
@@ -116,7 +118,8 @@ In a new terminal, launch RTI Replay Service from the repository root (use `-s` 
 python medtech.py run 02-record-playback ReplayService [-s]
 ```
 
->**Observe:** You should see the Arm and Patient Monitor applications are receiving data previously recorded.
+> [!NOTE]
+> **Observe:** You should see the Arm and Patient Monitor applications are receiving data previously recorded.
 
 The Replay Service configuration has `<enable_looping>` set to `true`, so the replay will start over when it reaches the end of the recording.
 
@@ -132,29 +135,33 @@ Inspect [ReplayServiceConfiguration.xml](ReplayServiceConfiguration.xml) to unde
 
 Here are a few hands-on exercises to demonstrate use cases of Connext features in this module.
 
-### 1. Recording All Topics
+### 1. Selecting Topics for Replay
 
-The module is configured to record and replay `t/robot/arm/control` and `t/patient/vitals` Topics only on Domain 0. Both RTI Recording Service and RTI Replay Service can be configured to record and replay explicit Topics, or discovered Topics/Data Types that match a pattern.
+The module records and replays `t/robot/arm/control`, `t/robot/tool/control`,
+and `t/patient/vitals` on Domain 0. Both services can be configured with
+explicit Topics or discovered Topics/Data Types that match a pattern.
 
-Let's try replaying just `t/patient/vitals`, while still recording both Topics.
+The vitals recording reader and replay writer use the shared Vitals QoS profile.
+Replay offers the same Deadline and Lifespan as the live sensor; gaps in recorded
+data can still cause the monitor to report a missed Deadline. Replay establishes
+a new local reception window rather than proving original measurement freshness.
+
+Let's replay only `t/patient/vitals` from an existing recording.
 
 1. Kill all active operating room applications and RTI Recording/Replay Services.
 
-2. Comment out the `<topic>` tag and contained content for `t/robot/arm/control` in [RecordingServiceConfiguration.xml](./RecordingServiceConfiguration.xml).
+2. Comment out the `<topic>` elements for `t/robot/arm/control` and
+   `t/robot/tool/control` in [ReplayServiceConfiguration.xml](./ReplayServiceConfiguration.xml).
 
    *Note, you should undo this configuration change after completing this demonstration.*
 
-3. Relaunch the operating room applications and RTI Recording Service for 10-20 seconds.
+3. Relaunch the operating room *Arm* and *Patient Monitor* applications.
+   While monitoring their GUIs, start RTI Replay Service.
 
-4. Kill RTI Recording Service and the operating room applications.
+   > [!NOTE]
+   > **Observe:** The *Patient Monitor* receives data, but *Arm* shows no motor movement.
 
-5. Relaunch the operating room *Arm* and *Patient Monitor* applications and RTI Replay Service.
-
-6. While monitoring the *Arm* and *Patient Monitor* application GUIs, start RTI Replay Service.
-
-   >**Observe:** You should see the *Patient Monitor* receiving data, but *Arm* should appear as if there is no motor movement. This is because replay still has both arm command topics configured, but only `t/patient/vitals` data was recorded.
-
-7. Undo the QoS change to revert to the recommended configuration.
+4. Restore the replay configuration after the exercise.
 
 ### 2. RTI Admin Console
 
@@ -194,7 +201,8 @@ Let's try using RTI Admin Console to administer RTI Recording Service.
     1. From RTI Admin Console, while viewing the RTI Recording Service process, click the "Shutdown" button to stop and kill the RTI Recording Service process.
     2. Confirm in the popup that you would like to shut down the service.
 
-   >**Observe:** You should see the RTI Recording Service process has been stopped gracefully in the terminal which you launched it.
+   > [!NOTE]
+   > **Observe:** The RTI Recording Service process stops gracefully in its launch terminal.
 
 ## Next Steps
 

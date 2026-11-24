@@ -72,7 +72,6 @@ ROUTED_TOPICS = [
     "t/device/heartbeat",
     "t/robot/arm/control",
     "t/robot/tool/control",
-    "t/robot/arm/status",
     "t/robot/arm/telemetry",
     "t/device/command",
     "t/patient/vitals",
@@ -108,7 +107,7 @@ OPERATIONAL_DOMAIN = DomainScope(
                 metadata_protection_kind="ENCRYPT",
             ),
             TopicRule(
-                topic_expression="t/robot/arm/status",
+                topic_expression="t/device/status",
                 metadata_protection_kind="ENCRYPT",
             ),
             TopicRule(
@@ -132,7 +131,6 @@ OPERATIONAL_DOMAIN = DomainScope(
             name="Arm",
             issuer=TRUSTED_PERMISSIONS_CA,
             publish_topics=[
-                "t/robot/arm/status",
                 "t/robot/arm/telemetry",
                 "t/device/status",
                 "t/device/heartbeat",
@@ -156,7 +154,7 @@ OPERATIONAL_DOMAIN = DomainScope(
             ],
             subscribe_topics=[
                 "t/device/command",
-                "t/robot/arm/status",
+                "t/device/status",
                 "t/robot/arm/telemetry",
             ],
         ),

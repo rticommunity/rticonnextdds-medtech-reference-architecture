@@ -1,0 +1,50 @@
+#
+# (c) 2026 Copyright, Real-Time Innovations, Inc. (RTI) All rights reserved.
+#
+# RTI grants Licensee a license to use, modify, compile, and create derivative
+# works of the software solely for use with RTI Connext DDS. Licensee may
+# redistribute copies of the software provided that all such copies are
+# subject to this license. The software is provided "as is", with no warranty
+# of any type, including any warranty for fitness for any purpose. RTI is
+# under no obligation to maintain or support the software. RTI shall not be
+# liable for any incidental or consequential damages arising out of the use or
+# inability to use the software.
+
+name: medtech-wan
+
+services:
+  nodes-image:
+    image: medtech-wan-lab:local
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile
+      target: wan-lab
+    network_mode: none
+    entrypoint: ["/bin/true"]
+
+  lab:
+    image: ghcr.io/srl-labs/clab:0.83.0
+    depends_on:
+      nodes-image:
+        condition: service_completed_successfully
+    privileged: true
+    network_mode: host
+    pid: host
+    stop_grace_period: 2m
+    environment:
+      WAN_LAB_ROOT: ${PWD:?Run from the repository root}
+      RTI_LICENSE_FILE: ${RTI_LICENSE_FILE:?Set RTI_LICENSE_FILE to an absolute license path}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/netns:/var/run/netns
+      - /var/lib/docker/containers:/var/lib/docker/containers
+      - ${PWD:?Run from the repository root}:${PWD:?Run from the repository root}
+      - ${RTI_LICENSE_FILE:?Set RTI_LICENSE_FILE to an absolute license path}:${RTI_LICENSE_FILE:?Set RTI_LICENSE_FILE to an absolute license path}:ro
+    working_dir: ${PWD:?Run from the repository root}
+    entrypoint: ["/bin/bash", "${PWD:?Run from the repository root}/tests/docker/wan-lab.sh"]
+    command: ["run"]
+    healthcheck:
+      test: ["CMD", "/bin/bash", "${PWD:?Run from the repository root}/tests/docker/wan-lab.sh", "ready"]
+      interval: 2s
+      timeout: 10s
+      retries: 30

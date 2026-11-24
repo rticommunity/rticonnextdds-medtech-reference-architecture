@@ -35,7 +35,7 @@ inability to use the software. -->
                 <subscribe>
                     <topics>
                         <topic>t/device/command</topic>
-                        <topic>t/robot/arm/status</topic>
+                        <topic>t/device/status</topic>
                         <topic>t/robot/arm/telemetry</topic>
                     </topics>
                 </subscribe>

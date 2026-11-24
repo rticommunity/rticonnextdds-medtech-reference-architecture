@@ -53,7 +53,10 @@ python tools/medtech/check_connext_install.py
 the base dependencies only. The lock pins the Python distribution
 `rti.connext==7.7.0`, imported in code as `rti.connextdds`; do not install a
 second API distribution manually. The exact locked sync installs and keeps
-that API. The compatibility preflight checks the Python distribution,
+that API, but can remove separately installed physical-device packages.
+For Kortex or Falcon setup, preserve and verify the selected environment as
+described in the [physical-device guide](../modules/01-operating-room/ARM_AND_CONTROLLER.md#physical-device-development).
+The compatibility preflight checks the Python distribution,
 code generator, and installed Core and Security inventory and library build
 IDs against the same patch (currently 7.7.0.0). It checks the selected
 installation, not which libraries the runtime loader actually selects; ensure

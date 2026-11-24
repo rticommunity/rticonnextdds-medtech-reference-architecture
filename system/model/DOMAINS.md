@@ -86,9 +86,8 @@ In this reference architecture, you will find two Domain definitions — *Operat
 | ----- | --------- | ------------
 | *t/robot/arm/control* | *Robot::Arm::TeleopControl* | Complete base-frame linear/angular TCP velocity
 | *t/robot/tool/control* | *Robot::Tool::ParallelJawControl* | Signed total jaw-gap opening rate
-| *t/robot/arm/status* | *Robot::Arm::Status* | Initial and changed readiness
 | *t/robot/arm/telemetry* | *Robot::Arm::Telemetry* | Periodic actual base-relative TCP pose and optional jaw gap
-| *t/device/status* | *Device::Status* | Status (e.g. `ON`, `PAUSED`) for a unique system component
+| *t/device/status* | *Device::Status* | Last reported lifecycle and primary-role readiness, keyed by device type
 | *t/device/heartbeat* | *Device::Heartbeat* | Assert that a unique system component is alive
 | *t/device/command* | *Device::Command* | Command initiating a status (e.g. `START`, `SHUTDOWN`) to a unique system component
 | *t/patient/vitals* | *Patient::Vitals* | Data representative of a unique patient's collected vital signs

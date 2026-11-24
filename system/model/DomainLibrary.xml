@@ -17,7 +17,6 @@ inability to use the software. -->
       <!-- Types need to be registered once. 2 different topics can use the same type -->
       <register_type name="Robot::Arm::TeleopControl"/>
       <register_type name="Robot::Tool::ParallelJawControl"/>
-      <register_type name="Robot::Arm::Status"/>
       <register_type name="Robot::Arm::Telemetry"/>
       <register_type name="Device::Status"/>
       <register_type name="Device::Heartbeat"/>
@@ -28,7 +27,6 @@ inability to use the software. -->
            the DDS standard does not make this mandatory. -->
       <topic name="t/robot/arm/control" register_type_ref="Robot::Arm::TeleopControl"/>
       <topic name="t/robot/tool/control" register_type_ref="Robot::Tool::ParallelJawControl"/>
-      <topic name="t/robot/arm/status" register_type_ref="Robot::Arm::Status"/>
       <topic name="t/robot/arm/telemetry" register_type_ref="Robot::Arm::Telemetry"/>
       <topic name="t/device/status" register_type_ref="Device::Status"/>
       <topic name="t/device/heartbeat" register_type_ref="Device::Heartbeat"/>
