@@ -29,6 +29,7 @@ from tools.medtech import medtech_cli, module_runner
 
 sys.path.insert(0, str(module_runner.platform_setup.generated_system_path() / "python"))
 
+from ArmControllerDemo import ArmControllerDemo  # noqa: E402
 from ArmControllerFalcon import (  # noqa: E402
     MAX_ACCELERATION,
     MAX_SPEED,
@@ -123,6 +124,28 @@ def test_workspace_configuration_rejects_bad_values(monkeypatch):
         FalconRelativeControl((0.0, 0.0, 0.0), (0.0, 1.0, 1.0))
 
 
+@pytest.mark.parametrize("reason", ["missing-jaw", "stale", "fault", "timeout"])
+def test_showcase_stops_and_inhibits_manual_input_on_feedback_failure(reason):
+    demo = ArmControllerDemo()
+    position, jaw = (0.0, 0.0, 0.3), 0.02
+    demo.start(position, jaw, 1.0)
+    now = 5.1 if reason == "timeout" else 1.1
+    ready = demo.ready(
+        position,
+        None if reason == "missing-jaw" else jaw,
+        0.0 if reason == "stale" else now,
+        "FAULTED" if reason == "fault" else "READY",
+        now,
+    )
+    rates, message = demo.select({"manual": True}, False, True, ready, position, jaw, now)
+    assert rates is None
+    assert message and not demo.running
+    assert demo.select({"manual": True}, True, True, True, position, jaw, now)[0] is None
+    assert demo.select({"manual": True}, False, True, True, position, jaw, now)[0] == {
+        "manual": True
+    }
+
+
 def test_relative_control_moves_simulated_arm_with_appropriate_workspace():
     from ArmKinematics import ArmModel
 
@@ -214,7 +237,7 @@ class FalconDeviceBridge:
     def setHomingMode(self, enabled):
         pass
     def runIOLoop(self, flags):
-        return True
+        return Path(os.environ["TEST_FALCON_STATE"]).read_text() != "drop"
     def isHomed(self):
         return Path(os.environ["TEST_FALCON_STATE"]).read_text() != "unhomed"
     def getPosition(self):
@@ -227,6 +250,225 @@ class FalconDeviceBridge:
 """
     )
     return state, set_input
+
+
+def fake_gamepad(tmp_path):
+    state = tmp_path / "input-state"
+
+    def set_input(value):
+        pending = tmp_path / "next-input-state"
+        pending.write_text(value)
+        pending.replace(state)
+
+    set_input("released")
+    stub = tmp_path / "run_fake_gamepad.py"
+    stub.write_text(
+        """
+import os
+from pathlib import Path
+import pygame
+import ArmControllerGamepad as motion
+
+def state():
+    return Path(os.environ["TEST_GAMEPAD_STATE"]).read_text()
+
+class Gamepad:
+    def get_axis(self, axis):
+        return 32767 if state() == "move" and axis == pygame.CONTROLLER_AXIS_LEFTX else 0
+    def get_button(self, button):
+        return False
+    def quit(self):
+        pass
+
+def initialize(self):
+    self.gamepad = Gamepad()
+    self.write_status(self.status)
+
+def process(self):
+    if state() == "drop" and self.gamepad is not None:
+        self.disconnect_controller()
+
+motion.ArmControllerGamepadApp.initialize_input = initialize
+motion.ArmControllerGamepadApp.process_events = process
+motion.ArmControllerGamepadApp.close_input_system = lambda self: None
+raise SystemExit(motion.main())
+"""
+    )
+    return state, set_input, stub
+
+
+def configure_fake_controller(tmp_path, env, apps, variant):
+    if variant == "falcon":
+        state_file, set_input = fake_falcon(tmp_path)
+        env["TEST_FALCON_STATE"] = str(state_file)
+    else:
+        state_file, set_input, stub = fake_gamepad(tmp_path)
+        env["TEST_GAMEPAD_STATE"] = str(state_file)
+        env["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+        env["PYTHONPATH"] += os.pathsep + str(MODULE_DIR / "src")
+        apps["ArmController"] = [sys.executable, str(stub)]
+    return set_input
+
+
+@pytest.mark.browser
+@pytest.mark.parametrize("variant", ["falcon", "xbox"])
+def test_hardware_controller_showcase_and_manual_takeover(tmp_path, variant):
+    import playwright.sync_api as playwright
+    from test_utils import ProcessManager, wait_for_samples
+
+    env, apps = local_dds_env(tmp_path, {"ArmController": variant})
+    if variant == "falcon":
+        env["FALCON_WORKSPACE_MAX"] = "0.5,0.25,0.60"
+    set_input = configure_fake_controller(tmp_path, env, apps, variant)
+    utility = local_dds_utility(tmp_path)
+    arm_reader = utility.teleop_control.reader
+    jaw_reader = utility.tool_control.reader
+    manager = ProcessManager(env, apps, cwd=MODULE_DIR)
+    try:
+        manager.start_app_ready("Arm")
+        controller = manager.start_app_ready("ArmController")
+        title = "Novint Falcon Controller" if variant == "falcon" else "Xbox Arm Controller"
+        url = local_ui_url(controller, f"{title} listening on")
+        with playwright.sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True)
+            try:
+                page = browser.new_page()
+                page.goto(url)
+                run = page.get_by_role("button", name="RUN DEMO")
+                playwright.expect(run).to_be_enabled(timeout=15000)
+                initial = ui_data(url)["feedback"]
+                origin = tuple(initial["position"][axis] for axis in "xyz")
+                orientation = tuple(initial["orientation"][axis] for axis in "xyzw")
+                gap = initial["opening_width"]
+                run.click()
+                wait_for_ui_data(url, lambda data: data["demo"]["running"])
+                largest_excursion = largest_gap_change = 0.0
+                deadline = time.monotonic() + 30
+                while time.monotonic() < deadline:
+                    data = ui_data(url)
+                    feedback = data["feedback"]
+                    position = tuple(feedback["position"][axis] for axis in "xyz")
+                    actual_orientation = tuple(feedback["orientation"][axis] for axis in "xyzw")
+                    distance = math.dist(position, origin)
+                    gap_change = abs(feedback["opening_width"] - gap)
+                    largest_excursion = max(largest_excursion, distance)
+                    largest_gap_change = max(largest_gap_change, gap_change)
+                    assert distance < 0.025 and gap_change < 0.010
+                    assert abs(sum(a * b for a, b in zip(orientation, actual_orientation))) >= (
+                        math.cos(0.01 / 2)
+                    )
+                    assert data["demo"]["running"]
+                    if data["demo"]["cycles"] >= 2:
+                        assert distance <= 0.0012 and gap_change <= 0.0006
+                        break
+                    time.sleep(0.05)
+                else:
+                    pytest.fail("Showcase did not complete two loops")
+                assert largest_excursion > 0.012 and largest_gap_change > 0.006
+
+                set_input("move")
+                wait_for_ui_data(url, lambda data: not data["demo"]["running"])
+                page.get_by_role("button", name="STOP MOTION").click()
+                arm_reader.take()
+                jaw_reader.take()
+                assert wait_for_samples(
+                    arm_reader,
+                    filter_fn=lambda sample: all(
+                        getattr(vector, axis) == 0
+                        for vector in (sample.linear_velocity, sample.angular_velocity)
+                        for axis in "xyz"
+                    ),
+                )
+                assert wait_for_samples(
+                    jaw_reader, filter_fn=lambda sample: sample.opening_rate == 0
+                )
+                time.sleep(0.15)
+                held_samples = arm_reader.take_data()
+                assert held_samples
+                assert all(sample.linear_velocity.x == 0 for sample in held_samples)
+                set_input("released")
+                playwright.expect(run).to_be_enabled(timeout=10000)
+                if variant == "falcon":
+                    set_input("pressed")
+                    wait_for_ui_data(
+                        url,
+                        lambda data: any(item["active"] for item in data["inputs"]),
+                    )
+                arm_reader.take()
+                set_input("move")
+                assert wait_for_samples(
+                    arm_reader, filter_fn=lambda sample: sample.linear_velocity.x != 0
+                )
+                set_input("released")
+                playwright.expect(run).to_be_enabled(timeout=10000)
+                run.click()
+                wait_for_ui_data(url, lambda data: data["demo"]["running"])
+                set_input("drop")
+                if variant == "falcon":
+                    assert controller.wait(timeout=10) != 0
+                else:
+                    wait_for_ui_data(
+                        url,
+                        lambda data: not data["demo"]["running"] and not data["input_connected"],
+                    )
+                assert wait_for_samples(
+                    arm_reader,
+                    filter_fn=lambda sample: all(
+                        getattr(vector, axis) == 0
+                        for vector in (sample.linear_velocity, sample.angular_velocity)
+                        for axis in "xyz"
+                    ),
+                )
+            finally:
+                browser.close()
+    finally:
+        manager.shutdown_all()
+        utility.close()
+
+
+@pytest.mark.parametrize("variant", ["falcon", "xbox"])
+def test_hardware_showcase_stops_when_feedback_disappears(tmp_path, variant):
+    from test_utils import ProcessManager, wait_for_samples
+
+    env, apps = local_dds_env(tmp_path, {"ArmController": variant})
+    configure_fake_controller(tmp_path, env, apps, variant)
+    utility = local_dds_utility(tmp_path)
+    arm_reader = utility.teleop_control.reader
+    manager = ProcessManager(env, apps, cwd=MODULE_DIR)
+    try:
+        arm = manager.start_app_ready("Arm")
+        controller = manager.start_app_ready("ArmController")
+        title = "Novint Falcon Controller" if variant == "falcon" else "Xbox Arm Controller"
+        url = local_ui_url(controller, f"{title} listening on")
+        wait_for_ui_data(
+            url,
+            lambda data: not data["control_groups"][-1]["controls"][0]["disabled"],
+            timeout=15,
+        )
+        assert invoke(url, "start-demo", {})["result"]["started"]
+        wait_for_ui_data(url, lambda data: data["demo"]["running"])
+        assert wait_for_samples(
+            arm_reader,
+            filter_fn=lambda sample: any(
+                getattr(sample.linear_velocity, axis) != 0 for axis in "xyz"
+            ),
+        )
+        arm.terminate()
+        arm.wait(timeout=10)
+        wait_for_ui_data(url, lambda data: not data["demo"]["running"], timeout=5)
+        arm_reader.take()
+        assert wait_for_samples(
+            arm_reader,
+            filter_fn=lambda sample: all(
+                getattr(vector, axis) == 0
+                for vector in (sample.linear_velocity, sample.angular_velocity)
+                for axis in "xyz"
+            ),
+        )
+        assert controller.poll() is None
+    finally:
+        manager.shutdown_all()
+        utility.close()
 
 
 @pytest.mark.browser
@@ -252,6 +494,7 @@ def test_falcon_waits_for_device_and_connects_when_attached(tmp_path):
                 playwright.expect(page.locator(".gamepad-connection")).to_contain_text(
                     "NO FALCON DETECTED"
                 )
+                playwright.expect(page.get_by_role("button", name="RUN DEMO")).to_be_disabled()
                 button = page.get_by_role("button", name="HOME FALCON")
                 playwright.expect(button).to_be_disabled()
                 statuses = wait_for_samples(
@@ -484,6 +727,39 @@ raise SystemExit(motion.main())
 """
     )
     return stub
+
+
+@pytest.mark.parametrize("variant", ["falcon", "xbox"])
+def test_hardware_showcase_requires_jaw_feedback(tmp_path, variant):
+    from test_utils import ProcessManager
+
+    env, apps = local_dds_env(tmp_path, {"Arm": "kortex", "ArmController": variant})
+    configure_fake_controller(tmp_path, env, apps, variant)
+    env["PYTHONPATH"] += os.pathsep + str(MODULE_DIR / "src")
+    env["TEST_KINOVA_TWISTS"] = str(tmp_path / "twists.jsonl")
+    env["KORTEX_LIVE_WATCHDOG"] = "VERIFIED_KORTEX_CONNECTION_TIMEOUT_STOP"
+    apps["Arm"] = [sys.executable, str(fake_kinova(tmp_path))]
+    manager = ProcessManager(env, apps, cwd=MODULE_DIR)
+    try:
+        manager.start_app_ready("Arm")
+        controller = manager.start_app_ready("ArmController")
+        title = "Novint Falcon Controller" if variant == "falcon" else "Xbox Arm Controller"
+        url = local_ui_url(controller, f"{title} listening on")
+        state = wait_for_ui_data(
+            url,
+            lambda data: (
+                data["input_connected"]
+                and data["feedback"]["freshness"]["telemetry"]
+                and data["feedback"]["position"] is not None
+            ),
+            timeout=15,
+        )
+        assert state["feedback"]["opening_width"] is None
+        assert state["control_groups"][-1]["controls"][0]["disabled"]
+        assert not invoke(url, "start-demo", {})["result"]["started"]
+        assert not ui_data(url)["demo"]["running"]
+    finally:
+        manager.shutdown_all()
 
 
 def test_kortex_offline_preview_stays_not_ready_without_sdk_calls(tmp_path):
@@ -758,6 +1034,7 @@ def test_controller_publishes_neutral_and_disarms_on_lost_input_or_pause(monkeyp
         ((0.02, 0.0, 0.0), 1),
     ]
     app = ArmControllerFalconApp.__new__(ArmControllerFalconApp)
+    app.demo = falcon.ArmControllerDemo()
     app.control = FalconRelativeControl((-0.25, -0.25, 0.1), (0.25, 0.25, 0.6))
     app.last_input = None
     assert dict(app._input_descriptions()) == {
@@ -814,6 +1091,7 @@ def test_repeated_start_requires_falcon_deadman_release():
     from MedTech import Device
 
     app = ArmControllerFalconApp.__new__(ArmControllerFalconApp)
+    app.demo = ArmControllerDemo()
     app.control = FalconRelativeControl((-0.25, -0.25, 0.1), (0.25, 0.25, 0.6))
     arm = (0.0, 0.0, 0.3)
     app.control.update(ZERO, 0, arm, True, 1.0)

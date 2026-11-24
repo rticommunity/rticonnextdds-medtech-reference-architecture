@@ -229,8 +229,8 @@ It uses the Kortex SDK and credential environment variables described above.
 
 ### Experimental Falcon motion controller
 
-The separately selected `falcon` variant publishes translation and
-neutral jaw/rotation commands. It uses an identity-axis, relative-position
+For manual control, the separately selected `falcon` variant publishes translation
+and neutral jaw/rotation commands. It uses an identity-axis, relative-position
 mapping: release button 1, then hold it to capture a
 reference and translate. Release commands zero; stale input or arm feedback,
 an arm that is not ready, a control-loop gap, PAUSE and START require a new
@@ -238,7 +238,7 @@ release before another reference can be captured. Feedback freshness measures
 time since the application processed the latest telemetry, not its source or
 DDS reception timestamp. It uses a 0.01 m/s speed limit, 0.02 m/s² acceleration
 limit and 0.35 smoothing factor.
-Force feedback, rotation and jaw control are not implemented.
+Force feedback, manual rotation and manual jaw control are not implemented.
 The app checks for confirmed homing at startup; if needed, **HOME FALCON**
 starts a 30-second manual homing window. It remains not ready and publishes
 neutral commands until homing is confirmed. Loss of homing during tracking
@@ -273,16 +273,27 @@ These indicators do not change controller publication or arm gating.
 small translation/jaw loop with a brief hold at its starting point. Each
 waypoint uses achieved telemetry; the return targets are within 0.7 mm position
 and 0.4 mm gap of the captured start, rather than accumulated command estimates.
-The showcase leaves angular rates at zero; all six manual axes remain available.
+The showcase leaves angular rates at zero; the simulated and Xbox controllers
+offer all six manual axes.
 It requires complete pose/jaw telemetry no more than 500 ms old and stops with a
 warning if feedback becomes unavailable, the arm reports a fault, or a waypoint
-cannot be reached within four seconds. This is demo motion, not a safety system.
+cannot be reached within four seconds. It is available on the simulated, Xbox,
+and Falcon controllers, but not with the Kortex arm because that arm does not
+provide jaw feedback. This is demo motion, not a safety system.
+
+On Xbox and Falcon, starting the showcase also requires the controller to be ON,
+connected and ready, with its controls neutral. Loss of input stops the showcase.
+The Falcon showcase is autonomous: it does not require holding the manual
+deadman button, and its motion does not use the Falcon manual workspace, speed,
+or acceleration limits. It can command jaw motion even though Falcon manual
+control cannot.
 
 A manual jog takes over from the showcase. A release-only event does not cancel
 it. **STOP MOTION** clears both the showcase and held jogs. PAUSE/SHUTDOWN clear
-motion and send zero before ending the command stream; START resumes idle zeros,
-not the old showcase or cached browser inputs. A new RUN DEMO captures a new
-starting point. Browser control schemas and presentation are in
+motion and send zero before ending the command stream; the showcase does not
+resume after START. On hardware controllers, STOP MOTION inhibits held manual
+input until it returns to neutral. A new RUN DEMO captures a new starting point.
+Browser control schemas and presentation for the simulated controller are in
 [ArmControllerUi.hpp](src/ArmControllerUi.hpp); ordinary Connext entity lookup,
 reads, and writes remain in [ArmController.cxx](src/ArmController.cxx).
 

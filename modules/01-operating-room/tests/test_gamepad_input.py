@@ -148,6 +148,7 @@ def test_controller_lifecycle_publishes_neutral_before_stopping(module_name, cla
     module = importlib.import_module(module_name)
     cls = getattr(module, class_name)
     app = cls.__new__(cls)
+    app.demo = module.ArmControllerDemo()
     app.status = gamepad_module.Device.DeviceStatusKind.ON
     app.rates = app.zero_rates()
     app.rates["linear_velocity"]["x"] = 0.02
@@ -510,6 +511,7 @@ def test_z_translation_waits_for_both_right_stick_axes_to_return_to_dead_zone():
 
 def test_gamepad_view_explains_controls_and_neutral_interlock():
     app = gamepad_module.ArmControllerGamepadApp.__new__(gamepad_module.ArmControllerGamepadApp)
+    app.demo = gamepad_module.ArmControllerDemo()
     app.teleop_writer = SimpleNamespace(publication_matched_status=SimpleNamespace(current_count=0))
     app.tool_writer = SimpleNamespace(publication_matched_status=SimpleNamespace(current_count=0))
     app.feedback_view = lambda: {"feedback": {"readiness": "NOT_READY"}}

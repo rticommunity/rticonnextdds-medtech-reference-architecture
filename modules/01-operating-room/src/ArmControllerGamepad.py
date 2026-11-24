@@ -18,6 +18,7 @@ from typing import Any
 import pygame
 import rti.asyncio  # noqa: F401 - installs Connext's asyncio integration
 import rti.connextdds as dds
+from ArmControllerDemo import ArmControllerDemo
 from DemoUiSupport import (
     DemoUiState,
     create_demo_ui,
@@ -241,7 +242,20 @@ class ArmControllerGamepadApp:
         self.has_arm_status = False
         self.last_telemetry: dict | None = None
         self.last_telemetry_time: float | None = None
+        self.demo_position = None
+        self.demo_jaw = None
+        self.demo = ArmControllerDemo()
         self.running = True
+        self.ui.app.register_command(
+            "start-demo",
+            {"type": "object", "additionalProperties": False},
+            self.start_demo,
+        )
+        self.ui.app.register_command(
+            "stop-demo",
+            {"type": "object", "additionalProperties": False},
+            self.stop_demo,
+        )
 
     @staticmethod
     def zero_rates() -> dict:
@@ -297,6 +311,10 @@ class ArmControllerGamepadApp:
                     if feedback["readiness"] == "READY" and self.has_arm_status
                     else "warn",
                 },
+                {
+                    "label": "Demo",
+                    "value": f"RUNNING · {self.demo.cycles} LOOPS" if self.demo.running else "IDLE",
+                },
                 *[
                     {
                         "label": label,
@@ -318,6 +336,15 @@ class ArmControllerGamepadApp:
             "input_connected": self.input_connected(),
             "input_label": self.input_label,
             "input_name": self.input_name,
+            "demo": {"running": self.demo.running, "cycles": self.demo.cycles},
+            "control_groups": [
+                self.demo.controls(
+                    self.status == Device.DeviceStatusKind.ON
+                    and self.input_connected()
+                    and not any(self.active_inputs.values())
+                    and self.demo_ready()
+                )
+            ],
             "inputs": [
                 {
                     "label": label,
@@ -389,9 +416,58 @@ class ArmControllerGamepadApp:
         self.status_writer.write(self.status_sample)
 
     def stop_motion(self) -> None:
+        self.demo.inhibit()
         self.rates = self.zero_rates()
         if self.status == Device.DeviceStatusKind.ON:
             self.publish_rates(self.rates)
+
+    def demo_ready(self) -> bool:
+        return self.demo.ready(
+            self.demo_position,
+            self.demo_jaw,
+            self.last_telemetry_time,
+            self.last_arm_readiness,
+            time.monotonic(),
+        )
+
+    def start_demo(self, _payload: dict) -> dict[str, bool]:
+        started = (
+            self.status == Device.DeviceStatusKind.ON
+            and self.input_connected()
+            and not any(self.active_inputs.values())
+            and not self.demo.running
+            and self.demo_ready()
+        )
+        if started:
+            self.demo.start(self.demo_position, self.demo_jaw, time.monotonic())
+        self.ui.log(
+            "Started feedback-anchored demo motion"
+            if started
+            else "Cannot start demo: require connected neutral input and fresh arm/jaw feedback",
+            "ok" if started else "warn",
+        )
+        self.ui.update(**self.view())
+        return {"started": started}
+
+    def stop_demo(self, _payload: dict) -> dict[str, bool]:
+        self.stop_motion()
+        self.ui.log("Stopped all motion")
+        self.ui.update(**self.view())
+        return {"stopped": True}
+
+    def demo_rates(self, manual_rates: dict, now: float) -> dict:
+        rates, message = self.demo.select(
+            manual_rates,
+            any(self.active_inputs.values()),
+            self.input_connected(),
+            self.demo_ready(),
+            self.demo_position,
+            self.demo_jaw,
+            now,
+        )
+        if message:
+            self.ui.log(message, "warn" if rates is None else "info")
+        return self.zero_rates() if rates is None else rates
 
     def connect_controller(self, device_index: int) -> None:
         if self.gamepad is not None or not controller.is_controller(device_index):
@@ -514,6 +590,12 @@ class ArmControllerGamepadApp:
                 continue
             pose = getattr(telemetry, "tcp_pose", None)
             jaw = getattr(telemetry, "parallel_jaw", None)
+            self.demo_position = (
+                None
+                if pose is None
+                else tuple(float(getattr(pose.position, axis)) for axis in ("x", "y", "z"))
+            )
+            self.demo_jaw = None if jaw is None else float(jaw.opening_width)
             self.last_telemetry = {
                 "tcp_pose": None
                 if pose is None
@@ -595,6 +677,7 @@ class ArmControllerGamepadApp:
                         now = time.monotonic()
                         self.process_events()
                         self.rates, self.active_inputs = self.read_controls()
+                        self.rates = self.demo_rates(self.rates, now)
                         if self.status == Device.DeviceStatusKind.ON:
                             self.publish_rates(self.rates)
                         if now >= next_ui_refresh:
