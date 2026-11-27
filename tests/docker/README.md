@@ -10,7 +10,7 @@ applications as end-user runtime containers.
 | Image | Target | Purpose |
 | --- | --- | --- |
 | `medtech-build` | `build` | Ubuntu 24.04 + Connext 7.7.0 + CMake build of C++ modules + security artifacts |
-| `medtech-test` | `test` | Includes Python deps, pytest, and rumdl; no desktop display required |
+| `medtech-test` | `test` | Includes Python deps, pytest, and rumdl |
 
 ## Prerequisites
 

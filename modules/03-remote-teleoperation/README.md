@@ -6,12 +6,6 @@ This module shows how the *ArmController* from [Module 01: Digital Operating Roo
 
 All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
 
-All three WAN deployment scenarios use Module 01's browser interfaces, not native
-windows. The OR-side and controller-side launch commands print and open only
-their selected interfaces; `--no-browser` suppresses automatic tab opening.
-Routing Service and Cloud Discovery Service remain headless, with their existing
-WAN configuration and licensing requirements unchanged.
-
 ## Contents
 
 - [Module Description](#module-description)

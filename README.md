@@ -164,13 +164,6 @@ RTI services remain headless. Scenario names, including the legacy `or-gui` and
 application; use Orchestrator commands or `Ctrl-C` in the launcher terminal.
 Restart the scenario to relaunch a device that has been shut down.
 
-In a cloud IDE, set `MEDTECH_CLOUD=1` and `MEDTECH_CLOUD_URL` to the external IDE
-base URL (including its path). The launcher prints proxied URLs instead of
-opening a server-side browser. Only expose these HTTP interfaces through the
-workspace's authenticated proxy; they do not implement authentication themselves.
-The installed Connext distribution still needs the services/plugins and license
-required by the scenario you select.
-
 ### [Module 01: Digital Operating Room](./modules/01-operating-room/)
 
 ### [Module 02: RTI Recording Service & RTI Replay Service](./modules/02-record-playback/)
