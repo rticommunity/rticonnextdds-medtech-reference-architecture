@@ -1,0 +1,30 @@
+:root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0a0e17; color: #dce5ef; }
+body { margin: 0; }
+header { display: flex; align-items: center; gap: 1.5rem; padding: 1rem 2rem; background: #071020; border-bottom: 2px solid #004c97; }
+header span { color: #53a4f5; font-weight: bold; }
+h1 { flex: 1; font-size: 1.5rem; }
+h2 { color: #74aee8; font-size: 1rem; text-transform: uppercase; }
+main { display: grid; grid-template-columns: 260px minmax(280px, 1fr) minmax(240px, 1fr); gap: 1rem; padding: 1rem; }
+aside, main > section { background: #0f1822; padding: 1rem; border: 1px solid #243447; border-radius: 6px; min-width: 0; }
+button, select { box-sizing: border-box; padding: .7rem; margin: .3rem 0; width: 100%; color: inherit; background: #132234; border: 1px solid #476782; border-radius: 4px; cursor: pointer; }
+button:hover { border-color: #ed8b00; }
+button.active { background: #004c97; border-color: #53a4f5; }
+button:disabled, input:disabled { opacity: .4; cursor: default; }
+label { display: block; margin-top: 1rem; }
+input { width: 100%; }
+#launch { background: #8f2828; }
+#stop { color: #ff7777; }
+#status { padding: .5rem; background: #25384c; border-radius: 4px; }
+#status[data-status="ACCESS GRANTED"], #status[data-status="ATTACKING"] { background: #008742; }
+#status[data-status="NO ACCESS"] { background: #946000; }
+#status[data-status="ATTACK FAILED"] { background: #a52c2c; }
+#error { padding: 1rem; margin: 0; color: #ffb0b0; background: #521d1d; }
+canvas { width: 100%; height: auto; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 65vh; overflow-y: auto; font-size: .75rem; }
+aside p, #patient { color: #9aaec0; font-size: .85rem; }
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.metrics article { padding: .75rem; background: #132234; color: #9ac9eb; }
+.metrics strong { display: block; font-size: 2rem; color: #00e676; }
+[hidden] { display: none !important; }
+@media (max-width: 1000px) { main { grid-template-columns: 240px 1fr; } .log { grid-column: 1 / -1; } }
+@media (max-width: 600px) { main { display: block; } main > * { margin-bottom: 1rem; } header { flex-wrap: wrap; } }

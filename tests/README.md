@@ -65,8 +65,8 @@ Use root-level `pytest` directly for fast iteration and clear output:
 # All tests
 pytest
 
-# With markers to skip slow/gui/secure tests
-pytest -m "not slow and not gui and not secure"
+# With markers to skip slow/secure tests
+pytest -m "not slow and not secure"
 
 # Fast feedback on a single file
 pytest tests/test_config_parsing.py -v
@@ -103,7 +103,7 @@ docker compose -f tests/docker/docker-compose.yml run --rm --build test \
 - Reproducing CI failures in a clean environment
 - Verifying behavior when host dependencies vary
 - Final pre-merge validation
-- Testing GUI components on headless systems (Xvfb included)
+- Testing browser-based applications on systems without a graphical display
 
 ### Markdown and Other Checks
 
@@ -120,19 +120,18 @@ pre-commit run --all-files
 Tests can be filtered using pytest markers. Common markers:
 
 - `@pytest.mark.slow` — Long-running tests (e.g., full application demos)
-- `@pytest.mark.gui` — GUI tests requiring a display
 - `@pytest.mark.secure` — Security tests requiring artifacts and plugins
 
-Run fast tests only (skip slow/GUI/secure):
+Run fast tests only (skip slow/secure):
 
 ```bash
-pytest -m "not slow and not gui and not secure"
+pytest -m "not slow and not secure"
 ```
 
-Run only GUI tests:
+Run browser endpoint and threat command tests:
 
 ```bash
-pytest -m "gui"
+pytest tests/test_web_apps.py tests/test_web_server.py tests/test_threat_web.py
 ```
 
 ## Test Structure

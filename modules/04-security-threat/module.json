@@ -6,7 +6,7 @@
         "RTI_SECURITY_ARTIFACTS_DIR": "${SYSTEM_ARCH}/security"
     },
     "apps": {
-        "ThreatInjector":     ["${PYTHON:ThreatInjector}"],
-        "ThreatExfiltrator":  ["${PYTHON:ThreatExfiltrator}"]
+        "ThreatInjector":     ["${PYTHON:ThreatInjector}", "--port", "8094"],
+        "ThreatExfiltrator":  ["${PYTHON:ThreatExfiltrator}", "--port", "8095"]
     }
 }

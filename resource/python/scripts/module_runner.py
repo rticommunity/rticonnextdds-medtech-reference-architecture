@@ -30,6 +30,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from . import platform_setup
@@ -233,6 +234,7 @@ def _shutdown(children: list[subprocess.Popen]) -> None:
             child.wait(timeout=1)
         except subprocess.TimeoutExpired:
             child.kill()
+            child.wait()
 
 
 def launch(commands: list[list[str]], module_dir: Path, env: dict[str, str]) -> None:
@@ -241,15 +243,7 @@ def launch(commands: list[list[str]], module_dir: Path, env: dict[str, str]) -> 
     All processes are launched concurrently.  ``KeyboardInterrupt``
     triggers a graceful shutdown (SIGTERM, then SIGKILL after 1 s).
     """
-    children: list[subprocess.Popen] = []
-    for cmd in commands:
-        children.append(subprocess.Popen(cmd, env=env, cwd=module_dir))
-
-    try:
-        for child in children:
-            child.wait()
-    except KeyboardInterrupt:
-        _shutdown(children)
+    launch_multi([(commands, module_dir, env)])
 
 
 def launch_multi(
@@ -259,15 +253,28 @@ def launch_multi(
 
     *specs* is a list of ``(commands, module_dir, env)`` tuples — one per
     module.  All processes across all modules are spawned concurrently and
-    ``Ctrl-C`` tears down everything.
+    ``Ctrl-C`` tears down everything. An exited process does not stop the
+    remaining applications.
     """
     children: list[subprocess.Popen] = []
-    for commands, module_dir, env in specs:
-        for cmd in commands:
-            children.append(subprocess.Popen(cmd, env=env, cwd=module_dir))
-
     try:
-        for child in children:
-            child.wait()
-    except KeyboardInterrupt:
+        for commands, module_dir, env in specs:
+            for cmd in commands:
+                children.append(subprocess.Popen(cmd, env=env, cwd=module_dir))
+        while children:
+            running = []
+            for child in children:
+                code = child.poll()
+                if code is None:
+                    running.append(child)
+                elif code != 0:
+                    print(
+                        f"Application exited with code {code}: {child.args}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+            children = running
+            if children:
+                time.sleep(0.1)
+    finally:
         _shutdown(children)

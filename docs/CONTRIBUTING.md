@@ -141,7 +141,7 @@ The pipeline has two CI jobs; `test` runs only after `lint` passes. A conditiona
 | Job | What it does |
 | --- | --- |
 | `lint` (Lint & Format) | Runs **all** pre-commit hooks across the repo (`pre-commit/action` with `--all-files`) — the same ruff, ruff-format, codespell, clang-format, rumdl, and hygiene hooks you run locally. |
-| `test` (Build & Test) | Installs Connext (apt) and Python deps, builds all C++ modules with `python build.py`, generates the system and Module 04 security artifacts, starts Xvfb, then runs the full suite from the repo root with `python -m pytest -v -m "not build_pipeline"` and uploads `results.xml`. |
+| `test` (Build & Test) | Installs Connext (apt) and Python deps, builds all C++ modules with `python build.py`, generates the system and Module 04 security artifacts, then runs the full suite from the repo root with `python -m pytest -v -m "not build_pipeline"` and uploads `results.xml`. |
 | `release` (Publish GitHub Release) | Validates the SemVer tag and publishes generated release notes. Pre-release tags are marked accordingly. |
 
 Because the `lint` job runs `pre-commit` itself, CI and your local hooks execute

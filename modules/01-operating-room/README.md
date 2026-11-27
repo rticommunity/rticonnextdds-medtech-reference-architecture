@@ -2,7 +2,8 @@
 
 Module 01 simulates a Digital Operating Room.
 
-The applications have been tested to work in Debian-based environments with a GUI, including those in [WSL2 with GUI support](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps#install-support-for-linux-gui-apps) (Windows 10 and 11), as well as on macOS.
+The four interactive applications use browser interfaces; Patient Sensor remains
+headless.
 
 All run commands in this README are launched from the repository root. The project-level `launch.py` script is the runtime entrypoint; there is no module-local launcher in this folder.
 
@@ -30,13 +31,13 @@ It has no user interface.
 
 The *Patient Monitor* application's primary function is to subscribe to patient vitals data on Topic `t/Vitals`.
 
-It displays the received patient vital data in a GUI as a live "Patient Monitor Graph" line plot.
+It displays the received patient vital data in a browser as live patient-monitor waveforms.
 
 ### Arm
 
 The *Arm* application's primary function is to simulate a surgical robot with 5 motors: Base, Shoulder, Elbow, Wrist, and Hand. It receives commands on Topic `t/MotorControl` to control the movement of the individual motors.
 
-It displays the motor angles as an "Arm Motor Angles" line plot. This is a very basic representation of the movement of a robotic arm. We've intentionally made it simple to focus on the data transfer.
+It displays motor angles and a robotic-arm visualization in the browser.
 
 ### Arm Controller
 
@@ -84,6 +85,13 @@ python3 launch.py 01-operating-room -s
 1. Set `NDDS_QOS_PROFILES` environment variable to load the appropriate XML configuration files (QoS Profiles, Domains, DomainParticipants).
 
 2. Launch the application executables.
+
+3. Print and open the four browser interfaces (ports 8090-8093). Add
+   `--no-browser` to print the URLs without opening tabs.
+
+Closing a browser tab does not terminate a device. Use the Orchestrator's
+shutdown command or stop the launcher with `Ctrl-C`; restart the scenario to
+relaunch a stopped process.
 
 *Note, applications can be launched individually by name, e.g. `python3 launch.py 01-operating-room Arm PatientMonitor`. Refer to [module.json](./module.json) for the list of available app names and QoS configuration.*
 

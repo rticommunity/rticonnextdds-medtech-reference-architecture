@@ -39,21 +39,10 @@ except ImportError:
 
 _IS_MACOS = sys.platform == "darwin"
 
-# GUI toolkit env overrides for headless/CI execution.
-QT_ENV: dict[str, str] = {"QT_QPA_PLATFORM": "offscreen"}
-GTK_ENV: dict[str, str] = {} if _IS_MACOS else {"GDK_BACKEND": "x11"}
-
 # Timeouts for waiting on processes to become ready.
-NONGUI_PROCESS_WAIT_TIMEOUT = 1.0
-GUI_PROCESS_WAIT_TIMEOUT = 3.0
+HEADLESS_PROCESS_WAIT_TIMEOUT = 1.0
+WEB_PROCESS_WAIT_TIMEOUT = 3.0
 RTISERVICE_PROCESS_WAIT_TIMEOUT = 2.0
-
-
-def has_display() -> bool:
-    """Return True when a graphical display is likely available."""
-    if sys.platform == "darwin":
-        return True
-    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
 def disable_monitoring() -> None:
@@ -253,8 +242,8 @@ def _default_process_timeout(name: str) -> float:
     if "Service" in name:
         return RTISERVICE_PROCESS_WAIT_TIMEOUT
     if name in ("PatientSensor",):
-        return NONGUI_PROCESS_WAIT_TIMEOUT
-    return GUI_PROCESS_WAIT_TIMEOUT
+        return HEADLESS_PROCESS_WAIT_TIMEOUT
+    return WEB_PROCESS_WAIT_TIMEOUT
 
 
 def wait_for_processes_ready(

@@ -17,7 +17,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import signal
 import sys
+import threading
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+import webbrowser
 from pathlib import Path
 
 try:
@@ -77,6 +85,64 @@ def _list_scenarios() -> None:
         print(f"  {name:<{max_name}}  {desc}")
         print(f"  {'':<{max_name}}  -> {modules_str}")
         print()
+
+
+def _web_urls(specs) -> list[tuple[str, str]]:
+    urls = []
+    for commands, _, _ in specs:
+        for command in commands:
+            if "--port" not in command:
+                continue
+            port = int(command[command.index("--port") + 1])
+            if len(command) > 1 and command[1].endswith(".py"):
+                name = Path(command[1]).stem
+            else:
+                name = Path(command[0]).stem
+            urls.append((name, f"http://localhost:{port}/"))
+    return urls
+
+
+def _open_when_ready(url: str, stopped: threading.Event) -> None:
+    deadline = time.monotonic() + 30
+    while not stopped.is_set() and time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(url + "api/state", timeout=1) as response:
+                ready = response.status == 200
+        except (OSError, urllib.error.URLError):
+            ready = False
+        if ready:
+            if not stopped.is_set() and not webbrowser.open_new_tab(url):
+                print(f"Could not open a browser; open {url} manually.", file=sys.stderr)
+            return
+        stopped.wait(0.25)
+    if not stopped.is_set():
+        print(f"Web UI did not become ready: {url}", file=sys.stderr)
+
+
+def _launch_specs(specs, *, no_browser: bool) -> None:
+    stopped = threading.Event()
+    cloud = os.environ.get("MEDTECH_CLOUD") == "1"
+    base_url = os.environ.get("MEDTECH_CLOUD_URL", "").rstrip("/")
+    for name, url in _web_urls(specs):
+        display_url = url
+        if cloud and base_url:
+            port = urllib.parse.urlsplit(url).port
+            display_url = f"{base_url}/proxy/{port}/"
+        print(f"{name}: {display_url}", flush=True)
+        if not no_browser and not cloud:
+            threading.Thread(target=_open_when_ready, args=(url, stopped), daemon=True).start()
+    previous_handler = signal.signal(signal.SIGTERM, _interrupt_launch)
+    try:
+        module_runner.launch_multi(specs)
+    except KeyboardInterrupt:
+        print("\nStopping scenario applications.")
+    finally:
+        stopped.set()
+        signal.signal(signal.SIGTERM, previous_handler)
+
+
+def _interrupt_launch(_signum, _frame):
+    raise KeyboardInterrupt
 
 
 def _complete_apps(prefix, parsed_args, **kwargs):
@@ -142,6 +208,11 @@ def main() -> None:
         action="store_true",
         help="Launch with Security enabled.",
     )
+    parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Print browser UI URLs without opening tabs (all interfaces remain web-based).",
+    )
 
     if argcomplete:
         argcomplete.autocomplete(parser)
@@ -161,13 +232,13 @@ def main() -> None:
                 parser.error(f"Scenario references unknown module '{module_name}'")
             cmds, mod_dir, env = _resolve_module(module_name, app_names, args.security)
             specs.append((cmds, mod_dir, env))
-        module_runner.launch_multi(specs)
+        _launch_specs(specs, no_browser=args.no_browser)
 
     elif args.module:
         cmds, mod_dir, env = _resolve_module(args.module, args.apps or None, args.security)
         app_label = ", ".join(args.apps) if args.apps else "all"
         print(f"Launching from {args.module}: {app_label}")
-        module_runner.launch(cmds, mod_dir, env)
+        _launch_specs([(cmds, mod_dir, env)], no_browser=args.no_browser)
 
     else:
         parser.error("Specify a module or --scenario")

@@ -6,13 +6,13 @@
         ]
     },
     "or-gui": {
-        "description": "Operating room GUI apps only (Arm + PatientMonitor)",
+        "description": "Operating room visualization web apps (Arm + PatientMonitor)",
         "modules": [
             ["01-operating-room", ["Arm", "PatientMonitor"]]
         ]
     },
     "or-headless": {
-        "description": "Operating room headless apps (ArmController, Orchestrator, PatientSensor)",
+        "description": "Operating room control web apps + headless PatientSensor",
         "modules": [
             ["01-operating-room", ["ArmController", "Orchestrator", "PatientSensor"]]
         ]
@@ -25,7 +25,7 @@
         ]
     },
     "replay": {
-        "description": "Replay recorded data to GUI apps",
+        "description": "Replay recorded data to browser-based visualization apps",
         "modules": [
             ["02-record-playback", ["ReplayService"]],
             ["01-operating-room", ["Arm", "PatientMonitor"]]

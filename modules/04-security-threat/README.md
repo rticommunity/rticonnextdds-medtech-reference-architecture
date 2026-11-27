@@ -18,13 +18,16 @@ All run commands in this README are launched from the repository root. The proje
 
 ## Module Description
 
-Two Python GUI applications simulate different real-world attack scenarios against the operating room DDS bus.
+Two Python applications with browser interfaces simulate different attack
+scenarios against the operating room DDS bus. Threat Injector listens on port
+8094 and Threat Exfiltrator on port 8095. The launcher prints and opens these
+URLs; use `--no-browser` to print them only.
 
 ### Threat Injector
 
 ![Threat Injector Example](../../resource/images/module-04-threat-injector-example.png)
 
-The *Threat Injector* application publishes fabricated commands on Topics `t/MotorControl` and `t/DeviceCommand`, simulating an attacker attempting to disrupt the surgical arm or seize device control. It provides a GUI to select:
+The *Threat Injector* application publishes fabricated commands on Topics `t/MotorControl` and `t/DeviceCommand`, simulating an attacker attempting to disrupt the surgical arm or seize device control. It provides a browser interface to select:
 
 - **Attack Mode**. Each of these modes affects whether the DDS Security handshake succeeds or fails. See [Understanding Why Each Attack Is Blocked](#2-understanding-why-each-attack-is-blocked) to understand why the handshake and the attack can fail:
   - Unsecure
