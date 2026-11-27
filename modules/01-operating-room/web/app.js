@@ -12,7 +12,7 @@ const DEVICE_LABELS = {
 
 const DEVICE_ORDER = new Map(Object.keys(DEVICE_LABELS).map((id, index) => [id, index]));
 
-const POLL_INTERVAL_MS = 250;
+const POLL_INTERVAL_MS = 100;
 
 let selectedDevice = null;
 let lastAlertText = "";
@@ -25,6 +25,7 @@ const startingDevices = new Map();
 const pendingCommands = new Set();
 const commandErrors = new Map();
 const deviceStatuses = new Map();
+const deviceCards = new Map();
 const stoppingDevices = new Set();
 
 const devicesEl = document.getElementById("devices");
@@ -87,33 +88,53 @@ function statusClass(status) {
     return "status-off";
 }
 
+function createDeviceCard(id) {
+    const card = document.createElement("div");
+    card.className = "device-card";
+    card.dataset.deviceId = id;
+
+    const name = document.createElement("div");
+    name.className = "device-name";
+    name.textContent = DEVICE_LABELS[id] || id;
+
+    const badge = document.createElement("span");
+    card.appendChild(name);
+    card.appendChild(badge);
+    card.addEventListener("click", () => selectDevice(id));
+    return { card, badge };
+}
+
 function renderDevices(devices) {
-    devicesEl.innerHTML = "";
     const orderedDevices = [...devices].sort((left, right) =>
         (DEVICE_ORDER.get(left.id) ?? DEVICE_ORDER.size) - (DEVICE_ORDER.get(right.id) ?? DEVICE_ORDER.size));
-    orderedDevices.forEach((device) => {
+    const visibleIds = new Set(devices.map(device => device.id));
+    for (const [id, { card }] of deviceCards) {
+        if (!visibleIds.has(id)) {
+            devicesEl.removeChild(card);
+            deviceCards.delete(id);
+        }
+    }
+
+    // Keep existing click targets attached across state polls.
+    orderedDevices.forEach((device, index) => {
         deviceStatuses.set(device.id, device.status);
         const deadline = startingDevices.get(device.id);
         if (deadline && (device.status.includes("ON") || device.status.includes("PAUSED") || Date.now() > deadline)) {
             startingDevices.delete(device.id);
             if (Date.now() > deadline) commandErrors.set(device.id, "Device startup timed out");
         }
-        const card = document.createElement("div");
-        card.className = "device-card" + (device.id === selectedDevice ? " selected" : "");
-        card.dataset.deviceId = device.id;
-
-        const name = document.createElement("div");
-        name.className = "device-name";
-        name.textContent = DEVICE_LABELS[device.id] || device.id;
-
-        const status = document.createElement("span");
-        status.className = "status-badge " + (startingDevices.has(device.id) ? "status-paused" : statusClass(device.status));
-        status.textContent = startingDevices.has(device.id) ? "STARTING" : device.status;
-
-        card.appendChild(name);
-        card.appendChild(status);
-        card.addEventListener("click", () => selectDevice(device.id));
-        devicesEl.appendChild(card);
+        if (!deviceCards.has(device.id)) deviceCards.set(device.id, createDeviceCard(device.id));
+        const { card, badge } = deviceCards.get(device.id);
+        card.classList.toggle("selected", device.id === selectedDevice);
+        const starting = startingDevices.has(device.id);
+        const status = starting ? "STARTING" : device.status;
+        if (badge.textContent !== status) {
+            badge.textContent = status;
+            badge.className = "status-badge " + (starting ? "status-paused" : statusClass(device.status));
+        }
+        if (devicesEl.children[index] !== card) {
+            devicesEl.insertBefore(card, devicesEl.children[index] || null);
+        }
     });
     updateCommands();
 }
@@ -121,9 +142,9 @@ function renderDevices(devices) {
 function selectDevice(deviceId) {
     selectedDevice = deviceId;
     selectedDeviceEl.textContent = DEVICE_LABELS[deviceId] || deviceId;
-    document.querySelectorAll(".device-card").forEach((card) => {
-        card.classList.toggle("selected", card.dataset.deviceId === deviceId);
-    });
+    for (const [id, { card }] of deviceCards) {
+        card.classList.toggle("selected", id === deviceId);
+    }
     updateCommands();
 }
 

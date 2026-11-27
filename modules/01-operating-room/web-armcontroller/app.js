@@ -10,7 +10,7 @@ const MOTOR_NAMES = {
 };
 const MOTOR_ORDER = ["BASE", "SHOULDER", "ELBOW", "WRIST", "HAND"];
 
-const POLL_INTERVAL_MS = 500;
+const POLL_INTERVAL_MS = 100;
 const JOG_REPEAT_MS = 50;
 
 let lastAlertText = "";

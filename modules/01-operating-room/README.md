@@ -120,6 +120,8 @@ The module uses a 200 ms ***Deadline QoS*** period for DataWriters and DataReade
 DeviceType::PATIENT_MONITOR  is no longer sending heartbeats. Updating Status to OFF.
 ```
 
+Each of the four web UIs waits 100 ms after its HTTP state poll finishes before polling again. For Orchestrator, this affects how quickly the browser displays the alert, not when DDS detects the missed deadline.
+
 Let's try testing how modifying QoS Profiles can adjust system behavior without modifying any application logic.
 
 1. Kill all active operating room applications.

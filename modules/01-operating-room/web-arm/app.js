@@ -10,7 +10,7 @@ const JOINT_COLORS = {
     HAND: "#DA70D6",
 };
 
-const POLL_INTERVAL_MS = 150;
+const POLL_INTERVAL_MS = 100;
 
 const jointsEl = document.getElementById("joints");
 const statusEl = document.getElementById("device-status");

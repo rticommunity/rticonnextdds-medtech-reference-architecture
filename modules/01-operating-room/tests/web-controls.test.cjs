@@ -16,7 +16,14 @@ function loadApp(directory) {
         dataset: {},
         events: {},
         classList: new Set(),
+        set innerHTML(_html) { this.children.length = 0; },
         appendChild(child) { this.children.push(child); },
+        insertBefore(child, reference) {
+            if (this.children.includes(child)) this.removeChild(child);
+            if (reference) this.children.splice(this.children.indexOf(reference), 0, child);
+            else this.appendChild(child);
+        },
+        removeChild(child) { this.children.splice(this.children.indexOf(child), 1); },
         addEventListener(event, callback) { this.events[event] = callback; },
         setAttribute(name, value) { this.attributes[name] = value; },
         getContext() { return {}; },
@@ -66,19 +73,43 @@ function loadApp(directory) {
 const settle = () => new Promise(resolve => setImmediate(resolve));
 const motorState = playing => ({ status: "ON", motors: [{ id: "BASE", playing }] });
 
-for (const [directory, delay] of [["web", 250], ["web-arm", 150], ["web-armcontroller", 500], ["web-patientmonitor", 500]]) {
+for (const directory of ["web", "web-arm", "web-armcontroller", "web-patientmonitor"]) {
     test(`${directory}: a slow poll cannot queue another poll`, async () => {
         const app = loadApp(directory);
         assert.equal(app.requests.length, 1);
         assert.equal(app.timers.size, 0);
         app.requests[0].respond({}, 503);
         await settle();
-        assert.equal([...app.timers.values()][0].delay, delay);
+        assert.equal([...app.timers.values()][0].delay, 100);
         app.fireTimer();
         assert.equal(app.requests.length, 2);
         assert.equal(app.timers.size, 0);
     });
 }
+
+test("Orchestrator displays a missed-heartbeat alert on the next state response", async () => {
+    const app = loadApp("web");
+    const device = status => ({ id: "PATIENT_MONITOR", status });
+    app.requests[0].respond({ devices: [device("ON")] });
+    await settle();
+    const card = app.get("devices").children[0];
+    const badge = card.children[1];
+    assert.equal(badge.textContent, "ON");
+
+    app.fireTimer();
+    app.requests[1].respond({
+        devices: [device("OFF")],
+        alerts: ["PATIENT_MONITOR is no longer sending heartbeats. Updating Status to OFF."],
+    });
+    await settle();
+    assert.equal(app.get("devices").children[0], card, "polling must not replace the target of an in-progress click");
+    assert.equal(card.children[1], badge);
+    assert.equal(badge.textContent, "OFF");
+    assert.match(app.get("alerts").textContent, /no longer sending heartbeats/);
+    card.events.click();
+    assert.equal(app.get("selected-device").textContent, "Patient Monitor");
+    assert.equal(app.get("btn-start").disabled, false);
+});
 
 test("AUTO keeps confirmed state and ignores a poll started before the acknowledgement", async () => {
     const app = loadApp("web-armcontroller");

@@ -2,7 +2,7 @@
 // synthetic ECG/plethysmograph/capnography waveforms client-side,
 // driven by the live vitals values.
 
-const POLL_INTERVAL_MS = 500;
+const POLL_INTERVAL_MS = 100;
 const SAMPLE_RATE = 200; // samples/sec in the waveform buffer
 const DISPLAY_SECS = 6;
 const BUFFER_LEN = SAMPLE_RATE * DISPLAY_SECS;
